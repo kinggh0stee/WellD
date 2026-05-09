@@ -20,12 +20,13 @@ void app_main(void)
 
     float level_m = sensor_read_level();
 
-    if (wifi_connect()) {
+    bool connected = wifi_connect();
+    if (connected) {
         mqtt_publish_level(level_m);
-        wifi_disconnect();
     } else {
         ESP_LOGE(TAG, "skipping publish — no WiFi");
     }
+    wifi_disconnect();
 
     ESP_LOGI(TAG, "sleeping %d s", CONFIG_WELLD_SLEEP_DURATION_SEC);
     esp_deep_sleep((uint64_t)CONFIG_WELLD_SLEEP_DURATION_SEC * 1000000ULL);
