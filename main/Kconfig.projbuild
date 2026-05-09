@@ -1,0 +1,41 @@
+menu "WellD Configuration"
+
+    config WELLD_WIFI_SSID
+        string "WiFi SSID"
+        default "myssid"
+
+    config WELLD_WIFI_PASSWORD
+        string "WiFi Password"
+        default "mypassword"
+
+    config WELLD_MQTT_BROKER_URL
+        string "MQTT Broker URL"
+        default "mqtt://192.168.1.1"
+
+    config WELLD_MQTT_TOPIC_PREFIX
+        string "MQTT Topic Prefix"
+        default "welld"
+
+    config WELLD_SLEEP_DURATION_SEC
+        int "Deep sleep duration (seconds)"
+        default 300
+        range 30 3600
+
+    config WELLD_SENSOR_ADC_CHANNEL
+        int "ADC1 channel for 4-20 mA sensor"
+        default 0
+        range 0 6
+
+    config WELLD_SENSOR_SHUNT_MILLIOHMS
+        int "Shunt resistor value (milliohms)"
+        default 100000
+        help
+            Value in milliohms. 100000 = 100 Ω → 4 mA gives 0.40 V, 20 mA gives 2.00 V.
+
+    config WELLD_SENSOR_MAX_DEPTH_CM
+        int "Maximum well depth (centimeters)"
+        default 600
+        help
+            Depth at 20 mA (full-scale output of the transducer). 600 = 6 m.
+
+endmenu
