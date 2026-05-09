@@ -11,11 +11,19 @@ static const char *TAG = "zigbee";
 #define SEND_DELAY_MS    2000
 #define TOTAL_TIMEOUT_MS 25000
 
-#define SENT_BIT BIT0
-#define FAIL_BIT BIT1
+#define SENT_BIT    BIT0
+#define FAIL_BIT    BIT1
+#define STOPPED_BIT BIT2
 
 static EventGroupHandle_t s_events;
 static float s_level_m;
+
+static void zb_timeout_alarm(uint8_t param)
+{
+    ESP_LOGE(TAG, "timeout — no coordinator found");
+    xEventGroupSetBits(s_events, FAIL_BIT);
+    esp_zb_stop();
+}
 
 static void zb_finish_alarm(uint8_t param)
 {
@@ -120,7 +128,9 @@ static void zb_task(void *pvParameters)
 
     esp_zb_set_primary_network_channel_set(ESP_ZB_TRANSCEIVER_ALL_CHANNELS_MASK);
     ESP_ERROR_CHECK(esp_zb_start(false));
+    esp_zb_scheduler_alarm(zb_timeout_alarm, 0, TOTAL_TIMEOUT_MS);
     esp_zb_main_loop_iteration();
+    xEventGroupSetBits(s_events, STOPPED_BIT);
     vTaskDelete(NULL);
 }
 
@@ -137,7 +147,10 @@ bool zigbee_send_level(float level_m)
 
     EventBits_t bits = xEventGroupWaitBits(s_events, SENT_BIT | FAIL_BIT,
                                            pdFALSE, pdFALSE,
-                                           pdMS_TO_TICKS(TOTAL_TIMEOUT_MS));
+                                           pdMS_TO_TICKS(TOTAL_TIMEOUT_MS + 5000));
+    /* Wait for the task to exit so the 802.15.4 radio is released before
+       the caller can start WiFi on the same antenna. */
+    xEventGroupWaitBits(s_events, STOPPED_BIT, pdFALSE, pdFALSE, pdMS_TO_TICKS(5000));
     vEventGroupDelete(s_events);
     return (bits & SENT_BIT) != 0;
 }
