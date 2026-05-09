@@ -12,6 +12,14 @@ menu "WellD Configuration"
         string "MQTT Broker URL"
         default "mqtt://192.168.1.1"
 
+    config WELLD_MQTT_USERNAME
+        string "MQTT Username"
+        default ""
+
+    config WELLD_MQTT_PASSWORD
+        string "MQTT Password"
+        default ""
+
     config WELLD_MQTT_TOPIC_PREFIX
         string "MQTT Topic Prefix"
         default "welld"

@@ -28,7 +28,9 @@ void mqtt_publish_level(float level_m)
     s_events = xEventGroupCreate();
 
     esp_mqtt_client_config_t cfg = {
-        .broker.address.uri = CONFIG_WELLD_MQTT_BROKER_URL,
+        .broker.address.uri              = CONFIG_WELLD_MQTT_BROKER_URL,
+        .credentials.username            = CONFIG_WELLD_MQTT_USERNAME,
+        .credentials.authentication.password = CONFIG_WELLD_MQTT_PASSWORD,
     };
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&cfg);
     ESP_ERROR_CHECK(esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID,
