@@ -27,7 +27,6 @@ float sensor_read_level(void)
     };
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_hdl, ADC_CHANNEL, &ch_cfg));
 
-    /* Curve-fitting calibration (supported on ESP32-C6) */
     adc_cali_handle_t cali_hdl = NULL;
     bool calibrated = false;
 #if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED

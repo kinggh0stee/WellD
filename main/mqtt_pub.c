@@ -8,6 +8,7 @@
 
 static const char *TAG = "mqtt";
 #define CONNECTED_BIT BIT0
+#define FAIL_BIT      BIT1
 
 static EventGroupHandle_t s_events;
 
@@ -18,6 +19,7 @@ static void on_mqtt(void *arg, esp_event_base_t base, int32_t id, void *data)
     } else if (id == MQTT_EVENT_ERROR) {
         esp_mqtt_event_handle_t ev = data;
         ESP_LOGE(TAG, "error type=%d", ev->error_handle->error_type);
+        xEventGroupSetBits(s_events, FAIL_BIT);
     }
 }
 
@@ -33,7 +35,7 @@ void mqtt_publish_level(float level_m)
                                                    on_mqtt, NULL));
     ESP_ERROR_CHECK(esp_mqtt_client_start(client));
 
-    EventBits_t bits = xEventGroupWaitBits(s_events, CONNECTED_BIT,
+    EventBits_t bits = xEventGroupWaitBits(s_events, CONNECTED_BIT | FAIL_BIT,
                                            pdFALSE, pdFALSE,
                                            pdMS_TO_TICKS(10000));
     if (bits & CONNECTED_BIT) {
