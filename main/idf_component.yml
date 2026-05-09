@@ -1,4 +1,2 @@
 dependencies:
-  idf:
-    version: '>=5.0.0'
-  espressif/mqtt: ^1.0.0
+  idf: '>=5.0.0'
