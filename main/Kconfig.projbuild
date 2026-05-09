@@ -22,4 +22,46 @@ menu "WellD Configuration"
         help
             Depth at 20 mA (full-scale output of the transducer). 600 = 6 m.
 
+    config WELLD_BATT_ADC_CHANNEL
+        int "ADC1 channel for battery voltage (set to -1 to disable)"
+        default -1
+        range -1 6
+        help
+            ADC1 channel wired to the battery via a resistor divider.
+            Set to -1 to disable battery monitoring.
+
+    config WELLD_BATT_DIVIDER_RATIO
+        int "Battery divider ratio * 100 (e.g. 200 = 2:1 divider)"
+        default 200
+        range 100 1000
+        depends on WELLD_BATT_ADC_CHANNEL >= 0
+        help
+            If your divider halves the voltage (R1=R2), enter 200 (2.00x).
+            Reported voltage = ADC voltage * ratio / 100.
+
+    config WELLD_DS18B20_GPIO
+        int "GPIO number for DS18B20 data line"
+        default 4
+        range 0 21
+        help
+            GPIO connected to the DS18B20 data pin via a 4.7 kΩ pull-up to 3.3 V.
+
+    config WELLD_ZIGBEE_CHANNEL_MASK
+        hex "Zigbee channel mask"
+        default 0x07FFF800
+        help
+            Bitmask of channels to scan during network steering.
+            0x07FFF800 = all 2.4 GHz channels (11-26).
+            Single channel examples: ch11=0x00000800, ch15=0x00008000,
+            ch20=0x00100000, ch25=0x02000000.
+
+    config WELLD_ZIGBEE_SEND_DELAY_MS
+        int "Post-send delay before sleeping (ms)"
+        default 2000
+        range 500 5000
+        help
+            Time the Zigbee stack stays alive after sending the report,
+            giving the coordinator time to acknowledge. Reduce to save
+            battery; increase on slow or congested networks.
+
 endmenu
