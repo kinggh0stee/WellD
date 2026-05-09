@@ -1,9 +1,10 @@
 # Copy this file to sdkconfig.defaults.local and fill in your values.
 # sdkconfig.defaults.local is gitignored — credentials never touch git.
 
-CONFIG_WELLD_WIFI_SSID="your_ssid"
-CONFIG_WELLD_WIFI_PASSWORD="your_wifi_password"
+# Sensor
+# CONFIG_WELLD_SENSOR_ADC_CHANNEL=0
+# CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS=100000
+# CONFIG_WELLD_SENSOR_MAX_DEPTH_CM=600
 
-CONFIG_WELLD_MQTT_BROKER_URL="mqtt://192.168.1.1"
-CONFIG_WELLD_MQTT_USERNAME="welld"
-CONFIG_WELLD_MQTT_PASSWORD="your_mqtt_password"
+# Sleep interval
+# CONFIG_WELLD_SLEEP_DURATION_SEC=300

@@ -1,29 +1,5 @@
 menu "WellD Configuration"
 
-    config WELLD_WIFI_SSID
-        string "WiFi SSID"
-        default "myssid"
-
-    config WELLD_WIFI_PASSWORD
-        string "WiFi Password"
-        default "mypassword"
-
-    config WELLD_MQTT_BROKER_URL
-        string "MQTT Broker URL"
-        default "mqtt://192.168.1.1"
-
-    config WELLD_MQTT_USERNAME
-        string "MQTT Username"
-        default ""
-
-    config WELLD_MQTT_PASSWORD
-        string "MQTT Password"
-        default ""
-
-    config WELLD_MQTT_TOPIC_PREFIX
-        string "MQTT Topic Prefix"
-        default "welld"
-
     config WELLD_SLEEP_DURATION_SEC
         int "Deep sleep duration (seconds)"
         default 300
