@@ -4,19 +4,28 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
+#include "sdkconfig.h"
 
 static const char *TAG = "zigbee";
 
-#define ZB_ENDPOINT      1
-#define SEND_DELAY_MS    2000
+#define EP_LEVEL         1
+#define EP_BATTERY       2
+#define EP_TEMPERATURE   3
+#define SEND_DELAY_MS    CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS
 #define TOTAL_TIMEOUT_MS 25000
 
 #define SENT_BIT    BIT0
 #define FAIL_BIT    BIT1
 #define STOPPED_BIT BIT2
 
+/* ZCL character strings: first byte is length, no null terminator */
+static char s_manufacturer[] = "\x05WellD";
+static char s_model[]        = "\x08WellD-v1";
+
 static EventGroupHandle_t s_events;
 static float s_level_m;
+static float s_battery_v;
+static float s_temperature_c;
 
 static void zb_timeout_alarm(uint8_t param)
 {
@@ -31,9 +40,10 @@ static void zb_finish_alarm(uint8_t param)
     esp_zb_stop();
 }
 
-static void send_report(void)
+static void send_reports(void)
 {
-    esp_zb_zcl_set_attribute_val(ZB_ENDPOINT,
+    /* Water level — Analog Input cluster, endpoint 1 */
+    esp_zb_zcl_set_attribute_val(EP_LEVEL,
         ESP_ZB_ZCL_CLUSTER_ID_ANALOG_INPUT, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
         ESP_ZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID, &s_level_m, false);
 
@@ -41,7 +51,7 @@ static void send_report(void)
         .zcl_basic_cmd = {
             .dst_addr_u.addr_short = 0x0000,
             .dst_endpoint          = 1,
-            .src_endpoint          = ZB_ENDPOINT,
+            .src_endpoint          = EP_LEVEL,
         },
         .address_mode = ESP_ZB_APS_ADDR_MODE_16_ENDP_PRESENT,
         .clusterID    = ESP_ZB_ZCL_CLUSTER_ID_ANALOG_INPUT,
@@ -49,6 +59,39 @@ static void send_report(void)
         .direction    = ESP_ZB_ZCL_CMD_DIRECTION_TO_CLI,
     };
     esp_zb_zcl_report_attr_cmd_req(&report);
+
+#if CONFIG_WELLD_BATT_ADC_CHANNEL >= 0
+    /* Battery voltage — Analog Input cluster, endpoint 2 */
+    if (s_battery_v >= 0.0f) {
+        esp_zb_zcl_set_attribute_val(EP_BATTERY,
+            ESP_ZB_ZCL_CLUSTER_ID_ANALOG_INPUT, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+            ESP_ZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID, &s_battery_v, false);
+        report.zcl_basic_cmd.src_endpoint = EP_BATTERY;
+        esp_zb_zcl_report_attr_cmd_req(&report);
+    }
+#endif
+
+    /* Temperature — Temperature Measurement cluster (0x0402), endpoint 3 */
+    if (s_temperature_c > -127.0f) {
+        int16_t temp_zb = (int16_t)(s_temperature_c * 100.0f);
+        esp_zb_zcl_set_attribute_val(EP_TEMPERATURE,
+            ESP_ZB_ZCL_CLUSTER_ID_TEMP_MEASUREMENT, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+            ESP_ZB_ZCL_ATTR_TEMP_MEASUREMENT_VALUE_ID, &temp_zb, false);
+
+        esp_zb_zcl_report_attr_cmd_t temp_report = {
+            .zcl_basic_cmd = {
+                .dst_addr_u.addr_short = 0x0000,
+                .dst_endpoint          = 1,
+                .src_endpoint          = EP_TEMPERATURE,
+            },
+            .address_mode = ESP_ZB_APS_ADDR_MODE_16_ENDP_PRESENT,
+            .clusterID    = ESP_ZB_ZCL_CLUSTER_ID_TEMP_MEASUREMENT,
+            .attributeID  = ESP_ZB_ZCL_ATTR_TEMP_MEASUREMENT_VALUE_ID,
+            .direction    = ESP_ZB_ZCL_CMD_DIRECTION_TO_CLI,
+        };
+        esp_zb_zcl_report_attr_cmd_req(&temp_report);
+    }
+
     esp_zb_scheduler_alarm(zb_finish_alarm, 0, SEND_DELAY_MS);
 }
 
@@ -74,8 +117,9 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
         break;
     case ESP_ZB_BDB_SIGNAL_STEERING:
         if (err_status == ESP_OK) {
-            ESP_LOGI(TAG, "joined; reporting %.2f m", s_level_m);
-            send_report();
+            ESP_LOGI(TAG, "joined; reporting level=%.2f m battery=%.2f V temp=%.1f °C",
+                     s_level_m, s_battery_v, s_temperature_c);
+            send_reports();
         } else {
             ESP_LOGE(TAG, "steering failed (err=%d)", err_status);
             xEventGroupSetBits(s_events, FAIL_BIT);
@@ -85,6 +129,16 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
     default:
         break;
     }
+}
+
+static esp_zb_attribute_list_t *make_ai_cluster(float initial_value)
+{
+    esp_zb_analog_input_cluster_cfg_t cfg = {
+        .out_of_service = 0,
+        .present_value  = initial_value,
+        .status_flags   = 0,
+    };
+    return esp_zb_analog_input_cluster_create(&cfg);
 }
 
 static void zb_task(void *pvParameters)
@@ -99,15 +153,13 @@ static void zb_task(void *pvParameters)
         .esp_zb_role         = ESP_ZB_DEVICE_TYPE_ED,
         .install_code_policy = false,
         .nwk_cfg.zed_cfg = {
-            .ed_timeout = ESP_ZB_ED_AGING_TIMEOUT_64MIN,
+            .ed_timeout = ESP_ZB_ED_AGING_TIMEOUT_256MIN,
             .keep_alive = 3000,
         },
     };
     esp_zb_init(&nwk_cfg);
 
-    /* ZCL character strings: first byte is length, no null terminator */
-    static char s_manufacturer[] = "\x05WellD";
-    static char s_model[]        = "\x08WellD-v1";
+    /* Basic cluster with device identity */
     esp_zb_basic_cluster_cfg_t basic_cfg = {
         .zcl_version = ESP_ZB_ZCL_BASIC_ZCL_VERSION_DEFAULT_VALUE,
         .power_source = 0x03,  /* battery */
@@ -118,30 +170,50 @@ static void zb_task(void *pvParameters)
     esp_zb_basic_cluster_add_attr(basic_attrs,
         ESP_ZB_ZCL_ATTR_BASIC_MODEL_IDENTIFIER_ID,  s_model);
 
-    esp_zb_analog_input_cluster_cfg_t ai_cfg = {
-        .out_of_service = 0,
-        .present_value  = s_level_m,
-        .status_flags   = 0,
-    };
-    esp_zb_attribute_list_t *ai_attrs = esp_zb_analog_input_cluster_create(&ai_cfg);
-
-    esp_zb_cluster_list_t *clusters = esp_zb_zcl_cluster_list_create();
-    ESP_ERROR_CHECK(esp_zb_cluster_list_add_basic_cluster(clusters, basic_attrs,
-                                                          ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
-    ESP_ERROR_CHECK(esp_zb_cluster_list_add_analog_input_cluster(clusters, ai_attrs,
-                                                                  ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
-
     esp_zb_ep_list_t *ep_list = esp_zb_ep_list_create();
     esp_zb_endpoint_config_t ep_cfg = {
-        .endpoint           = ZB_ENDPOINT,
         .app_profile_id     = ESP_ZB_AF_HA_PROFILE_ID,
         .app_device_id      = ESP_ZB_HA_SIMPLE_SENSOR_DEVICE_ID,
         .app_device_version = 0,
     };
-    ESP_ERROR_CHECK(esp_zb_ep_list_add_ep(ep_list, clusters, ep_cfg));
+
+    /* Endpoint 1 — water level (Analog Input) */
+    esp_zb_cluster_list_t *level_clusters = esp_zb_zcl_cluster_list_create();
+    ESP_ERROR_CHECK(esp_zb_cluster_list_add_basic_cluster(level_clusters, basic_attrs,
+                                                          ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
+    ESP_ERROR_CHECK(esp_zb_cluster_list_add_analog_input_cluster(level_clusters,
+                                                                  make_ai_cluster(s_level_m),
+                                                                  ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
+    ep_cfg.endpoint = EP_LEVEL;
+    ESP_ERROR_CHECK(esp_zb_ep_list_add_ep(ep_list, level_clusters, ep_cfg));
+
+#if CONFIG_WELLD_BATT_ADC_CHANNEL >= 0
+    /* Endpoint 2 — battery voltage (Analog Input) */
+    esp_zb_cluster_list_t *batt_clusters = esp_zb_zcl_cluster_list_create();
+    ESP_ERROR_CHECK(esp_zb_cluster_list_add_analog_input_cluster(batt_clusters,
+                                                                  make_ai_cluster(s_battery_v),
+                                                                  ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
+    ep_cfg.endpoint = EP_BATTERY;
+    ESP_ERROR_CHECK(esp_zb_ep_list_add_ep(ep_list, batt_clusters, ep_cfg));
+#endif
+
+    /* Endpoint 3 — water temperature (Temperature Measurement, 0x0402) */
+    int16_t temp_zb = (s_temperature_c > -127.0f) ? (int16_t)(s_temperature_c * 100.0f) : 0x8000;
+    esp_zb_temperature_meas_cluster_cfg_t temp_cfg = {
+        .measured_value = temp_zb,
+        .min_value      = -4000,   /* -40.00 °C */
+        .max_value      =  12500,  /* 125.00 °C */
+    };
+    esp_zb_cluster_list_t *temp_clusters = esp_zb_zcl_cluster_list_create();
+    ESP_ERROR_CHECK(esp_zb_cluster_list_add_temperature_meas_cluster(temp_clusters,
+                                                                      esp_zb_temperature_meas_cluster_create(&temp_cfg),
+                                                                      ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
+    ep_cfg.endpoint = EP_TEMPERATURE;
+    ESP_ERROR_CHECK(esp_zb_ep_list_add_ep(ep_list, temp_clusters, ep_cfg));
+
     esp_zb_device_register(ep_list);
 
-    esp_zb_set_primary_network_channel_set(ESP_ZB_TRANSCEIVER_ALL_CHANNELS_MASK);
+    esp_zb_set_primary_network_channel_set(CONFIG_WELLD_ZIGBEE_CHANNEL_MASK);
     ESP_ERROR_CHECK(esp_zb_start(false));
     esp_zb_scheduler_alarm(zb_timeout_alarm, 0, TOTAL_TIMEOUT_MS);
     esp_zb_main_loop_iteration();
@@ -149,10 +221,12 @@ static void zb_task(void *pvParameters)
     vTaskDelete(NULL);
 }
 
-bool zigbee_send_level(float level_m)
+bool zigbee_send(float level_m, float battery_v, float temperature_c)
 {
-    s_level_m = level_m;
-    s_events  = xEventGroupCreate();
+    s_level_m      = level_m;
+    s_battery_v    = battery_v;
+    s_temperature_c = temperature_c;
+    s_events       = xEventGroupCreate();
 
     if (xTaskCreate(zb_task, "zb_task", 8192, NULL, 5, NULL) != pdPASS) {
         ESP_LOGE(TAG, "failed to create Zigbee task");
@@ -163,8 +237,7 @@ bool zigbee_send_level(float level_m)
     EventBits_t bits = xEventGroupWaitBits(s_events, SENT_BIT | FAIL_BIT,
                                            pdFALSE, pdFALSE,
                                            pdMS_TO_TICKS(TOTAL_TIMEOUT_MS + 5000));
-    /* Wait for the task to exit so the 802.15.4 radio is released before
-       the caller can start WiFi on the same antenna. */
+    /* wait for the radio to be released before entering deep sleep */
     xEventGroupWaitBits(s_events, STOPPED_BIT, pdFALSE, pdFALSE, pdMS_TO_TICKS(5000));
     vEventGroupDelete(s_events);
     return (bits & SENT_BIT) != 0;

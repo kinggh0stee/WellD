@@ -17,8 +17,10 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
-    float level_m = sensor_read_level();
-    zigbee_send_level(level_m);
+    float level_m       = sensor_read_level();
+    float battery_v     = sensor_read_battery_v();
+    float temperature_c = sensor_read_temperature();
+    zigbee_send(level_m, battery_v, temperature_c);
 
     ESP_LOGI(TAG, "sleeping %d s", CONFIG_WELLD_SLEEP_DURATION_SEC);
     esp_deep_sleep((uint64_t)CONFIG_WELLD_SLEEP_DURATION_SEC * 1000000ULL);

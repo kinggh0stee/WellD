@@ -1,10 +1,23 @@
 # Copy this file to sdkconfig.defaults.local and fill in your values.
 # sdkconfig.defaults.local is gitignored — credentials never touch git.
 
-# Sensor
+# Sensor — set these to match your hardware
 # CONFIG_WELLD_SENSOR_ADC_CHANNEL=0
 # CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS=100000
 # CONFIG_WELLD_SENSOR_MAX_DEPTH_CM=600
 
+# Battery monitoring — set the ADC channel wired to your divider,
+# or leave BATT_ADC_CHANNEL=-1 to disable.
+# CONFIG_WELLD_BATT_ADC_CHANNEL=-1
+# CONFIG_WELLD_BATT_DIVIDER_RATIO=200
+
+# DS18B20 temperature sensor GPIO
+# CONFIG_WELLD_DS18B20_GPIO=4
+
 # Sleep interval
 # CONFIG_WELLD_SLEEP_DURATION_SEC=300
+
+# Zigbee — narrow the channel mask to your coordinator's channel
+# to speed up joining. ch11=0x800 ch15=0x8000 ch20=0x100000 ch25=0x2000000
+# CONFIG_WELLD_ZIGBEE_CHANNEL_MASK=0x07FFF800
+# CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS=2000
