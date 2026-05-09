@@ -1,0 +1,9 @@
+# Copy this file to sdkconfig.defaults.local and fill in your values.
+# sdkconfig.defaults.local is gitignored — credentials never touch git.
+
+CONFIG_WELLD_WIFI_SSID="your_ssid"
+CONFIG_WELLD_WIFI_PASSWORD="your_wifi_password"
+
+CONFIG_WELLD_MQTT_BROKER_URL="mqtt://192.168.1.1"
+CONFIG_WELLD_MQTT_USERNAME="welld"
+CONFIG_WELLD_MQTT_PASSWORD="your_mqtt_password"
