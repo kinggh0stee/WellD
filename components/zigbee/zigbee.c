@@ -105,6 +105,19 @@ static void zb_task(void *pvParameters)
     };
     esp_zb_init(&nwk_cfg);
 
+    /* ZCL character strings: first byte is length, no null terminator */
+    static char s_manufacturer[] = "\x05WellD";
+    static char s_model[]        = "\x08WellD-v1";
+    esp_zb_basic_cluster_cfg_t basic_cfg = {
+        .zcl_version = ESP_ZB_ZCL_BASIC_ZCL_VERSION_DEFAULT_VALUE,
+        .power_source = 0x03,  /* battery */
+    };
+    esp_zb_attribute_list_t *basic_attrs = esp_zb_basic_cluster_create(&basic_cfg);
+    esp_zb_basic_cluster_add_attr(basic_attrs,
+        ESP_ZB_ZCL_ATTR_BASIC_MANUFACTURER_NAME_ID, s_manufacturer);
+    esp_zb_basic_cluster_add_attr(basic_attrs,
+        ESP_ZB_ZCL_ATTR_BASIC_MODEL_IDENTIFIER_ID,  s_model);
+
     esp_zb_analog_input_cluster_cfg_t ai_cfg = {
         .out_of_service = 0,
         .present_value  = s_level_m,
@@ -113,6 +126,8 @@ static void zb_task(void *pvParameters)
     esp_zb_attribute_list_t *ai_attrs = esp_zb_analog_input_cluster_create(&ai_cfg);
 
     esp_zb_cluster_list_t *clusters = esp_zb_zcl_cluster_list_create();
+    ESP_ERROR_CHECK(esp_zb_cluster_list_add_basic_cluster(clusters, basic_attrs,
+                                                          ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
     ESP_ERROR_CHECK(esp_zb_cluster_list_add_analog_input_cluster(clusters, ai_attrs,
                                                                   ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
 
