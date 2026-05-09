@@ -4,8 +4,6 @@
 #include "nvs_flash.h"
 #include "sensor.h"
 #include "zigbee.h"
-#include "wifi.h"
-#include "mqtt_pub.h"
 #include "sdkconfig.h"
 
 static const char *TAG = "main";
@@ -20,16 +18,7 @@ void app_main(void)
     ESP_ERROR_CHECK(ret);
 
     float level_m = sensor_read_level();
-
-    if (!zigbee_send_level(level_m)) {
-        bool connected = wifi_connect();
-        if (connected) {
-            mqtt_publish_level(level_m);
-        } else {
-            ESP_LOGE(TAG, "no transport available");
-        }
-        wifi_disconnect();
-    }
+    zigbee_send_level(level_m);
 
     ESP_LOGI(TAG, "sleeping %d s", CONFIG_WELLD_SLEEP_DURATION_SEC);
     esp_deep_sleep((uint64_t)CONFIG_WELLD_SLEEP_DURATION_SEC * 1000000ULL);
