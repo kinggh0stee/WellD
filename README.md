@@ -145,7 +145,7 @@ The device publishes to `zigbee2mqtt/<friendly_name>` on each wakeup:
 }
 ```
 
-`battery_voltage` is omitted if battery monitoring is disabled.
+`battery_voltage` is omitted if battery monitoring is disabled. `temperature` is omitted if the DS18B20 is not detected. `water_level` is `-1` if the pressure transducer loop current is below 3.5 mA (open circuit / disconnected) — set a Home Assistant alert on `water_level < 0` to detect wiring faults.
 
 ### 4. Home Assistant
 
@@ -174,8 +174,19 @@ No coordinator in range:
 
 ```
 E (zigbee): timeout — no coordinator found
+W (main):   Zigbee send failed (1/5)
 I (main):   sleeping 300 s
 ```
+
+After 5 consecutive failures the NVS partition is erased on the next boot, forcing a clean Zigbee rejoin. The counter resets to zero on the first successful send.
+
+Pressure transducer disconnected (open loop):
+
+```
+E (sensor): transducer open loop (voltage=12 mV, < 3.5 mA)
+```
+
+`water_level` is reported as `-1` for that cycle.
 
 DS18B20 not detected:
 
@@ -183,7 +194,7 @@ DS18B20 not detected:
 E (sensor): no DS18B20 found on GPIO 4
 ```
 
-Temperature is skipped in the Zigbee report and retried on the next wakeup.
+Temperature is omitted from the Zigbee report and retried on the next wakeup.
 
 ---
 
