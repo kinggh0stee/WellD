@@ -17,6 +17,12 @@ static const char *TAG = "zigbee";
 #define SEND_DELAY_MS    CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS
 #define TOTAL_TIMEOUT_MS 25000
 
+/* OTA image identity — both fields must match the header of every .zigbee file
+   built for this device. Using 0xFFFF (wildcard) would accept images from any
+   OTA server with any manufacturer code, which is a security risk. */
+#define OTA_MANUFACTURER_CODE  0x1234
+#define OTA_IMAGE_TYPE         0x0001
+
 #define SENT_BIT    BIT0
 #define FAIL_BIT    BIT1
 #define STOPPED_BIT BIT2
@@ -35,6 +41,10 @@ static volatile bool   s_ota_in_progress = false;
 static esp_ota_handle_t s_ota_handle     = 0;
 static const esp_partition_t *s_ota_partition = NULL;
 
+/* Fired TOTAL_TIMEOUT_MS after the Zigbee loop starts. If OTA is in progress
+   we reschedule rather than killing the loop — OTA can take many minutes.
+   Once OTA finishes (reboot) or fails (clears s_ota_in_progress), the next
+   fire stops the loop normally. */
 static void zb_timeout_alarm(uint8_t param)
 {
     if (s_ota_in_progress) {
@@ -46,10 +56,13 @@ static void zb_timeout_alarm(uint8_t param)
     esp_zb_stop();
 }
 
+/* Fired SEND_DELAY_MS after reports are queued, giving the stack time to
+   transmit. If OTA started within that window we return early to keep the
+   loop alive; zb_timeout_alarm (or an OTA failure path) will stop it later. */
 static void zb_finish_alarm(uint8_t param)
 {
     if (s_ota_in_progress) {
-        return;   /* OTA started after send — keep the loop alive */
+        return;
     }
     xEventGroupSetBits(s_events, SENT_BIT);
     esp_zb_stop();
@@ -80,6 +93,8 @@ static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
                 ESP_LOGE(TAG, "OTA write failed — aborting");
                 esp_ota_abort(s_ota_handle);
                 s_ota_in_progress = false;
+                /* zb_finish_alarm already returned early; stop now rather than
+                   waiting up to TOTAL_TIMEOUT_MS for zb_timeout_alarm to fire */
                 xEventGroupSetBits(s_events, FAIL_BIT);
                 esp_zb_stop();
             }
@@ -269,8 +284,8 @@ static void zb_task(void *pvParameters)
     /* OTA upgrade client on endpoint 1 */
     esp_zb_ota_upgrade_cluster_cfg_t ota_cfg = {
         .ota_upgrade_downloaded_file_ver = 0x00000001,
-        .ota_upgrade_manufacturer        = 0xFFFF,
-        .ota_upgrade_image_type          = 0xFFFF,
+        .ota_upgrade_manufacturer        = OTA_MANUFACTURER_CODE,
+        .ota_upgrade_image_type          = OTA_IMAGE_TYPE,
         .ota_upgrade_query_jitter        = 100,
         .ota_upgrade_current_time        = 0,
         .ota_upgrade_server_addr         = 0xFFFF,
@@ -279,7 +294,7 @@ static void zb_task(void *pvParameters)
     esp_zb_ota_upgrade_client_variable_t ota_var = {
         .timer_query   = ESP_ZB_ZCL_OTA_UPGRADE_QUERY_TIMER_COUNT_DEF,
         .hw_version    = 0x0001,
-        .max_data_size = 64,
+        .max_data_size = 128,
     };
     esp_zb_attribute_list_t *ota_attrs = esp_zb_ota_upgrade_cluster_create(&ota_cfg);
     esp_zb_ota_upgrade_cluster_add_attr(ota_attrs,
@@ -331,7 +346,7 @@ bool zigbee_send(float level_m, float battery_v, float temperature_c)
     s_temperature_c = temperature_c;
     s_events       = xEventGroupCreate();
 
-    if (xTaskCreate(zb_task, "zb_task", 8192, NULL, 5, NULL) != pdPASS) {
+    if (xTaskCreate(zb_task, "zb_task", 10240, NULL, 5, NULL) != pdPASS) {
         ESP_LOGE(TAG, "failed to create Zigbee task");
         vEventGroupDelete(s_events);
         return false;

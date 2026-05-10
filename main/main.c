@@ -57,9 +57,12 @@ void app_main(void)
     float temperature_c = sensor_read_temperature();
     bool sent = zigbee_send(level_m, battery_v, temperature_c);
 
-    write_fail_count(sent ? 0 : fail_count + 1);
-    if (!sent)
+    if (!sent) {
+        write_fail_count(fail_count + 1);
         ESP_LOGW(TAG, "Zigbee send failed (%lu/%d)", fail_count + 1, FAIL_THRESHOLD);
+    } else if (fail_count != 0) {
+        write_fail_count(0);   /* reset counter; skip write when already zero */
+    }
 
     ESP_LOGI(TAG, "sleeping %d s", CONFIG_WELLD_SLEEP_DURATION_SEC);
     esp_deep_sleep((uint64_t)CONFIG_WELLD_SLEEP_DURATION_SEC * 1000000ULL);
