@@ -121,8 +121,12 @@ float sensor_read_level(void)
     level_m += offset_m;
     if (level_m < 0.0f) level_m = 0.0f;
     int current_ua = (int)(((int64_t)volt_mv * 1000000LL) / CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS);
-    ESP_LOGI(TAG, "raw=%d  voltage=%d mV  current=%d µA  level=%.2f m (offset %.0f cm)",
-             raw, volt_mv, current_ua, level_m, offset_m * 100.0f);
+    if (offset_m != 0.0f)
+        ESP_LOGI(TAG, "raw=%d  voltage=%d mV  current=%d µA  level=%.2f m (offset %.0f cm)",
+                 raw, volt_mv, current_ua, level_m, offset_m * 100.0f);
+    else
+        ESP_LOGI(TAG, "raw=%d  voltage=%d mV  current=%d µA  level=%.2f m",
+                 raw, volt_mv, current_ua, level_m);
     return level_m;
 }
 

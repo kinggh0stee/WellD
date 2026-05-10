@@ -77,9 +77,11 @@ static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
     case ESP_ZB_ZCL_OTA_UPGRADE_STATUS_RECEIVE:
         if (s_ota_in_progress && msg->payload && msg->payload_size > 0) {
             if (esp_ota_write(s_ota_handle, msg->payload, msg->payload_size) != ESP_OK) {
-                ESP_LOGE(TAG, "OTA write failed");
+                ESP_LOGE(TAG, "OTA write failed — aborting");
                 esp_ota_abort(s_ota_handle);
                 s_ota_in_progress = false;
+                xEventGroupSetBits(s_events, FAIL_BIT);
+                esp_zb_stop();
             }
         }
         break;
@@ -91,8 +93,10 @@ static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
                 ESP_LOGI(TAG, "OTA complete — rebooting");
                 esp_restart();
             } else {
-                ESP_LOGE(TAG, "OTA finalise failed");
+                ESP_LOGE(TAG, "OTA finalise failed — aborting");
                 s_ota_in_progress = false;
+                xEventGroupSetBits(s_events, FAIL_BIT);
+                esp_zb_stop();
             }
         }
         break;
