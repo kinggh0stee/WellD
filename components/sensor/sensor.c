@@ -35,6 +35,9 @@ int sensor_get_offset_cm(void)
             nvs_get_i32(h, NVS_KEY_OFFSET, &val);
             nvs_close(h);
         }
+        /* Clamp against NVS corruption producing wild offsets */
+        if (val < -600) val = -600;
+        if (val >  600) val =  600;
         s_offset_cm = (int)val;
     }
     return s_offset_cm;
