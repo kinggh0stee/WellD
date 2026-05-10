@@ -8,6 +8,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "sdkconfig.h"
+#include "nvs_flash.h"
+#include "nvs.h"
+#include <limits.h>
 
 static const char *TAG = "sensor";
 
@@ -17,6 +20,36 @@ static const char *TAG = "sensor";
 
 #define CURRENT_MIN_UA  4000   /* 4 mA  = 0 % depth */
 #define CURRENT_MAX_UA  20000  /* 20 mA = 100 % depth */
+
+#define NVS_NAMESPACE  "welld"
+#define NVS_KEY_OFFSET "offset_cm"
+
+static int s_offset_cm = INT32_MIN;   /* sentinel: not yet loaded */
+
+int sensor_get_offset_cm(void)
+{
+    if (s_offset_cm == INT32_MIN) {
+        nvs_handle_t h;
+        int32_t val = CONFIG_WELLD_SENSOR_OFFSET_CM;
+        if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &h) == ESP_OK) {
+            nvs_get_i32(h, NVS_KEY_OFFSET, &val);
+            nvs_close(h);
+        }
+        s_offset_cm = (int)val;
+    }
+    return s_offset_cm;
+}
+
+void sensor_set_offset_cm(int offset_cm)
+{
+    s_offset_cm = offset_cm;
+    nvs_handle_t h;
+    if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK) {
+        nvs_set_i32(h, NVS_KEY_OFFSET, (int32_t)offset_cm);
+        nvs_commit(h);
+        nvs_close(h);
+    }
+}
 
 static int adc_read_avg(adc_channel_t channel)
 {
@@ -82,11 +115,14 @@ float sensor_read_level(void)
     float level_m = sensor_level_from_mv(volt_mv);
     if (level_m < 0.0f) {
         ESP_LOGE(TAG, "transducer open loop (voltage=%d mV, < 3.5 mA)", volt_mv);
-    } else {
-        int current_ua = (int)(((int64_t)volt_mv * 1000000LL) / CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS);
-        ESP_LOGI(TAG, "raw=%d  voltage=%d mV  current=%d µA  level=%.2f m",
-                 raw, volt_mv, current_ua, level_m);
+        return level_m;
     }
+    float offset_m = sensor_get_offset_cm() / 100.0f;
+    level_m += offset_m;
+    if (level_m < 0.0f) level_m = 0.0f;
+    int current_ua = (int)(((int64_t)volt_mv * 1000000LL) / CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS);
+    ESP_LOGI(TAG, "raw=%d  voltage=%d mV  current=%d µA  level=%.2f m (offset %.0f cm)",
+             raw, volt_mv, current_ua, level_m, offset_m * 100.0f);
     return level_m;
 }
 
