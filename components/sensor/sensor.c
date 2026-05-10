@@ -60,24 +60,33 @@ static int raw_to_mv(int raw)
     return (raw * 3300) / 4095;
 }
 
-float sensor_read_level(void)
+float sensor_level_from_mv(int volt_mv)
 {
-    int raw     = adc_read_avg((adc_channel_t)CONFIG_WELLD_SENSOR_ADC_CHANNEL);
-    int volt_mv = raw_to_mv(raw);
-
-    /* I (µA) = V (mV) * 1 000 000 / R (mΩ)
-     * Example: 400 mV / 100 000 mΩ → 4 000 µA = 4 mA */
+    /* I (µA) = V (mV) * 1 000 000 / R (mΩ) */
     int current_ua = (int)(((int64_t)volt_mv * 1000000LL) /
                             CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS);
+    if (current_ua < 3500)   /* < 3.5 mA → loop open, transducer disconnected */
+        return -1.0f;
 
     float ratio = (float)(current_ua - CURRENT_MIN_UA) /
                   (float)(CURRENT_MAX_UA - CURRENT_MIN_UA);
     if (ratio < 0.0f) ratio = 0.0f;
     if (ratio > 1.0f) ratio = 1.0f;
+    return ratio * (CONFIG_WELLD_SENSOR_MAX_DEPTH_CM / 100.0f);
+}
 
-    float level_m = ratio * (CONFIG_WELLD_SENSOR_MAX_DEPTH_CM / 100.0f);
-    ESP_LOGI(TAG, "raw=%d  voltage=%d mV  current=%d µA  level=%.2f m",
-             raw, volt_mv, current_ua, level_m);
+float sensor_read_level(void)
+{
+    int raw     = adc_read_avg((adc_channel_t)CONFIG_WELLD_SENSOR_ADC_CHANNEL);
+    int volt_mv = raw_to_mv(raw);
+    float level_m = sensor_level_from_mv(volt_mv);
+    if (level_m < 0.0f) {
+        ESP_LOGE(TAG, "transducer open loop (voltage=%d mV, < 3.5 mA)", volt_mv);
+    } else {
+        int current_ua = (int)(((int64_t)volt_mv * 1000000LL) / CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS);
+        ESP_LOGI(TAG, "raw=%d  voltage=%d mV  current=%d µA  level=%.2f m",
+                 raw, volt_mv, current_ua, level_m);
+    }
     return level_m;
 }
 
@@ -120,6 +129,10 @@ float sensor_read_temperature(void)
     ds18b20_del_device(ds18b20);
     onewire_del_bus(bus);
 
+    if (temp < -55.0f || temp > 125.0f) {
+        ESP_LOGW(TAG, "DS18B20 reading %.1f °C outside rated range, discarding", temp);
+        return -127.0f;
+    }
     ESP_LOGI(TAG, "temperature=%.1f °C", temp);
     return temp;
 }
