@@ -83,9 +83,12 @@ Edit `sdkconfig.defaults.local`. All options have sensible defaults — only cha
 | `CONFIG_WELLD_SENSOR_ADC_CHANNEL` | 0 | ADC1 channel wired to the shunt (CH0 = GPIO0) |
 | `CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS` | 100000 | Shunt resistor in milliohms (100 Ω = 100 000) |
 | `CONFIG_WELLD_SENSOR_MAX_DEPTH_CM` | 600 | Full-scale depth at 20 mA in cm (600 = 6 m) |
+| `CONFIG_WELLD_SENSOR_OFFSET_CM` | 0 | Level offset in cm applied after conversion (±600). Use to zero the reading at a known water depth. Persisted in NVS; runtime-writable via `sensor_set_offset_cm()`. |
 | `CONFIG_WELLD_DS18B20_GPIO` | 4 | GPIO connected to DS18B20 data pin |
 | `CONFIG_WELLD_BATT_ADC_CHANNEL` | -1 | ADC1 channel for battery divider; -1 = disabled |
 | `CONFIG_WELLD_BATT_DIVIDER_RATIO` | 200 | Divider ratio × 100 (200 = 2:1 divider) |
+| `CONFIG_WELLD_BATT_FULL_MV` | 4200 | Battery voltage (mV) considered 100 %. Used by the Z2M converter to compute battery percentage. |
+| `CONFIG_WELLD_BATT_EMPTY_MV` | 3000 | Battery voltage (mV) considered 0 %. |
 | `CONFIG_WELLD_SLEEP_DURATION_SEC` | 300 | Deep sleep between readings in seconds |
 | `CONFIG_WELLD_ZIGBEE_CHANNEL_MASK` | 0x07FFF800 | Channels to scan; narrow to your coordinator's channel to speed up joining |
 | `CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS` | 2000 | Time (ms) the stack stays alive after sending, to allow coordinator ACK |
@@ -141,11 +144,14 @@ The device publishes to `zigbee2mqtt/<friendly_name>` on each wakeup:
 {
   "water_level": 3.42,
   "temperature": 12.3,
-  "battery_voltage": 3.71
+  "battery_voltage": 3.71,
+  "battery": 59
 }
 ```
 
-`battery_voltage` is omitted if battery monitoring is disabled. `temperature` is omitted if the DS18B20 is not detected. `water_level` is `-1` if the pressure transducer loop current is below 3.5 mA (open circuit / disconnected) — set a Home Assistant alert on `water_level < 0` to detect wiring faults.
+`battery_voltage` and `battery` are omitted if battery monitoring is disabled. `battery` is a percentage computed by the Z2M converter from the measured voltage using the `battery_full_mv` / `battery_empty_mv` device options (default 4200 / 3000 mV). Override these per-device in the Z2M device options if your battery chemistry differs.
+
+`temperature` is omitted if the DS18B20 is not detected. `water_level` is `-1` if the pressure transducer loop current is below 3.5 mA (open circuit / disconnected) — set a Home Assistant alert on `water_level < 0` to detect wiring faults.
 
 ### 4. Home Assistant
 
@@ -155,19 +161,67 @@ With the Zigbee2MQTT–Home Assistant integration, three sensor entities are cre
 |--------|------|-------|
 | `sensor.<name>_water_level` | m | Water depth |
 | `sensor.<name>_temperature` | °C | Water temperature |
-| `sensor.<name>_battery_voltage` | V | Battery (if enabled) |
+| `sensor.<name>_battery_voltage` | V | Battery voltage (if enabled) |
+| `sensor.<name>_battery` | % | Battery percentage (if enabled) |
+
+---
+
+## OTA firmware updates
+
+The device includes a Zigbee OTA Upgrade client (`ota: true` in the converter). Zigbee2MQTT handles image distribution automatically once an image file is placed in its OTA folder.
+
+### Build an OTA image
+
+After `idf.py build`, wrap the binary in a Zigbee OTA file using the image generator from the esp-zigbee-sdk:
+
+```bash
+python path/to/ota_image_create.py \
+    --manufacturer-code 0x1234 \
+    --image-type 0x0001 \
+    --file-version 0x00010001 \
+    --output welld-v1.0.1.zigbee \
+    build/welld.bin
+```
+
+**The `--manufacturer-code` and `--image-type` values must match the constants in `zigbee.c`** (`OTA_MANUFACTURER_CODE = 0x1234`, `OTA_IMAGE_TYPE = 0x0001`). The device will reject any image whose header doesn't match, preventing a rogue OTA server from pushing foreign firmware.
+
+Bump `--file-version` on every release (monotonically increasing 32-bit integer). The device will only install an image with a higher file version than its current one.
+
+### Deploy via Zigbee2MQTT
+
+```bash
+cp welld-v1.0.1.zigbee /opt/zigbee2mqtt/data/ota/
+```
+
+Zigbee2MQTT detects the file automatically. On the next wakeup the device queries for an update, downloads the image in 128-byte blocks over Zigbee, and reboots into the new firmware. The timeout alarm is extended automatically during download so the device doesn't sleep mid-transfer.
+
+---
+
+## Level offset calibration
+
+Use `CONFIG_WELLD_SENSOR_OFFSET_CM` (or `sensor_set_offset_cm()` at runtime) to shift the reported level without touching the transducer position. Positive values add to the reading; negative values subtract.
+
+For example, if the transducer is mounted 15 cm above the well bottom, set `OFFSET_CM = -15` to report depth from the bottom rather than from the transducer face.
+
+The offset is stored in NVS and survives deep sleep and power cycles. It is clamped to ±600 cm on read to guard against flash corruption.
 
 ---
 
 ## Serial output
 
-Normal boot cycle:
+Normal boot cycle (no offset):
 
 ```
 I (sensor): raw=1847  voltage=1485 mV  current=14850 µA  level=3.42 m
 I (sensor): temperature=12.3 °C
 I (zigbee): joined; reporting level=3.42 m battery=3.71 V temp=12.3 °C
 I (main):   sleeping 300 s
+```
+
+With a non-zero level offset:
+
+```
+I (sensor): raw=1847  voltage=1485 mV  current=14850 µA  level=3.27 m (offset -15 cm)
 ```
 
 No coordinator in range:
