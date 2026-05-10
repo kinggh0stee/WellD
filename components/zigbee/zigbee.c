@@ -1,10 +1,12 @@
 #include "zigbee.h"
 #include "esp_zigbee_core.h"
+#include "esp_app_desc.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
 #include "sdkconfig.h"
+#include <string.h>
 
 static const char *TAG = "zigbee";
 
@@ -21,6 +23,7 @@ static const char *TAG = "zigbee";
 /* ZCL character strings: first byte is length, no null terminator */
 static char s_manufacturer[] = "\x05WellD";
 static char s_model[]        = "\x08WellD-v1";
+static char s_sw_build_id[18]; /* 1-byte length prefix + up to 16 chars */
 
 static EventGroupHandle_t s_events;
 static float s_level_m;
@@ -159,6 +162,13 @@ static void zb_task(void *pvParameters)
     };
     esp_zb_init(&nwk_cfg);
 
+    /* Build ZCL sw_build_id string from the app version baked in at compile time */
+    const char *ver = esp_app_get_description()->version;
+    size_t ver_len = strlen(ver);
+    if (ver_len > 16) ver_len = 16;
+    s_sw_build_id[0] = (char)ver_len;
+    memcpy(s_sw_build_id + 1, ver, ver_len);
+
     /* Basic cluster with device identity */
     esp_zb_basic_cluster_cfg_t basic_cfg = {
         .zcl_version = ESP_ZB_ZCL_BASIC_ZCL_VERSION_DEFAULT_VALUE,
@@ -169,6 +179,8 @@ static void zb_task(void *pvParameters)
         ESP_ZB_ZCL_ATTR_BASIC_MANUFACTURER_NAME_ID, s_manufacturer);
     esp_zb_basic_cluster_add_attr(basic_attrs,
         ESP_ZB_ZCL_ATTR_BASIC_MODEL_IDENTIFIER_ID,  s_model);
+    esp_zb_basic_cluster_add_attr(basic_attrs,
+        ESP_ZB_ZCL_ATTR_BASIC_SW_BUILD_ID,          s_sw_build_id);
 
     esp_zb_ep_list_t *ep_list = esp_zb_ep_list_create();
     esp_zb_endpoint_config_t ep_cfg = {
