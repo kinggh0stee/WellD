@@ -10,9 +10,11 @@
 static const char *TAG = "main";
 
 #define NVS_NAMESPACE   "welld"
-#define NVS_KEY_FAILS   "zb_fails"
-#define FAIL_THRESHOLD  5
+#define NVS_KEY_FAILS   "zb_fails"  /* consecutive Zigbee failure counter */
+#define FAIL_THRESHOLD  5           /* NVS erase + rejoin after this many failures */
 
+/* Read the consecutive Zigbee failure counter from NVS.
+ * Returns 0 if the key doesn't exist yet (first boot). */
 static uint32_t read_fail_count(void)
 {
     nvs_handle_t h;
@@ -34,6 +36,14 @@ static void write_fail_count(uint32_t count)
     }
 }
 
+/* One wake cycle:
+ *   1. Init NVS (erasing if the partition is full or version-mismatched)
+ *   2. Check consecutive failure counter — wipe NVS after FAIL_THRESHOLD
+ *      failures to clear stale Zigbee network state and force a fresh join
+ *   3. Read all sensors before starting the radio (ADC is sensitive to
+ *      RF interference from the 802.15.4 transmitter)
+ *   4. Send readings over Zigbee; update fail counter based on result
+ *   5. Enter deep sleep for CONFIG_WELLD_SLEEP_DURATION_SEC seconds */
 void app_main(void)
 {
     esp_err_t ret = nvs_flash_init();
@@ -52,11 +62,13 @@ void app_main(void)
         fail_count = 0;
     }
 
+    /* Read sensors before powering the radio to avoid ADC noise */
     float level_m       = sensor_read_level();
     float battery_v     = sensor_read_battery_v();
     float temperature_c = sensor_read_temperature();
     bool sent = zigbee_send(level_m, battery_v, temperature_c);
 
+    /* Only write NVS when the count changes — flash has limited write cycles */
     if (!sent) {
         write_fail_count(fail_count + 1);
         ESP_LOGW(TAG, "Zigbee send failed (%lu/%d)", fail_count + 1, FAIL_THRESHOLD);
