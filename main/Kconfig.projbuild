@@ -64,4 +64,30 @@ menu "WellD Configuration"
             giving the coordinator time to acknowledge. Reduce to save
             battery; increase on slow or congested networks.
 
+    config WELLD_SENSOR_OFFSET_CM
+        int "Water level offset (centimeters, signed)"
+        default 0
+        range -600 600
+        help
+            Added to the computed level after scaling. Use a negative value
+            when the transducer sits below the true zero reference point
+            (e.g. -50 if it hangs 50 cm below the water outlet pipe).
+            Can be overridden at runtime via NVS key "welld/offset_cm".
+
+    config WELLD_BATT_FULL_MV
+        int "Battery full voltage (mV)"
+        default 4200
+        range 3000 5000
+        depends on WELLD_BATT_ADC_CHANNEL >= 0
+        help
+            Voltage read at 100 % state of charge. 4200 = LiPo/Li-ion.
+
+    config WELLD_BATT_EMPTY_MV
+        int "Battery empty voltage (mV)"
+        default 3000
+        range 2000 4000
+        depends on WELLD_BATT_ADC_CHANNEL >= 0
+        help
+            Voltage read at 0 % state of charge. 3000 = LiPo/Li-ion cutoff.
+
 endmenu

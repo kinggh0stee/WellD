@@ -1,6 +1,7 @@
 #include "zigbee.h"
 #include "esp_zigbee_core.h"
 #include "esp_app_desc.h"
+#include "esp_ota_ops.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -30,8 +31,16 @@ static float s_level_m;
 static float s_battery_v;
 static float s_temperature_c;
 
+static volatile bool   s_ota_in_progress = false;
+static esp_ota_handle_t s_ota_handle     = 0;
+static const esp_partition_t *s_ota_partition = NULL;
+
 static void zb_timeout_alarm(uint8_t param)
 {
+    if (s_ota_in_progress) {
+        esp_zb_scheduler_alarm(zb_timeout_alarm, 0, TOTAL_TIMEOUT_MS);
+        return;
+    }
     ESP_LOGE(TAG, "timeout — no coordinator found");
     xEventGroupSetBits(s_events, FAIL_BIT);
     esp_zb_stop();
@@ -39,8 +48,63 @@ static void zb_timeout_alarm(uint8_t param)
 
 static void zb_finish_alarm(uint8_t param)
 {
+    if (s_ota_in_progress) {
+        return;   /* OTA started after send — keep the loop alive */
+    }
     xEventGroupSetBits(s_events, SENT_BIT);
     esp_zb_stop();
+}
+
+static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
+                                    const void *message)
+{
+    if (callback_id != ESP_ZB_CORE_OTA_UPGRADE_VALUE_CB_ID) return ESP_OK;
+    const esp_zb_zcl_ota_upgrade_value_message_t *msg = message;
+
+    switch (msg->upgrade_status) {
+    case ESP_ZB_ZCL_OTA_UPGRADE_STATUS_START:
+        s_ota_partition = esp_ota_get_next_update_partition(NULL);
+        if (!s_ota_partition) {
+            ESP_LOGE(TAG, "OTA: no update partition found");
+            break;
+        }
+        if (esp_ota_begin(s_ota_partition, OTA_SIZE_UNKNOWN, &s_ota_handle) == ESP_OK) {
+            s_ota_in_progress = true;
+            ESP_LOGI(TAG, "OTA started → %s", s_ota_partition->label);
+        }
+        break;
+
+    case ESP_ZB_ZCL_OTA_UPGRADE_STATUS_RECEIVE:
+        if (s_ota_in_progress && msg->payload && msg->payload_size > 0) {
+            if (esp_ota_write(s_ota_handle, msg->payload, msg->payload_size) != ESP_OK) {
+                ESP_LOGE(TAG, "OTA write failed");
+                esp_ota_abort(s_ota_handle);
+                s_ota_in_progress = false;
+            }
+        }
+        break;
+
+    case ESP_ZB_ZCL_OTA_UPGRADE_STATUS_APPLY:
+        if (s_ota_in_progress) {
+            if (esp_ota_end(s_ota_handle) == ESP_OK &&
+                esp_ota_set_boot_partition(s_ota_partition) == ESP_OK) {
+                ESP_LOGI(TAG, "OTA complete — rebooting");
+                esp_restart();
+            } else {
+                ESP_LOGE(TAG, "OTA finalise failed");
+                s_ota_in_progress = false;
+            }
+        }
+        break;
+
+    case ESP_ZB_ZCL_OTA_UPGRADE_STATUS_FINISH:
+        ESP_LOGI(TAG, "OTA finished by stack");
+        break;
+
+    default:
+        break;
+    }
+    return ESP_OK;
 }
 
 static void send_reports(void)
@@ -161,6 +225,7 @@ static void zb_task(void *pvParameters)
         },
     };
     esp_zb_init(&nwk_cfg);
+    esp_zb_core_action_handler_register(zb_action_handler);
 
     /* Build ZCL sw_build_id string from the app version baked in at compile time */
     const char *ver = esp_app_get_description()->version;
@@ -196,6 +261,28 @@ static void zb_task(void *pvParameters)
     ESP_ERROR_CHECK(esp_zb_cluster_list_add_analog_input_cluster(level_clusters,
                                                                   make_ai_cluster(s_level_m),
                                                                   ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
+
+    /* OTA upgrade client on endpoint 1 */
+    esp_zb_ota_upgrade_cluster_cfg_t ota_cfg = {
+        .ota_upgrade_downloaded_file_ver = 0x00000001,
+        .ota_upgrade_manufacturer        = 0xFFFF,
+        .ota_upgrade_image_type          = 0xFFFF,
+        .ota_upgrade_query_jitter        = 100,
+        .ota_upgrade_current_time        = 0,
+        .ota_upgrade_server_addr         = 0xFFFF,
+        .ota_upgrade_server_ep           = 0xFF,
+    };
+    esp_zb_ota_upgrade_client_variable_t ota_var = {
+        .timer_query   = ESP_ZB_ZCL_OTA_UPGRADE_QUERY_TIMER_COUNT_DEF,
+        .hw_version    = 0x0001,
+        .max_data_size = 64,
+    };
+    esp_zb_attribute_list_t *ota_attrs = esp_zb_ota_upgrade_cluster_create(&ota_cfg);
+    esp_zb_ota_upgrade_cluster_add_attr(ota_attrs,
+        ESP_ZB_ZCL_ATTR_OTA_UPGRADE_CLIENT_DATA_ID, &ota_var);
+    ESP_ERROR_CHECK(esp_zb_cluster_list_add_ota_upgrade_cluster(level_clusters,
+        ota_attrs, ESP_ZB_ZCL_CLUSTER_CLIENT_ROLE));
+
     ep_cfg.endpoint = EP_LEVEL;
     ESP_ERROR_CHECK(esp_zb_ep_list_add_ep(ep_list, level_clusters, ep_cfg));
 

@@ -13,14 +13,21 @@ const definition = {
             convert: (model, msg, publish, options, meta) => {
                 if (!msg.data.hasOwnProperty('presentValue')) return;
                 const ep = msg.endpoint.ID;
-                if (ep === 1) return {water_level:    parseFloat(msg.data.presentValue.toFixed(2))};
-                if (ep === 2) return {battery_voltage: parseFloat(msg.data.presentValue.toFixed(2))};
+                if (ep === 1) return {water_level: parseFloat(msg.data.presentValue.toFixed(2))};
+                if (ep === 2) {
+                    const voltage = parseFloat(msg.data.presentValue.toFixed(2));
+                    const fullMv  = (options.battery_full_mv  ?? 4200);
+                    const emptyMv = (options.battery_empty_mv ?? 3000);
+                    const pct = Math.min(100, Math.max(0,
+                        Math.round((voltage * 1000 - emptyMv) / (fullMv - emptyMv) * 100)));
+                    return {battery_voltage: voltage, battery: pct};
+                }
             },
         },
-        fz.temperature,  /* handles ZCL 0x0402 Temperature Measurement on endpoint 3 */
+        fz.temperature,
     ],
     toZigbee: [],
-    ota: false,
+    ota: true,
     exposes: [
         numeric('water_level', ea.STATE)
             .withUnit('m')
@@ -28,9 +35,18 @@ const definition = {
         numeric('battery_voltage', ea.STATE)
             .withUnit('V')
             .withDescription('Battery voltage'),
+        numeric('battery', ea.STATE)
+            .withUnit('%')
+            .withDescription('Battery level (requires battery_full_mv / battery_empty_mv options for accurate readings)'),
         numeric('temperature', ea.STATE)
             .withUnit('°C')
             .withDescription('Water temperature'),
+    ],
+    options: [
+        numeric('battery_full_mv', ea.SET)
+            .withDescription('Voltage (mV) at 100 % battery. Default 4200 (LiPo). Set to 4500 for 3×AA alkaline.'),
+        numeric('battery_empty_mv', ea.SET)
+            .withDescription('Voltage (mV) at 0 % battery. Default 3000.'),
     ],
 };
 

@@ -12,3 +12,8 @@ float sensor_read_battery_v(void);
 
 /* reads DS18B20 on CONFIG_WELLD_DS18B20_GPIO; returns °C, or -127 if not found */
 float sensor_read_temperature(void);
+
+/* get/set the water-level offset (cm). Persisted in NVS; initialised from
+   CONFIG_WELLD_SENSOR_OFFSET_CM on first boot. */
+int  sensor_get_offset_cm(void);
+void sensor_set_offset_cm(int offset_cm);
