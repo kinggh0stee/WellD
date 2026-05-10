@@ -16,7 +16,7 @@ static const char *TAG = "sensor";
 
 #define ADC_UNIT    ADC_UNIT_1
 #define ADC_ATTEN   ADC_ATTEN_DB_12   /* 0 – ~3.1 V input range */
-#define NUM_SAMPLES 16
+#define NUM_SAMPLES 16                 /* averaged to reduce quantisation noise */
 
 #define CURRENT_MIN_UA  4000   /* 4 mA  = 0 % depth */
 #define CURRENT_MAX_UA  20000  /* 20 mA = 100 % depth */
@@ -24,8 +24,12 @@ static const char *TAG = "sensor";
 #define NVS_NAMESPACE  "welld"
 #define NVS_KEY_OFFSET "offset_cm"
 
-static int s_offset_cm = INT32_MIN;   /* sentinel: not yet loaded */
+/* INT32_MIN is used as a sentinel meaning "not yet loaded from NVS".
+   Avoids an NVS read on every call after the first wakeup. */
+static int s_offset_cm = INT32_MIN;
 
+/* Returns the current level offset in cm, loading it from NVS on first call.
+ * Falls back to CONFIG_WELLD_SENSOR_OFFSET_CM if no NVS value exists yet. */
 int sensor_get_offset_cm(void)
 {
     if (s_offset_cm == INT32_MIN) {
@@ -43,6 +47,8 @@ int sensor_get_offset_cm(void)
     return s_offset_cm;
 }
 
+/* Updates the in-memory offset immediately and persists it to NVS so it
+ * survives deep sleep and power cycles. */
 void sensor_set_offset_cm(int offset_cm)
 {
     s_offset_cm = offset_cm;
@@ -54,6 +60,9 @@ void sensor_set_offset_cm(int offset_cm)
     }
 }
 
+/* Read NUM_SAMPLES raw ADC counts from channel and return the average.
+ * Averaging reduces noise introduced by the ESP32-C6's successive-
+ * approximation ADC and any ripple on the 4-20 mA loop supply. */
 static int adc_read_avg(adc_channel_t channel)
 {
     adc_oneshot_unit_handle_t adc_hdl;
@@ -76,6 +85,10 @@ static int adc_read_avg(adc_channel_t channel)
     return raw_sum / NUM_SAMPLES;
 }
 
+/* Convert a raw ADC count to millivolts.
+ * Prefers the hardware curve-fitting calibration scheme (uses factory eFuse
+ * values for per-chip linearity correction) when supported by the target.
+ * Falls back to a simple linear mapping when calibration is unavailable. */
 static int raw_to_mv(int raw)
 {
 #if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
@@ -96,6 +109,16 @@ static int raw_to_mv(int raw)
     return (raw * 3300) / 4095;
 }
 
+/* Pure conversion from shunt voltage to water level in metres.
+ * Kept free of NVS calls and side effects so unit tests can call it directly.
+ *
+ * The 4-20 mA current loop:
+ *   I (µA) = V (mV) * 1 000 000 / R (mΩ)
+ *   4 mA   → 0 m (well empty / transducer at water surface)
+ *   20 mA  → CONFIG_WELLD_SENSOR_MAX_DEPTH_CM / 100 m (full scale)
+ *
+ * Returns -1.0 if the loop current is below 3.5 mA — a margin below the
+ * live 4 mA minimum to distinguish "zero depth" from "open circuit". */
 float sensor_level_from_mv(int volt_mv)
 {
     /* I (µA) = V (mV) * 1 000 000 / R (mΩ) */
@@ -111,6 +134,11 @@ float sensor_level_from_mv(int volt_mv)
     return ratio * (CONFIG_WELLD_SENSOR_MAX_DEPTH_CM / 100.0f);
 }
 
+/* Read the water level in metres, applying the NVS-stored offset.
+ * The offset is applied after the pure level calculation so that
+ * sensor_level_from_mv() remains testable without NVS. The result is
+ * clamped to 0 m minimum (a negative offset cannot produce a negative depth).
+ * Returns -1.0 if the transducer loop current indicates an open circuit. */
 float sensor_read_level(void)
 {
     int raw     = adc_read_avg((adc_channel_t)CONFIG_WELLD_SENSOR_ADC_CHANNEL);
@@ -133,6 +161,11 @@ float sensor_read_level(void)
     return level_m;
 }
 
+/* Scan the 1-Wire bus for the first DS18B20 and return its temperature in °C.
+ * The do-while iterates all bus devices until it finds one that accepts the
+ * ds18b20_new_device() call (i.e. has the correct family code 0x28).
+ * Returns -127.0 if no sensor is found or the reading is outside the rated
+ * range (-55 to +125 °C), which signals the caller to skip the report. */
 float sensor_read_temperature(void)
 {
     onewire_bus_handle_t bus = NULL;
@@ -166,12 +199,13 @@ float sensor_read_temperature(void)
 
     float temp = -127.0f;
     if (ds18b20_trigger_temperature_conversion(ds18b20) == ESP_OK) {
-        vTaskDelay(pdMS_TO_TICKS(750));  /* 12-bit conversion time */
+        vTaskDelay(pdMS_TO_TICKS(750));  /* 12-bit conversion time per datasheet */
         ds18b20_get_temperature(ds18b20, &temp);
     }
     ds18b20_del_device(ds18b20);
     onewire_del_bus(bus);
 
+    /* Discard readings outside the sensor's rated range — likely a glitch */
     if (temp < -55.0f || temp > 125.0f) {
         ESP_LOGW(TAG, "DS18B20 reading %.1f °C outside rated range, discarding", temp);
         return -127.0f;
@@ -180,6 +214,12 @@ float sensor_read_temperature(void)
     return temp;
 }
 
+/* Read battery voltage through an external resistor divider.
+ * batt_v = adc_mv * (R1 + R2) / R2
+ *        = adc_mv * BATT_DIVIDER_RATIO / 100
+ * BATT_DIVIDER_RATIO is stored as ratio * 100 to avoid floating-point in
+ * Kconfig (e.g. 200 = 2.00x, meaning R1 == R2).
+ * Returns -1.0 if battery monitoring is disabled at build time. */
 float sensor_read_battery_v(void)
 {
 #if CONFIG_WELLD_BATT_ADC_CHANNEL >= 0

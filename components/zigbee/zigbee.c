@@ -15,7 +15,7 @@ static const char *TAG = "zigbee";
 #define EP_BATTERY       2
 #define EP_TEMPERATURE   3
 #define SEND_DELAY_MS    CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS
-#define TOTAL_TIMEOUT_MS 25000
+#define TOTAL_TIMEOUT_MS 25000  /* max time to find coordinator before giving up */
 
 /* OTA image identity — both fields must match the header of every .zigbee file
    built for this device. Using 0xFFFF (wildcard) would accept images from any
@@ -23,20 +23,25 @@ static const char *TAG = "zigbee";
 #define OTA_MANUFACTURER_CODE  0x1234
 #define OTA_IMAGE_TYPE         0x0001
 
-#define SENT_BIT    BIT0
-#define FAIL_BIT    BIT1
-#define STOPPED_BIT BIT2
+/* Event bits used to synchronise zb_task with zigbee_send() on the main task */
+#define SENT_BIT    BIT0   /* reports were queued and SEND_DELAY_MS elapsed */
+#define FAIL_BIT    BIT1   /* coordinator not found, steering failed, or OTA error */
+#define STOPPED_BIT BIT2   /* esp_zb_main_loop_iteration() has returned; radio is free */
 
 /* ZCL character strings: first byte is length, no null terminator */
 static char s_manufacturer[] = "\x05WellD";
 static char s_model[]        = "\x08WellD-v1";
 static char s_sw_build_id[18]; /* 1-byte length prefix + up to 16 chars */
 
+/* Sensor values captured by zigbee_send() before starting zb_task */
 static EventGroupHandle_t s_events;
 static float s_level_m;
 static float s_battery_v;
 static float s_temperature_c;
 
+/* volatile because s_ota_in_progress is written inside zb_task (via the Zigbee
+   stack callbacks) and read by the alarm callbacks in the same task context —
+   volatile prevents the compiler from caching the value across calls. */
 static volatile bool   s_ota_in_progress = false;
 static esp_ota_handle_t s_ota_handle     = 0;
 static const esp_partition_t *s_ota_partition = NULL;
@@ -44,7 +49,7 @@ static const esp_partition_t *s_ota_partition = NULL;
 /* Fired TOTAL_TIMEOUT_MS after the Zigbee loop starts. If OTA is in progress
    we reschedule rather than killing the loop — OTA can take many minutes.
    Once OTA finishes (reboot) or fails (clears s_ota_in_progress), the next
-   fire stops the loop normally. */
+   fire stops the loop with FAIL_BIT to wake zigbee_send(). */
 static void zb_timeout_alarm(uint8_t param)
 {
     if (s_ota_in_progress) {
@@ -57,8 +62,9 @@ static void zb_timeout_alarm(uint8_t param)
 }
 
 /* Fired SEND_DELAY_MS after reports are queued, giving the stack time to
-   transmit. If OTA started within that window we return early to keep the
-   loop alive; zb_timeout_alarm (or an OTA failure path) will stop it later. */
+   transmit and receive an ACK from the coordinator. If OTA started within
+   that window (coordinator responded with an image) we return early to keep
+   the loop alive; zb_timeout_alarm (or an OTA failure path) stops it later. */
 static void zb_finish_alarm(uint8_t param)
 {
     if (s_ota_in_progress) {
@@ -68,6 +74,16 @@ static void zb_finish_alarm(uint8_t param)
     esp_zb_stop();
 }
 
+/* OTA state machine — called by the Zigbee stack for every OTA upgrade event.
+ *
+ * Flow:
+ *   STATUS_START   → find the next OTA partition, open an esp_ota handle
+ *   STATUS_RECEIVE → write each 128-byte block to flash as it arrives
+ *   STATUS_APPLY   → validate and commit the image, set boot partition, reboot
+ *
+ * On any failure we abort the OTA handle, clear s_ota_in_progress, and stop
+ * the Zigbee loop immediately rather than waiting for zb_timeout_alarm (which
+ * could be up to TOTAL_TIMEOUT_MS away after it last rescheduled itself). */
 static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
                                     const void *message)
 {
@@ -76,6 +92,8 @@ static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
 
     switch (msg->upgrade_status) {
     case ESP_ZB_ZCL_OTA_UPGRADE_STATUS_START:
+        /* esp_ota_get_next_update_partition selects whichever of ota_0/ota_1
+           is not currently running, so we always write to the inactive slot */
         s_ota_partition = esp_ota_get_next_update_partition(NULL);
         if (!s_ota_partition) {
             ESP_LOGE(TAG, "OTA: no update partition found");
@@ -103,6 +121,9 @@ static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
 
     case ESP_ZB_ZCL_OTA_UPGRADE_STATUS_APPLY:
         if (s_ota_in_progress) {
+            /* esp_ota_end validates the image SHA-256 and marks it valid.
+               esp_ota_set_boot_partition updates the otadata partition so the
+               bootloader selects the new image on next boot. */
             if (esp_ota_end(s_ota_handle) == ESP_OK &&
                 esp_ota_set_boot_partition(s_ota_partition) == ESP_OK) {
                 ESP_LOGI(TAG, "OTA complete — rebooting");
@@ -126,6 +147,10 @@ static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
     return ESP_OK;
 }
 
+/* Queue unsolicited attribute reports to the coordinator (short addr 0x0000).
+ * We set the attribute value first so the stack reads the latest value when it
+ * builds the report frame, then schedule zb_finish_alarm to stop the loop
+ * after SEND_DELAY_MS — long enough for the coordinator to ACK. */
 static void send_reports(void)
 {
     /* Water level — Analog Input cluster, endpoint 1 */
@@ -147,7 +172,8 @@ static void send_reports(void)
     esp_zb_zcl_report_attr_cmd_req(&report);
 
 #if CONFIG_WELLD_BATT_ADC_CHANNEL >= 0
-    /* Battery voltage — Analog Input cluster, endpoint 2 */
+    /* Battery voltage — Analog Input cluster, endpoint 2.
+       Skip report if ADC returned -1 (disabled or read error). */
     if (s_battery_v >= 0.0f) {
         esp_zb_zcl_set_attribute_val(EP_BATTERY,
             ESP_ZB_ZCL_CLUSTER_ID_ANALOG_INPUT, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
@@ -157,8 +183,10 @@ static void send_reports(void)
     }
 #endif
 
-    /* Temperature — Temperature Measurement cluster (0x0402), endpoint 3 */
+    /* Temperature — Temperature Measurement cluster (0x0402), endpoint 3.
+       Skip report if DS18B20 returned -127 (not found or out of range). */
     if (s_temperature_c > -127.0f) {
+        /* ZCL temperature is int16 in units of 0.01 °C */
         int16_t temp_zb = (int16_t)(s_temperature_c * 100.0f);
         esp_zb_zcl_set_attribute_val(EP_TEMPERATURE,
             ESP_ZB_ZCL_CLUSTER_ID_TEMP_MEASUREMENT, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
@@ -178,10 +206,13 @@ static void send_reports(void)
         esp_zb_zcl_report_attr_cmd_req(&temp_report);
     }
 
+    /* Give the stack SEND_DELAY_MS to transmit before we declare success */
     esp_zb_scheduler_alarm(zb_finish_alarm, 0, SEND_DELAY_MS);
 }
 
-/* Called by the Zigbee stack from within the main loop task. */
+/* Called by the Zigbee stack from within the main loop task (zb_task).
+ * Drives the BDB commissioning state machine:
+ *   SKIP_STARTUP → INITIALIZATION → NETWORK_STEERING → send reports */
 void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
 {
     uint32_t *p_sg_p     = signal_struct->p_app_signal;
@@ -194,6 +225,7 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
     case ESP_ZB_BDB_SIGNAL_DEVICE_FIRST_START:
     case ESP_ZB_BDB_SIGNAL_DEVICE_REBOOT:
         if (err_status == ESP_OK) {
+            /* Stack initialised; begin network steering (scan + join) */
             esp_zb_bdb_start_top_level_commissioning(ESP_ZB_BDB_MODE_NETWORK_STEERING);
         } else {
             ESP_LOGE(TAG, "init failed (err=%d)", err_status);
@@ -217,6 +249,8 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
     }
 }
 
+/* Create an Analog Input cluster initialised to initial_value.
+ * Used for both the water level and battery voltage endpoints. */
 static esp_zb_attribute_list_t *make_ai_cluster(float initial_value)
 {
     esp_zb_analog_input_cluster_cfg_t cfg = {
@@ -227,6 +261,11 @@ static esp_zb_attribute_list_t *make_ai_cluster(float initial_value)
     return esp_zb_analog_input_cluster_create(&cfg);
 }
 
+/* FreeRTOS task that owns the Zigbee radio for one wakeup cycle:
+ *   1. Init the stack as an End Device
+ *   2. Register clusters and endpoints
+ *   3. Start the main loop (blocks until esp_zb_stop() is called)
+ *   4. Set STOPPED_BIT so zigbee_send() knows the radio is released */
 static void zb_task(void *pvParameters)
 {
     esp_zb_platform_config_t platform_cfg = {
@@ -235,6 +274,12 @@ static void zb_task(void *pvParameters)
     };
     ESP_ERROR_CHECK(esp_zb_platform_config(&platform_cfg));
 
+    /* Configure as a Zigbee End Device (not router/coordinator).
+     * ed_timeout: how long the coordinator keeps this device in its child
+     *   table between polls — 256 min >> sleep interval, so the parent
+     *   never ages us out between wakeups.
+     * keep_alive: poll interval in ms while awake (unused in deep-sleep
+     *   architecture but required by the stack). */
     esp_zb_cfg_t nwk_cfg = {
         .esp_zb_role         = ESP_ZB_DEVICE_TYPE_ED,
         .install_code_policy = false,
@@ -244,6 +289,7 @@ static void zb_task(void *pvParameters)
         },
     };
     esp_zb_init(&nwk_cfg);
+    /* Register OTA callback before starting the stack */
     esp_zb_core_action_handler_register(zb_action_handler);
 
     /* Build ZCL sw_build_id string from the app version baked in at compile time */
@@ -253,7 +299,7 @@ static void zb_task(void *pvParameters)
     s_sw_build_id[0] = (char)ver_len;
     memcpy(s_sw_build_id + 1, ver, ver_len);
 
-    /* Basic cluster with device identity */
+    /* Basic cluster — device identity visible in Zigbee2MQTT and HA */
     esp_zb_basic_cluster_cfg_t basic_cfg = {
         .zcl_version = ESP_ZB_ZCL_BASIC_ZCL_VERSION_DEFAULT_VALUE,
         .power_source = 0x03,  /* battery */
@@ -273,7 +319,8 @@ static void zb_task(void *pvParameters)
         .app_device_version = 0,
     };
 
-    /* Endpoint 1 — water level (Analog Input) */
+    /* Endpoint 1 — water level (Analog Input).
+     * Also hosts the Basic cluster (required on EP1) and the OTA client. */
     esp_zb_cluster_list_t *level_clusters = esp_zb_zcl_cluster_list_create();
     ESP_ERROR_CHECK(esp_zb_cluster_list_add_basic_cluster(level_clusters, basic_attrs,
                                                           ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
@@ -281,20 +328,24 @@ static void zb_task(void *pvParameters)
                                                                   make_ai_cluster(s_level_m),
                                                                   ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
 
-    /* OTA upgrade client on endpoint 1 */
+    /* OTA upgrade client on endpoint 1.
+     * ota_upgrade_server_addr = 0xFFFF: discover the OTA server by broadcast
+     *   rather than hardcoding a coordinator address.
+     * ota_upgrade_query_jitter: random delay (0–100 %) before querying,
+     *   prevents all devices on the network querying simultaneously. */
     esp_zb_ota_upgrade_cluster_cfg_t ota_cfg = {
         .ota_upgrade_downloaded_file_ver = 0x00000001,
         .ota_upgrade_manufacturer        = OTA_MANUFACTURER_CODE,
         .ota_upgrade_image_type          = OTA_IMAGE_TYPE,
         .ota_upgrade_query_jitter        = 100,
         .ota_upgrade_current_time        = 0,
-        .ota_upgrade_server_addr         = 0xFFFF,
+        .ota_upgrade_server_addr         = 0xFFFF,  /* discover by broadcast */
         .ota_upgrade_server_ep           = 0xFF,
     };
     esp_zb_ota_upgrade_client_variable_t ota_var = {
         .timer_query   = ESP_ZB_ZCL_OTA_UPGRADE_QUERY_TIMER_COUNT_DEF,
         .hw_version    = 0x0001,
-        .max_data_size = 128,
+        .max_data_size = 128,  /* bytes per block; larger = faster download */
     };
     esp_zb_attribute_list_t *ota_attrs = esp_zb_ota_upgrade_cluster_create(&ota_cfg);
     esp_zb_ota_upgrade_cluster_add_attr(ota_attrs,
@@ -306,7 +357,9 @@ static void zb_task(void *pvParameters)
     ESP_ERROR_CHECK(esp_zb_ep_list_add_ep(ep_list, level_clusters, ep_cfg));
 
 #if CONFIG_WELLD_BATT_ADC_CHANNEL >= 0
-    /* Endpoint 2 — battery voltage (Analog Input) */
+    /* Endpoint 2 — battery voltage (Analog Input).
+     * The Z2M converter converts this to a percentage using configurable
+     * full/empty voltage thresholds, avoiding hard-coding chemistry in fw. */
     esp_zb_cluster_list_t *batt_clusters = esp_zb_zcl_cluster_list_create();
     ESP_ERROR_CHECK(esp_zb_cluster_list_add_analog_input_cluster(batt_clusters,
                                                                   make_ai_cluster(s_battery_v),
@@ -315,7 +368,8 @@ static void zb_task(void *pvParameters)
     ESP_ERROR_CHECK(esp_zb_ep_list_add_ep(ep_list, batt_clusters, ep_cfg));
 #endif
 
-    /* Endpoint 3 — water temperature (Temperature Measurement, 0x0402) */
+    /* Endpoint 3 — water temperature (Temperature Measurement, cluster 0x0402).
+     * 0x8000 is the ZCL "invalid" sentinel used when no sensor is present. */
     int16_t temp_zb = (s_temperature_c > -127.0f) ? (int16_t)(s_temperature_c * 100.0f) : 0x8000;
     esp_zb_temperature_meas_cluster_cfg_t temp_cfg = {
         .measured_value = temp_zb,
@@ -333,12 +387,23 @@ static void zb_task(void *pvParameters)
 
     esp_zb_set_primary_network_channel_set(CONFIG_WELLD_ZIGBEE_CHANNEL_MASK);
     ESP_ERROR_CHECK(esp_zb_start(false));
+    /* Arm the watchdog alarm before entering the blocking main loop */
     esp_zb_scheduler_alarm(zb_timeout_alarm, 0, TOTAL_TIMEOUT_MS);
-    esp_zb_main_loop_iteration();
+    esp_zb_main_loop_iteration();  /* blocks until esp_zb_stop() is called */
     xEventGroupSetBits(s_events, STOPPED_BIT);
     vTaskDelete(NULL);
 }
 
+/* Send sensor readings over Zigbee and block until the radio is released.
+ *
+ * Lifecycle:
+ *   1. Store readings in module-level globals (read by zb_task/send_reports)
+ *   2. Spawn zb_task which initialises the stack and joins the network
+ *   3. Wait for SENT_BIT (success) or FAIL_BIT (timeout / error)
+ *   4. Wait for STOPPED_BIT before returning — ensures the IEEE 802.15.4
+ *      radio is fully idle before the caller enters deep sleep
+ *
+ * Returns true if SENT_BIT was set (coordinator acknowledged). */
 bool zigbee_send(float level_m, float battery_v, float temperature_c)
 {
     s_level_m      = level_m;
@@ -355,7 +420,7 @@ bool zigbee_send(float level_m, float battery_v, float temperature_c)
     EventBits_t bits = xEventGroupWaitBits(s_events, SENT_BIT | FAIL_BIT,
                                            pdFALSE, pdFALSE,
                                            pdMS_TO_TICKS(TOTAL_TIMEOUT_MS + 5000));
-    /* wait for the radio to be released before entering deep sleep */
+    /* Wait for the radio to be released before entering deep sleep */
     xEventGroupWaitBits(s_events, STOPPED_BIT, pdFALSE, pdFALSE, pdMS_TO_TICKS(5000));
     vEventGroupDelete(s_events);
     return (bits & SENT_BIT) != 0;
