@@ -48,9 +48,12 @@ int sensor_get_offset_cm(void)
 }
 
 /* Updates the in-memory offset immediately and persists it to NVS so it
- * survives deep sleep and power cycles. */
+ * survives deep sleep and power cycles. Clamps to ±600 cm before storing
+ * so NVS never holds a value that bypasses the read-side clamp. */
 void sensor_set_offset_cm(int offset_cm)
 {
+    if (offset_cm < -600) offset_cm = -600;
+    if (offset_cm >  600) offset_cm =  600;
     s_offset_cm = offset_cm;
     nvs_handle_t h;
     if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK) {
