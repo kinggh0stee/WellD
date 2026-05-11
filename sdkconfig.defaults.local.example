@@ -6,10 +6,21 @@
 # CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS=100000
 # CONFIG_WELLD_SENSOR_MAX_DEPTH_CM=600
 
+# Level offset — cm added to the reading after scaling (can be negative).
+# E.g. -15 if the transducer sits 15 cm above the well bottom.
+# Persisted in NVS; can also be updated at runtime via sensor_set_offset_cm().
+# CONFIG_WELLD_SENSOR_OFFSET_CM=0
+
 # Battery monitoring — set the ADC channel wired to your divider,
 # or leave BATT_ADC_CHANNEL=-1 to disable.
 # CONFIG_WELLD_BATT_ADC_CHANNEL=-1
 # CONFIG_WELLD_BATT_DIVIDER_RATIO=200
+
+# Battery percentage thresholds — these set the defaults shown in the Z2M
+# converter. Override per-device in the Zigbee2MQTT device options UI instead
+# of changing these, since they are not read by the firmware at runtime.
+# CONFIG_WELLD_BATT_FULL_MV=4200   # LiPo/Li-ion: 4200; 3xAA alkaline: 4500
+# CONFIG_WELLD_BATT_EMPTY_MV=3000  # LiPo/Li-ion: 3000; 3xAA alkaline: 3300
 
 # DS18B20 temperature sensor GPIO
 # CONFIG_WELLD_DS18B20_GPIO=4

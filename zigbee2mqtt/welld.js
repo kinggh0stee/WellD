@@ -13,7 +13,12 @@ const definition = {
             convert: (model, msg, publish, options, meta) => {
                 if (!msg.data.hasOwnProperty('presentValue')) return;
                 const ep = msg.endpoint.ID;
-                if (ep === 1) return {water_level: parseFloat(msg.data.presentValue.toFixed(2))};
+                if (ep === 1) {
+                    const val = msg.data.presentValue;
+                    /* val < 0 means open-loop / transducer disconnected;
+                       return null so HA marks the entity as unavailable */
+                    return {water_level: val < 0 ? null : parseFloat(val.toFixed(2))};
+                }
                 if (ep === 2) {
                     const voltage = parseFloat(msg.data.presentValue.toFixed(2));
                     const fullMv  = (options.battery_full_mv  ?? 4200);
