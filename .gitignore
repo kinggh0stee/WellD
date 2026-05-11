@@ -4,3 +4,9 @@ sdkconfig.old
 sdkconfig.defaults.local
 dependencies.lock
 managed_components/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.orig
