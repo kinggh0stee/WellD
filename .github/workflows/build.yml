@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Build firmware
         uses: espressif/esp-idf-ci-action@v1
@@ -22,14 +22,14 @@ jobs:
           command: idf.py set-target esp32c6 && idf.py build
 
       - name: Upload dependencies lock
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: success()
         with:
           name: dependencies-lock
           path: dependencies.lock
 
       - name: Upload firmware
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: success()
         with:
           name: firmware
