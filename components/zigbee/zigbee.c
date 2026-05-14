@@ -2,6 +2,7 @@
 #include "esp_zigbee_core.h"
 #include "esp_app_desc.h"
 #include "esp_ota_ops.h"
+#include "esp_system.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -26,7 +27,7 @@ static const char *TAG = "zigbee";
 /* Event bits used to synchronise zb_task with zigbee_send() on the main task */
 #define SENT_BIT    BIT0   /* reports were queued and SEND_DELAY_MS elapsed */
 #define FAIL_BIT    BIT1   /* coordinator not found, steering failed, or OTA error */
-#define STOPPED_BIT BIT2   /* esp_zb_main_loop_iteration() has returned; radio is free */
+#define STOPPED_BIT BIT2   /* esp_zb_stack_main_loop_iteration loop has exited; radio is free */
 
 /* ZCL character strings: first byte is length, no null terminator */
 static char s_manufacturer[] = "\x05WellD";
@@ -103,6 +104,8 @@ static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
         if (esp_ota_begin(s_ota_partition, OTA_SIZE_UNKNOWN, &s_ota_handle) == ESP_OK) {
             s_ota_in_progress = true;
             ESP_LOGI(TAG, "OTA started → %s", s_ota_partition->label);
+        } else {
+            ESP_LOGE(TAG, "OTA: esp_ota_begin failed");
         }
         break;
 
@@ -265,7 +268,7 @@ static esp_zb_attribute_list_t *make_ai_cluster(float initial_value)
 /* FreeRTOS task that owns the Zigbee radio for one wakeup cycle:
  *   1. Init the stack as an End Device
  *   2. Register clusters and endpoints
- *   3. Start the main loop (blocks until esp_zb_stop() is called)
+ *   3. Poll esp_zb_stack_main_loop_iteration() until s_stop_requested is set
  *   4. Set STOPPED_BIT so zigbee_send() knows the radio is released */
 static void zb_task(void *pvParameters)
 {
