@@ -40,3 +40,41 @@ jobs:
             build/*.bin
             build/*.elf
             build/*.map
+
+  unit-tests:
+    name: Unit tests (build + run on QEMU)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Build sensor unit-test app
+        uses: espressif/esp-idf-ci-action@e6f5c74232b1ccd4c97ed641f1e48553853f1fd5  # v1.2.0
+        with:
+          esp_idf_version: v5.3.5
+          target: esp32c6
+          path: test/sensor
+          command: idf.py set-target esp32c6 && idf.py build
+
+      - name: Build welld_core unit-test app
+        uses: espressif/esp-idf-ci-action@e6f5c74232b1ccd4c97ed641f1e48553853f1fd5  # v1.2.0
+        with:
+          esp_idf_version: v5.3.5
+          target: esp32c6
+          path: test/welld_core
+          command: idf.py set-target esp32c6 && idf.py build
+
+  z2m-converter-tests:
+    name: Zigbee2MQTT converter tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: '20'
+
+      - name: Run converter tests
+        working-directory: zigbee2mqtt
+        run: npm test

@@ -63,6 +63,11 @@ void sensor_set_offset_cm(int offset_cm)
     }
 }
 
+void sensor_offset_cache_reset(void)
+{
+    s_offset_cm = INT32_MIN;
+}
+
 /* Read NUM_SAMPLES raw ADC counts from channel and return the average.
  * Averaging reduces noise introduced by the ESP32-C6's successive-
  * approximation ADC and any ripple on the 4-20 mA loop supply. */
@@ -164,6 +169,13 @@ float sensor_read_level(void)
     return level_m;
 }
 
+/* Pure: returns true if temp_c is within the DS18B20 rated range.
+ * Extracted so a test can pin the range without driving 1-Wire hardware. */
+bool sensor_temp_in_range(float temp_c)
+{
+    return temp_c >= -55.0f && temp_c <= 125.0f;
+}
+
 /* Scan the 1-Wire bus for the first DS18B20 and return its temperature in °C.
  * The do-while iterates all bus devices until it finds one that accepts the
  * ds18b20_new_device_from_enumeration() call (i.e. has the correct family code 0x28).
@@ -209,7 +221,7 @@ float sensor_read_temperature(void)
     onewire_bus_del(bus);
 
     /* Discard readings outside the sensor's rated range — likely a glitch */
-    if (temp < -55.0f || temp > 125.0f) {
+    if (!sensor_temp_in_range(temp)) {
         ESP_LOGW(TAG, "DS18B20 reading %.1f °C outside rated range, discarding", temp);
         return -127.0f;
     }
@@ -217,18 +229,23 @@ float sensor_read_temperature(void)
     return temp;
 }
 
-/* Read battery voltage through an external resistor divider.
+/* Pure: convert an ADC voltage to battery volts via the divider ratio.
  * batt_v = adc_mv * (R1 + R2) / R2
- *        = adc_mv * BATT_DIVIDER_RATIO / 100
- * BATT_DIVIDER_RATIO is stored as ratio * 100 to avoid floating-point in
- * Kconfig (e.g. 200 = 2.00x, meaning R1 == R2).
+ *        = adc_mv * divider_ratio_x100 / 100 / 1000  (mV → V)
+ * Kept free of ADC calls so unit tests can pin divider math directly. */
+float sensor_battery_from_mv(int adc_mv, int divider_ratio_x100)
+{
+    return (float)adc_mv * (float)divider_ratio_x100 / 100000.0f;
+}
+
+/* Read battery voltage through an external resistor divider.
  * Returns -1.0 if battery monitoring is disabled at build time. */
 float sensor_read_battery_v(void)
 {
 #if CONFIG_WELLD_BATT_ADC_CHANNEL >= 0
     int raw     = adc_read_avg((adc_channel_t)CONFIG_WELLD_BATT_ADC_CHANNEL);
     int volt_mv = raw_to_mv(raw);
-    float batt_v = (float)volt_mv * CONFIG_WELLD_BATT_DIVIDER_RATIO / 100000.0f;
+    float batt_v = sensor_battery_from_mv(volt_mv, CONFIG_WELLD_BATT_DIVIDER_RATIO);
     ESP_LOGI(TAG, "battery=%.2f V", batt_v);
     return batt_v;
 #else

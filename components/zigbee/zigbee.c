@@ -1,4 +1,5 @@
 #include "zigbee.h"
+#include "welld_core.h"
 #include "esp_zigbee_core.h"
 #include "esp_app_desc.h"
 #include "esp_ota_ops.h"
@@ -189,7 +190,7 @@ static void send_reports(void)
 #if CONFIG_WELLD_BATT_ADC_CHANNEL >= 0
     /* Battery voltage — Analog Input cluster, endpoint 2.
        Skip report if ADC returned -1 (disabled or read error). */
-    if (s_battery_v >= 0.0f) {
+    if (welld_zb_should_report_battery(s_battery_v)) {
         esp_zb_zcl_set_attribute_val(EP_BATTERY,
             ESP_ZB_ZCL_CLUSTER_ID_ANALOG_INPUT, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
             ESP_ZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID, &s_battery_v, false);
@@ -201,8 +202,7 @@ static void send_reports(void)
     /* Temperature — Temperature Measurement cluster (0x0402), endpoint 3.
        Skip report if DS18B20 returned -127 (not found or out of range). */
     if (s_temperature_c > -127.0f) {
-        /* ZCL temperature is int16 in units of 0.01 °C */
-        int16_t temp_zb = (int16_t)(s_temperature_c * 100.0f);
+        int16_t temp_zb = welld_zb_encode_temp(s_temperature_c);
         esp_zb_zcl_set_attribute_val(EP_TEMPERATURE,
             ESP_ZB_ZCL_CLUSTER_ID_TEMP_MEASUREMENT, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
             ESP_ZB_ZCL_ATTR_TEMP_MEASUREMENT_VALUE_ID, &temp_zb, false);
@@ -308,11 +308,8 @@ static void zb_task(void *pvParameters)
     esp_zb_core_action_handler_register(zb_action_handler);
 
     /* Build ZCL sw_build_id string from the app version baked in at compile time */
-    const char *ver = esp_app_get_description()->version;
-    size_t ver_len = strlen(ver);
-    if (ver_len > 16) ver_len = 16;
-    s_sw_build_id[0] = (char)ver_len;
-    memcpy(s_sw_build_id + 1, ver, ver_len);
+    welld_pack_zcl_string(s_sw_build_id, sizeof(s_sw_build_id),
+                          esp_app_get_description()->version);
 
     /* Basic cluster — device identity visible in Zigbee2MQTT and HA */
     esp_zb_basic_cluster_cfg_t basic_cfg = {
@@ -384,8 +381,8 @@ static void zb_task(void *pvParameters)
 #endif
 
     /* Endpoint 3 — water temperature (Temperature Measurement, cluster 0x0402).
-     * 0x8000 is the ZCL "invalid" sentinel used when no sensor is present. */
-    int16_t temp_zb = (s_temperature_c > -127.0f) ? (int16_t)(s_temperature_c * 100.0f) : 0x8000;
+     * welld_zb_encode_temp returns 0x8000 (ZCL invalid) when no sensor present. */
+    int16_t temp_zb = welld_zb_encode_temp(s_temperature_c);
     esp_zb_temperature_meas_cluster_cfg_t temp_cfg = {
         .measured_value = temp_zb,
         .min_value      = -4000,   /* -40.00 °C */

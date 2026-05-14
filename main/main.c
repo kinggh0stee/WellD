@@ -5,6 +5,7 @@
 #include "nvs.h"
 #include "sensor.h"
 #include "zigbee.h"
+#include "welld_core.h"
 #include "sdkconfig.h"
 
 static const char *TAG = "main";
@@ -54,7 +55,7 @@ void app_main(void)
     ESP_ERROR_CHECK(ret);
 
     uint32_t fail_count = read_fail_count();
-    if (fail_count >= FAIL_THRESHOLD) {
+    if (welld_should_wipe_nvs(fail_count, FAIL_THRESHOLD)) {
         /* Corrupted network state suspected — wipe NVS so Zigbee does a fresh join */
         ESP_LOGW(TAG, "%lu consecutive Zigbee failures — erasing NVS to force rejoin", fail_count);
         int current_offset = sensor_get_offset_cm();
@@ -73,12 +74,16 @@ void app_main(void)
     float temperature_c = sensor_read_temperature();
     bool sent = zigbee_send(level_m, battery_v, temperature_c);
 
-    /* Only write NVS when the count changes — flash has limited write cycles */
-    if (!sent) {
+    switch (welld_post_send_action(fail_count, sent)) {
+    case WELLD_FAIL_INCREMENT:
         write_fail_count(fail_count + 1);
         ESP_LOGW(TAG, "Zigbee send failed (%lu/%d)", fail_count + 1, FAIL_THRESHOLD);
-    } else if (fail_count != 0) {
-        write_fail_count(0);   /* reset counter; skip write when already zero */
+        break;
+    case WELLD_FAIL_RESET:
+        write_fail_count(0);
+        break;
+    case WELLD_FAIL_NONE:
+        break;
     }
 
     ESP_LOGI(TAG, "sleeping %d s", CONFIG_WELLD_SLEEP_DURATION_SEC);

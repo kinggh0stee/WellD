@@ -1,0 +1,10 @@
+{
+  "name": "welld-z2m-converter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Zigbee2MQTT external converter for the WellD ESP32-C6 well monitor.",
+  "main": "welld.js",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}
