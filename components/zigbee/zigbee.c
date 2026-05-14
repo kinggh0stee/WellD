@@ -45,6 +45,8 @@ static float s_temperature_c;
    volatile prevents the compiler from caching the value across calls. */
 static volatile bool   s_ota_in_progress = false;
 static volatile bool   s_stop_requested  = false;
+static uint8_t         s_ota_timeout_count = 0;
+#define OTA_MAX_TIMEOUT_COUNT 10  /* abort stalled OTA after 10 × TOTAL_TIMEOUT_MS */
 static esp_ota_handle_t s_ota_handle     = 0;
 static const esp_partition_t *s_ota_partition = NULL;
 
@@ -55,6 +57,14 @@ static const esp_partition_t *s_ota_partition = NULL;
 static void zb_timeout_alarm(uint8_t param)
 {
     if (s_ota_in_progress) {
+        if (++s_ota_timeout_count >= OTA_MAX_TIMEOUT_COUNT) {
+            ESP_LOGE(TAG, "OTA stalled after %u timeouts — aborting", s_ota_timeout_count);
+            esp_ota_abort(s_ota_handle);
+            s_ota_in_progress = false;
+            xEventGroupSetBits(s_events, FAIL_BIT);
+            s_stop_requested = true;
+            return;
+        }
         esp_zb_scheduler_alarm(zb_timeout_alarm, 0, TOTAL_TIMEOUT_MS);
         return;
     }
@@ -94,6 +104,7 @@ static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
 
     switch (msg->upgrade_status) {
     case ESP_ZB_ZCL_OTA_UPGRADE_STATUS_START:
+        s_ota_timeout_count = 0;  /* reset before each new OTA attempt */
         /* esp_ota_get_next_update_partition selects whichever of ota_0/ota_1
            is not currently running, so we always write to the inactive slot */
         s_ota_partition = esp_ota_get_next_update_partition(NULL);
@@ -338,8 +349,8 @@ static void zb_task(void *pvParameters)
      * ota_upgrade_query_jitter: random delay (0–100 %) before querying,
      *   prevents all devices on the network querying simultaneously. */
     esp_zb_ota_cluster_cfg_t ota_cfg = {
-        .ota_upgrade_file_version        = 0x00000001,
-        .ota_upgrade_downloaded_file_ver = 0x00000001,
+        .ota_upgrade_file_version        = OTA_FW_VERSION,
+        .ota_upgrade_downloaded_file_ver = OTA_FW_VERSION,
         .ota_upgrade_manufacturer        = OTA_MANUFACTURER_CODE,
         .ota_upgrade_image_type          = OTA_IMAGE_TYPE,
     };

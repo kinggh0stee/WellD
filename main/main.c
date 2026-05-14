@@ -56,7 +56,12 @@ void app_main(void)
     uint32_t fail_count = read_fail_count();
     if (fail_count >= FAIL_THRESHOLD) {
         /* Corrupted network state suspected — wipe NVS so Zigbee does a fresh join */
-        ESP_LOGW(TAG, "%lu consecutive Zigbee failures, erasing NVS to force rejoin", fail_count);
+        ESP_LOGW(TAG, "%lu consecutive Zigbee failures — erasing NVS to force rejoin", fail_count);
+        int current_offset = sensor_get_offset_cm();
+        if (current_offset != CONFIG_WELLD_SENSOR_OFFSET_CM) {
+            ESP_LOGW(TAG, "NVS erase will reset sensor offset from %d cm to compile-time default (%d cm)",
+                     current_offset, CONFIG_WELLD_SENSOR_OFFSET_CM);
+        }
         ESP_ERROR_CHECK(nvs_flash_erase());
         ESP_ERROR_CHECK(nvs_flash_init());
         fail_count = 0;

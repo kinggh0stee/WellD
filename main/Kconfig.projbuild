@@ -13,6 +13,7 @@ menu "WellD Configuration"
     config WELLD_SENSOR_SHUNT_MILLIOHMS
         int "Shunt resistor value (milliohms)"
         default 100000
+        range 1000 1000000
         help
             Value in milliohms. 100000 = 100 Ω → 4 mA gives 0.40 V, 20 mA gives 2.00 V.
 
