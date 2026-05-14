@@ -1,0 +1,102 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+const {
+    convertLevel,
+    convertBattery,
+    convertAnalogInput,
+    DEFAULT_BATTERY_FULL_MV,
+    DEFAULT_BATTERY_EMPTY_MV,
+} = require('../lib/welld_convert');
+
+/* convertLevel ------------------------------------------------------------ */
+
+test('water level rounds to 2 decimal places', () => {
+    assert.equal(convertLevel(1.23456), 1.23);
+    assert.equal(convertLevel(0), 0);
+});
+
+test('water level negative → null (open-loop transducer)', () => {
+    assert.equal(convertLevel(-1), null);
+    assert.equal(convertLevel(-0.0001), null);
+});
+
+/* convertBattery ---------------------------------------------------------- */
+
+test('battery percentage uses defaults when options omitted', () => {
+    /* 3.6 V with default 3.0 V empty / 4.2 V full → 50 % */
+    const out = convertBattery(3.6);
+    assert.equal(out.battery_voltage, 3.6);
+    assert.equal(out.battery, 50);
+});
+
+test('battery percentage clamps to 0 below empty threshold', () => {
+    const out = convertBattery(2.5);
+    assert.equal(out.battery, 0);
+});
+
+test('battery percentage clamps to 100 above full threshold', () => {
+    const out = convertBattery(5.0);
+    assert.equal(out.battery, 100);
+});
+
+test('battery percentage honours custom full/empty options', () => {
+    /* 3×AA alkaline: empty 3.0 V (default), full 4.5 V */
+    const out = convertBattery(3.75, {battery_full_mv: 4500});
+    assert.equal(out.battery, 50);
+});
+
+test('battery percentage rounds to nearest integer', () => {
+    /* 3.61 V → 50.83…% → rounds to 51 */
+    const out = convertBattery(3.61);
+    assert.equal(out.battery, 51);
+});
+
+test('battery defaults match the firmware Kconfig defaults', () => {
+    /* If these drift, the JS converter will silently misreport %. */
+    assert.equal(DEFAULT_BATTERY_FULL_MV, 4200);
+    assert.equal(DEFAULT_BATTERY_EMPTY_MV, 3000);
+});
+
+/* convertAnalogInput ------------------------------------------------------ */
+
+test('endpoint 1 dispatches to water level', () => {
+    const result = convertAnalogInput({
+        endpoint: {ID: 1},
+        data: {presentValue: 2.5},
+    });
+    assert.deepEqual(result, {water_level: 2.5});
+});
+
+test('endpoint 1 with negative present value reports null', () => {
+    const result = convertAnalogInput({
+        endpoint: {ID: 1},
+        data: {presentValue: -1},
+    });
+    assert.deepEqual(result, {water_level: null});
+});
+
+test('endpoint 2 dispatches to battery converter', () => {
+    const result = convertAnalogInput({
+        endpoint: {ID: 2},
+        data: {presentValue: 3.6},
+    });
+    assert.equal(result.battery_voltage, 3.6);
+    assert.equal(result.battery, 50);
+});
+
+test('missing presentValue returns undefined', () => {
+    const result = convertAnalogInput({
+        endpoint: {ID: 1},
+        data: {},
+    });
+    assert.equal(result, undefined);
+});
+
+test('unknown endpoint returns undefined', () => {
+    const result = convertAnalogInput({
+        endpoint: {ID: 99},
+        data: {presentValue: 1.0},
+    });
+    assert.equal(result, undefined);
+});

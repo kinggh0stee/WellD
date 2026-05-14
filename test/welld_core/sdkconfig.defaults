@@ -1,0 +1,3 @@
+# welld_core has no Kconfig dependencies of its own; this file exists so
+# `idf.py -C test/welld_core build` doesn't pick up stale sdkconfig from a
+# different test directory.

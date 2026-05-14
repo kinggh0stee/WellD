@@ -1,5 +1,6 @@
 const fz = require('zigbee-herdsman-converters/converters/fromZigbee');
 const {numeric, access: ea} = require('zigbee-herdsman-converters/lib/exposes');
+const {convertAnalogInput} = require('./lib/welld_convert');
 
 const definition = {
     zigbeeModel: ['WellD-v1'],
@@ -10,24 +11,8 @@ const definition = {
         {
             cluster: 'genAnalogInput',
             type: ['attributeReport', 'readResponse'],
-            convert: (model, msg, publish, options, meta) => {
-                if (!msg.data.hasOwnProperty('presentValue')) return;
-                const ep = msg.endpoint.ID;
-                if (ep === 1) {
-                    const val = msg.data.presentValue;
-                    /* val < 0 means open-loop / transducer disconnected;
-                       return null so HA marks the entity as unavailable */
-                    return {water_level: val < 0 ? null : parseFloat(val.toFixed(2))};
-                }
-                if (ep === 2) {
-                    const voltage = parseFloat(msg.data.presentValue.toFixed(2));
-                    const fullMv  = (options.battery_full_mv  ?? 4200);
-                    const emptyMv = (options.battery_empty_mv ?? 3000);
-                    const pct = Math.min(100, Math.max(0,
-                        Math.round((voltage * 1000 - emptyMv) / (fullMv - emptyMv) * 100)));
-                    return {battery_voltage: voltage, battery: pct};
-                }
-            },
+            convert: (model, msg, publish, options, meta) =>
+                convertAnalogInput({...msg, options}),
         },
         fz.temperature,
     ],
