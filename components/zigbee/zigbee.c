@@ -2,6 +2,7 @@
 #include "esp_zigbee_core.h"
 #include "esp_app_desc.h"
 #include "esp_ota_ops.h"
+#include "esp_system.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -26,7 +27,7 @@ static const char *TAG = "zigbee";
 /* Event bits used to synchronise zb_task with zigbee_send() on the main task */
 #define SENT_BIT    BIT0   /* reports were queued and SEND_DELAY_MS elapsed */
 #define FAIL_BIT    BIT1   /* coordinator not found, steering failed, or OTA error */
-#define STOPPED_BIT BIT2   /* esp_zb_main_loop_iteration() has returned; radio is free */
+#define STOPPED_BIT BIT2   /* esp_zb_stack_main_loop_iteration loop has exited; radio is free */
 
 /* ZCL character strings: first byte is length, no null terminator */
 static char s_manufacturer[] = "\x05WellD";
@@ -43,6 +44,7 @@ static float s_temperature_c;
    stack callbacks) and read by the alarm callbacks in the same task context —
    volatile prevents the compiler from caching the value across calls. */
 static volatile bool   s_ota_in_progress = false;
+static volatile bool   s_stop_requested  = false;
 static esp_ota_handle_t s_ota_handle     = 0;
 static const esp_partition_t *s_ota_partition = NULL;
 
@@ -58,7 +60,7 @@ static void zb_timeout_alarm(uint8_t param)
     }
     ESP_LOGE(TAG, "timeout — no coordinator found");
     xEventGroupSetBits(s_events, FAIL_BIT);
-    esp_zb_stop();
+    s_stop_requested = true;
 }
 
 /* Fired SEND_DELAY_MS after reports are queued, giving the stack time to
@@ -71,7 +73,7 @@ static void zb_finish_alarm(uint8_t param)
         return;
     }
     xEventGroupSetBits(s_events, SENT_BIT);
-    esp_zb_stop();
+    s_stop_requested = true;
 }
 
 /* OTA state machine — called by the Zigbee stack for every OTA upgrade event.
@@ -102,6 +104,8 @@ static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
         if (esp_ota_begin(s_ota_partition, OTA_SIZE_UNKNOWN, &s_ota_handle) == ESP_OK) {
             s_ota_in_progress = true;
             ESP_LOGI(TAG, "OTA started → %s", s_ota_partition->label);
+        } else {
+            ESP_LOGE(TAG, "OTA: esp_ota_begin failed");
         }
         break;
 
@@ -114,7 +118,7 @@ static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
                 /* zb_finish_alarm already returned early; stop now rather than
                    waiting up to TOTAL_TIMEOUT_MS for zb_timeout_alarm to fire */
                 xEventGroupSetBits(s_events, FAIL_BIT);
-                esp_zb_stop();
+                s_stop_requested = true;
             }
         }
         break;
@@ -132,7 +136,7 @@ static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
                 ESP_LOGE(TAG, "OTA finalise failed — aborting");
                 s_ota_in_progress = false;
                 xEventGroupSetBits(s_events, FAIL_BIT);
-                esp_zb_stop();
+                s_stop_requested = true;
             }
         }
         break;
@@ -230,7 +234,7 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
         } else {
             ESP_LOGE(TAG, "init failed (err=%d)", err_status);
             xEventGroupSetBits(s_events, FAIL_BIT);
-            esp_zb_stop();
+            s_stop_requested = true;
         }
         break;
     case ESP_ZB_BDB_SIGNAL_STEERING:
@@ -241,7 +245,7 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
         } else {
             ESP_LOGE(TAG, "steering failed (err=%d)", err_status);
             xEventGroupSetBits(s_events, FAIL_BIT);
-            esp_zb_stop();
+            s_stop_requested = true;
         }
         break;
     default:
@@ -264,13 +268,13 @@ static esp_zb_attribute_list_t *make_ai_cluster(float initial_value)
 /* FreeRTOS task that owns the Zigbee radio for one wakeup cycle:
  *   1. Init the stack as an End Device
  *   2. Register clusters and endpoints
- *   3. Start the main loop (blocks until esp_zb_stop() is called)
+ *   3. Poll esp_zb_stack_main_loop_iteration() until s_stop_requested is set
  *   4. Set STOPPED_BIT so zigbee_send() knows the radio is released */
 static void zb_task(void *pvParameters)
 {
     esp_zb_platform_config_t platform_cfg = {
-        .radio_config = ESP_ZB_DEFAULT_RADIO_CONFIG(),
-        .host_config  = ESP_ZB_DEFAULT_HOST_CONFIG(),
+        .radio_config = {.radio_mode = ZB_RADIO_MODE_NATIVE},
+        .host_config  = {.host_connection_mode = ZB_HOST_CONNECTION_MODE_NONE},
     };
     ESP_ERROR_CHECK(esp_zb_platform_config(&platform_cfg));
 
@@ -333,24 +337,24 @@ static void zb_task(void *pvParameters)
      *   rather than hardcoding a coordinator address.
      * ota_upgrade_query_jitter: random delay (0–100 %) before querying,
      *   prevents all devices on the network querying simultaneously. */
-    esp_zb_ota_upgrade_cluster_cfg_t ota_cfg = {
+    esp_zb_ota_cluster_cfg_t ota_cfg = {
+        .ota_upgrade_file_version        = 0x00000001,
         .ota_upgrade_downloaded_file_ver = 0x00000001,
         .ota_upgrade_manufacturer        = OTA_MANUFACTURER_CODE,
         .ota_upgrade_image_type          = OTA_IMAGE_TYPE,
-        .ota_upgrade_query_jitter        = 100,
-        .ota_upgrade_current_time        = 0,
-        .ota_upgrade_server_addr         = 0xFFFF,  /* discover by broadcast */
-        .ota_upgrade_server_ep           = 0xFF,
     };
-    esp_zb_ota_upgrade_client_variable_t ota_var = {
+    esp_zb_zcl_ota_upgrade_client_variable_t ota_var = {
         .timer_query   = ESP_ZB_ZCL_OTA_UPGRADE_QUERY_TIMER_COUNT_DEF,
         .hw_version    = 0x0001,
         .max_data_size = 128,  /* bytes per block; larger = faster download */
     };
-    esp_zb_attribute_list_t *ota_attrs = esp_zb_ota_upgrade_cluster_create(&ota_cfg);
-    esp_zb_ota_upgrade_cluster_add_attr(ota_attrs,
-        ESP_ZB_ZCL_ATTR_OTA_UPGRADE_CLIENT_DATA_ID, &ota_var);
-    ESP_ERROR_CHECK(esp_zb_cluster_list_add_ota_upgrade_cluster(level_clusters,
+    uint16_t ota_server_addr = 0xFFFF;  /* discover by broadcast */
+    uint8_t  ota_server_ep   = 0xFF;
+    esp_zb_attribute_list_t *ota_attrs = esp_zb_ota_cluster_create(&ota_cfg);
+    esp_zb_ota_cluster_add_attr(ota_attrs, ESP_ZB_ZCL_ATTR_OTA_UPGRADE_CLIENT_DATA_ID, &ota_var);
+    esp_zb_ota_cluster_add_attr(ota_attrs, ESP_ZB_ZCL_ATTR_OTA_UPGRADE_SERVER_ADDR_ID, &ota_server_addr);
+    esp_zb_ota_cluster_add_attr(ota_attrs, ESP_ZB_ZCL_ATTR_OTA_UPGRADE_SERVER_ENDPOINT_ID, &ota_server_ep);
+    ESP_ERROR_CHECK(esp_zb_cluster_list_add_ota_cluster(level_clusters,
         ota_attrs, ESP_ZB_ZCL_CLUSTER_CLIENT_ROLE));
 
     ep_cfg.endpoint = EP_LEVEL;
@@ -389,7 +393,10 @@ static void zb_task(void *pvParameters)
     ESP_ERROR_CHECK(esp_zb_start(false));
     /* Arm the watchdog alarm before entering the blocking main loop */
     esp_zb_scheduler_alarm(zb_timeout_alarm, 0, TOTAL_TIMEOUT_MS);
-    esp_zb_main_loop_iteration();  /* blocks until esp_zb_stop() is called */
+    while (!s_stop_requested) {
+        esp_zb_stack_main_loop_iteration();
+    }
+    s_stop_requested = false;
     xEventGroupSetBits(s_events, STOPPED_BIT);
     vTaskDelete(NULL);
 }
