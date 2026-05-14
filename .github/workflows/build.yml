@@ -20,3 +20,20 @@ jobs:
           esp_idf_version: v5.3.5
           target: esp32c6
           command: idf.py set-target esp32c6 && idf.py build
+
+      - name: Upload dependencies lock
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: dependencies-lock
+          path: dependencies.lock
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: firmware
+          path: |
+            build/*.bin
+            build/*.elf
+            build/*.map
