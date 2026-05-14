@@ -1,6 +1,9 @@
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 
+# Two 1.5 MB OTA slots require at least 4 MB flash.
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
 # Zigbee stack — required for esp-zigbee-lib to register correctly in CMake.
 # ZED = Zigbee End Device (battery-powered, deep-sleeping well monitor).
 CONFIG_ZB_ENABLED=y
