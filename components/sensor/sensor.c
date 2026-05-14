@@ -166,7 +166,7 @@ float sensor_read_level(void)
 
 /* Scan the 1-Wire bus for the first DS18B20 and return its temperature in °C.
  * The do-while iterates all bus devices until it finds one that accepts the
- * ds18b20_new_device() call (i.e. has the correct family code 0x28).
+ * ds18b20_new_device_from_enumeration() call (i.e. has the correct family code 0x28).
  * Returns -127.0 if no sensor is found or the reading is outside the rated
  * range (-55 to +125 °C), which signals the caller to skip the report. */
 float sensor_read_temperature(void)
@@ -188,7 +188,7 @@ float sensor_read_temperature(void)
             res = onewire_device_iter_get_next(iter, &device);
             if (res == ESP_OK) {
                 ds18b20_config_t ds_cfg = {};
-                if (ds18b20_new_device(&device, &ds_cfg, &ds18b20) == ESP_OK) break;
+                if (ds18b20_new_device_from_enumeration(&device, &ds_cfg, &ds18b20) == ESP_OK) break;
             }
         } while (res != ESP_ERR_NOT_FOUND);
         onewire_del_device_iter(iter);
@@ -196,17 +196,17 @@ float sensor_read_temperature(void)
 
     if (!ds18b20) {
         ESP_LOGE(TAG, "no DS18B20 found on GPIO %d", CONFIG_WELLD_DS18B20_GPIO);
-        onewire_del_bus(bus);
+        onewire_bus_del(bus);
         return -127.0f;
     }
 
     float temp = -127.0f;
-    if (ds18b20_trigger_temperature_conversion(ds18b20) == ESP_OK) {
+    if (ds18b20_trigger_temperature_conversion_for_all(bus) == ESP_OK) {
         vTaskDelay(pdMS_TO_TICKS(750));  /* 12-bit conversion time per datasheet */
         ds18b20_get_temperature(ds18b20, &temp);
     }
     ds18b20_del_device(ds18b20);
-    onewire_del_bus(bus);
+    onewire_bus_del(bus);
 
     /* Discard readings outside the sensor's rated range — likely a glitch */
     if (temp < -55.0f || temp > 125.0f) {
