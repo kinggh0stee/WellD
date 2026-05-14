@@ -50,6 +50,6 @@ direct_dependencies:
 - espressif/esp-zigbee-lib
 - espressif/onewire_bus
 - idf
-manifest_hash: 51a3fd381c8adf866a201882fc0096775d4d95c66e9805534c9a42e0b6dba616
+manifest_hash: e991c09fadf07005f12b37ff982ad553218100c81a794c4412eb8cf1e445015a
 target: esp32c6
 version: 2.0.0
