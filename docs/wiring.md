@@ -2,6 +2,8 @@
 
 This guide walks you through connecting the three sensors to an ESP32-C6 development board. No electronics experience is assumed. Read the whole guide before touching any wires.
 
+![WellD sensor wiring diagram](wiring_diagram.png)
+
 ---
 
 ## What you will need
