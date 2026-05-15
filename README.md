@@ -285,17 +285,29 @@ test/sensor/          on-device Unity test for sensor_level_from_mv
 test/welld_core/      on-device Unity test for welld_core helpers
 ```
 
+### Host tests
+
+The pure helpers (`sensor_level_from_mv`, `sensor_battery_from_mv`, `sensor_temp_in_range`, `welld_*`) are exercised by a plain CMake project under `test/host/`. No ESP-IDF or hardware required:
+
+```bash
+cmake -S test/host -B test/host/build
+cmake --build test/host/build
+ctest --test-dir test/host/build --output-on-failure
+```
+
+CI runs these on every push.
+
 ### On-device tests
 
-Tests are standalone ESP-IDF projects that pull each component in via `EXTRA_COMPONENT_DIRS` and run under Unity over the serial console. Each runs on real hardware:
+For NVS round-trips and 1-Wire / ADC paths the host runner can't cover, standalone ESP-IDF test projects live under `test/sensor/` and `test/welld_core/` and run on real hardware via Unity over the serial console:
 
 ```bash
 idf.py -C test/sensor build flash monitor
 idf.py -C test/welld_core build flash monitor
 ```
 
-There's no host-side test runner — pure helpers (e.g. `sensor_level_from_mv`, `welld_zb_encode_temp`) are kept free of NVS, ADC, and log calls so they're callable from `app_main` on a bare device.
+CI builds these to catch compile breaks but cannot execute them.
 
 ### CI
 
-`.github/workflows/build.yml` runs ESP-IDF v5.3.5 (SHA-pinned via `espressif/esp-idf-ci-action`), builds the firmware and both test projects for esp32c6, and runs the Zigbee2MQTT converter test suite with Node.js. Build artifacts (`*.bin`, `*.elf`, `*.map`, `dependencies.lock`) are uploaded on success.
+`.github/workflows/build.yml` runs four jobs in parallel: ESP-IDF v5.3.5 firmware build for esp32c6, host unit tests under ctest, on-device test compilation, and the Zigbee2MQTT converter test suite. Firmware artifacts (`*.bin`, `*.elf`, `*.map`, `dependencies.lock`) are uploaded from the firmware job on success.

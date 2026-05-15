@@ -24,13 +24,27 @@ idf.py fullclean           # nukes build/ and managed_components/
 
 ### Tests
 
-Tests live in `test/<component>/` as **standalone ESP-IDF projects** that pull the real component in via `EXTRA_COMPONENT_DIRS = ../../components`. They run on real hardware via Unity:
+Two test layers:
+
+**Host (`test/host/`)** — plain CMake project, plain gcc, runs in CI. Compiles `welld_core.c` and `sensor_pure.c` directly (both are host-clean — no NVS/ADC/log/freertos), links against Unity (fetched via `FetchContent` to `v2.6.0`):
+
+```bash
+cmake -S test/host -B test/host/build
+cmake --build test/host/build
+ctest --test-dir test/host/build --output-on-failure
+```
+
+These are the only tests CI actually runs. Add a new test case here whenever you touch a pure helper.
+
+**On-device (`test/<component>/`)** — standalone ESP-IDF projects that pull a single component in via `EXTRA_COMPONENT_DIRS = "../../components/<component>"` (must be the specific component path, not the whole `components/` dir — otherwise ESP-IDF discovers sibling components like `zigbee` and tries to build them outside their managed-dependency context). Cover NVS round-trips and 1-Wire / ADC paths that the host runner can't:
 
 ```bash
 idf.py -C test/sensor build flash monitor    # runs UNITY_BEGIN()/UNITY_END() over serial
 ```
 
-There is no host-side unit test runner. Pure functions intended for testing (e.g. `sensor_level_from_mv`) must stay free of NVS/ADC/log calls so they're callable from `app_main` on a bare device.
+CI only **builds** the on-device tests (no QEMU); they need real hardware to run.
+
+Pure functions intended for host testing belong in `components/sensor/sensor_pure.c` or `components/welld_core/welld_core.c` — both translation units must stay free of NVS/ADC/log/freertos calls so they compile on any host. `sensor_pure.c` includes `sdkconfig.h`; the host harness provides a stub at `test/host/stub_sdkconfig/sdkconfig.h` that mirrors the Kconfig defaults — keep it in sync if `components/sensor/Kconfig` defaults change.
 
 ## Architecture
 
@@ -112,4 +126,9 @@ These libraries have rough APIs that have churned across point releases (see com
 
 ## CI
 
-`.github/workflows/build.yml` runs ESP-IDF v5.3.5 in `espressif/esp-idf-ci-action` (SHA-pinned), builds for esp32c6, and uploads `build/*.bin|elf|map` plus `dependencies.lock` as artifacts. There is no test or lint step — host tests don't exist, and on-device tests aren't runnable in CI.
+`.github/workflows/build.yml` has four jobs:
+
+- **ESP-IDF build (esp32c6)** — runs ESP-IDF v5.3.5 in `espressif/esp-idf-ci-action` (SHA-pinned), builds the firmware, uploads `build/*.bin|elf|map` plus `dependencies.lock`.
+- **Host unit tests** — plain `ubuntu-latest`, no Docker, no ESP-IDF. Runs the `test/host/` suite (welld_core + sensor pure helpers) via ctest. Fetches Unity at configure time.
+- **On-device unit tests (build only)** — builds `test/sensor` and `test/welld_core` for esp32c6 to catch compile breaks. The tests themselves need real hardware to execute.
+- **Zigbee2MQTT converter tests** — Node 20, runs `npm test` in `zigbee2mqtt/` against the external converter.

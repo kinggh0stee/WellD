@@ -18,9 +18,6 @@ static const char *TAG = "sensor";
 #define ADC_ATTEN   ADC_ATTEN_DB_12   /* 0 – ~3.1 V input range */
 #define NUM_SAMPLES 16                 /* averaged to reduce quantisation noise */
 
-#define CURRENT_MIN_UA  4000   /* 4 mA  = 0 % depth */
-#define CURRENT_MAX_UA  20000  /* 20 mA = 100 % depth */
-
 #define NVS_NAMESPACE  "welld"
 #define NVS_KEY_OFFSET "offset_cm"
 
@@ -117,31 +114,6 @@ static int raw_to_mv(int raw)
     return (raw * 3300) / 4095;
 }
 
-/* Pure conversion from shunt voltage to water level in metres.
- * Kept free of NVS calls and side effects so unit tests can call it directly.
- *
- * The 4-20 mA current loop:
- *   I (µA) = V (mV) * 1 000 000 / R (mΩ)
- *   4 mA   → 0 m (well empty / transducer at water surface)
- *   20 mA  → CONFIG_WELLD_SENSOR_MAX_DEPTH_CM / 100 m (full scale)
- *
- * Returns -1.0 if the loop current is below 3.5 mA — a margin below the
- * live 4 mA minimum to distinguish "zero depth" from "open circuit". */
-float sensor_level_from_mv(int volt_mv)
-{
-    /* I (µA) = V (mV) * 1 000 000 / R (mΩ) */
-    int current_ua = (int)(((int64_t)volt_mv * 1000000LL) /
-                            CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS);
-    if (current_ua < 3500)   /* < 3.5 mA → loop open, transducer disconnected */
-        return -1.0f;
-
-    float ratio = (float)(current_ua - CURRENT_MIN_UA) /
-                  (float)(CURRENT_MAX_UA - CURRENT_MIN_UA);
-    if (ratio < 0.0f) ratio = 0.0f;
-    if (ratio > 1.0f) ratio = 1.0f;
-    return ratio * (CONFIG_WELLD_SENSOR_MAX_DEPTH_CM / 100.0f);
-}
-
 /* Read the water level in metres, applying the NVS-stored offset.
  * The offset is applied after the pure level calculation so that
  * sensor_level_from_mv() remains testable without NVS. The result is
@@ -167,13 +139,6 @@ float sensor_read_level(void)
         ESP_LOGI(TAG, "raw=%d  voltage=%d mV  current=%d µA  level=%.2f m",
                  raw, volt_mv, current_ua, level_m);
     return level_m;
-}
-
-/* Pure: returns true if temp_c is within the DS18B20 rated range.
- * Extracted so a test can pin the range without driving 1-Wire hardware. */
-bool sensor_temp_in_range(float temp_c)
-{
-    return temp_c >= -55.0f && temp_c <= 125.0f;
 }
 
 /* Scan the 1-Wire bus for the first DS18B20 and return its temperature in °C.
@@ -227,15 +192,6 @@ float sensor_read_temperature(void)
     }
     ESP_LOGI(TAG, "temperature=%.1f °C", temp);
     return temp;
-}
-
-/* Pure: convert an ADC voltage to battery volts via the divider ratio.
- * batt_v = adc_mv * (R1 + R2) / R2
- *        = adc_mv * divider_ratio_x100 / 100 / 1000  (mV → V)
- * Kept free of ADC calls so unit tests can pin divider math directly. */
-float sensor_battery_from_mv(int adc_mv, int divider_ratio_x100)
-{
-    return (float)adc_mv * (float)divider_ratio_x100 / 100000.0f;
 }
 
 /* Read battery voltage through an external resistor divider.
