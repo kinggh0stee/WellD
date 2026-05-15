@@ -17,29 +17,34 @@ FetchContent_MakeAvailable(Unity)
 
 set(REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 
+# Each executable below reuses the matching on-device test source as its
+# single source of truth. The -DHOST_BUILD compile flag swaps app_main()
+# for main() inside that file and skips the on-device-only test cases
+# (e.g. the sensor NVS round-trip).
+
 # ── test_welld_core ─────────────────────────────────────────────────────────
-# welld_core.c is already free of ESP-IDF dependencies — compile it directly.
 add_executable(test_welld_core
-    test_welld_core.c
+    ${REPO_ROOT}/test/welld_core/main/test_welld_core.c
     ${REPO_ROOT}/components/welld_core/welld_core.c
 )
 target_include_directories(test_welld_core PRIVATE
     ${REPO_ROOT}/components/welld_core/include
 )
+target_compile_definitions(test_welld_core PRIVATE HOST_BUILD)
 target_link_libraries(test_welld_core PRIVATE unity)
 
 # ── test_sensor_pure ────────────────────────────────────────────────────────
-# sensor_pure.c is the host-clean subset of the sensor component. The local
-# stub_sdkconfig/ directory provides a sdkconfig.h with the Kconfig defaults
+# stub_sdkconfig/ provides a sdkconfig.h with the Kconfig defaults
 # (CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS, CONFIG_WELLD_SENSOR_MAX_DEPTH_CM).
 add_executable(test_sensor_pure
-    test_sensor_pure.c
+    ${REPO_ROOT}/test/sensor/main/test_sensor.c
     ${REPO_ROOT}/components/sensor/sensor_pure.c
 )
 target_include_directories(test_sensor_pure PRIVATE
     ${REPO_ROOT}/components/sensor/include
     ${CMAKE_CURRENT_SOURCE_DIR}/stub_sdkconfig
 )
+target_compile_definitions(test_sensor_pure PRIVATE HOST_BUILD)
 target_link_libraries(test_sensor_pure PRIVATE unity)
 
 enable_testing()

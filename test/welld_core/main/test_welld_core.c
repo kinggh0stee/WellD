@@ -1,8 +1,17 @@
+/* Single source of truth for the welld_core test suite. Compiled both
+ * on-device (via ESP-IDF Unity, providing app_main) and on the host
+ * (via plain CMake at test/host/, providing main with -DHOST_BUILD). */
+
 #include "unity.h"
 #include "welld_core.h"
 #include <string.h>
 
 #define THRESHOLD 5
+
+#ifdef HOST_BUILD
+void setUp(void) {}
+void tearDown(void) {}
+#endif
 
 /* welld_should_wipe_nvs ----------------------------------------------------- */
 
@@ -100,7 +109,7 @@ static void test_pack_zcl_string_truncates_to_buffer(void)
 
 static void test_pack_zcl_string_empty(void)
 {
-    char buf[4] = {0xff, 0xff, 0xff, 0xff};
+    char buf[4] = {(char)0xff, (char)0xff, (char)0xff, (char)0xff};
     size_t n = welld_pack_zcl_string(buf, sizeof(buf), "");
     TEST_ASSERT_EQUAL_size_t(1, n);
     TEST_ASSERT_EQUAL_INT(0, (int)(unsigned char)buf[0]);
@@ -113,7 +122,7 @@ static void test_pack_zcl_string_zero_buffer(void)
     TEST_ASSERT_EQUAL_INT(0x55, (int)(unsigned char)dummy);  /* untouched */
 }
 
-void app_main(void)
+static int run_tests(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_wipe_at_threshold);
@@ -132,5 +141,11 @@ void app_main(void)
     RUN_TEST(test_pack_zcl_string_truncates_to_buffer);
     RUN_TEST(test_pack_zcl_string_empty);
     RUN_TEST(test_pack_zcl_string_zero_buffer);
-    UNITY_END();
+    return UNITY_END();
 }
+
+#ifdef HOST_BUILD
+int main(void) { return run_tests(); }
+#else
+void app_main(void) { run_tests(); }
+#endif
