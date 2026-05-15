@@ -1,0 +1,71 @@
+menu "WellD Sensor"
+
+    config WELLD_SENSOR_ADC_CHANNEL
+        int "ADC1 channel for 4-20 mA sensor"
+        default 0
+        range 0 6
+
+    config WELLD_SENSOR_SHUNT_MILLIOHMS
+        int "Shunt resistor value (milliohms)"
+        default 100000
+        range 1000 1000000
+        help
+            Value in milliohms. 100000 = 100 Ω → 4 mA gives 0.40 V, 20 mA gives 2.00 V.
+
+    config WELLD_SENSOR_MAX_DEPTH_CM
+        int "Maximum well depth (centimeters)"
+        default 600
+        help
+            Depth at 20 mA (full-scale output of the transducer). 600 = 6 m.
+
+    config WELLD_SENSOR_OFFSET_CM
+        int "Water level offset (centimeters, signed)"
+        default 0
+        range -600 600
+        help
+            Added to the computed level after scaling. Use a negative value
+            when the transducer sits below the true zero reference point
+            (e.g. -50 if it hangs 50 cm below the water outlet pipe).
+            Can be overridden at runtime via NVS key "welld/offset_cm".
+
+    config WELLD_BATT_ADC_CHANNEL
+        int "ADC1 channel for battery voltage (set to -1 to disable)"
+        default -1
+        range -1 6
+        help
+            ADC1 channel wired to the battery via a resistor divider.
+            Set to -1 to disable battery monitoring.
+
+    config WELLD_BATT_DIVIDER_RATIO
+        int "Battery divider ratio * 100 (e.g. 200 = 2:1 divider)"
+        default 200
+        range 100 1000
+        depends on WELLD_BATT_ADC_CHANNEL >= 0
+        help
+            If your divider halves the voltage (R1=R2), enter 200 (2.00x).
+            Reported voltage = ADC voltage * ratio / 100.
+
+    config WELLD_BATT_FULL_MV
+        int "Battery full voltage (mV)"
+        default 4200
+        range 3000 5000
+        depends on WELLD_BATT_ADC_CHANNEL >= 0
+        help
+            Voltage read at 100 % state of charge. 4200 = LiPo/Li-ion.
+
+    config WELLD_BATT_EMPTY_MV
+        int "Battery empty voltage (mV)"
+        default 3000
+        range 2000 4000
+        depends on WELLD_BATT_ADC_CHANNEL >= 0
+        help
+            Voltage read at 0 % state of charge. 3000 = LiPo/Li-ion cutoff.
+
+    config WELLD_DS18B20_GPIO
+        int "GPIO number for DS18B20 data line"
+        default 4
+        range 0 21
+        help
+            GPIO connected to the DS18B20 data pin via a 4.7 kΩ pull-up to 3.3 V.
+
+endmenu
