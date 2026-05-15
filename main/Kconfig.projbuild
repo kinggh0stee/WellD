@@ -4,5 +4,38 @@ menu "WellD Configuration"
         int "Deep sleep duration (seconds)"
         default 300
         range 30 3600
+        help
+            Baseline sleep duration between wakeups. When adaptive sleep is
+            enabled, this is the "normal-rate-of-change" window; the actual
+            sleep duration is scaled up when the level is stable and down
+            when it's changing fast.
+
+    config WELLD_ADAPTIVE_SLEEP_ENABLED
+        bool "Adaptive sleep duration"
+        default y
+        help
+            Adjust sleep duration based on the level rate-of-change observed
+            between the last two wakeups. Stable wells get longer sleeps
+            (saving battery); fast-changing wells get shorter sleeps
+            (catching transients). Disable to use WELLD_SLEEP_DURATION_SEC
+            verbatim.
+
+    config WELLD_SLEEP_MIN_SEC
+        int "Adaptive sleep — minimum (seconds)"
+        default 60
+        range 30 3600
+        depends on WELLD_ADAPTIVE_SLEEP_ENABLED
+        help
+            Lower bound on adaptive sleep. The device will never sleep less
+            than this even when the level is changing rapidly.
+
+    config WELLD_SLEEP_MAX_SEC
+        int "Adaptive sleep — maximum (seconds)"
+        default 1800
+        range 60 7200
+        depends on WELLD_ADAPTIVE_SLEEP_ENABLED
+        help
+            Upper bound on adaptive sleep. The device will never sleep
+            longer than this, even when the level is perfectly stable.
 
 endmenu

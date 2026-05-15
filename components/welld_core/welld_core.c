@@ -1,4 +1,5 @@
 #include "welld_core.h"
+#include <math.h>
 #include <string.h>
 
 bool welld_should_wipe_nvs(uint32_t current_count, uint32_t threshold)
@@ -35,4 +36,35 @@ size_t welld_pack_zcl_string(char *out, size_t out_size, const char *src)
     out[0] = (char)len;
     if (len > 0) memcpy(out + 1, src, len);
     return 1 + len;
+}
+
+float welld_rate_cm_per_hour(float prev_level_m,
+                             float curr_level_m,
+                             uint32_t elapsed_sec)
+{
+    /* -1.0f = open-loop transducer sentinel. Either reading invalid → no rate. */
+    if (prev_level_m < 0.0f || curr_level_m < 0.0f) return 0.0f;
+    if (elapsed_sec == 0) return 0.0f;
+    float delta_cm = (curr_level_m - prev_level_m) * 100.0f;
+    float hours    = (float)elapsed_sec / 3600.0f;
+    return delta_cm / hours;
+}
+
+uint32_t welld_adaptive_sleep_sec(float rate_cm_per_hour,
+                                  uint32_t default_sec,
+                                  uint32_t min_sec,
+                                  uint32_t max_sec)
+{
+    float    abs_rate = fabsf(rate_cm_per_hour);
+    uint32_t scaled;
+
+    if      (abs_rate < 1.0f)   scaled = default_sec * 3;
+    else if (abs_rate < 5.0f)   scaled = default_sec * 2;
+    else if (abs_rate < 20.0f)  scaled = default_sec;
+    else if (abs_rate < 50.0f)  scaled = default_sec / 2;
+    else                        scaled = default_sec / 4;
+
+    if (scaled < min_sec) scaled = min_sec;
+    if (scaled > max_sec) scaled = max_sec;
+    return scaled;
 }

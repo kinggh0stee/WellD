@@ -55,13 +55,16 @@ One `app_main()` = one report. The order matters and is load-bearing:
 1. **NVS init** (erase + retry on `NO_FREE_PAGES` / `NEW_VERSION_FOUND`).
 2. **Read consecutive-failure counter** from NVS namespace `"welld"`, key `"zb_fails"`. If ≥ `FAIL_THRESHOLD` (5), `nvs_flash_erase()` to drop stale Zigbee network state and force a fresh join. This also resets the sensor offset to the compile-time default — `main.c` logs a warning when that happens.
 3. **Read all sensors before starting the radio.** The ADC is sensitive to 802.15.4 RF interference, so `sensor_read_*` calls must precede `zigbee_send`.
-4. **`zigbee_send()` blocks** until the radio is idle (success, timeout, or OTA reboot).
-5. **Update fail counter** — only on change, since flash has limited write cycles.
-6. **`esp_deep_sleep()`** for `CONFIG_WELLD_SLEEP_DURATION_SEC`.
+4. **Compute rate of change** from RTC-memory history (the previous valid level + cumulative elapsed time across any intervening invalid wakeups). NaN if there's no prior valid reading yet.
+5. **`zigbee_send()` blocks** until the radio is idle (success, timeout, or OTA reboot). Receives level / battery / temperature / rate.
+6. **Update fail counter** — only on change, since flash has limited write cycles.
+7. **Update RTC history** — only when this wakeup's reading was valid (`level_m >= 0`). On an open-loop reading the previous `last_level_m` is kept and `elapsed_since_last_valid_sec` keeps accumulating so the next valid reading spans the full gap.
+8. **Pick next sleep duration** via `welld_adaptive_sleep_sec()` when `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED` and a rate is available; otherwise fall back to `CONFIG_WELLD_SLEEP_DURATION_SEC`. Stored in `s_history.pending_sleep_sec` so the next wakeup knows how long it slept.
+9. **`esp_deep_sleep()`** for the chosen duration.
 
 ### Components
 
-- `main/` — orchestration only; owns the NVS fail counter.
+- `main/` — orchestration only; owns the NVS fail counter and the RTC-memory level history (`s_history`: `last_level_m`, accumulated `elapsed_since_last_valid_sec`, `pending_sleep_sec`). `RTC_DATA_ATTR` keeps it across deep sleep; cold boot zeroes it (and `valid = false` is the cold-boot signal).
 - `components/sensor/` — ADC + DS18B20 + battery divider. Owns NVS key `"offset_cm"`. `sensor_level_from_mv()` is the pure conversion function exposed in `sensor.h` so tests can hit it without NVS or hardware.
 - `components/zigbee/` — esp-zigbee-lib wrapper. Spawns `zb_task` (10 KB stack, prio 5) which runs the BDB commissioning state machine and the stack main loop. Synchronisation back to the caller uses a FreeRTOS event group with `SENT_BIT` / `FAIL_BIT` / `STOPPED_BIT`. The caller must wait for `STOPPED_BIT` before deep-sleep so the radio is fully released.
 
@@ -70,8 +73,9 @@ One `app_main()` = one report. The order matters and is load-bearing:
 - EP 1 — Analog Input (water level, metres). Also hosts the Basic cluster and the OTA Upgrade client.
 - EP 2 — Analog Input (battery volts). Only registered when `CONFIG_WELLD_BATT_ADC_CHANNEL >= 0`.
 - EP 3 — Temperature Measurement (0x0402, int16 × 0.01 °C). `0x8000` is the ZCL "invalid" sentinel.
+- EP 4 — Analog Input (level rate of change, cm/h, signed). Always registered (the descriptor has to be stable across wakeups), but **only reported when `s_rate_cm_per_hour` is finite** — `isnan(rate)` means there is no prior valid reading to compare against and we skip the EP4 report frame.
 
-Reports are unsolicited `zcl_report_attr_cmd_req` to short address `0x0000` (the coordinator). The Z2M external converter (`zigbee2mqtt/welld.js`) translates EP IDs to `water_level` / `battery_voltage` / `battery` / `temperature` keys and computes battery % from `battery_full_mv` / `battery_empty_mv` device options.
+Reports are unsolicited `zcl_report_attr_cmd_req` to short address `0x0000` (the coordinator). The Z2M external converter (`zigbee2mqtt/welld.js`) translates EP IDs to `water_level` / `battery_voltage` / `battery` / `temperature` / `water_level_rate` keys and computes battery % from `battery_full_mv` / `battery_empty_mv` device options.
 
 ### OTA — the version pipeline
 
