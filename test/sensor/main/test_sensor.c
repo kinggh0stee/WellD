@@ -1,6 +1,19 @@
+/* Single source of truth for the sensor test suite. Pure-math tests are
+ * shared between on-device (ESP-IDF Unity, app_main) and host (plain
+ * CMake at test/host/, main + -DHOST_BUILD) builds. NVS round-trip
+ * tests run on-device only — flash isn't available on the host. */
+
 #include "unity.h"
 #include "sensor.h"
+
+#ifndef HOST_BUILD
 #include "nvs_flash.h"
+#endif
+
+#ifdef HOST_BUILD
+void setUp(void) {}
+void tearDown(void) {}
+#endif
 
 /* All level cases assume default config: 100 Ω shunt, 6 m max depth.
  * At 100 Ω: I(µA) = V(mV) * 10, so 400 mV = 4 mA, 2000 mV = 20 mA. */
@@ -76,6 +89,9 @@ static void test_temp_in_range(void)
     TEST_ASSERT_FALSE(sensor_temp_in_range(-55.1f));
 }
 
+#ifndef HOST_BUILD
+/* NVS round-trip tests need real flash — on-device only. */
+
 static void test_offset_round_trip(void)
 {
     sensor_set_offset_cm(-42);
@@ -97,17 +113,10 @@ static void test_offset_clamped_on_set(void)
     sensor_offset_cache_reset();
     TEST_ASSERT_EQUAL_INT(-600, sensor_get_offset_cm());
 }
+#endif  /* !HOST_BUILD */
 
-void app_main(void)
+static int run_tests(void)
 {
-    /* NVS is required for the offset round-trip tests. The other tests do
-     * not depend on it but a single init keeps the test app simple. */
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        nvs_flash_erase();
-        nvs_flash_init();
-    }
-
     UNITY_BEGIN();
     RUN_TEST(test_open_loop_zero);
     RUN_TEST(test_open_loop_below_threshold);
@@ -120,7 +129,25 @@ void app_main(void)
     RUN_TEST(test_battery_2x_divider);
     RUN_TEST(test_battery_3x_divider);
     RUN_TEST(test_temp_in_range);
+#ifndef HOST_BUILD
     RUN_TEST(test_offset_round_trip);
     RUN_TEST(test_offset_clamped_on_set);
-    UNITY_END();
+#endif
+    return UNITY_END();
 }
+
+#ifdef HOST_BUILD
+int main(void) { return run_tests(); }
+#else
+void app_main(void)
+{
+    /* NVS is required for the offset round-trip tests. The other tests do
+     * not depend on it but a single init keeps the test app simple. */
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        nvs_flash_erase();
+        nvs_flash_init();
+    }
+    run_tests();
+}
+#endif

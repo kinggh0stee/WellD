@@ -26,7 +26,7 @@ idf.py fullclean           # nukes build/ and managed_components/
 
 Two test layers:
 
-**Host (`test/host/`)** — plain CMake project, plain gcc, runs in CI. Compiles `welld_core.c` and `sensor_pure.c` directly (both are host-clean — no NVS/ADC/log/freertos), links against Unity (fetched via `FetchContent` to `v2.6.0`):
+**Host (`test/host/`)** — plain CMake project, plain gcc, runs in CI. Reuses the on-device test sources as-is with `-DHOST_BUILD` (each test file ends with an `#ifdef HOST_BUILD` block that swaps `app_main()` for `int main(void)`). Compiles `welld_core.c` and `sensor_pure.c` (both host-clean — no NVS/ADC/log/freertos), links against Unity (fetched via `FetchContent` to `v2.6.0`):
 
 ```bash
 cmake -S test/host -B test/host/build
@@ -34,7 +34,7 @@ cmake --build test/host/build
 ctest --test-dir test/host/build --output-on-failure
 ```
 
-These are the only tests CI actually runs. Add a new test case here whenever you touch a pure helper.
+These are the only tests CI actually runs. Add new test cases to the on-device test files (`test/welld_core/main/test_welld_core.c`, `test/sensor/main/test_sensor.c`) — host and device share the same source. Guard NVS / hardware-only tests with `#ifndef HOST_BUILD`.
 
 **On-device (`test/<component>/`)** — standalone ESP-IDF projects that pull a single component in via `EXTRA_COMPONENT_DIRS = "../../components/<component>"` (must be the specific component path, not the whole `components/` dir — otherwise ESP-IDF discovers sibling components like `zigbee` and tries to build them outside their managed-dependency context). Cover NVS round-trips and 1-Wire / ADC paths that the host runner can't:
 
