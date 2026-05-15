@@ -72,6 +72,18 @@ static void test_encode_temp_invalid_sentinel(void)
     TEST_ASSERT_EQUAL_HEX16(0x8000, (uint16_t)welld_zb_encode_temp(-127.0f));
 }
 
+static void test_encode_temp_just_above_sentinel(void)
+{
+    /* -126.99 °C is > -127.0, so it should encode normally, not return 0x8000 */
+    TEST_ASSERT_EQUAL_INT16(-12699, welld_zb_encode_temp(-126.99f));
+}
+
+static void test_encode_temp_just_below_sentinel(void)
+{
+    /* -127.01 °C <= -127.0, so it must return the ZCL invalid sentinel */
+    TEST_ASSERT_EQUAL_HEX16(0x8000, (uint16_t)welld_zb_encode_temp(-127.01f));
+}
+
 /* welld_zb_should_report_battery ------------------------------------------ */
 
 static void test_battery_reportable(void)
@@ -123,6 +135,28 @@ static void test_pack_zcl_string_zero_buffer(void)
     TEST_ASSERT_EQUAL_INT(0x55, (int)(unsigned char)dummy);  /* untouched */
 }
 
+static void test_pack_zcl_string_null_src(void)
+{
+    /* NULL src is treated like an empty string */
+    char buf[4] = {(char)0xff, (char)0xff, (char)0xff, (char)0xff};
+    size_t n = welld_pack_zcl_string(buf, sizeof(buf), NULL);
+    TEST_ASSERT_EQUAL_size_t(1, n);
+    TEST_ASSERT_EQUAL_INT(0, (int)(unsigned char)buf[0]);
+}
+
+static void test_pack_zcl_string_over_255_clamped(void)
+{
+    /* ZCL length byte is uint8 — payloads > 255 must be clamped to 255. */
+    char src[300];
+    char buf[300];
+    memset(src, 'A', 299);
+    src[299] = '\0';
+    memset(buf, 0, sizeof(buf));
+    size_t n = welld_pack_zcl_string(buf, sizeof(buf), src);
+    TEST_ASSERT_EQUAL_size_t(256, n);  /* 1 length byte + 255 payload */
+    TEST_ASSERT_EQUAL_INT(255, (int)(unsigned char)buf[0]);
+}
+
 /* welld_rate_cm_per_hour --------------------------------------------------- */
 
 static void test_rate_zero_change(void)
@@ -151,6 +185,14 @@ static void test_rate_open_loop_returns_nan(void)
 static void test_rate_zero_elapsed_returns_nan(void)
 {
     TEST_ASSERT_TRUE(isnan(welld_rate_cm_per_hour(2.0f, 2.5f, 0)));
+}
+
+static void test_rate_accumulated_elapsed(void)
+{
+    /* Simulates 5 invalid wakeups each sleeping 300 s before a valid reading.
+     * elapsed = 1500 s, delta = +0.5 m → 50 cm / (1500/3600 h) = 120 cm/h. */
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 120.0f,
+        welld_rate_cm_per_hour(2.0f, 2.5f, 1500));
 }
 
 /* welld_adaptive_sleep_sec ------------------------------------------------- */
@@ -197,6 +239,30 @@ static void test_adaptive_sleep_clamps_to_min(void)
     TEST_ASSERT_EQUAL_UINT32(60, welld_adaptive_sleep_sec(100.0f, 60, 60, 1800));
 }
 
+static void test_adaptive_sleep_boundary_1(void)
+{
+    /* Exactly 1.0 cm/h: < 1.0f is false → falls to < 5.0f → 2× default */
+    TEST_ASSERT_EQUAL_UINT32(600, welld_adaptive_sleep_sec(1.0f, 300, 60, 1800));
+}
+
+static void test_adaptive_sleep_boundary_5(void)
+{
+    /* Exactly 5.0 cm/h: < 5.0f is false → falls to < 20.0f → 1× default */
+    TEST_ASSERT_EQUAL_UINT32(300, welld_adaptive_sleep_sec(5.0f, 300, 60, 1800));
+}
+
+static void test_adaptive_sleep_boundary_20(void)
+{
+    /* Exactly 20.0 cm/h: < 20.0f is false → falls to < 50.0f → ½× default */
+    TEST_ASSERT_EQUAL_UINT32(150, welld_adaptive_sleep_sec(20.0f, 300, 60, 1800));
+}
+
+static void test_adaptive_sleep_boundary_50(void)
+{
+    /* Exactly 50.0 cm/h: < 50.0f is false → falls to else → ¼× default */
+    TEST_ASSERT_EQUAL_UINT32(75, welld_adaptive_sleep_sec(50.0f, 300, 60, 1800));
+}
+
 static int run_tests(void)
 {
     UNITY_BEGIN();
@@ -210,17 +276,22 @@ static int run_tests(void)
     RUN_TEST(test_encode_temp_negative);
     RUN_TEST(test_encode_temp_zero);
     RUN_TEST(test_encode_temp_invalid_sentinel);
+    RUN_TEST(test_encode_temp_just_above_sentinel);
+    RUN_TEST(test_encode_temp_just_below_sentinel);
     RUN_TEST(test_battery_reportable);
     RUN_TEST(test_battery_not_reportable);
     RUN_TEST(test_pack_zcl_string_short);
     RUN_TEST(test_pack_zcl_string_truncates_to_buffer);
     RUN_TEST(test_pack_zcl_string_empty);
     RUN_TEST(test_pack_zcl_string_zero_buffer);
+    RUN_TEST(test_pack_zcl_string_null_src);
+    RUN_TEST(test_pack_zcl_string_over_255_clamped);
     RUN_TEST(test_rate_zero_change);
     RUN_TEST(test_rate_rising);
     RUN_TEST(test_rate_falling);
     RUN_TEST(test_rate_open_loop_returns_nan);
     RUN_TEST(test_rate_zero_elapsed_returns_nan);
+    RUN_TEST(test_rate_accumulated_elapsed);
     RUN_TEST(test_adaptive_sleep_stable_stretches);
     RUN_TEST(test_adaptive_sleep_slow_drift);
     RUN_TEST(test_adaptive_sleep_normal);
@@ -229,6 +300,10 @@ static int run_tests(void)
     RUN_TEST(test_adaptive_sleep_sign_independent);
     RUN_TEST(test_adaptive_sleep_clamps_to_max);
     RUN_TEST(test_adaptive_sleep_clamps_to_min);
+    RUN_TEST(test_adaptive_sleep_boundary_1);
+    RUN_TEST(test_adaptive_sleep_boundary_5);
+    RUN_TEST(test_adaptive_sleep_boundary_20);
+    RUN_TEST(test_adaptive_sleep_boundary_50);
     return UNITY_END();
 }
 
