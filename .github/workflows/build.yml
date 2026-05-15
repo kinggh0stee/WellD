@@ -41,8 +41,24 @@ jobs:
             build/*.elf
             build/*.map
 
+  host-tests:
+    name: Host unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Configure
+        run: cmake -S test/host -B test/host/build
+
+      - name: Build
+        run: cmake --build test/host/build
+
+      - name: Run
+        run: ctest --test-dir test/host/build --output-on-failure
+
   unit-tests:
-    name: Unit tests (build + run on QEMU)
+    name: On-device unit tests (build only)
     runs-on: ubuntu-latest
 
     steps:
