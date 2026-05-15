@@ -8,7 +8,7 @@ import matplotlib.patches as mpatches
 import os
 
 # ── Canvas ────────────────────────────────────────────────────────────────────
-FIG_W, FIG_H = 26, 16
+FIG_W, FIG_H = 26, 17
 fig, ax = plt.subplots(figsize=(FIG_W, FIG_H))
 ax.set_xlim(0, FIG_W)
 ax.set_ylim(0, FIG_H)
@@ -120,8 +120,8 @@ L_PINS = [
 ]
 
 R_PINS = [
-    ('GND',       None,  False),   # 0  — shown via GND symbol at DS18B20
-    ('5V',        None,  False),
+    ('GND',       None,   False),  # 0  — shown via GND symbol at DS18B20
+    ('5V',        C_LOOP, True ),  # 1  — 5 V board input from buck converter
     ('GPIO23',    None,  False),
     ('GPIO22',    None,  False),
     ('GPIO21',    None,  False),
@@ -228,17 +228,26 @@ box(TX, TY, TW, TH, fc='#e3f2fd', ec='#0d47a1', lw=2.2, zo=3)
 t(TX+TW/2, TY+TH/2+0.30, 'Pressure',   sz=10, c='#0d47a1', bold=True)
 t(TX+TW/2, TY+TH/2-0.12, 'Transducer', sz=10, c='#0d47a1', bold=True)
 t(TX+TW/2, TY+TH/2-0.54, '(4–20 mA)', sz=8.5, c='#1565c0')
-t(TX+0.18, TY+TH-0.30,   '(+)', ha='left', sz=9, c=C_PWR, bold=True)
+t(TX+0.18, TY+TH-0.30,   '(+)', ha='left', sz=9, c=C_LOOP, bold=True)
 t(TX+0.18, TY+0.30,       '(−)', ha='left', sz=9, c='#37474f', bold=True)
 
-# (+) terminal: stub exits box right wall → +3.3V rail symbol.
-# Wire starts AT the right wall so it never enters the box interior.
-TRANS_POS_Y  = TY + TH - 0.30          # 10.50
-TRANS_STUB_X = TX + TW + 0.55          # 3.95 — stub end outside box
-wire([(TX + TW, TRANS_POS_Y), (TRANS_STUB_X, TRANS_POS_Y)], C_PWR, zo=4)
-vcc_sym(TRANS_STUB_X, TRANS_POS_Y, '+3.3V')
+# Loop supply sits above-right of the transducer box, centred on LS_CX.
+# Output wire exits the loop supply BOTTOM and the transducer RIGHT WALL —
+# neither wire ever enters a box interior.
+TRANS_POS_Y = TY + TH - 0.30    # 10.50 — transducer (+) terminal level
+LS_CX  = TX + TW + 0.60         # 4.00  — loop supply centre x
+LS_BOT = TRANS_POS_Y + 0.50     # 11.00 — loop supply box bottom
+LS_TOP = LS_BOT + 0.85          # 11.85 — loop supply box top
+rbox(LS_CX-1.0, LS_BOT, 2.0, 0.85, fc='#fff3e0', ec=C_LOOP, lw=1.8, zo=3, r=0.07)
+t(LS_CX, LS_BOT+0.57, 'Loop Supply',  sz=8.5, c=C_LOOP, bold=True)
+t(LS_CX, LS_BOT+0.22, '10–30 V DC',  sz=8,   c=C_LOOP)
 
-t(TX+TW/2, TY+TH+1.05, '① Pressure Transducer', sz=10, c='#0d47a1', bold=True)
+# Loop supply output → transducer (+): down from box bottom, left to right wall.
+wire([(LS_CX,    LS_BOT),
+      (LS_CX,    TRANS_POS_Y),
+      (TX + TW,  TRANS_POS_Y)], C_LOOP, zo=4)
+
+t(TX+TW/2, TY+TH+1.42, '① Pressure Transducer', sz=10, c='#0d47a1', bold=True)
 
 # ── Signal junction: transducer −, shunt top, GPIO0 ──────────────────────────
 # This node sits at 0.4–2.0 V (loop current × 100 Ω). It is NOT ground.
@@ -409,9 +418,58 @@ t(BAT_X+BAT_W/2, BAT_Y+BAT_H+0.32, '③ Battery Divider', sz=10, c='#37474f', bo
 t(FIG_W/2, FIG_H-0.50,
   'WellD — Sensor Wiring Diagram', sz=17, c='#0d1b4b', bold=True)
 t(FIG_W/2, FIG_H-1.05,
-  'ESP32-C6-DevKitC-1  ·  4–20 mA Pressure Transducer  ·'
-  '  DS18B20 Temperature Probe  ·  Battery Monitor (optional)',
+  'ESP32-C6-DevKitC-1  ·  4–20 mA Pressure Transducer (10–30 V loop)  ·'
+  '  DS18B20 Temperature Probe  ·  Buck Converter (24 V → 5 V)  ·  Battery Monitor (optional)',
   sz=9, c='#546e7a')
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ④ Buck converter (24 V → 5 V)  +  shared 24 V supply rail
+#
+#  Single external 24 V DC supply feeds both the current loop and the
+#  ESP32 power input (via a buck converter), eliminating the need for a
+#  USB power bank and its auto-shutoff problem.
+#
+#  5V pin is on J3 right side (R_PINS[1]).  All three GND nodes are the
+#  same net (see footer).
+# ─────────────────────────────────────────────────────────────────────────────
+# Buck converter box — placed above the DS18B20, right of the board.
+# Width kept to 2.0 so the right edge (18.0) clears DS18B20 left edge (18.5).
+BUCK_X, BUCK_Y, BUCK_W, BUCK_H = 16.0, 12.5, 2.0, 1.2
+BUCK_CX  = BUCK_X + BUCK_W / 2    # 17.0
+BUCK_CY  = BUCK_Y + BUCK_H / 2    # 13.1
+BUCK_TOP = BUCK_Y + BUCK_H         # 13.7
+
+rbox(BUCK_X, BUCK_Y, BUCK_W, BUCK_H,
+     fc='#f3e5f5', ec='#6a1b9a', lw=2.0, zo=3, r=0.09)
+t(BUCK_CX, BUCK_CY + 0.24, 'Buck Converter', sz=9,   c='#6a1b9a', bold=True)
+t(BUCK_CX, BUCK_CY - 0.20, '24 V → 5 V',    sz=8.5, c='#7b1fa2')
+
+t(BUCK_CX, BUCK_Y - 0.55, '④ Buck Converter', sz=10, c='#6a1b9a', bold=True)
+
+# 5V output: exits left wall at mid-height, jogs left then drops to board 5V pin.
+# Route stays right of board edge (14.4) so it never crosses the board body.
+Y_5V = R_YS[1]    # ≈ 11.76 — board 5V pin level
+wire([(BUCK_X,    BUCK_CY),    # left-wall midpoint
+      (15.0,      BUCK_CY),    # jog left (above board top)
+      (15.0,      Y_5V),       # drop to 5V pin level
+      (RSTUB_END, Y_5V)],      # reach board stub end
+     C_LOOP, zo=4)
+ann((15.0 + RSTUB_END) / 2, Y_5V + 0.38, '5 V → board 5V pin  (J3)')
+
+# 24V input stub: top-centre of buck converter → shared bus
+BUS_Y = OVER_Y + 0.55    # 14.75 — clears the GPIO4 over-board wire at 14.2
+wire([(BUCK_CX, BUCK_TOP), (BUCK_CX, BUS_Y)], C_LOOP, zo=4)
+dot(BUCK_CX, BUS_Y, C_LOOP)
+
+# 24V input stub: top of loop supply → same bus.
+# x = LS_CX = 4.0, which is left of GPIO4's routing column (8.8) — no crossing.
+wire([(LS_CX, LS_TOP), (LS_CX, BUS_Y)], C_LOOP, zo=4)
+dot(LS_CX, BUS_Y, C_LOOP)
+
+# Shared 24 V DC bus rail — horizontal, above everything
+wire([(LS_CX, BUS_Y), (BUCK_CX, BUS_Y)], C_LOOP, lw=3.0, zo=3)
+ann((LS_CX + BUCK_CX) / 2, BUS_Y + 0.30,
+    '24 V DC supply rail  (shared — one external PSU powers loop supply + buck converter)')
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Colour key
@@ -424,7 +482,7 @@ KEY_ITEMS = [
     (C_PWR,  '+3.3 V power rail  (ESP32 3V3 pin)'),
     (C_SIG,  'Signal / 1-Wire / ADC node'),
     (C_GND,  'Ground  (all GND symbols = same net)'),
-    (C_LOOP, 'Battery voltage  (raw, into divider)'),
+    (C_LOOP, 'External supply rail  (loop supply · 5V board input)'),
     (C_BATT, 'Battery ADC signal  (optional)'),
     (C_FADE, 'Unused board pin'),
 ]
