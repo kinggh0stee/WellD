@@ -23,6 +23,13 @@ function convertBattery(presentValue, options = {}) {
     return {battery_voltage: voltage, battery: pct};
 }
 
+/* Endpoint 4: water-level rate of change in cm/hour, signed. Positive =
+   level rising (well recovering), negative = level falling (draw-down).
+   Rounded to one decimal for readability. */
+function convertRate(presentValue) {
+    return parseFloat(presentValue.toFixed(1));
+}
+
 /* Mirrors the inline `convert` function in welld.js. Returns undefined when
    the message has no presentValue (early return) or the endpoint is unknown. */
 function convertAnalogInput(msg) {
@@ -32,12 +39,14 @@ function convertAnalogInput(msg) {
     const ep = msg.endpoint && msg.endpoint.ID;
     if (ep === 1) return {water_level: convertLevel(msg.data.presentValue)};
     if (ep === 2) return convertBattery(msg.data.presentValue, msg.options || {});
+    if (ep === 4) return {water_level_rate: convertRate(msg.data.presentValue)};
     return undefined;
 }
 
 module.exports = {
     convertLevel,
     convertBattery,
+    convertRate,
     convertAnalogInput,
     DEFAULT_BATTERY_FULL_MV,
     DEFAULT_BATTERY_EMPTY_MV,

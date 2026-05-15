@@ -36,3 +36,29 @@ bool welld_zb_should_report_battery(float battery_v);
  * bytes of payload. Returns the number of bytes written (1 + payload len),
  * or 0 if out_size < 1. */
 size_t welld_pack_zcl_string(char *out, size_t out_size, const char *src);
+
+/* Compute the water-level rate of change in cm/hour.
+ * prev_level_m / curr_level_m are in metres; elapsed_sec is the time between
+ * the two readings (sum of intervening sleep durations).
+ *
+ * Returns 0.0 if either reading is the open-loop sentinel (-1) or elapsed
+ * is 0 — the caller should treat this as "no rate available" and not report
+ * the value, rather than reporting a misleading 0. */
+float welld_rate_cm_per_hour(float prev_level_m,
+                             float curr_level_m,
+                             uint32_t elapsed_sec);
+
+/* Map a level rate-of-change to a sleep duration. Stable wells get longer
+ * sleeps (saving battery); fast-changing wells get shorter sleeps (catching
+ * transients). The result is clamped to [min_sec, max_sec].
+ *
+ * Mapping (absolute rate, cm/h → multiplier of default_sec):
+ *   < 1   (effectively static)   → 3× default
+ *   < 5   (very slow drift)      → 2× default
+ *   < 20  (normal)               → 1× default
+ *   < 50  (rapid)                → ½× default
+ *   ≥ 50  (very rapid)           → ¼× default */
+uint32_t welld_adaptive_sleep_sec(float rate_cm_per_hour,
+                                  uint32_t default_sec,
+                                  uint32_t min_sec,
+                                  uint32_t max_sec);
