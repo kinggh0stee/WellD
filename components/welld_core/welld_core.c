@@ -43,8 +43,8 @@ float welld_rate_cm_per_hour(float prev_level_m,
                              uint32_t elapsed_sec)
 {
     /* -1.0f = open-loop transducer sentinel. Either reading invalid → no rate. */
-    if (prev_level_m < 0.0f || curr_level_m < 0.0f) return 0.0f;
-    if (elapsed_sec == 0) return 0.0f;
+    if (prev_level_m < 0.0f || curr_level_m < 0.0f) return NAN;
+    if (elapsed_sec == 0) return NAN;
     float delta_cm = (curr_level_m - prev_level_m) * 100.0f;
     float hours    = (float)elapsed_sec / 3600.0f;
     return delta_cm / hours;

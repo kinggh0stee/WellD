@@ -41,9 +41,9 @@ size_t welld_pack_zcl_string(char *out, size_t out_size, const char *src);
  * prev_level_m / curr_level_m are in metres; elapsed_sec is the time between
  * the two readings (sum of intervening sleep durations).
  *
- * Returns 0.0 if either reading is the open-loop sentinel (-1) or elapsed
- * is 0 — the caller should treat this as "no rate available" and not report
- * the value, rather than reporting a misleading 0. */
+ * Returns NAN if either reading is the open-loop sentinel (-1) or elapsed
+ * is 0 — NAN lets the caller distinguish "no rate available" from a
+ * legitimate zero rate (stable water level). */
 float welld_rate_cm_per_hour(float prev_level_m,
                              float curr_level_m,
                              uint32_t elapsed_sec);

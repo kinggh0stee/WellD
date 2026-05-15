@@ -4,6 +4,7 @@
 
 #include "unity.h"
 #include "welld_core.h"
+#include <math.h>
 #include <string.h>
 
 #define THRESHOLD 5
@@ -141,15 +142,15 @@ static void test_rate_falling(void)
         welld_rate_cm_per_hour(3.0f, 2.75f, 1800));
 }
 
-static void test_rate_open_loop_returns_zero(void)
+static void test_rate_open_loop_returns_nan(void)
 {
-    TEST_ASSERT_EQUAL_FLOAT(0.0f, welld_rate_cm_per_hour(-1.0f, 2.0f, 3600));
-    TEST_ASSERT_EQUAL_FLOAT(0.0f, welld_rate_cm_per_hour(2.0f, -1.0f, 3600));
+    TEST_ASSERT_TRUE(isnan(welld_rate_cm_per_hour(-1.0f, 2.0f, 3600)));
+    TEST_ASSERT_TRUE(isnan(welld_rate_cm_per_hour(2.0f, -1.0f, 3600)));
 }
 
-static void test_rate_zero_elapsed_returns_zero(void)
+static void test_rate_zero_elapsed_returns_nan(void)
 {
-    TEST_ASSERT_EQUAL_FLOAT(0.0f, welld_rate_cm_per_hour(2.0f, 2.5f, 0));
+    TEST_ASSERT_TRUE(isnan(welld_rate_cm_per_hour(2.0f, 2.5f, 0)));
 }
 
 /* welld_adaptive_sleep_sec ------------------------------------------------- */
@@ -218,8 +219,8 @@ static int run_tests(void)
     RUN_TEST(test_rate_zero_change);
     RUN_TEST(test_rate_rising);
     RUN_TEST(test_rate_falling);
-    RUN_TEST(test_rate_open_loop_returns_zero);
-    RUN_TEST(test_rate_zero_elapsed_returns_zero);
+    RUN_TEST(test_rate_open_loop_returns_nan);
+    RUN_TEST(test_rate_zero_elapsed_returns_nan);
     RUN_TEST(test_adaptive_sleep_stable_stretches);
     RUN_TEST(test_adaptive_sleep_slow_drift);
     RUN_TEST(test_adaptive_sleep_normal);
