@@ -9,6 +9,7 @@
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
 #include "sdkconfig.h"
+#include <math.h>
 #include <string.h>
 
 static const char *TAG = "zigbee";
@@ -16,6 +17,7 @@ static const char *TAG = "zigbee";
 #define EP_LEVEL         1
 #define EP_BATTERY       2
 #define EP_TEMPERATURE   3
+#define EP_RATE          4
 #define SEND_DELAY_MS    CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS
 #define TOTAL_TIMEOUT_MS 25000  /* max time to find coordinator before giving up */
 
@@ -40,6 +42,7 @@ static EventGroupHandle_t s_events;
 static float s_level_m;
 static float s_battery_v;
 static float s_temperature_c;
+static float s_rate_cm_per_hour;  /* NaN = "no history yet", do not report */
 
 /* volatile because s_ota_in_progress is written inside zb_task (via the Zigbee
    stack callbacks) and read by the alarm callbacks in the same task context —
@@ -221,6 +224,16 @@ static void send_reports(void)
         esp_zb_zcl_report_attr_cmd_req(&temp_report);
     }
 
+    /* Level rate of change — Analog Input cluster, endpoint 4.
+       Skip report if NaN (no previous reading to compare against). */
+    if (!isnan(s_rate_cm_per_hour)) {
+        esp_zb_zcl_set_attribute_val(EP_RATE,
+            ESP_ZB_ZCL_CLUSTER_ID_ANALOG_INPUT, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+            ESP_ZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID, &s_rate_cm_per_hour, false);
+        report.zcl_basic_cmd.src_endpoint = EP_RATE;
+        esp_zb_zcl_report_attr_cmd_req(&report);
+    }
+
     /* Give the stack SEND_DELAY_MS to transmit before we declare success */
     esp_zb_scheduler_alarm(zb_finish_alarm, 0, SEND_DELAY_MS);
 }
@@ -250,8 +263,8 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
         break;
     case ESP_ZB_BDB_SIGNAL_STEERING:
         if (err_status == ESP_OK) {
-            ESP_LOGI(TAG, "joined; reporting level=%.2f m battery=%.2f V temp=%.1f °C",
-                     s_level_m, s_battery_v, s_temperature_c);
+            ESP_LOGI(TAG, "joined; reporting level=%.2f m battery=%.2f V temp=%.1f °C rate=%.1f cm/h",
+                     s_level_m, s_battery_v, s_temperature_c, s_rate_cm_per_hour);
             send_reports();
         } else {
             ESP_LOGE(TAG, "steering failed (err=%d)", err_status);
@@ -395,6 +408,18 @@ static void zb_task(void *pvParameters)
     ep_cfg.endpoint = EP_TEMPERATURE;
     ESP_ERROR_CHECK(esp_zb_ep_list_add_ep(ep_list, temp_clusters, ep_cfg));
 
+    /* Endpoint 4 — level rate of change in cm/h (Analog Input).
+     * Always registered so the device descriptor is stable across wakeups;
+     * reports are conditionally suppressed in send_reports() when there is
+     * no previous reading to compare against (first valid wakeup). */
+    float initial_rate = isnan(s_rate_cm_per_hour) ? 0.0f : s_rate_cm_per_hour;
+    esp_zb_cluster_list_t *rate_clusters = esp_zb_zcl_cluster_list_create();
+    ESP_ERROR_CHECK(esp_zb_cluster_list_add_analog_input_cluster(rate_clusters,
+                                                                  make_ai_cluster(initial_rate),
+                                                                  ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
+    ep_cfg.endpoint = EP_RATE;
+    ESP_ERROR_CHECK(esp_zb_ep_list_add_ep(ep_list, rate_clusters, ep_cfg));
+
     esp_zb_device_register(ep_list);
 
     esp_zb_set_primary_network_channel_set(CONFIG_WELLD_ZIGBEE_CHANNEL_MASK);
@@ -419,12 +444,16 @@ static void zb_task(void *pvParameters)
  *      radio is fully idle before the caller enters deep sleep
  *
  * Returns true if SENT_BIT was set (coordinator acknowledged). */
-bool zigbee_send(float level_m, float battery_v, float temperature_c)
+bool zigbee_send(float level_m,
+                 float battery_v,
+                 float temperature_c,
+                 float rate_cm_per_hour)
 {
-    s_level_m      = level_m;
-    s_battery_v    = battery_v;
-    s_temperature_c = temperature_c;
-    s_events       = xEventGroupCreate();
+    s_level_m           = level_m;
+    s_battery_v         = battery_v;
+    s_temperature_c     = temperature_c;
+    s_rate_cm_per_hour  = rate_cm_per_hour;
+    s_events            = xEventGroupCreate();
 
     if (xTaskCreate(zb_task, "zb_task", 10240, NULL, 5, NULL) != pdPASS) {
         ESP_LOGE(TAG, "failed to create Zigbee task");

@@ -4,6 +4,8 @@ Battery-powered well-level monitor for the ESP32-C6. Each wakeup it reads a 4–
 
 - **Radio:** Zigbee 3.0 over the C6's built-in 802.15.4 — no extra modules
 - **Battery life:** months on a LiPo at the default 5-minute interval (~7 µA in deep sleep)
+- **Adaptive sleep:** sleep duration scales with how fast the level is changing — longer windows when stable, shorter when transients are in progress
+- **Rate-of-change reporting:** `water_level_rate` in cm/h published as a fourth sensor; distinguishes "well recovering" from "well being drawn down"
 - **Self-healing:** wipes Zigbee NVS state and rejoins fresh after 5 consecutive send failures
 - **OTA:** Zigbee OTA Upgrade client, dual 1.5 MB app slots
 - **Sentinels:** open-loop transducer reports `null` water level so Home Assistant can alert on wiring faults
@@ -103,7 +105,10 @@ All options have sensible defaults — only change what differs from your hardwa
 | `CONFIG_WELLD_BATT_DIVIDER_RATIO` | `200` | Divider ratio × 100 (`200` = 2:1) |
 | `CONFIG_WELLD_BATT_FULL_MV` | `4200` | Voltage (mV) reported as 100 % by the Z2M converter |
 | `CONFIG_WELLD_BATT_EMPTY_MV` | `3000` | Voltage (mV) reported as 0 % by the Z2M converter |
-| `CONFIG_WELLD_SLEEP_DURATION_SEC` | `300` | Deep sleep between readings (seconds) |
+| `CONFIG_WELLD_SLEEP_DURATION_SEC` | `300` | Baseline sleep between readings (seconds). When adaptive sleep is enabled, this is the "normal rate" window |
+| `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED` | `y` | Scale sleep duration to the observed level rate-of-change |
+| `CONFIG_WELLD_SLEEP_MIN_SEC` | `60` | Lower bound on adaptive sleep |
+| `CONFIG_WELLD_SLEEP_MAX_SEC` | `1800` | Upper bound on adaptive sleep |
 | `CONFIG_WELLD_ZIGBEE_CHANNEL_MASK` | `0x07FFF800` | Channels to scan; narrow to your coordinator's channel to speed up joins |
 | `CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS` | `2000` | Time the stack stays alive after sending, to allow coordinator ACK |
 
@@ -141,6 +146,7 @@ The device publishes to `zigbee2mqtt/<friendly_name>` on each wakeup:
 ```json
 {
   "water_level": 3.42,
+  "water_level_rate": 12.5,
   "temperature": 12.3,
   "battery_voltage": 3.71,
   "battery": 59
@@ -151,6 +157,7 @@ The device publishes to `zigbee2mqtt/<friendly_name>` on each wakeup:
 - `battery` is a percentage computed by the converter from `battery_voltage` using the device options `battery_full_mv` / `battery_empty_mv` (defaults 4200 / 3000 mV). Override per-device in Z2M if your chemistry differs.
 - `temperature` is omitted when the DS18B20 isn't detected.
 - `water_level` is `null` when the pressure loop reads below 3.5 mA (open circuit). Trigger a Home Assistant alert on `water_level is null` to catch wiring faults.
+- `water_level_rate` is signed cm/h, derived from the previous valid reading. Positive = recovering, negative = drawing down. Omitted on the first valid wakeup after a cold boot (no baseline yet) and during open-loop cycles (carried over to the next valid reading).
 
 ### 4. Home Assistant
 
@@ -159,6 +166,7 @@ The Z2M–Home Assistant integration auto-creates these sensor entities:
 | Entity | Unit |
 |--------|------|
 | `sensor.<name>_water_level` | m |
+| `sensor.<name>_water_level_rate` | cm/h |
 | `sensor.<name>_temperature` | °C |
 | `sensor.<name>_battery_voltage` | V |
 | `sensor.<name>_battery` | % |
@@ -213,6 +221,25 @@ Zigbee2MQTT picks the file up automatically. On the next wakeup the device queri
 Use `CONFIG_WELLD_SENSOR_OFFSET_CM` (or `sensor_set_offset_cm()` at runtime) to shift the reported level without moving the transducer. For example, if the transducer hangs 15 cm above the well bottom, set the offset to `-15` to report depth from the bottom of the well.
 
 The offset is persisted in NVS (key `offset_cm` in namespace `welld`) and clamped to ±600 cm on read to guard against flash corruption.
+
+### Adaptive sleep & rate of change
+
+The device remembers its last valid reading and the elapsed time since then in RTC slow memory (preserved across deep sleep, zeroed on cold boot). At each wakeup it computes a signed rate of change in cm/h and uses it for two things:
+
+1. **Reports `water_level_rate`** to Zigbee2MQTT as a fourth sensor entity. Positive = recovering, negative = drawing down.
+2. **Adjusts the next sleep duration** when `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED=y`. The mapping (absolute rate, cm/h → multiplier of `WELLD_SLEEP_DURATION_SEC`):
+
+   | Rate (cm/h) | Sleep multiplier | At default 300 s |
+   |-------------|------------------|------------------|
+   | < 1         | 3×               | 900 s (15 min)   |
+   | 1 – 5       | 2×               | 600 s (10 min)   |
+   | 5 – 20      | 1×               | 300 s (5 min)    |
+   | 20 – 50     | ½×               | 150 s            |
+   | ≥ 50        | ¼×               | 75 s             |
+
+   The result is clamped to `[WELLD_SLEEP_MIN_SEC, WELLD_SLEEP_MAX_SEC]`. Cold boot and open-loop cycles fall back to `WELLD_SLEEP_DURATION_SEC` verbatim.
+
+Set `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED=n` to keep a fixed `WELLD_SLEEP_DURATION_SEC` regardless of the rate — useful when you want predictable reporting cadence.
 
 ### Expected serial output
 

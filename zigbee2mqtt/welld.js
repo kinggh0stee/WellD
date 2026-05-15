@@ -31,6 +31,9 @@ const definition = {
         numeric('temperature', ea.STATE)
             .withUnit('°C')
             .withDescription('Water temperature'),
+        numeric('water_level_rate', ea.STATE)
+            .withUnit('cm/h')
+            .withDescription('Water level rate of change. Positive = rising (recovering), negative = falling (draw-down). Only reported once two valid readings are in.'),
     ],
     options: [
         numeric('battery_full_mv', ea.SET)

@@ -113,6 +113,80 @@ static void test_pack_zcl_string_zero_buffer(void)
     TEST_ASSERT_EQUAL_INT(0x55, (int)(unsigned char)dummy);  /* untouched */
 }
 
+/* welld_rate_cm_per_hour --------------------------------------------------- */
+
+static void test_rate_zero_change(void)
+{
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, welld_rate_cm_per_hour(2.0f, 2.0f, 3600));
+}
+
+static void test_rate_rising(void)
+{
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 50.0f,
+        welld_rate_cm_per_hour(2.0f, 2.5f, 3600));
+}
+
+static void test_rate_falling(void)
+{
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, -50.0f,
+        welld_rate_cm_per_hour(3.0f, 2.75f, 1800));
+}
+
+static void test_rate_open_loop_returns_zero(void)
+{
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, welld_rate_cm_per_hour(-1.0f, 2.0f, 3600));
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, welld_rate_cm_per_hour(2.0f, -1.0f, 3600));
+}
+
+static void test_rate_zero_elapsed_returns_zero(void)
+{
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, welld_rate_cm_per_hour(2.0f, 2.5f, 0));
+}
+
+/* welld_adaptive_sleep_sec ------------------------------------------------- */
+
+static void test_adaptive_sleep_stable_stretches(void)
+{
+    TEST_ASSERT_EQUAL_UINT32(900, welld_adaptive_sleep_sec(0.5f, 300, 60, 1800));
+}
+
+static void test_adaptive_sleep_slow_drift(void)
+{
+    TEST_ASSERT_EQUAL_UINT32(600, welld_adaptive_sleep_sec(3.0f, 300, 60, 1800));
+}
+
+static void test_adaptive_sleep_normal(void)
+{
+    TEST_ASSERT_EQUAL_UINT32(300, welld_adaptive_sleep_sec(10.0f, 300, 60, 1800));
+}
+
+static void test_adaptive_sleep_rapid(void)
+{
+    TEST_ASSERT_EQUAL_UINT32(150, welld_adaptive_sleep_sec(30.0f, 300, 60, 1800));
+}
+
+static void test_adaptive_sleep_very_rapid(void)
+{
+    TEST_ASSERT_EQUAL_UINT32(75, welld_adaptive_sleep_sec(100.0f, 300, 60, 1800));
+}
+
+static void test_adaptive_sleep_sign_independent(void)
+{
+    TEST_ASSERT_EQUAL_UINT32(
+        welld_adaptive_sleep_sec( 30.0f, 300, 60, 1800),
+        welld_adaptive_sleep_sec(-30.0f, 300, 60, 1800));
+}
+
+static void test_adaptive_sleep_clamps_to_max(void)
+{
+    TEST_ASSERT_EQUAL_UINT32(1800, welld_adaptive_sleep_sec(0.0f, 900, 60, 1800));
+}
+
+static void test_adaptive_sleep_clamps_to_min(void)
+{
+    TEST_ASSERT_EQUAL_UINT32(60, welld_adaptive_sleep_sec(100.0f, 60, 60, 1800));
+}
+
 void app_main(void)
 {
     UNITY_BEGIN();
@@ -132,5 +206,18 @@ void app_main(void)
     RUN_TEST(test_pack_zcl_string_truncates_to_buffer);
     RUN_TEST(test_pack_zcl_string_empty);
     RUN_TEST(test_pack_zcl_string_zero_buffer);
+    RUN_TEST(test_rate_zero_change);
+    RUN_TEST(test_rate_rising);
+    RUN_TEST(test_rate_falling);
+    RUN_TEST(test_rate_open_loop_returns_zero);
+    RUN_TEST(test_rate_zero_elapsed_returns_zero);
+    RUN_TEST(test_adaptive_sleep_stable_stretches);
+    RUN_TEST(test_adaptive_sleep_slow_drift);
+    RUN_TEST(test_adaptive_sleep_normal);
+    RUN_TEST(test_adaptive_sleep_rapid);
+    RUN_TEST(test_adaptive_sleep_very_rapid);
+    RUN_TEST(test_adaptive_sleep_sign_independent);
+    RUN_TEST(test_adaptive_sleep_clamps_to_max);
+    RUN_TEST(test_adaptive_sleep_clamps_to_min);
     UNITY_END();
 }

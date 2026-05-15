@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
     convertLevel,
     convertBattery,
+    convertRate,
     convertAnalogInput,
     DEFAULT_BATTERY_FULL_MV,
     DEFAULT_BATTERY_EMPTY_MV,
@@ -83,6 +84,30 @@ test('endpoint 2 dispatches to battery converter', () => {
     });
     assert.equal(result.battery_voltage, 3.6);
     assert.equal(result.battery, 50);
+});
+
+/* convertRate ------------------------------------------------------------- */
+
+test('water level rate rounds to 1 decimal', () => {
+    assert.equal(convertRate(12.345), 12.3);
+    assert.equal(convertRate(-12.345), -12.3);
+    assert.equal(convertRate(0), 0);
+});
+
+test('endpoint 4 dispatches to rate converter', () => {
+    const result = convertAnalogInput({
+        endpoint: {ID: 4},
+        data: {presentValue: 25.0},
+    });
+    assert.deepEqual(result, {water_level_rate: 25.0});
+});
+
+test('endpoint 4 with falling rate reports negative', () => {
+    const result = convertAnalogInput({
+        endpoint: {ID: 4},
+        data: {presentValue: -42.5},
+    });
+    assert.deepEqual(result, {water_level_rate: -42.5});
 });
 
 test('missing presentValue returns undefined', () => {
