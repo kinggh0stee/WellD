@@ -21,7 +21,7 @@ ax.set_facecolor('#ffffff')
 C_PWR   = '#b71c1c'   # +3.3 V
 C_GND   = '#1a237e'   # ground
 C_SIG   = '#0277bd'   # ADC / 1-Wire signal
-C_LOOP  = '#bf360c'   # loop supply (separate high-voltage domain)
+C_LOOP  = '#bf360c'   # raw/unregulated voltage (battery input to divider)
 C_BATT  = '#1b5e20'   # battery ADC (optional)
 C_PCB   = '#2e7d32'   # board fill
 C_ANN   = '#546e7a'   # annotation text
@@ -228,23 +228,17 @@ box(TX, TY, TW, TH, fc='#e3f2fd', ec='#0d47a1', lw=2.2, zo=3)
 t(TX+TW/2, TY+TH/2+0.30, 'Pressure',   sz=10, c='#0d47a1', bold=True)
 t(TX+TW/2, TY+TH/2-0.12, 'Transducer', sz=10, c='#0d47a1', bold=True)
 t(TX+TW/2, TY+TH/2-0.54, '(4–20 mA)', sz=8.5, c='#1565c0')
-t(TX+0.18, TY+TH-0.30,   '(+)', ha='left', sz=9, c=C_LOOP, bold=True)
+t(TX+0.18, TY+TH-0.30,   '(+)', ha='left', sz=9, c=C_PWR, bold=True)
 t(TX+0.18, TY+0.30,       '(−)', ha='left', sz=9, c='#37474f', bold=True)
 
-# Loop supply box
-LS_CX  = TX + TW/2
-LS_BOT = TY + TH + 0.18
-rbox(LS_CX-1.0, LS_BOT, 2.0, 0.85, fc='#fff3e0', ec=C_LOOP, lw=1.8, zo=3, r=0.07)
-t(LS_CX, LS_BOT+0.54, 'Loop Supply',    sz=8.5, c=C_LOOP, bold=True)
-t(LS_CX, LS_BOT+0.20, '(9 – 36 V DC)', sz=8,   c=C_LOOP)
+# (+) terminal: stub exits box right wall → +3.3V rail symbol.
+# Wire starts AT the right wall so it never enters the box interior.
+TRANS_POS_Y  = TY + TH - 0.30          # 10.50
+TRANS_STUB_X = TX + TW + 0.55          # 3.95 — stub end outside box
+wire([(TX + TW, TRANS_POS_Y), (TRANS_STUB_X, TRANS_POS_Y)], C_PWR, zo=4)
+vcc_sym(TRANS_STUB_X, TRANS_POS_Y, '+3.3V')
 
-TRANS_POS_Y = TY + TH - 0.30
-wire([(TX+0.36, TRANS_POS_Y),
-      (TX+0.36, TY+TH),
-      (LS_CX,   TY+TH),
-      (LS_CX,   LS_BOT)], C_LOOP)
-
-t(TX+TW/2, TY+TH+1.26, '① Pressure Transducer', sz=10, c='#0d47a1', bold=True)
+t(TX+TW/2, TY+TH+1.05, '① Pressure Transducer', sz=10, c='#0d47a1', bold=True)
 
 # ── Signal junction: transducer −, shunt top, GPIO0 ──────────────────────────
 # This node sits at 0.4–2.0 V (loop current × 100 Ω). It is NOT ground.
@@ -427,11 +421,11 @@ rbox(KX-0.3, KY-0.3, 7.3, 5.6, fc='#fafafa', ec='#b0bec5', lw=1.4, zo=3, r=0.15)
 t(KX+3.35, KY+5.1, 'Colour Key', sz=11, c='#0d1b4b', bold=True)
 
 KEY_ITEMS = [
-    (C_PWR,  '+3.3 V power rail  (see 3V3 board pin)'),
-    (C_LOOP, 'Loop supply  (9 – 36 V, separate PSU)'),
+    (C_PWR,  '+3.3 V power rail  (ESP32 3V3 pin)'),
     (C_SIG,  'Signal / 1-Wire / ADC node'),
     (C_GND,  'Ground  (all GND symbols = same net)'),
-    (C_BATT, 'Battery ADC  (optional)'),
+    (C_LOOP, 'Battery voltage  (raw, into divider)'),
+    (C_BATT, 'Battery ADC signal  (optional)'),
     (C_FADE, 'Unused board pin'),
 ]
 for i, (c, lbl) in enumerate(KEY_ITEMS):
