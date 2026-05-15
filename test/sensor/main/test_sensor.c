@@ -79,6 +79,18 @@ static void test_battery_3x_divider(void)
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 3.3f, sensor_battery_from_mv(1100, 300));
 }
 
+static void test_battery_zero_adc(void)
+{
+    /* 0 mV ADC reading (dead/disconnected battery) must return 0.0 V */
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, sensor_battery_from_mv(0, 200));
+}
+
+static void test_battery_no_divider(void)
+{
+    /* ratio_x100 = 100 means a 1:1 direct measurement (no resistor divider) */
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 3.3f, sensor_battery_from_mv(3300, 100));
+}
+
 static void test_temp_in_range(void)
 {
     TEST_ASSERT_TRUE(sensor_temp_in_range(25.0f));
@@ -128,6 +140,8 @@ static int run_tests(void)
     RUN_TEST(test_overcurrent_clamped);
     RUN_TEST(test_battery_2x_divider);
     RUN_TEST(test_battery_3x_divider);
+    RUN_TEST(test_battery_zero_adc);
+    RUN_TEST(test_battery_no_divider);
     RUN_TEST(test_temp_in_range);
 #ifndef HOST_BUILD
     RUN_TEST(test_offset_round_trip);

@@ -125,3 +125,13 @@ test('unknown endpoint returns undefined', () => {
     });
     assert.equal(result, undefined);
 });
+
+test('endpoint 3 (temperature cluster) is not handled by convertAnalogInput', () => {
+    /* EP3 uses ZCL cluster 0x0402 decoded by Z2M itself, not a custom AnalogInput path.
+     * convertAnalogInput must leave it alone and return undefined. */
+    const result = convertAnalogInput({
+        endpoint: {ID: 3},
+        data: {presentValue: 25.0},
+    });
+    assert.equal(result, undefined);
+});
