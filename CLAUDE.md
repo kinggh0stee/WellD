@@ -64,7 +64,6 @@ One `app_main()` = one report. The order matters and is load-bearing:
 - `main/` — orchestration only; owns the NVS fail counter.
 - `components/sensor/` — ADC + DS18B20 + battery divider. Owns NVS key `"offset_cm"`. `sensor_level_from_mv()` is the pure conversion function exposed in `sensor.h` so tests can hit it without NVS or hardware.
 - `components/zigbee/` — esp-zigbee-lib wrapper. Spawns `zb_task` (10 KB stack, prio 5) which runs the BDB commissioning state machine and the stack main loop. Synchronisation back to the caller uses a FreeRTOS event group with `SENT_BIT` / `FAIL_BIT` / `STOPPED_BIT`. The caller must wait for `STOPPED_BIT` before deep-sleep so the radio is fully released.
-- `components/esp_log/` — empty shim component (`REQUIRES log`) so other components can write `REQUIRES esp_log` uniformly. Don't delete; some managed components reference it.
 
 ### Zigbee endpoints
 
