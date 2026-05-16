@@ -1,6 +1,6 @@
 # WellD Assembly Guide
 
-**Revision:** 1.0  
+**Revision:** 2.0  
 **PCB:** WellD v1 — ESP32-C6 Well-Level Monitor  
 **Enclosure:** `hardware/case/welld_case.scad` (3D-printed, FDM)
 
@@ -20,7 +20,8 @@
 10. [Battery connection and first power-up](#10-battery-connection-and-first-power-up)
 11. [Seal and close](#11-seal-and-close)
 12. [Zigbee commissioning](#12-zigbee-commissioning)
-13. [Commissioning checklist](#13-commissioning-checklist)
+13. [Concrete lid underside mounting](#13-concrete-lid-underside-mounting)
+14. [Commissioning checklist](#14-commissioning-checklist)
 
 ---
 
@@ -186,9 +187,9 @@ The PCB uses all SMD components. Refer to `hardware/pcb/bom.csv` for values and 
 ### Recommended soldering order
 
 1. **Paste and reflow (top side):** Apply solder paste to all F.Cu pads, place all SMD components, reflow.
-   - If hand-soldering: work smallest to largest — 0402 passives → SOT-23 ICs → SOP-8 ICs → ESP32 module.
+   - If hand-soldering: work smallest to largest — 0402 passives → SOT-23/SOT-23-5/SOT-23-6 ICs → SOP-8/SOIC-8 ICs → ESP32 module.
 2. **Bottom side (if any):** No bottom-side components in this design.
-3. **Through-hole / tall components last:** JST-PH battery connector (J1), tactile switches (SW1, SW2), 2.54 mm headers.
+3. **Through-hole / tall components last:** JST-XH battery connector (J1), tactile switches (SW1, SW2), 2.54 mm headers.
 
 ### Critical assembly notes
 
@@ -196,9 +197,16 @@ The PCB uses all SMD components. Refer to `hardware/pcb/bom.csv` for values and 
 |------|------|
 | **U7 (CN3791) PROG pin** | R19 sets solar charge current. Default 2.0 kΩ = 500 mA. Do not omit. |
 | **D6 orientation** | Cathode (band) toward U7 VIN pin — current flows panel → charger. Reverse polarity destroys U7. |
+| **D8 orientation** | SMAJ7.0A TVS — cathode (band) toward D6 cathode / CN3791 VIN. Clamps solar input below 11.2 V. |
 | **D5 (AO3407) orientation** | Gate to VBAT, source to battery input. Confirm orientation with markings. |
+| **U8 (TPS61023) placement** | Place L1 inductor within 3 mm of U8 SW pin. Keep C19 and C20 close to U8 VIN and VOUT respectively. |
+| **U9 (ADS1115) address** | ADDR pin to GND = address 0x48. Do not float ADDR. |
+| **U10 (MAX17048) ALRT** | ALRT is open-drain active-low. Pulled up internally; connects to GPIO14. |
+| **Q1 (2N7002) function** | Gate HIGH (GPIO4) → drain pulls TP4056 CE LOW → USB charging disabled. Verify gate drive level. |
+| **Q2 (2N7002) function** | Gate HIGH (GPIO15) → battery divider R7/R8 active. Always LOW during deep-sleep. |
 | **J3 (U.FL) soldering** | Reflow only — do not hand-solder. Flux generously, minimal heat. |
 | **R20/R21 MPPT divider** | Default R20=36 kΩ + R21=10 kΩ sets MPPT to 5.5 V. Change R20 to 30 kΩ for 5 V regulated panel. |
+| **R23/R24 boost feedback** | Sets VBOOST = 0.5×(1 + R23/R24). Default R23=1.1 MΩ, R24=47 kΩ → ≈12.2 V. Verify before powering VLOOP. |
 | **Module antenna clearance** | No solder bridges, no copper pour within 15 mm of ESP32 antenna zone. |
 | **DNF components** | D2, D3, D7, R17, R18, R22 are "do not fit" in production — omit unless debugging. |
 
@@ -209,6 +217,8 @@ The PCB uses all SMD components. Refer to `hardware/pcb/bom.csv` for values and 
 - [ ] Continuity: VBAT to GND → no short
 - [ ] Continuity: VSOLAR to GND → no short
 - [ ] Check D6 orientation with diode-test mode (forward drop ~0.3 V anode→cathode)
+- [ ] Check D8 orientation (TVS cathode toward CN3791 VIN)
+- [ ] Verify R23/R24 values before enabling VBOOST (U8 EN HIGH)
 - [ ] IPA wash and hot-air dry
 
 ---
@@ -382,27 +392,152 @@ If D7 is populated (optional DNF), it illuminates during active solar charging. 
 
 ---
 
-## 13. Commissioning checklist
+## 14. Commissioning checklist
 
 ### Electrical
-- [ ] No assembly shorts — VBAT/3V3/VSOLAR to GND all open
+- [ ] No assembly shorts — VBAT/3V3/VSOLAR/VBOOST to GND all open
 - [ ] Battery voltage reads > 3.5 V at J1 before connecting
 - [ ] +3V3 rail measures 3.28–3.32 V (TPS7A0533 ±2 %)
 - [ ] D4 status LED visible during active phase (unless SJ3 cut)
+- [ ] ADS1115 responds on I²C at address 0x48 (scan during startup log)
+- [ ] MAX17048 responds on I²C at address 0x36 (scan during startup log)
+- [ ] VLOOP (VBOOST output) measures 12.0–12.4 V when GPIO5 driven HIGH (measure at J4/J5 VLOOP pin before attaching sensor)
+- [ ] VLOOP drops to < 0.1 V within 5 ms of GPIO5 going LOW (TPS61023 shutdown)
+- [ ] USB charging (TP4056) active when USB-C connected and GPIO4 LOW; disabled when GPIO4 HIGH
+- [ ] Charger interlock (Q1): verify solar charging takes priority — with solar panel attached and GPIO4 HIGH, TP4056 CHRG LED off
 
 ### Firmware
 - [ ] Serial output shows valid `level` reading (not -1.0)
 - [ ] Serial output shows valid `temperature` (not -127)
+- [ ] Serial output shows MAX17048 SoC % (e.g. `battery: 78%`)
 - [ ] Sleep duration appears in log: `sleeping 300 s`
 
 ### Zigbee
 - [ ] Device appears in Zigbee2MQTT after pairing
-- [ ] MQTT payload received with `water_level`, `temperature`, `battery_voltage`
+- [ ] MQTT payload received with `water_level`, `temperature`, `battery_voltage`, `battery`
 - [ ] Home Assistant entities auto-created: `sensor.<name>_water_level`, etc.
 
 ### Solar
 - [ ] Solar LED (D7) illuminates when panel is in sunlight (if D7 populated)
 - [ ] Battery voltage rises over ~1 hour in direct sun with no USB connected
+
+---
+
+## 13. Concrete lid underside mounting
+
+
+The enclosure lid (branding face) presses flat against the concrete.
+The base hangs downward so sensor cables naturally drop into the well.
+The SMA antenna faces the open air column — optimal for Zigbee RF.
+
+```
+  ┌──────── CONCRETE WELL LID ────────┐
+  │  ○ anchor    ○ anchor              │
+  │  [WING]──────────────────[WING]   │  ← lid face against concrete
+  │      │  WellD  gh0stee.com │       │
+  │  [WING]──────────────────[WING]   │
+  │  ○ anchor    ○ anchor              │
+  │                                    │
+  │  [base] ← sensor cables hang down  │
+  │     ↓                              │
+  │  ≈≈≈≈≈≈ water surface ≈≈≈≈≈≈≈≈≈≈ │
+  └────────────────────────────────────┘
+```
+
+### Anchor bolt pattern
+
+| Dimension | Value |
+|-----------|-------|
+| Bolt pattern X (tip to tip) | **107 mm** |
+| Bolt pattern Y (tip to tip) | **82 mm** |
+| Bolt size | M6 stainless |
+| Clearance hole in wing | 6.6 mm |
+| Nut counterbore (wing top face) | 12.5 mm dia × 6 mm deep |
+| Min embedment in concrete | 30 mm |
+| Recommended bolt length | M6 × 50 mm |
+
+### Step 1 — Print the drill template
+
+In `welld_case.scad`, set `SHOW_DRILL_TEMPLATE = true`, `SHOW_BASE = false`,
+`SHOW_LID = false`. Press F6, export STL, slice at 0.3 mm layer height (one
+layer). Print in a contrasting colour — this is a consumable, not a
+structural part.
+
+Verify the printout is 1:1: the outer frame should measure
+**129 mm × 104 mm**.
+
+### Step 2 — Mark the concrete
+
+Position the template on the underside of the concrete lid where you want
+the device. The 2 mm centre-punch holes mark the four anchor positions.
+Ensure the cable-gland side (long axis of the template) faces toward the
+well centre so sensor cables clear the lid edge.
+
+Mark and remove the template. Centre-punch each hole.
+
+### Step 3 — Drill anchor holes
+
+Use a **6 mm SDS masonry bit** in hammer-drill mode.
+Drill to ≥ 40 mm depth (deeper is fine; dust extraction recommended).
+Blow out swarf with compressed air or a rubber bulb.
+
+> **Do not drill through the lid** — stop at least 20 mm from the top
+> surface.  Most domestic well lids are 80–120 mm thick.
+
+### Step 4 — Set anchors
+
+**Option A — Epoxy anchors (highest pull-out strength, recommended)**
+
+Use M6 chemical anchor studs with epoxy resin (e.g., Hilti HIT-RE 500 V3,
+Rawlplug R-HPTE or Fischer FIS V Plus). Follow the manufacturer's gel and
+cure times (typically 25 min working time, full cure 24 h at 20 °C).
+Thread an M6 hex nut and washer onto each stud before the epoxy cures to
+allow removal without marring the thread.
+
+**Option B — Mechanical expansion anchors**
+
+M6 × 40 stainless sleeve anchors (e.g., Rawlplug R-SPLIT-M6/40) — no cure
+time, full load immediately after installation. Torque to 10 N·m.
+
+### Step 5 — Cable penetrations through the lid
+
+If the lid is solid (no existing pass-throughs), drill one or more
+**25 mm holes** for cable glands. Fit M20 cable glands in the concrete holes
+using hydraulic cement or expanding epoxy (Hilti Hit-HY 270). For solar
+cables that must reach the surface, use a second 25 mm hole on the other
+side of the anchor pattern.
+
+If the lid already has a central access hole (common on precast concrete
+well covers), route cables through it with additional IP-rated conduit or
+a compression fitting glued into the opening.
+
+### Step 6 — Mount the device
+
+1. Thread one M6 stainless hex nut and M6 × 20 mm washer onto each anchor
+   stud to act as a standoff — set them at **8–10 mm** from the concrete
+   surface to leave room for the nut counterbore.
+2. Lift the sealed, fully wired enclosure up to the studs and pass each
+   stud through a wing hole.
+3. Fit M6 washers and M6 nyloc nuts on top of the wings.
+4. Tighten to **5 N·m** (finger-tight + ¾ turn). Do not overtighten — ASA/
+   PETG wings will crack above ~8 N·m.
+5. Confirm the device hangs level and does not rotate.
+
+### Step 7 — Seal anchor penetrations
+
+Apply a bead of **polyurethane sealant** (e.g., Sikaflex-11FC or Tremco
+Spectrem 1) around each stud where it exits the concrete surface.
+This maintains the IP rating of the enclosure system against condensation
+and groundwater wicking along the bolt shank.
+
+### Step 8 — Dress and secure cables
+
+- Loop sensor cables to leave 300–500 mm of service slack; secure with
+  stainless cable ties to the anchor studs or a clip bonded to the case.
+- The cable glands on the front wall (Y = 0 face) now point downward — the
+  installed orientation — so gravity helps seat the compression seals.
+- Confirm the pressure-transducer cable reaches the lowest expected water
+  level + 200 mm margin.
 
 ### Mechanical
 - [ ] All cable glands tightened — no cable movement under moderate tug (5 N)
@@ -412,6 +547,14 @@ If D7 is populated (optional DNF), it illuminates during active solar charging. 
 - [ ] 4 × M3 lid screws tight
 - [ ] Antenna attached to SMA bulkhead
 
+### Concrete lid mounting (if applicable)
+- [ ] 4 × 6 mm anchor holes drilled, ≥ 30 mm deep, dust blown out
+- [ ] Anchors set and cured (epoxy: 24 h; mechanical: immediate)
+- [ ] Device hangs plumb — base pointing straight down into well
+- [ ] Sensor cable reaches water surface at all expected levels
+- [ ] Anchor holes sealed with polyurethane around stud penetration
+- [ ] Concrete lid reseated — no pinched cables
+
 ---
 
-*gh0stee.com — WellD v1*
+*gh0stee.com — WellD v2*
