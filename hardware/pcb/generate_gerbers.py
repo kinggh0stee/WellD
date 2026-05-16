@@ -200,13 +200,13 @@ FOOTPRINTS: dict[str, List[Pad]] = {
         _smd(+2.70, +1.905, 1.55, 0.60),  # pin 8
     ],
 
-    # ── JST PH S2B-PH-K-S (J1 LiPo, SMD right-angle) ────────────────────────
-    # 2 SMD signal pads + 2 mounting lugs
-    "Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal": [
-        _smd(-1.00, +2.20, 1.20, 2.50),   # pin 1 (signal)
-        _smd(+1.00, +2.20, 1.20, 2.50),   # pin 2 (signal)
-        _smd(-2.50, +0.30, 1.80, 1.00, paste=False),  # mounting lug L
-        _smd(+2.50, +0.30, 1.80, 1.00, paste=False),  # mounting lug R
+    # ── JST XH B2B-XH-AM (J1 LiPo, 2.5mm pitch SMD horizontal) ─────────────
+    # Higher retention vs PH; 2.5mm pitch, 2 signal pads + 2 mounting lugs
+    "Connector_JST:JST_XH_B2B-XH-AM_1x02_P2.50mm_Horizontal": [
+        _smd(-1.25, +2.25, 1.00, 2.50),   # pin 1 (signal)
+        _smd(+1.25, +2.25, 1.00, 2.50),   # pin 2 (signal)
+        _smd(-3.00, +0.30, 1.50, 1.00, paste=False),  # mounting lug L
+        _smd(+3.00, +0.30, 1.50, 1.00, paste=False),  # mounting lug R
     ],
 
     # ── USB-C receptacle (J2 GCT USB4135, 9×3.2mm SMD) ───────────────────────
@@ -287,6 +287,37 @@ FOOTPRINTS: dict[str, List[Pad]] = {
         _smd(+2.50, +1.75, 1.60, 1.00),  # pin 4 (B)
     ],
 
+    # ── SOT-23-5 (U8 TPS61023) ───────────────────────────────────────────────
+    # 5-pin SOT-23: 3 pads left, 2 pads right (no centre pin on right)
+    "Package_TO_SOT_SMD:SOT-23-5": [
+        _smd(-1.15, +0.95, 1.00, 0.65),   # pin 1  left-bottom
+        _smd(-1.15,  0.00, 1.00, 0.65),   # pin 2  left-centre
+        _smd(-1.15, -0.95, 1.00, 0.65),   # pin 3  left-top
+        _smd(+1.15, -0.95, 1.00, 0.65),   # pin 4  right-top
+        _smd(+1.15, +0.95, 1.00, 0.65),   # pin 5  right-bottom
+    ],
+
+    # ── DO-214AC / SMA (D8 SMAJ7.0A TVS) ────────────────────────────────────
+    # IPC-7351B: pad 2.0×2.2mm, row-to-row 4.2mm
+    "Diode_SMD:D_SMA": [
+        _smd(-2.10, 0, 2.00, 2.20),   # cathode (K)
+        _smd(+2.10, 0, 2.00, 2.20),   # anode   (A)
+    ],
+
+    # ── 4×4mm SMD shielded power inductor (L1 CDRH4D22NP) ───────────────────
+    # Body 4.7×4.7mm; pads 2.5×2.0mm at ±1.8mm from centre
+    "welld:Inductor_4x4mm_SMD": [
+        _smd(-1.80, 0, 2.50, 2.00),   # pin 1
+        _smd(+1.80, 0, 2.50, 2.00),   # pin 2
+    ],
+
+    # ── 1206 capacitor (C20 VBOOST output) ───────────────────────────────────
+    # Same land pattern as 1206 fuse
+    "Capacitor_SMD:C_1206_3216Metric": [
+        _smd(-1.75, 0, 1.60, 1.80),
+        _smd(+1.75, 0, 1.60, 1.80),
+    ],
+
     # ── M3 mounting hole NPTH ────────────────────────────────────────────────
     "MountingHole:MountingHole_3.2mm_M3": [
         _npth(0, 0, 3.20),
@@ -331,11 +362,14 @@ COMPONENTS: list[tuple] = [
     # ICs
     ("U1",  "Package_TO_SOT_SMD:SC-70-5",                56,   34,   0, "TPS7A0533"),
     ("U2",  "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",       10,   41,   0, "TP4056"),
-    ("U3",  "Package_TO_SOT_SMD:SOT-23-6",                68,   21,   0, "DW01A"),
+    ("U3",  "Package_TO_SOT_SMD:SOT-23-6",                68,   21,   0, "S-8261AAYFT"),
     ("U4",  "Package_TO_SOT_SMD:SOT-23-6",                68,   14,   0, "FS8205A"),
     ("U5",  "Package_TO_SOT_SMD:SOT-23-6",                10,   48,   0, "USBLC6"),
     ("U6",  "welld:ESP32_C6_MINI_1U",                     31,   26,   0, "ESP32-C6"),
     ("U7",  "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",       60,   10,   0, "CN3791"),
+    ("U8",  "Package_TO_SOT_SMD:SOT-23-5",                73,   20,   0, "TPS61023"),
+    ("U9",  "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",       42,   38,   0, "ADS1115"),
+    ("U10", "Package_TO_SOT_SMD:SOT-23-6",                68,   42,   0, "MAX17048"),
     # Diodes
     ("D1",  "Package_TO_SOT_SMD:SOT-363_SC-70-6",         15,   14,   0, "PRTR5V0U2X"),
     ("D2",  "LED_SMD:LED_0603_1608Metric",                 12,   47,   0, "LED_CHRG"),
@@ -343,10 +377,11 @@ COMPONENTS: list[tuple] = [
     ("D4",  "LED_SMD:LED_0603_1608Metric",                 50,   51,   0, "LED_STATUS"),
     ("D5",  "Package_TO_SOT_SMD:SOT-23",                   65,   42,   0, "AO3407"),
     ("D6",  "Diode_SMD:D_SOD-123",                         56,    7,   0, "MBRS140"),
+    ("D8",  "Diode_SMD:D_SMA",                             62,   20,   0, "SMAJ7.0A"),
     # Fuse
     ("F1",  "Fuse:Fuse_1206_3216Metric",                    6,   44,   0, "PTC_1A"),
     # Connectors
-    ("J1",  "Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal", 74, 40, 0, "LiPo"),
+    ("J1",  "Connector_JST:JST_XH_B2B-XH-AM_1x02_P2.50mm_Horizontal", 74, 40, 0, "LiPo"),
     ("J2",  "welld:USB_C_9x3.2mm",                          2,   47,   0, "USB-C"),
     ("J3",  "Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical",   40, 53, 0, "U.FL"),
     ("J4",  "Connector_Phoenix_MC:PhoenixContact_MC_1,5_3-G-3,5_1x03_P3.50mm_Horizontal", 12, 2, 0, "4-20mA_1"),
@@ -357,6 +392,11 @@ COMPONENTS: list[tuple] = [
     ("J9",  "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical", 70, 32, 0, "GPIO"),
     ("J10", "Connector_PinHeader_1.27mm:PinHeader_1x06_P1.27mm_Vertical",  2, 20, 0, "PROG"),
     ("J12", "Connector_Phoenix_MC:PhoenixContact_MC_1,5_2-G-3,5_1x02_P3.50mm_Horizontal", 64, 2, 0, "Solar"),
+    # MOSFETs
+    ("Q1",  "Package_TO_SOT_SMD:SOT-23",                   14,   43,   0, "2N7002"),
+    ("Q2",  "Package_TO_SOT_SMD:SOT-23",                   56,   36,   0, "2N7002"),
+    # Inductor
+    ("L1",  "welld:Inductor_4x4mm_SMD",                    74,   12,   0, "4.7uH"),
     # Switches
     ("SW1", "Button_Switch_SMD:SW_SPST_TL3305AF160QG",      5,   35,   0, "RESET"),
     ("SW2", "Button_Switch_SMD:SW_SPST_TL3305AF160QG",      5,   28,   0, "BOOT"),
@@ -383,6 +423,10 @@ COMPONENTS: list[tuple] = [
     ("R20", "Resistor_SMD:R_0402_1005Metric",  63,   8, 0, "36k"),
     ("R21", "Resistor_SMD:R_0402_1005Metric",  63,  10, 0, "10k"),
     ("R22", "Resistor_SMD:R_0402_1005Metric",  62,  14, 0, "1k"),
+    ("R23", "Resistor_SMD:R_0402_1005Metric",  76,  18, 0, "1M1"),
+    ("R24", "Resistor_SMD:R_0402_1005Metric",  76,  20, 0, "47k"),
+    ("R25", "Resistor_SMD:R_0402_1005Metric",  14,  47, 0, "10k"),
+    ("R26", "Resistor_SMD:R_0402_1005Metric",  57,  38, 0, "10k"),
     # Capacitors
     ("C1",   "Capacitor_SMD:C_0805_2012Metric",  8,  41, 0, "10uF"),
     ("C2",   "Capacitor_SMD:C_0805_2012Metric", 12,  41, 0, "10uF"),
@@ -405,6 +449,8 @@ COMPONENTS: list[tuple] = [
     ("C16",  "Capacitor_SMD:C_0805_2012Metric",  6,  46, 0, "4.7uF"),
     ("C17",  "Capacitor_SMD:C_0805_2012Metric", 58,   8, 0, "10uF"),
     ("C18",  "Capacitor_SMD:C_0805_2012Metric", 60,  12, 0, "10uF"),
+    ("C19",  "Capacitor_SMD:C_0805_2012Metric", 76,  14, 0, "10uF"),
+    ("C20",  "Capacitor_SMD:C_1206_3216Metric", 77,   8, 0, "22uF"),
     # Mounting holes  (NPTH — no copper pads)
     ("MH1", "MountingHole:MountingHole_3.2mm_M3",  3.5,  3.5, 0, "M3"),
     ("MH2", "MountingHole:MountingHole_3.2mm_M3", 76.5,  3.5, 0, "M3"),

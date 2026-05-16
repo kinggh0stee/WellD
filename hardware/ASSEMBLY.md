@@ -1,6 +1,6 @@
 # WellD Assembly Guide
 
-**Revision:** 1.0  
+**Revision:** 2.0  
 **PCB:** WellD v1 — ESP32-C6 Well-Level Monitor  
 **Enclosure:** `hardware/case/welld_case.scad` (3D-printed, FDM)
 
@@ -187,9 +187,9 @@ The PCB uses all SMD components. Refer to `hardware/pcb/bom.csv` for values and 
 ### Recommended soldering order
 
 1. **Paste and reflow (top side):** Apply solder paste to all F.Cu pads, place all SMD components, reflow.
-   - If hand-soldering: work smallest to largest — 0402 passives → SOT-23 ICs → SOP-8 ICs → ESP32 module.
+   - If hand-soldering: work smallest to largest — 0402 passives → SOT-23/SOT-23-5/SOT-23-6 ICs → SOP-8/SOIC-8 ICs → ESP32 module.
 2. **Bottom side (if any):** No bottom-side components in this design.
-3. **Through-hole / tall components last:** JST-PH battery connector (J1), tactile switches (SW1, SW2), 2.54 mm headers.
+3. **Through-hole / tall components last:** JST-XH battery connector (J1), tactile switches (SW1, SW2), 2.54 mm headers.
 
 ### Critical assembly notes
 
@@ -197,9 +197,16 @@ The PCB uses all SMD components. Refer to `hardware/pcb/bom.csv` for values and 
 |------|------|
 | **U7 (CN3791) PROG pin** | R19 sets solar charge current. Default 2.0 kΩ = 500 mA. Do not omit. |
 | **D6 orientation** | Cathode (band) toward U7 VIN pin — current flows panel → charger. Reverse polarity destroys U7. |
+| **D8 orientation** | SMAJ7.0A TVS — cathode (band) toward D6 cathode / CN3791 VIN. Clamps solar input below 11.2 V. |
 | **D5 (AO3407) orientation** | Gate to VBAT, source to battery input. Confirm orientation with markings. |
+| **U8 (TPS61023) placement** | Place L1 inductor within 3 mm of U8 SW pin. Keep C19 and C20 close to U8 VIN and VOUT respectively. |
+| **U9 (ADS1115) address** | ADDR pin to GND = address 0x48. Do not float ADDR. |
+| **U10 (MAX17048) ALRT** | ALRT is open-drain active-low. Pulled up internally; connects to GPIO14. |
+| **Q1 (2N7002) function** | Gate HIGH (GPIO4) → drain pulls TP4056 CE LOW → USB charging disabled. Verify gate drive level. |
+| **Q2 (2N7002) function** | Gate HIGH (GPIO15) → battery divider R7/R8 active. Always LOW during deep-sleep. |
 | **J3 (U.FL) soldering** | Reflow only — do not hand-solder. Flux generously, minimal heat. |
 | **R20/R21 MPPT divider** | Default R20=36 kΩ + R21=10 kΩ sets MPPT to 5.5 V. Change R20 to 30 kΩ for 5 V regulated panel. |
+| **R23/R24 boost feedback** | Sets VBOOST = 0.5×(1 + R23/R24). Default R23=1.1 MΩ, R24=47 kΩ → ≈12.2 V. Verify before powering VLOOP. |
 | **Module antenna clearance** | No solder bridges, no copper pour within 15 mm of ESP32 antenna zone. |
 | **DNF components** | D2, D3, D7, R17, R18, R22 are "do not fit" in production — omit unless debugging. |
 
@@ -210,6 +217,8 @@ The PCB uses all SMD components. Refer to `hardware/pcb/bom.csv` for values and 
 - [ ] Continuity: VBAT to GND → no short
 - [ ] Continuity: VSOLAR to GND → no short
 - [ ] Check D6 orientation with diode-test mode (forward drop ~0.3 V anode→cathode)
+- [ ] Check D8 orientation (TVS cathode toward CN3791 VIN)
+- [ ] Verify R23/R24 values before enabling VBOOST (U8 EN HIGH)
 - [ ] IPA wash and hot-air dry
 
 ---
@@ -383,22 +392,29 @@ If D7 is populated (optional DNF), it illuminates during active solar charging. 
 
 ---
 
-## 13. Commissioning checklist
+## 14. Commissioning checklist
 
 ### Electrical
-- [ ] No assembly shorts — VBAT/3V3/VSOLAR to GND all open
+- [ ] No assembly shorts — VBAT/3V3/VSOLAR/VBOOST to GND all open
 - [ ] Battery voltage reads > 3.5 V at J1 before connecting
 - [ ] +3V3 rail measures 3.28–3.32 V (TPS7A0533 ±2 %)
 - [ ] D4 status LED visible during active phase (unless SJ3 cut)
+- [ ] ADS1115 responds on I²C at address 0x48 (scan during startup log)
+- [ ] MAX17048 responds on I²C at address 0x36 (scan during startup log)
+- [ ] VLOOP (VBOOST output) measures 12.0–12.4 V when GPIO5 driven HIGH (measure at J4/J5 VLOOP pin before attaching sensor)
+- [ ] VLOOP drops to < 0.1 V within 5 ms of GPIO5 going LOW (TPS61023 shutdown)
+- [ ] USB charging (TP4056) active when USB-C connected and GPIO4 LOW; disabled when GPIO4 HIGH
+- [ ] Charger interlock (Q1): verify solar charging takes priority — with solar panel attached and GPIO4 HIGH, TP4056 CHRG LED off
 
 ### Firmware
 - [ ] Serial output shows valid `level` reading (not -1.0)
 - [ ] Serial output shows valid `temperature` (not -127)
+- [ ] Serial output shows MAX17048 SoC % (e.g. `battery: 78%`)
 - [ ] Sleep duration appears in log: `sleeping 300 s`
 
 ### Zigbee
 - [ ] Device appears in Zigbee2MQTT after pairing
-- [ ] MQTT payload received with `water_level`, `temperature`, `battery_voltage`
+- [ ] MQTT payload received with `water_level`, `temperature`, `battery_voltage`, `battery`
 - [ ] Home Assistant entities auto-created: `sensor.<name>_water_level`, etc.
 
 ### Solar
@@ -408,6 +424,7 @@ If D7 is populated (optional DNF), it illuminates during active solar charging. 
 ---
 
 ## 13. Concrete lid underside mounting
+
 
 The enclosure lid (branding face) presses flat against the concrete.
 The base hangs downward so sensor cables naturally drop into the well.
@@ -540,4 +557,4 @@ and groundwater wicking along the bolt shank.
 
 ---
 
-*gh0stee.com — WellD v1*
+*gh0stee.com — WellD v2*
