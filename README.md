@@ -14,6 +14,11 @@ Battery-powered well-level monitor for the ESP32-C6. Each wakeup it reads a 4–
 
 ## Hardware
 
+Two hardware paths are supported — see [`hardware/`](hardware/) for a full comparison.
+
+- **Off-the-shelf dev board** — the path documented below; in-hand in days, no PCB lead time.
+- **Custom PCB** — purpose-built 80 × 55 mm board with screw terminals, onboard LiPo charger, TVS protection, and a second 4–20 mA channel. See [`hardware/pcb/`](hardware/pcb/) for design reference and BOM.
+
 ### Bill of materials
 
 | Part | Notes |
