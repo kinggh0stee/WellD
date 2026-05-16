@@ -24,7 +24,12 @@ static const char *TAG = "zigbee";
 
 /* OTA image identity — both fields must match the header of every .zigbee file
    built for this device. Using 0xFFFF (wildcard) would accept images from any
-   OTA server with any manufacturer code, which is a security risk. */
+   OTA server with any manufacturer code (a security risk — a rogue OTA server
+   on the same Zigbee network could flash arbitrary firmware).
+   0x1234 / 0x0001 are placeholder values; a production deployment should use
+   an allocated Zigbee Alliance manufacturer code for 0x1234. The device
+   rejects images where either field mismatches, making these a meaningful
+   access-control check even with placeholder values. */
 #define OTA_MANUFACTURER_CODE  0x1234
 #define OTA_IMAGE_TYPE         0x0001
 
@@ -38,7 +43,9 @@ static char s_manufacturer[] = "\x05WellD";
 static char s_model[]        = "\x08WellD-v1";
 static char s_sw_build_id[18]; /* 1-byte length prefix + up to 16 chars */
 
-/* Sensor values captured by zigbee_send() before starting zb_task */
+/* Sensor values written by zigbee_send() (main task) and read by zb_task.
+ * A portMEMORY_BARRIER() in zigbee_send() orders the writes against the
+ * xTaskCreate() call so the compiler cannot move them past task creation. */
 static EventGroupHandle_t s_events;
 static float s_level_m;
 static float s_battery_v;
@@ -118,7 +125,7 @@ static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
         s_ota_partition = esp_ota_get_next_update_partition(NULL);
         if (!s_ota_partition) {
             ESP_LOGE(TAG, "OTA: no update partition found");
-            break;
+            return ESP_FAIL;
         }
         if (esp_ota_begin(s_ota_partition, OTA_SIZE_UNKNOWN, &s_ota_handle) == ESP_OK) {
             s_ota_in_progress = true;
@@ -329,9 +336,19 @@ static void zb_task(void *pvParameters)
     /* Register OTA callback before starting the stack */
     esp_zb_core_action_handler_register(zb_action_handler);
 
-    /* Build ZCL sw_build_id string from the app version baked in at compile time */
-    welld_pack_zcl_string(s_sw_build_id, sizeof(s_sw_build_id),
-                          esp_app_get_description()->version);
+    /* Build ZCL sw_build_id string from the app version baked in at compile time.
+     * ZCL Basic cluster SW Build ID max is 16 chars; buffer is sized accordingly.
+     * esp_app_desc_t.version is 32 bytes — longer strings are truncated to 16. */
+    _Static_assert(sizeof(s_sw_build_id) >= 17,
+                   "s_sw_build_id must hold ZCL length byte + 16 chars");
+    {
+        const char *ver = esp_app_get_description()->version;
+        size_t vlen = strlen(ver);
+        size_t packed = welld_pack_zcl_string(s_sw_build_id, sizeof(s_sw_build_id), ver);
+        if (packed < vlen + 1)
+            ESP_LOGW(TAG, "sw_build_id truncated: '%s' → %u chars", ver,
+                     (unsigned)(packed - 1));
+    }
 
     /* Basic cluster — device identity visible in Zigbee2MQTT and HA */
     esp_zb_basic_cluster_cfg_t basic_cfg = {
@@ -462,6 +479,7 @@ bool zigbee_send(float level_m,
     s_battery_v         = battery_v;
     s_temperature_c     = temperature_c;
     s_rate_cm_per_hour  = rate_cm_per_hour;
+    portMEMORY_BARRIER();  /* prevent compiler from moving writes past xTaskCreate */
     s_events            = xEventGroupCreate();
 
     if (xTaskCreate(zb_task, "zb_task", 10240, NULL, 5, NULL) != pdPASS) {

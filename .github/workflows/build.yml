@@ -91,6 +91,10 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install converter dependencies
+        working-directory: zigbee2mqtt
+        run: npm ci --ignore-scripts
+
       - name: Run converter tests
         working-directory: zigbee2mqtt
         run: npm test
