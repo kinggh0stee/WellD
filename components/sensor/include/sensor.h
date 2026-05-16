@@ -1,5 +1,11 @@
 #pragma once
 #include <stdbool.h>
+#ifndef HOST_BUILD
+#include "esp_err.h"
+#else
+#include <stdint.h>
+typedef int esp_err_t;
+#endif
 
 /* Acquire the shared ADC unit and calibration handles for a measurement session.
  * Call once before any sensor_read_level() or sensor_read_battery_v() call,
@@ -37,3 +43,16 @@ void sensor_set_offset_cm(int offset_cm);
 /* test-only: drop the in-memory offset cache so the next sensor_get_offset_cm()
    call re-reads NVS. Lets a test verify NVS round-trip without rebooting. */
 void sensor_offset_cache_reset(void);
+
+/* Initialise the shared I2C bus and register ADS1115 (0x48) + MAX17048 (0x36).
+ * Also configures VLOOP and BATT_DIV_EN GPIO outputs and drives them LOW.
+ * Must be called before any sensor_read_level() or sensor_read_battery_v(). */
+esp_err_t sensor_i2c_init(void);
+
+/* Read battery state-of-charge from MAX17048 SOC register.
+ * Returns 0-100 (integer percent), or -1 on error / device not present. */
+int       sensor_read_battery_soc(void);
+
+/* Read battery voltage from MAX17048 VCELL register.
+ * Returns volts (e.g. 3.85), or -1.0f on error / device not present. */
+float     sensor_read_battery_vcell_v(void);

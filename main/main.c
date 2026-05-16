@@ -5,6 +5,7 @@
 #include "esp_timer.h"
 #include "nvs_flash.h"
 #include "nvs.h"
+#include "driver/gpio.h"
 #include "sensor.h"
 #include "zigbee.h"
 #include "welld_core.h"
@@ -54,8 +55,12 @@ static void write_fail_count(uint32_t count)
 {
     nvs_handle_t h;
     if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK) {
-        nvs_set_u32(h, NVS_KEY_FAILS, count);
-        nvs_commit(h);
+        esp_err_t _err = nvs_set_u32(h, NVS_KEY_FAILS, count);
+        if (_err != ESP_OK)
+            ESP_LOGW(TAG, "fail counter write: %s", esp_err_to_name(_err));
+        _err = nvs_commit(h);
+        if (_err != ESP_OK)
+            ESP_LOGW(TAG, "fail counter commit: %s", esp_err_to_name(_err));
         nvs_close(h);
     }
 }
@@ -80,6 +85,41 @@ void app_main(void)
         s_history.magic = HISTORY_MAGIC;
     }
 
+    /* Initialise the I²C bus (ADS1115 + MAX17048) and power-control GPIOs.
+     * Must be called before any sensor_read_level() or sensor_read_battery_v(). */
+    sensor_i2c_init();
+
+    /* Charger interlock: read the CN3791 CHRG signal (GPIO6) and assert the
+     * TP4056 CE interlock (GPIO4) when solar charging is active to prevent
+     * simultaneous dual-charger operation. */
+    {
+        gpio_config_t out_cfg = {
+            .pin_bit_mask = 1ULL << CONFIG_WELLD_CHARGER_CE_GPIO,
+            .mode         = GPIO_MODE_OUTPUT,
+            .pull_up_en   = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type    = GPIO_INTR_DISABLE,
+        };
+        gpio_config(&out_cfg);
+
+        gpio_config_t in_cfg = {
+            .pin_bit_mask = 1ULL << CONFIG_WELLD_SOLAR_DETECT_GPIO,
+            .mode         = GPIO_MODE_INPUT,
+            .pull_up_en   = GPIO_PULLUP_ENABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type    = GPIO_INTR_DISABLE,
+        };
+        gpio_config(&in_cfg);
+
+        if (gpio_get_level(CONFIG_WELLD_SOLAR_DETECT_GPIO)) {
+            gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 1);
+            ESP_LOGI(TAG, "solar charging active — USB charger disabled");
+        } else {
+            gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 0);
+        }
+    }
+
+
     uint32_t fail_count = read_fail_count();
     if (welld_should_wipe_nvs(fail_count, FAIL_THRESHOLD)) {
         ESP_LOGW(TAG, "%lu consecutive Zigbee failures — erasing NVS to force rejoin",
@@ -99,10 +139,8 @@ void app_main(void)
 
     /* Read sensors before powering the radio. The ADC is sensitive to 802.15.4
      * RF interference, so all ADC reads must complete before zigbee_send(). */
-    sensor_adc_acquire();
     float level_m   = sensor_read_level();
     float battery_v = sensor_read_battery_v();
-    sensor_adc_release();
     float temperature_c = sensor_read_temperature();
 
     /* Accumulate elapsed time from the previous wakeup: both the programmed sleep
@@ -128,6 +166,13 @@ void app_main(void)
         s_history.pending_sleep_sec = low_batt_sleep;
         s_history.last_active_sec =
             (uint32_t)((esp_timer_get_time() - wakeup_start_us) / 1000000LL);
+        /* Reset elapsed accumulator to prevent a stale gap producing a false
+         * rate spike when the battery recovers and the device resumes sending. */
+        s_history.elapsed_since_last_valid_sec = 0;
+        gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 0);
+        gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
+        gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 0);
+        esp_sleep_gpio_isolate();
         esp_deep_sleep((uint64_t)low_batt_sleep * 1000000ULL);
     }
 #endif
@@ -176,5 +221,9 @@ void app_main(void)
         (uint32_t)((esp_timer_get_time() - wakeup_start_us) / 1000000LL);
 
     ESP_LOGI(TAG, "sleeping %lu s", (unsigned long)sleep_sec);
+    gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 0);
+    gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
+    gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 0);
+    esp_sleep_gpio_isolate();
     esp_deep_sleep((uint64_t)sleep_sec * 1000000ULL);
 }

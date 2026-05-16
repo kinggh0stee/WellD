@@ -24,10 +24,33 @@ pcb_w       = 80;    // PCB width  — long axis (X), mm
 pcb_d       = 55;    // PCB depth  — short axis (Y), mm
 pcb_t       = 1.6;   // PCB thickness, mm
 
+// ── 2S 18650 battery pack variant ─────────────────────────────────────────────
+//   Set USE_2S_BATTERY = true to generate the taller-base variant sized for a
+//   side-by-side 2S1P 18650 pack (e.g. CS-ARS200SL, 7.4 V 3400 mAh) that sits
+//   directly on the enclosure floor below the PCB.
+//
+//   ⚠ ELECTRICAL WARNING — PCB IS NOT COMPATIBLE WITH A 2S PACK WITHOUT REWORK:
+//     • U1 TPS7A0533 LDO: abs-max input 6.5 V — 8.4 V (charged 2S) destroys it.
+//     • U2 TP4056 / U7 CN3791: both rated to 6.5 V input — same issue.
+//     • U3 S-8261AAYFT: single-cell protection (2.9 V cutoff) — replace with a
+//       2S-rated IC (e.g. S-8232) or discrete 2S BMS (cutoff ≈ 6.0 V).
+//     Required PCB changes before connecting the 2S pack:
+//       1. Replace U1 with a wide-input buck converter (e.g. TPS54331, 4.5–28 V in).
+//       2. Replace U2/U7 with a 2S charger (e.g. MCP73213 or BQ25606).
+//       3. Replace U3 with a 2S protection IC.
+//     The change here is enclosure geometry only.
+USE_2S_BATTERY = false;
+
+BATT_2S_L   = 73;    // pack length  (along case X axis), mm  ← 18650×2 + wrap
+BATT_2S_W   = 40;    // pack width   (along case Y axis), mm  ← cell OD + wrap
+BATT_2S_H   = 22;    // pack height  (along case Z axis), mm  ← cell OD + wrap
+BATT_2S_TOL =  1.0;  // clearance each side of locating posts, mm
+
 // Walls / floors
 wall        = 2.5;   // nominal wall thickness, mm
-floor_h     = 3;     // height from enclosure floor face to underside of PCB
-                     // (= standoff height; PCB bottom clearance)
+// floor_h: PCB underside clearance.  For the 2S variant the battery (BATT_2S_H)
+// plus a 3 mm service gap determines the standoff height.
+floor_h     = USE_2S_BATTERY ? (BATT_2S_H + 3) : 3;
 
 // Internal air gap above PCB top surface (components + service loop)
 top_clear   = 10;    // mm  (spec says ≥6; 10 gives comfortable margin)
@@ -45,7 +68,7 @@ m3_insert_d = 4.5;   // M3 heat-set insert OD — wall boss inner diameter, mm
 boss_d      = 8.0;   // corner boss outer diameter, mm
 
 // Standoffs (PCB mounting pillars)
-standoff_h  = 3;     // height above floor, matches floor_h so PCB sits flush
+standoff_h  = floor_h;  // always equals floor_h so PCB sits flush on standoff tops
 standoff_d  = 5;     // outer diameter, mm
 standoff_id = 3.2;   // inner bore (tap to M3, or press-fit brass insert), mm
 
@@ -192,6 +215,23 @@ module standoff(x, y) {
             translate([0, 0, -eps])
                 cylinder(d = standoff_id, h = standoff_h + 2 * eps, $fn = 24);
         }
+    }
+}
+
+// Four corner locating posts for the 2S 18650 pack.
+// The pack slots in between them; BATT_2S_TOL clearance each side.
+// Posts height = BATT_2S_H so the PCB standoffs clear the pack by ~3 mm.
+module battery_locators_2s() {
+    cx = wall + pcb_w / 2;
+    cy = wall + pcb_d / 2;
+    hl = (BATT_2S_L / 2) + BATT_2S_TOL;   // half-span X, to post inner edge
+    hw = (BATT_2S_W / 2) + BATT_2S_TOL;   // half-span Y, to post inner edge
+    post_d = 5;
+    for (sx = [-1, 1], sy = [-1, 1]) {
+        translate([cx + sx * hl - (sx > 0 ? post_d : 0),
+                   cy + sy * hw - (sy > 0 ? post_d : 0),
+                   wall])
+            cube([post_d, post_d, BATT_2S_H]);
     }
 }
 
@@ -371,8 +411,28 @@ module base() {
         }
 
         // ── Right-wall (X=ext_w face) battery cable gland ─────────────────
-        // Centred in right wall, at mid-height of base shell
-        cg_hole(ext_w, ext_d / 2, ext_h_base / 2, "x");
+        // External battery only (single-cell LiPo pigtail).  Omitted for the
+        // 2S variant because the pack lives inside the case.
+        if (!USE_2S_BATTERY) {
+            cg_hole(ext_w, ext_d / 2, ext_h_base / 2, "x");
+        }
+
+        // ── 2S battery strap slots ─────────────────────────────────────────
+        // Two horizontal slots through the left (X=0) and right (X=ext_w) walls,
+        // sized for a 16 mm wide × 3 mm thick nylon strap or velcro band.
+        // Centred on the battery mid-height; keeps pack secure when lid is off.
+        if (USE_2S_BATTERY) {
+            strap_w   = 18;   // slot width  (slightly wider than 16 mm strap)
+            strap_h   =  4;   // slot height (slightly taller than 3 mm strap)
+            strap_cx  = wall + pcb_w / 2;
+            strap_cz  = wall + BATT_2S_H / 2;
+            // Left wall (X = 0)
+            translate([         -eps, strap_cx - strap_w / 2, strap_cz - strap_h / 2])
+                cube([wall + 2 * eps, strap_w, strap_h]);
+            // Right wall (X = ext_w)
+            translate([ext_w - wall - eps, strap_cx - strap_w / 2, strap_cz - strap_h / 2])
+                cube([wall + 2 * eps, strap_w, strap_h]);
+        }
 
         // ── Back-wall (Y=ext_d face): solar cable gland + SMA antenna ────
         // Solar gland: offset left (quarter-width) to leave room for SMA.
@@ -399,6 +459,11 @@ module base() {
     // ── PCB standoffs (added after difference so they're not hollowed) ──
     for (i = [0:3]) {
         standoff(mh_enc(i)[0], mh_enc(i)[1]);
+    }
+
+    // ── 2S battery locating posts ──────────────────────────────────────────
+    if (USE_2S_BATTERY) {
+        battery_locators_2s();
     }
 }
 
@@ -544,3 +609,8 @@ if (SHOW_DRILL_TEMPLATE) {
 // 1× U.FL to SMA female pigtail, ~100 mm, RG178 (e.g. Taoglas CAB.100.07.0100B)
 // 1× 2.4 GHz omnidirectional SMA antenna (rubber duck, 2 dBi, e.g. Taoglas FXP73)
 // Silicone sealant bead between lid lip and base top rim for IP54 sealing
+//
+// Additional hardware for USE_2S_BATTERY variant only:
+// 1× 2S1P 18650 pack (e.g. CS-ARS200SL, 7.4 V 3400 mAh, ~73×40×22 mm)
+// 1× nylon strap or velcro band, 16 mm wide × ≥ 200 mm long (battery retention)
+// ⚠ PCB requires charger and LDO rework before connecting 2S pack — see SCAD comments
