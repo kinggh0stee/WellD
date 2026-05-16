@@ -1,0 +1,106 @@
+{
+  "Header": {
+    "GenerationSoftware": {
+      "Vendor": "WellD",
+      "Application": "generate_gerbers.py",
+      "Version": "1.0"
+    },
+    "CreationDate": "2026-05-16T00:00:00+00:00"
+  },
+  "GeneralSpecs": {
+    "ProjectId": {
+      "Name": "welld",
+      "Revision": "1.0"
+    },
+    "Size": {
+      "X": 80.0,
+      "Y": 55.0
+    },
+    "LayerNumber": 2,
+    "BoardThickness": 1.6,
+    "Finish": "ENIG"
+  },
+  "FilesAttributes": [
+    {
+      "FileName": "welld-B_Cu.gbr",
+      "FileFunction": "Copper,L2,Bot",
+      "FilePolarity": "Positive"
+    },
+    {
+      "FileName": "welld-B_Mask.gbr",
+      "FileFunction": "SolderMask,Bot",
+      "FilePolarity": "Positive"
+    },
+    {
+      "FileName": "welld-Edge_Cuts.gbr",
+      "FileFunction": "Profile,NP",
+      "FilePolarity": "Positive"
+    },
+    {
+      "FileName": "welld-F_Cu.gbr",
+      "FileFunction": "Copper,L1,Top",
+      "FilePolarity": "Positive"
+    },
+    {
+      "FileName": "welld-F_Mask.gbr",
+      "FileFunction": "SolderMask,Top",
+      "FilePolarity": "Positive"
+    },
+    {
+      "FileName": "welld-F_Paste.gbr",
+      "FileFunction": "SolderPaste,Top",
+      "FilePolarity": "Positive"
+    },
+    {
+      "FileName": "welld-F_SilkS.gbr",
+      "FileFunction": "Legend,Top",
+      "FilePolarity": "Positive"
+    }
+  ],
+  "MaterialStackup": [
+    {
+      "Type": "Legend",
+      "Color": "White",
+      "Name": "F.SilkS"
+    },
+    {
+      "Type": "SolderPaste",
+      "Name": "F.Paste"
+    },
+    {
+      "Type": "SolderMask",
+      "Color": "Green",
+      "Name": "F.Mask"
+    },
+    {
+      "Type": "Copper",
+      "Name": "F.Cu"
+    },
+    {
+      "Type": "Dielectric",
+      "Material": "FR4",
+      "Name": "F.Cu/B.Cu",
+      "ThicknessMm": 1.51
+    },
+    {
+      "Type": "Copper",
+      "Name": "B.Cu"
+    },
+    {
+      "Type": "SolderMask",
+      "Color": "Green",
+      "Name": "B.Mask"
+    }
+  ],
+  "DesignRules": [
+    {
+      "Layers": "Outer",
+      "PadToPad": 0.2,
+      "PadToTrack": 0.2,
+      "TrackToTrack": 0.2,
+      "MinLineWidth": 0.15,
+      "TrackToRegion": 0.5,
+      "RegionToRegion": 0.5
+    }
+  ]
+}
