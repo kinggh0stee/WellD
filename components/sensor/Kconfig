@@ -8,9 +8,12 @@ menu "WellD Sensor"
     config WELLD_SENSOR_SHUNT_MILLIOHMS
         int "Shunt resistor value (milliohms)"
         default 100000
-        range 1000 1000000
+        range 1000 155000
         help
             Value in milliohms. 100000 = 100 Ω → 4 mA gives 0.40 V, 20 mA gives 2.00 V.
+            Upper bound is 155 Ω (155000 mΩ): at 20 mA full scale that produces 3.1 V,
+            the top of the ADC linear range. Higher values exceed the ESP32-C6 ADC
+            absolute-maximum input of 3.6 V and will damage the GPIO pin.
 
     config WELLD_SENSOR_MAX_DEPTH_CM
         int "Maximum well depth (centimeters)"
@@ -39,11 +42,15 @@ menu "WellD Sensor"
     config WELLD_BATT_DIVIDER_RATIO
         int "Battery divider ratio * 100 (e.g. 200 = 2:1 divider)"
         default 200
-        range 100 1000
+        range 136 1000
         depends on WELLD_BATT_ADC_CHANNEL >= 0
         help
             If your divider halves the voltage (R1=R2), enter 200 (2.00x).
             Reported voltage = ADC voltage * ratio / 100.
+            Minimum is 136 (1.36:1), which maps a 4.2 V Li-ion full charge to
+            3.09 V at the ADC pin — just inside the 3.1 V linear range. Lower
+            ratios put the raw battery voltage on the ADC input and risk
+            exceeding the 3.6 V absolute maximum. For 12 V SLA use ratio >= 465.
 
     config WELLD_BATT_FULL_MV
         int "Battery full voltage (mV)"
@@ -67,5 +74,10 @@ menu "WellD Sensor"
         range 0 21
         help
             GPIO connected to the DS18B20 data pin via a 4.7 kΩ pull-up to 3.3 V.
+            External power mode is required: connect DS18B20 VCC to 3.3 V and GND
+            to GND. Parasite-power mode (VCC pin tied to GND) is not supported —
+            the RMT one-wire driver does not drive a strong pull-up during
+            conversion, so a parasite-powered sensor will stall and return an
+            out-of-range reading that is silently discarded every wakeup.
 
 endmenu

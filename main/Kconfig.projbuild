@@ -8,7 +8,11 @@ menu "WellD Configuration"
             Baseline sleep duration between wakeups. When adaptive sleep is
             enabled, this is the "normal-rate-of-change" window; the actual
             sleep duration is scaled up when the level is stable and down
-            when it's changing fast.
+            when it's changing fast. Note: the fast-rate target is
+            default/4 (integer division); at the minimum value of 30 s this
+            equals 7 s, which the WELLD_SLEEP_MIN_SEC floor immediately
+            overrides — very short base values make the fast-rate band
+            unreachable.
 
     config WELLD_ADAPTIVE_SLEEP_ENABLED
         bool "Adaptive sleep duration"
