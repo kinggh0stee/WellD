@@ -3,7 +3,7 @@
 Battery-powered well-level monitor for the ESP32-C6. Each wakeup it reads a 4–20 mA submersible pressure transducer, a DS18B20 temperature probe, and (optionally) battery voltage; reports them over Zigbee to Zigbee2MQTT; then deep-sleeps until the next cycle.
 
 - **Radio:** Zigbee 3.0 over the C6's built-in 802.15.4 — no extra modules
-- **Battery life:** months on a LiPo at the default 5-minute interval (~7 µA in deep sleep)
+- **Battery life:** months on a LiPo at the default 5-minute interval (deep sleep between readings)
 - **Adaptive sleep:** sleep duration scales with how fast the level is changing — longer windows when stable, shorter when transients are in progress
 - **Rate-of-change reporting:** `water_level_rate` in cm/h published as a fourth sensor; distinguishes "well recovering" from "well being drawn down"
 - **Self-healing:** wipes Zigbee NVS state and rejoins fresh after 5 consecutive send failures
@@ -13,6 +13,11 @@ Battery-powered well-level monitor for the ESP32-C6. Each wakeup it reads a 4–
 ---
 
 ## Hardware
+
+Two hardware paths are supported — see [`hardware/`](hardware/) for a full comparison.
+
+- **Off-the-shelf dev board** — the path documented below; in-hand in days, no PCB lead time.
+- **Custom PCB** — purpose-built 80 × 55 mm board with screw terminals, onboard LiPo charger, TVS protection, and a second 4–20 mA channel. See [`hardware/pcb/`](hardware/pcb/) for design reference and BOM.
 
 ### Bill of materials
 
@@ -102,7 +107,7 @@ All options have sensible defaults — only change what differs from your hardwa
 | `CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS` | `100000` | Shunt resistor in milliohms |
 | `CONFIG_WELLD_SENSOR_MAX_DEPTH_CM` | `600` | Full-scale depth at 20 mA, in cm |
 | `CONFIG_WELLD_SENSOR_OFFSET_CM` | `0` | Level offset in cm applied after conversion (±600). Persisted in NVS; runtime-writable via `sensor_set_offset_cm()` |
-| `CONFIG_WELLD_DS18B20_GPIO` | `4` | GPIO connected to DS18B20 data pin |
+| `CONFIG_WELLD_DS18B20_GPIO` | `7` | GPIO connected to DS18B20 data pin |
 | `CONFIG_WELLD_BATT_ADC_CHANNEL` | `-1` | ADC1 channel for battery divider; `-1` disables battery monitoring |
 | `CONFIG_WELLD_BATT_DIVIDER_RATIO` | `200` | Divider ratio × 100 (`200` = 2:1) |
 | `CONFIG_WELLD_BATT_FULL_MV` | `4200` | Voltage (mV) reported as 100 % by the Z2M converter |
@@ -281,7 +286,7 @@ E (sensor): transducer open loop (voltage=12 mV, < 3.5 mA)
 DS18B20 not detected:
 
 ```
-E (sensor): no DS18B20 found on GPIO 4
+E (sensor): no DS18B20 found on GPIO 7
 ```
 
 Temperature is omitted from the report and retried on the next wakeup.
@@ -290,13 +295,7 @@ Temperature is omitted from the report and retried on the next wakeup.
 
 ## Power
 
-| State | Current |
-|-------|---------|
-| Deep sleep | ~7 µA |
-| Active (Zigbee join + send) | ~20 mA for 6–11 s |
-| DS18B20 conversion | adds ~750 ms at ~1 mA |
-
-At the default 5-minute interval, average current is well under 1 mA — months of runtime on a small LiPo or 18650 cell.
+The device spends the vast majority of its time in deep sleep. Each wakeup is typically 6–12 seconds of active current, followed by a sleep window of 1–30 minutes depending on the rate of change. At the default 5-minute interval, average current is well under 1 mA — months of runtime on a small LiPo or 18650 cell.
 
 ---
 

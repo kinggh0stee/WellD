@@ -65,7 +65,7 @@ One `app_main()` = one report. The order matters and is load-bearing:
 ### Components
 
 - `main/` — orchestration only; owns the NVS fail counter and the RTC-memory level history (`s_history`: `last_level_m`, accumulated `elapsed_since_last_valid_sec`, `pending_sleep_sec`). `RTC_DATA_ATTR` keeps it across deep sleep; cold boot zeroes it (and `valid = false` is the cold-boot signal).
-- `components/sensor/` — ADC + DS18B20 + battery divider. Owns NVS key `"offset_cm"`. `sensor_level_from_mv()` is the pure conversion function exposed in `sensor.h` so tests can hit it without NVS or hardware.
+- `components/sensor/` — ADC + DS18B20 + battery divider. Owns NVS keys `"offset_cm"` and `"ds18b20_rom"`. `sensor_level_from_mv()` is the pure conversion function exposed in `sensor.h` so tests can hit it without NVS or hardware. DS18B20 default GPIO is 7 (PCB design); GPIO4 is ADC1_CH4 and reserved for analog use.
 - `components/zigbee/` — esp-zigbee-lib wrapper. Spawns `zb_task` (10 KB stack, prio 5) which runs the BDB commissioning state machine and the stack main loop. Synchronisation back to the caller uses a FreeRTOS event group with `SENT_BIT` / `FAIL_BIT` / `STOPPED_BIT`. The caller must wait for `STOPPED_BIT` before deep-sleep so the radio is fully released.
 
 ### Zigbee endpoints
