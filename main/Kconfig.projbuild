@@ -43,3 +43,64 @@ menu "WellD Configuration"
             longer than this, even when the level is perfectly stable.
 
 endmenu
+
+menu "Rev 2 Hardware I/O"
+
+config WELLD_I2C_SDA_GPIO
+    int "I2C SDA GPIO (ADS1115 + MAX17048)"
+    range 0 21
+    default 10
+    help
+        GPIO number for the shared I2C SDA line. Used by ADS1115 (16-bit
+        ADC, 0x48) and MAX17048 (fuel gauge, 0x36).
+
+config WELLD_I2C_SCL_GPIO
+    int "I2C SCL GPIO (ADS1115 + MAX17048)"
+    range 0 21
+    default 11
+    help
+        GPIO number for the shared I2C SCL line.
+
+config WELLD_VLOOP_GPIO
+    int "VLOOP 12 V boost enable GPIO (TPS61023 EN)"
+    range 0 21
+    default 5
+    help
+        Drive HIGH before any 4-20 mA transducer read; allow 5 ms soft-start;
+        drive LOW immediately after. Max ON time 100 ms per wake cycle.
+
+config WELLD_CHARGER_CE_GPIO
+    int "TP4056 charger CE interlock GPIO"
+    range 0 21
+    default 4
+    help
+        Drives Q1 gate (BSS123). HIGH disables USB charging (TP4056 CE LOW).
+        Assert when solar charging is active to prevent dual-charger conflict.
+
+config WELLD_SOLAR_DETECT_GPIO
+    int "Solar charging detect GPIO (CN3791 CHRG)"
+    range 0 21
+    default 6
+    help
+        Input. HIGH when the CN3791 MPPT charger is actively charging.
+        Used to gate the TP4056 interlock.
+
+config WELLD_BATT_DIV_EN_GPIO
+    int "Battery divider enable GPIO (Q2 gate)"
+    range 0 21
+    default 15
+    help
+        Drives Q2 gate (BSS123). HIGH enables the resistor divider connected
+        to ADS1115 AIN2. Drive HIGH for 1 ms before reading; LOW after.
+        Only used as fallback when MAX17048 is unavailable.
+
+config WELLD_MAX17048_ALRT_GPIO
+    int "MAX17048 ALRT input GPIO"
+    range 0 21
+    default 14
+    help
+        Active-low open-drain alert from MAX17048 fuel gauge. External pull-up
+        R27 (4.7 kOhm to 3.3 V) is required on the PCB. Can be configured as
+        a deep-sleep wakeup source for low-battery alerting.
+
+endmenu

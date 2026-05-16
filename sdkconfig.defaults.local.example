@@ -32,3 +32,28 @@
 # to speed up joining. ch11=0x800 ch15=0x8000 ch20=0x100000 ch25=0x2000000
 # CONFIG_WELLD_ZIGBEE_CHANNEL_MASK=0x07FFF800
 # CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS=2000
+
+# ---------- Rev 2 hardware I/O (custom PCB) ----------
+# I2C bus shared by ADS1115 (16-bit ADC) and MAX17048 (fuel gauge)
+# CONFIG_WELLD_I2C_SDA_GPIO=10
+# CONFIG_WELLD_I2C_SCL_GPIO=11
+
+# 12 V boost enable — TPS61023 EN, gated by firmware before transducer read
+# CONFIG_WELLD_VLOOP_GPIO=5
+
+# TP4056 charger CE interlock (HIGH = USB charging disabled)
+# CONFIG_WELLD_CHARGER_CE_GPIO=4
+
+# Solar charging detect — CN3791 CHRG indicator, active-high
+# CONFIG_WELLD_SOLAR_DETECT_GPIO=6
+
+# Battery resistor-divider enable — Q2 gate, pulsed before AIN2 read
+# CONFIG_WELLD_BATT_DIV_EN_GPIO=15
+
+# MAX17048 ALRT active-low input (PCB pull-up R27 4.7kΩ required)
+# CONFIG_WELLD_MAX17048_ALRT_GPIO=14
+
+# ---------- Adaptive sleep ----------
+# CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED=y
+# CONFIG_WELLD_SLEEP_MIN_SEC=60
+# CONFIG_WELLD_SLEEP_MAX_SEC=1800

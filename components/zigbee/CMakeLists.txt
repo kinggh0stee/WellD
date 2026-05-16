@@ -4,7 +4,7 @@ idf_component_register(
     REQUIRES freertos log app_update esp_system welld_core
 )
 
-# Convert PROJECT_VER "MAJOR.MINOR.PATCH" to OTA uint32 (0x00MMmmPP).
+# Convert PROJECT_VER "MAJOR.MINOR.PATCH" to OTA uint32 (0xMMmmPP00).
 # Fail loudly on a malformed PROJECT_VER: silently shipping
 # OTA_FW_VERSION=0 would defeat the OTA upgrade-gate check on the device.
 if(NOT PROJECT_VER MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")

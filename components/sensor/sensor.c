@@ -1,7 +1,6 @@
 #include "sensor.h"
-#include "esp_adc/adc_oneshot.h"
-#include "esp_adc/adc_cali.h"
-#include "esp_adc/adc_cali_scheme.h"
+#include "driver/i2c_master.h"
+#include "driver/gpio.h"
 #include "onewire_bus.h"
 #include "ds18b20.h"
 #include "esp_log.h"
@@ -10,94 +9,123 @@
 #include "sdkconfig.h"
 #include "nvs_flash.h"
 #include "nvs.h"
-#include <assert.h>
 #include <limits.h>
 
 static const char *TAG = "sensor";
 
-#define ADC_UNIT    ADC_UNIT_1
-#define ADC_ATTEN   ADC_ATTEN_DB_12   /* 0 – ~3.1 V input range */
-#define NUM_SAMPLES 16                 /* averaged to reduce quantisation noise */
+#define NUM_SAMPLES 16   /* ADS1115 reads averaged to reduce quantisation noise */
 
 #define NVS_NAMESPACE       "welld"
 #define NVS_KEY_OFFSET      "offset_cm"
 #define NVS_KEY_DS18B20_ROM "ds18b20_rom"
 
-/* Shared ADC and calibration handles, managed by sensor_adc_acquire / sensor_adc_release.
- * NULL until acquire is called; level and battery reads assert these are non-NULL. */
-static adc_oneshot_unit_handle_t s_adc_hdl  = NULL;
-static adc_cali_handle_t         s_cali_hdl = NULL;
-
 /* INT32_MIN is used as a sentinel meaning "not yet loaded from NVS".
    Avoids an NVS read on every call after the first wakeup. */
 static int s_offset_cm = INT32_MIN;
 
-/* Create the ADC unit and calibration handles shared across all ADC reads in one
- * wakeup. Call once before any sensor_read_level() or sensor_read_battery_v() call;
- * pair every acquire with a sensor_adc_release(). */
-void sensor_adc_acquire(void)
-{
-    adc_oneshot_unit_init_cfg_t unit_cfg = { .unit_id = ADC_UNIT };
-    ESP_ERROR_CHECK(adc_oneshot_new_unit(&unit_cfg, &s_adc_hdl));
+/* I²C bus and device handles — initialised by sensor_i2c_init(). */
+static i2c_master_bus_handle_t  s_i2c_bus = NULL;
+static i2c_master_dev_handle_t  s_ads_dev = NULL;
+static i2c_master_dev_handle_t  s_max_dev = NULL;
 
-#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
-    adc_cali_curve_fitting_config_t cali_cfg = {
-        .unit_id  = ADC_UNIT,
-        .atten    = ADC_ATTEN,
-        .bitwidth = ADC_BITWIDTH_DEFAULT,
+/* Configure VLOOP and BATT_DIV_EN GPIO outputs and drive them LOW at init time.
+ * This ensures the TPS61023 boost and battery divider are off by default. */
+static void power_gpio_init(void) {
+    const int pins[] = {
+        CONFIG_WELLD_VLOOP_GPIO,
+        CONFIG_WELLD_BATT_DIV_EN_GPIO,
     };
-    if (adc_cali_create_scheme_curve_fitting(&cali_cfg, &s_cali_hdl) != ESP_OK)
-        s_cali_hdl = NULL;
-#endif
-}
-
-/* Release the handles created by sensor_adc_acquire(). */
-void sensor_adc_release(void)
-{
-    if (s_cali_hdl) {
-#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
-        adc_cali_delete_scheme_curve_fitting(s_cali_hdl);
-#endif
-        s_cali_hdl = NULL;
-    }
-    if (s_adc_hdl) {
-        adc_oneshot_del_unit(s_adc_hdl);
-        s_adc_hdl = NULL;
-    }
-}
-
-/* Read NUM_SAMPLES from channel, applying per-sample curve-fitting calibration
- * to correct ADC non-linearity before accumulating. Samples are spaced 1 ms
- * apart so 16 samples span ~15 ms, averaging out 50/60 Hz ripple induced by
- * nearby AC wiring on the 4-20 mA loop cable.
- *
- * Requires sensor_adc_acquire() to have been called first. */
-static int adc_read_avg_mv(adc_channel_t channel)
-{
-    assert(s_adc_hdl != NULL);
-
-    adc_oneshot_chan_cfg_t ch_cfg = {
-        .atten    = ADC_ATTEN,
-        .bitwidth = ADC_BITWIDTH_DEFAULT,
+    gpio_config_t cfg = {
+        .mode         = GPIO_MODE_OUTPUT,
+        .pull_up_en   = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type    = GPIO_INTR_DISABLE,
     };
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(s_adc_hdl, channel, &ch_cfg));
-
-    int mv_sum = 0;
-    for (int i = 0; i < NUM_SAMPLES; i++) {
-        int raw;
-        ESP_ERROR_CHECK(adc_oneshot_read(s_adc_hdl, channel, &raw));
-        int mv;
-        if (s_cali_hdl && adc_cali_raw_to_voltage(s_cali_hdl, raw, &mv) == ESP_OK) {
-            /* per-sample calibration: correct non-linearity before summing */
-        } else {
-            mv = (raw * 3300) / 4095;
-        }
-        mv_sum += mv;
-        if (i < NUM_SAMPLES - 1) vTaskDelay(pdMS_TO_TICKS(1));
+    for (int i = 0; i < (int)(sizeof(pins)/sizeof(pins[0])); i++) {
+        cfg.pin_bit_mask = 1ULL << pins[i];
+        gpio_config(&cfg);
+        gpio_set_level(pins[i], 0);
     }
-    return mv_sum / NUM_SAMPLES;
 }
 
+/* Initialise the shared I2C bus and register ADS1115 (0x48) + MAX17048 (0x36).
+ * Also configures VLOOP and BATT_DIV_EN GPIO outputs and drives them LOW.
+ * Must be called before any sensor_read_level() or sensor_read_battery_v(). */
+esp_err_t sensor_i2c_init(void) {
+    power_gpio_init();
+
+    i2c_master_bus_config_t bus_cfg = {
+        .clk_source            = I2C_CLK_SRC_DEFAULT,
+        .i2c_port              = I2C_NUM_0,
+        .sda_io_num            = CONFIG_WELLD_I2C_SDA_GPIO,
+        .scl_io_num            = CONFIG_WELLD_I2C_SCL_GPIO,
+        .glitch_ignore_cnt     = 7,
+        .flags.enable_internal_pullup = true,
+    };
+    esp_err_t ret = i2c_new_master_bus(&bus_cfg, &s_i2c_bus);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "I2C bus init failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    i2c_device_config_t ads_cfg = {
+        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+        .device_address  = 0x48,
+        .scl_speed_hz    = 400000,
+    };
+    ret = i2c_master_bus_add_device(s_i2c_bus, &ads_cfg, &s_ads_dev);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "ADS1115 add failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    i2c_device_config_t max_cfg = {
+        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+        .device_address  = 0x36,
+        .scl_speed_hz    = 400000,
+    };
+    /* MAX17048 is non-fatal — board may not have it */
+    if (i2c_master_bus_add_device(s_i2c_bus, &max_cfg, &s_max_dev) != ESP_OK) {
+        ESP_LOGW(TAG, "MAX17048 not found on I2C bus");
+        s_max_dev = NULL;
+    }
+    return ESP_OK;
+}
+
+/* Read one ADS1115 channel in single-shot mode.
+ * ch: 0 = AIN0/GND (4-20 mA shunt), 2 = AIN2/GND (battery divider)
+ * PGA ±2.048 V, 860 SPS, comparator disabled.
+ * Returns millivolts (signed), or INT_MIN on error. */
+static int ads1115_read_mv(int ch) {
+    if (!s_ads_dev) return INT_MIN;
+
+    /* Config register (0x01):
+     *  Bit 15    OS   = 1  (start single-shot)
+     *  Bits 14:12 MUX = 100 (AIN0/GND) or 110 (AIN2/GND)
+     *  Bits 11:9  PGA = 010 (±2.048 V)
+     *  Bit 8     MODE = 1  (single-shot)
+     *  Bits 7:5  DR   = 111 (860 SPS)
+     *  Bits 1:0  COMP_QUE = 11 (disable)
+     * High byte: AIN0 = 0xC5, AIN2 = 0xE5
+     * Low byte:  0xE3 */
+    uint8_t hi  = (ch == 2) ? 0xE5 : 0xC5;
+    uint8_t buf[3] = {0x01, hi, 0xE3};
+    if (i2c_master_transmit(s_ads_dev, buf, 3, 50) != ESP_OK) return INT_MIN;
+
+    vTaskDelay(pdMS_TO_TICKS(3));   /* 1/860 SPS ≈ 1.2 ms; 3 ms margin */
+
+    uint8_t ptr = 0x00;
+    uint8_t data[2] = {0};
+    if (i2c_master_transmit_receive(s_ads_dev, &ptr, 1, data, 2, 50) != ESP_OK)
+        return INT_MIN;
+
+    int16_t raw = (int16_t)((data[0] << 8) | data[1]);
+    /* ±2.048 V PGA: 1 LSB = 62.5 µV.  mv = raw * 2048 / 32768 */
+    return (int)(raw * 2048L / 32768);
+}
+
+/* Returns the current level offset in cm, loading it from NVS on first call.
+ * Falls back to CONFIG_WELLD_SENSOR_OFFSET_CM if no NVS value exists yet. */
 int sensor_get_offset_cm(void)
 {
     if (s_offset_cm == INT32_MIN) {
@@ -132,10 +160,26 @@ void sensor_offset_cache_reset(void)
     s_offset_cm = INT32_MIN;
 }
 
-/* Read water level in metres. Returns -1.0 on open-loop / disconnected transducer. */
+/* Read the water level in metres, applying the NVS-stored offset.
+ * Gates the TPS61023 12V boost (VLOOP GPIO) for the duration of the read.
+ * Uses ADS1115 AIN0 to measure the shunt voltage across the 4-20 mA loop.
+ * Returns -1.0 if the transducer loop current indicates an open circuit. */
 float sensor_read_level(void)
 {
-    int volt_mv = adc_read_avg_mv((adc_channel_t)CONFIG_WELLD_SENSOR_ADC_CHANNEL);
+    /* Gate VLOOP HIGH to enable the TPS61023 boost converter */
+    gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 1);
+    vTaskDelay(pdMS_TO_TICKS(5));   /* 5 ms soft-start margin */
+
+    int volt_mv = ads1115_read_mv(0);
+
+    /* Drive VLOOP LOW immediately after read — max ON time is 100 ms */
+    gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
+
+    if (volt_mv == INT_MIN) {
+        ESP_LOGE(TAG, "ADS1115 read failed on AIN0 (4-20 mA shunt)");
+        return -1.0f;
+    }
+
     float level_m = sensor_level_from_mv(volt_mv);
     if (level_m < 0.0f) {
         ESP_LOGE(TAG, "transducer open loop (voltage=%d mV, < 3.5 mA)", volt_mv);
@@ -204,8 +248,14 @@ float sensor_read_temperature(void)
         onewire_del_device_iter(iter);
     }
 
-    /* Persist the ROM address when it changes (first boot, or sensor replaced). */
+    /* Persist the ROM address when it changes (first boot, or sensor replaced).
+     * Warn explicitly when we are using a different ROM than the stored one —
+     * this catches a replaced sensor before NVS is updated. */
     if (ds18b20 && selected_rom != preferred_rom) {
+        if (has_preferred) {
+            ESP_LOGW(TAG, "DS18B20 ROM changed: stored=%016llx active=%016llx",
+                     (unsigned long long)preferred_rom, (unsigned long long)selected_rom);
+        }
         nvs_handle_t nvs_h;
         if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs_h) == ESP_OK) {
             nvs_set_u64(nvs_h, NVS_KEY_DS18B20_ROM, selected_rom);
@@ -239,16 +289,58 @@ float sensor_read_temperature(void)
     return temp;
 }
 
-/* Read battery voltage through an external resistor divider.
- * Returns -1.0 if battery monitoring is disabled at build time. */
+/* Read battery voltage.
+ * Prefers the MAX17048 VCELL register (coulomb-counted, no divider needed).
+ * Falls back to ADS1115 AIN2 via the gated battery divider (GPIO15) when the
+ * MAX17048 is not present or returns an error.
+ * Returns -1.0 if both methods fail or battery monitoring is not available. */
 float sensor_read_battery_v(void)
 {
-#if CONFIG_WELLD_BATT_ADC_CHANNEL >= 0
-    int volt_mv = adc_read_avg_mv((adc_channel_t)CONFIG_WELLD_BATT_ADC_CHANNEL);
-    float batt_v = sensor_battery_from_mv(volt_mv, CONFIG_WELLD_BATT_DIVIDER_RATIO);
-    ESP_LOGI(TAG, "battery=%.2f V", batt_v);
+    /* Prefer MAX17048 VCELL (coulomb-counted, no divider needed) */
+    if (s_max_dev) {
+        float v = sensor_read_battery_vcell_v();
+        if (v > 0.0f) {
+            ESP_LOGI(TAG, "battery=%.2f V (MAX17048)", v);
+            return v;
+        }
+        ESP_LOGW(TAG, "MAX17048 VCELL unavailable, falling back to divider");
+    }
+    /* Fallback: gate the divider, read ADS1115 AIN2, ungate */
+    gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 1);
+    vTaskDelay(pdMS_TO_TICKS(1));
+    int mv = ads1115_read_mv(2);
+    gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 0);
+    if (mv == INT_MIN) return -1.0f;
+    float batt_v = sensor_battery_from_mv(mv, CONFIG_WELLD_BATT_DIVIDER_RATIO);
+    ESP_LOGI(TAG, "battery=%.2f V (divider)", batt_v);
     return batt_v;
-#else
-    return -1.0f;
-#endif
+}
+
+/* Read battery voltage from MAX17048 VCELL register (0x02).
+ * Returns volts, or -1.0f on error or device not present. */
+float sensor_read_battery_vcell_v(void)
+{
+    if (!s_max_dev) return -1.0f;
+    uint8_t reg = 0x02;
+    uint8_t data[2] = {0};
+    if (i2c_master_transmit_receive(s_max_dev, &reg, 1, data, 2, 50) != ESP_OK) {
+        ESP_LOGW(TAG, "MAX17048 VCELL read error");
+        return -1.0f;
+    }
+    uint16_t raw = ((uint16_t)data[0] << 8) | data[1];
+    return (float)raw * 78.125e-6f;   /* 1 LSB = 78.125 µV */
+}
+
+/* Read battery state-of-charge from MAX17048 SOC register (0x04).
+ * Returns 0-100 (integer percent), or -1 on error or device not present. */
+int sensor_read_battery_soc(void)
+{
+    if (!s_max_dev) return -1;
+    uint8_t reg = 0x04;
+    uint8_t data[2] = {0};
+    if (i2c_master_transmit_receive(s_max_dev, &reg, 1, data, 2, 50) != ESP_OK) {
+        ESP_LOGW(TAG, "MAX17048 SOC read error");
+        return -1;
+    }
+    return (int)data[0];   /* high byte = integer percent 0-100 */
 }

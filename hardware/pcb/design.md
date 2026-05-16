@@ -42,7 +42,7 @@ disables CN3791 solar charging. GPIO10/11 are the shared I²C bus for ADS1115 an
 | 11 | — | I²C SCL | J8 header, ADS1115, MAX17048; 4.7 kΩ pull-up R10 |
 | 12 | — | ADS1115_ALERT / DRDY | ALERT/RDY pin of U9; interrupt-driven conversion ready |
 | 13 | — | Status LED | 1 kΩ → D4 → GND; SJ3 to disconnect |
-| 14 | — | MAX17048_ALRT | ALRT pin of U10; low-battery interrupt |
+| 14 | — | MAX17048_ALRT | ALRT pin of U10; low-battery interrupt; external pull-up R27 (4.7 kΩ to 3.3V) |
 | 15 | — | BATT_DIV_EN | Gate of Q2 (N-MOSFET); enables battery voltage divider only during measurement |
 | 16 | — | UART0 TX | J10 programming header |
 | 17 | — | UART0 RX | J10 programming header |
@@ -194,27 +194,33 @@ above 12 V) provide filtering. GPIO5 drives EN HIGH only during the 4–20 mA
 measurement window (typically 50–100 ms); at all other times EN=LOW and U8 draws
 < 1 µA.
 
+C22 (10 µF, 0805, X5R, ≥16 V rating) is placed in parallel with C20 at the
+TPS61023 VOUT pin. X5R capacitors at 12 V DC bias derate significantly — a nominal
+22 µF 1206 X5R may present only 6–8 µF effective capacitance at 12 V. C22 ensures
+≥10 µF effective output capacitance is maintained across the operating voltage range.
+Place C22 adjacent to C20, within 3 mm of U8 VOUT pin.
+
 ### Power — Charger Interlock (Q1)
 
 TP4056 and CN3791 both target the same 4.20 V CV threshold. When both chargers are
 simultaneously active and approaching termination, their CC→CV transition currents
-can interact and prevent either from reaching proper termination. Q1 (2N7002,
-SOT-23, N-ch) has its drain tied to the TP4056 CE pin (active-HIGH enable) through
-a 10 kΩ pull-up to 3.3 V, and its source to GND. When GPIO4 is driven HIGH, Q1
-pulls CE LOW, disabling USB charging. Firmware reads the /CHRG_SOLAR signal (from
-CN3791 open-drain CHRG pin, connected to GPIO6 internal pull-up) to determine
-whether solar charging is active, and then asserts GPIO4 HIGH to park the TP4056
-until solar charging completes or USB is the only source present.
+can interact and prevent either from reaching proper termination. Q1 (BSS123,
+SOT-23, N-ch, Vgs(th) max 1.5 V) has its drain tied to the TP4056 CE pin
+(active-HIGH enable) through a 4.7 kΩ pull-up to 3.3 V, and its source to GND.
+When GPIO4 is driven HIGH, Q1 pulls CE LOW, disabling USB charging. Firmware reads
+the /CHRG_SOLAR signal (from CN3791 open-drain CHRG pin, connected to GPIO6 internal
+pull-up) to determine whether solar charging is active, and then asserts GPIO4 HIGH
+to park the TP4056 until solar charging completes or USB is the only source present.
 
 ### Power — Battery Divider Enable (Q2)
 
 R7 and R8 (100 kΩ each) form the battery voltage divider. At VBAT = 3.7 V this
-draws 18.5 µA continuously — roughly doubling deep-sleep current. Q2 (2N7002,
-SOT-23, N-ch) is inserted in series with R8 to GND. When GPIO15 is LOW (default
-during sleep), Q2 is off and the divider draws 0 µA. Firmware pulses GPIO15 HIGH
-for 1 ms before taking the ADC sample (allowing the RC filter C8 to settle), then
-returns GPIO15 LOW. R26 (10 kΩ) to GND keeps Q2 gate defined when the GPIO is
-floating during reset.
+draws 18.5 µA continuously — roughly doubling deep-sleep current. Q2 (BSS123,
+SOT-23, N-ch, Vgs(th) max 1.5 V) is inserted in series with R8 to GND. When
+GPIO15 is LOW (default during sleep), Q2 is off and the divider draws 0 µA.
+Firmware pulses GPIO15 HIGH for 1 ms before taking the ADC sample (allowing the
+RC filter C8 to settle), then returns GPIO15 LOW. R26 (4.7 kΩ) to GND keeps Q2
+gate defined when the GPIO is floating during reset.
 
 ### Power — Solar Input TVS Protection (D8)
 
@@ -226,6 +232,11 @@ D6 (the Schottky input diode). This clamps transients below the CN3791 absolute
 maximum of 7.5 V. Standoff voltage 7.0 V is above the 6.5 V maximum MPPT operating
 point, preventing normal MPPT operation from triggering the TVS. Place D8 within
 5 mm of C17.
+
+C21 (100 nF, 0402) is placed directly across D8 (TVS clamp) to absorb the L×dI/dt
+inductive transient from panel cable inductance before D8 clamps it. The RC formed
+with the cable series resistance (typically 1–5 Ω) limits the peak voltage seen by
+D8 during fast-edge events. Place C21 within 3 mm of D8.
 
 ### Power — 3.3 V LDO (U1: TPS7A0533)
 
@@ -267,6 +278,11 @@ when SOC falls below the firmware-configured threshold (default 15 %). VDD is 3.
 GND to system GND. No RSET resistor required (internal default). U10 draws 23 µA
 active, 3 µA sleep; it runs continuously (no GPIO gate needed — 3 µA is within sleep
 budget). Place within 5 mm of J1 battery connector for shortest VBAT trace.
+
+R27 (4.7 kΩ, 0402) provides an external pull-up from GPIO14 to 3.3 V for the
+MAX17048 ALRT open-drain output. The internal weak pull-up (~50 kΩ) in the boost
+converter neighbourhood is insufficient — R27 replaces it with a dedicated low-impedance
+pull-up near U10. Place R27 within 3 mm of U10.
 
 ### External Antenna (J3 → SMA bulkhead)
 
@@ -329,8 +345,10 @@ On-PCB:
   in combination with R3.
 - ADC tap routed to U9 ADS1115 AIN0 (primary) and GPIO0 (backup).
 
-SJ1 (solder jumper, 2-pad, normally open): closes to connect 3.3 V to the VLOOP pin.
-Allows low-voltage (3.3 V-powered) sensors without an external supply. Open by default.
+SJ1 (solder jumper, 2-pad, normally open): 2-pad solder jumper, normally open. When closed,
+permanently holds TPS61023 EN HIGH (VLOOP always-on). **DNF in production** — lab/debug use
+only. Closing in the field will drain the battery continuously as the 12V boost runs during
+deep-sleep.
 
 SJ2 (solder jumper, 2-pad, normally closed): bridges J4_VLOOP to J5_VLOOP so both
 sensors share a single external supply. Cut to give channels independent supplies.
@@ -358,6 +376,10 @@ channels.
 
 C5 (100 nF) on VCC at the connector provides local decoupling. Multiple DS18B20s can
 be bussed on DATA; the firmware locks onto one ROM address after first discovery.
+
+R28 (100 Ω, 0402) is placed in the VCC line between the 3.3 V rail and J6 pin 1.
+It limits fault current to ~33 mA in the event a misconnected probe cable short-circuits
+the VCC pin to GND, protecting the 3.3 V rail.
 
 ### Spare Sensor (J7)
 
@@ -390,7 +412,7 @@ the diode blocks reverse current when the panel is dark.
 
 Onboard resistor divider from VBAT (after protection circuit, before LDO):
 - R7: 100 kΩ (high side)
-- R8: 100 kΩ (low side), with Q2 (2N7002) in series to GND — gate driven by GPIO15
+- R8: 100 kΩ (low side), with Q2 (BSS123) in series to GND — gate driven by GPIO15
 - Ratio: 2:1 → CONFIG_WELLD_BATT_DIVIDER_RATIO = 200
 - C6: 100 nF across R8/Q2 drain for noise immunity
 - ADC tap → U9 ADS1115 AIN2 (primary) and GPIO1 (backup, when Q2 enabled)
@@ -503,7 +525,9 @@ draw during active phase.
   M16 cable gland cutouts and SMA bulkhead hole on back wall for external antenna.
 - **Rev-2 BOM additions:** U8 TPS61023DCKR (SOT-23-5), L1 4.7 µH shielded inductor
   (CDRH4D22NP-4R7NC), C19 10 µF 0402, C20 22 µF 16 V 0805, R23 1100 Ω 0402,
-  R24 47 Ω 0402, Q1 2N7002 SOT-23, Q2 2N7002 SOT-23, R26 10 kΩ 0402,
-  U9 ADS1115IDGST SOIC-8, U10 MAX17048G+T10 SOT-23-6, D8 SMAJ7.0A DO-214AC,
-  U3 changed from DW01A to S-8261AAYFT (SOT-23-6, drop-in), J1 changed from
-  JST PH 2.0 mm to JST XH 2.5 mm (B2B-XH-AM).
+  R24 47 Ω 0402, Q1 BSS123 SOT-23, Q2 BSS123 SOT-23, R25 4.7 kΩ 0402,
+  R26 4.7 kΩ 0402, R27 4.7 kΩ 0402 (GPIO14 ALRT pull-up), R28 100 Ω 0402
+  (DS18B20 VCC series), C21 100 nF 0402 (TVS bypass), C22 10 µF 0805 (VBOOST
+  parallel), U9 ADS1115IDGST SOIC-8, U10 MAX17048G+T10 SOT-23-6, D8 SMAJ7.0A
+  DO-214AC, U3 changed from DW01A to S-8261AAYFT (SOT-23-6, drop-in), J1 changed
+  from JST PH 2.0 mm to JST XH 2.5 mm (B2B-XH-AM).

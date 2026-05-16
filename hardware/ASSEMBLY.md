@@ -92,7 +92,7 @@ For any gland hole you don't route a cable through, install an **M16 blanking pl
 | 4–20 mA transducer, 2-wire | 5–7 mm | M16 (4–10 mm range) ✓ |
 | DS18B20 waterproof probe lead | 4–5 mm | M16 ✓ |
 | 5W solar panel cable | 5–6 mm | M16 ✓ |
-| LiPo pigtail (JST-PH) | 3–4 mm + connector | M16 (may need small grommet) |
+| LiPo pigtail (JST-XH) | 3–4 mm + connector | M16 (may need small grommet) |
 | USB-C cable | 5–8 mm | USB-C slot cutout (no gland) |
 
 ---
@@ -196,14 +196,16 @@ The PCB uses all SMD components. Refer to `hardware/pcb/bom.csv` for values and 
 | Item | Note |
 |------|------|
 | **U7 (CN3791) PROG pin** | R19 sets solar charge current. Default 2.0 kΩ = 500 mA. Do not omit. |
-| **D6 orientation** | Cathode (band) toward U7 VIN pin — current flows panel → charger. Reverse polarity destroys U7. |
+| **D6 orientation** | Cathode (marked band) toward U7 VIN. Verify ~0.3 V forward drop with multimeter in diode-test mode, probing in the solar→charger direction (red probe at J12, black at U7 VIN). Reverse polarity destroys U7 instantly. |
 | **D8 orientation** | SMAJ7.0A TVS — cathode (band) toward D6 cathode / CN3791 VIN. Clamps solar input below 11.2 V. |
 | **D5 (AO3407) orientation** | Gate to VBAT, source to battery input. Confirm orientation with markings. |
 | **U8 (TPS61023) placement** | Place L1 inductor within 3 mm of U8 SW pin. Keep C19 and C20 close to U8 VIN and VOUT respectively. |
 | **U9 (ADS1115) address** | ADDR pin to GND = address 0x48. Do not float ADDR. |
 | **U10 (MAX17048) ALRT** | ALRT is open-drain active-low. Pulled up internally; connects to GPIO14. |
-| **Q1 (2N7002) function** | Gate HIGH (GPIO4) → drain pulls TP4056 CE LOW → USB charging disabled. Verify gate drive level. |
-| **Q2 (2N7002) function** | Gate HIGH (GPIO15) → battery divider R7/R8 active. Always LOW during deep-sleep. |
+| **Q1 (BSS123) function** | Gate HIGH (GPIO4) → drain pulls TP4056 CE LOW → USB charging disabled. Verify gate drive level. |
+| **Q1 and Q2 part marking** | Q1 and Q2 are BSS123 (not 2N7002) — check SOT-23 body marking. Incorrect part will cause unreliable gate drive at cold temperature. |
+| **Q2 (BSS123) function** | Gate HIGH (GPIO15) → battery divider R7/R8 active. Always LOW during deep-sleep. |
+| **R28 DS18B20 VCC series** | R28 in DS18B20 VCC line — do not omit. Protects the 3.3V rail from a miswired sensor cable. |
 | **J3 (U.FL) soldering** | Reflow only — do not hand-solder. Flux generously, minimal heat. |
 | **R20/R21 MPPT divider** | Default R20=36 kΩ + R21=10 kΩ sets MPPT to 5.5 V. Change R20 to 30 kΩ for 5 V regulated panel. |
 | **R23/R24 boost feedback** | Sets VBOOST = 0.5×(1 + R23/R24). Default R23=1.1 MΩ, R24=47 kΩ → ≈12.2 V. Verify before powering VLOOP. |
@@ -219,6 +221,7 @@ The PCB uses all SMD components. Refer to `hardware/pcb/bom.csv` for values and 
 - [ ] Check D6 orientation with diode-test mode (forward drop ~0.3 V anode→cathode)
 - [ ] Check D8 orientation (TVS cathode toward CN3791 VIN)
 - [ ] Verify R23/R24 values before enabling VBOOST (U8 EN HIGH)
+- [ ] Confirm Q1 and Q2 are BSS123 (body marking 'B23' or '23'), not 2N7002
 - [ ] IPA wash and hot-air dry
 
 ---
@@ -305,7 +308,7 @@ J12 pin 2 — GND     →  solar panel negative / ground
 ### LiPo battery (J1)
 
 - Use a single-cell LiPo, nominal 3.7 V, capacity 500 mAh–3000 mAh.
-- 2-pin JST-PH 2.0 mm connector. Verify polarity against JST marking (+ on left when looking at the PCB from component side).
+- 2-pin JST-XH 2.5 mm connector. Verify polarity against JST marking (+ on left when looking at the PCB from component side).
 - Do **not** connect a battery without first verifying there are no assembly shorts.
 
 ---

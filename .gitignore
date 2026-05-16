@@ -8,3 +8,6 @@ managed_components/
 .idea/
 *.swp
 *.orig
+
+# Claude Code internal state
+.claude/

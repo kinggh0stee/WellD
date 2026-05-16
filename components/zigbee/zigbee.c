@@ -5,6 +5,7 @@
 #include "esp_ota_ops.h"
 #include "esp_system.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
@@ -49,20 +50,22 @@ static float s_rate_cm_per_hour;  /* NaN = "no history yet", do not report */
    volatile prevents the compiler from caching the value across calls. */
 static volatile bool   s_ota_in_progress = false;
 static volatile bool   s_stop_requested  = false;
-static uint8_t         s_ota_timeout_count = 0;
-#define OTA_MAX_TIMEOUT_COUNT 10  /* abort stalled OTA after 10 × TOTAL_TIMEOUT_MS */
+static int64_t         s_ota_start_us    = 0;   /* wall-clock time when OTA began */
 static esp_ota_handle_t s_ota_handle     = 0;
 static const esp_partition_t *s_ota_partition = NULL;
 
 /* Fired TOTAL_TIMEOUT_MS after the Zigbee loop starts. If OTA is in progress
    we reschedule rather than killing the loop — OTA can take many minutes.
+   Uses a wall-clock check (240 s) to abort stalled downloads rather than a
+   reschedule counter, so the limit is independent of TOTAL_TIMEOUT_MS.
    Once OTA finishes (reboot) or fails (clears s_ota_in_progress), the next
    fire stops the loop with FAIL_BIT to wake zigbee_send(). */
 static void zb_timeout_alarm(uint8_t param)
 {
     if (s_ota_in_progress) {
-        if (++s_ota_timeout_count >= OTA_MAX_TIMEOUT_COUNT) {
-            ESP_LOGE(TAG, "OTA stalled after %u timeouts — aborting", s_ota_timeout_count);
+        int64_t elapsed_s = (esp_timer_get_time() - s_ota_start_us) / 1000000LL;
+        if (elapsed_s >= 240) {
+            ESP_LOGE(TAG, "OTA stalled after %lld s, aborting", (long long)elapsed_s);
             esp_ota_abort(s_ota_handle);
             s_ota_in_progress = false;
             xEventGroupSetBits(s_events, FAIL_BIT);
@@ -108,7 +111,8 @@ static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
 
     switch (msg->upgrade_status) {
     case ESP_ZB_ZCL_OTA_UPGRADE_STATUS_START:
-        s_ota_timeout_count = 0;  /* reset before each new OTA attempt */
+        /* Record wall-clock start time for the 240 s stall-detection window */
+        s_ota_start_us = esp_timer_get_time();
         /* esp_ota_get_next_update_partition selects whichever of ota_0/ota_1
            is not currently running, so we always write to the inactive slot */
         s_ota_partition = esp_ota_get_next_update_partition(NULL);
@@ -263,8 +267,13 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
         break;
     case ESP_ZB_BDB_SIGNAL_STEERING:
         if (err_status == ESP_OK) {
-            ESP_LOGI(TAG, "joined; reporting level=%.2f m battery=%.2f V temp=%.1f °C rate=%.1f cm/h",
-                     s_level_m, s_battery_v, s_temperature_c, s_rate_cm_per_hour);
+            if (isnan(s_rate_cm_per_hour)) {
+                ESP_LOGI(TAG, "joined; reporting level=%.3f m temp=%.1f C batt=%.2f V rate=n/a",
+                         s_level_m, s_temperature_c, s_battery_v);
+            } else {
+                ESP_LOGI(TAG, "joined; reporting level=%.3f m temp=%.1f C batt=%.2f V rate=%.1f cm/h",
+                         s_level_m, s_temperature_c, s_battery_v, s_rate_cm_per_hour);
+            }
             send_reports();
         } else {
             ESP_LOGE(TAG, "steering failed (err=%d)", err_status);
