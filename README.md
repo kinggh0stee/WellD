@@ -1,70 +1,78 @@
 # WellD
 
-Battery-powered well-level monitor for the ESP32-C6. Each wakeup it reads a 4–20 mA submersible pressure transducer, a DS18B20 temperature probe, and (optionally) battery voltage; reports them over Zigbee to Zigbee2MQTT; then deep-sleeps until the next cycle.
+Battery-powered well-level monitor for the ESP32-C6. Each wakeup it reads a 4–20 mA submersible pressure transducer, a DS18B20 temperature probe, and battery voltage; reports them over Zigbee to Zigbee2MQTT; then deep-sleeps until the next cycle.
 
 - **Radio:** Zigbee 3.0 over the C6's built-in 802.15.4 — no extra modules
-- **Battery life:** months on a LiPo at the default 5-minute interval (deep sleep between readings)
-- **Adaptive sleep:** sleep duration scales with how fast the level is changing — longer windows when stable, shorter when transients are in progress
-- **Rate-of-change reporting:** `water_level_rate` in cm/h published as a fourth sensor; distinguishes "well recovering" from "well being drawn down"
+- **Battery life:** months on a single-cell LiPo at the default 5-minute interval (deep sleep between readings)
+- **Adaptive sleep:** sleep duration scales with how fast the level is changing — longer windows when stable, shorter during transients
+- **Rate-of-change reporting:** `water_level_rate` in cm/h; distinguishes "well recovering" from "well being drawn down"
 - **Self-healing:** wipes Zigbee NVS state and rejoins fresh after 5 consecutive send failures
 - **OTA:** Zigbee OTA Upgrade client, dual 1.5 MB app slots
 - **Sentinels:** open-loop transducer reports `null` water level so Home Assistant can alert on wiring faults
 
 ---
 
-## Hardware
+## Hardware — Rev 2 PCB
 
-Two hardware paths are supported — see [`hardware/`](hardware/) for a full comparison.
+The current design is a purpose-built **80 × 55 mm** custom PCB. Design files, BOM, and assembly guide live in [`hardware/`](hardware/).
 
-- **Off-the-shelf dev board** — the path documented below; in-hand in days, no PCB lead time.
-- **Custom PCB** — purpose-built 80 × 55 mm board with screw terminals, onboard LiPo charger, TVS protection, and a second 4–20 mA channel. See [`hardware/pcb/`](hardware/pcb/) for design reference and BOM.
+### Key ICs
 
-### Bill of materials
+| IC | Role |
+|----|------|
+| ESP32-C6 module | MCU + Zigbee radio |
+| ADS1115 (0x48) | 16-bit I²C ADC — shunt voltage (AIN0) + battery divider (AIN2) |
+| MAX17048 (0x36) | Fuel-gauge IC — primary battery voltage & state-of-charge via I²C |
+| TPS61023 | 12 V synchronous boost for the 4–20 mA loop supply (VLOOP, GPIO5) |
+| CN3791 | MPPT solar charger |
+| TP4056 | USB Li-ion charger with dual-charger interlock via BSS123 (GPIO4) |
+| S-8261AAYFT | Single-cell over-discharge protection (2.9 V cutoff) |
 
-| Part | Notes |
-|------|-------|
-| ESP32-C6 dev board | Any board with exposed ADC1 pins |
-| 4–20 mA submersible pressure transducer | 0–6 m range, two-wire 4–20 mA output |
-| 100 Ω resistor (±1 %) | Loop shunt — converts 4–20 mA to 0.4–2.0 V |
-| DS18B20 waterproof probe | Any submersible DS18B20 variant |
-| 4.7 kΩ resistor | 1-Wire pull-up to 3.3 V |
-| Power supply | 3.3 V regulated, or LiPo/18650 with a regulator |
-| Zigbee coordinator | e.g. CC2652-based USB stick running Zigbee2MQTT |
+### GPIO map
 
-### Wiring
+| GPIO | Direction | Function |
+|------|-----------|----------|
+| 10 | SDA | I²C bus (ADS1115 + MAX17048) |
+| 11 | SCL | I²C bus |
+| 5  | Output | TPS61023 EN — 12 V loop supply (`VLOOP`) |
+| 4  | Output | TP4056 CE interlock — disable USB charger when solar is active |
+| 6  | Input  | CN3791 CHRG — solar-charging-active detect |
+| 7  | 1-Wire | DS18B20 data |
+| 15 | Output | Battery-divider enable gate (`BATT_DIV_EN`) |
+| 14 | Input  | ADS1115 ALRT/RDY (R27 pull-up to 3V3) |
 
-**Pressure transducer (water level)**
+### Connections (screw terminals)
 
-```
-Transducer (+) ─── 3.3 V supply
-Transducer (−) ─┬─ 100 Ω shunt ─── GND
-                └─ ADC1_CH0 (GPIO0)
-```
+| Terminal | Wire |
+|----------|------|
+| LOOP+ / LOOP− | 4–20 mA transducer, two-wire |
+| 1W DATA / GND | DS18B20 data + ground |
+| BAT+ / BAT−   | Single-cell LiPo / 18650 |
+| SOLAR+/−      | Optional solar panel (5–6 V, 1 W) |
+| USB-C          | Charging / flashing |
 
-The 100 Ω shunt drops the 4–20 mA loop to 0.4–2.0 V, well inside the ESP32-C6 ADC range (0–3.1 V at 12 dB attenuation). For other shunt values, set `CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS` (in milliohms — 100 Ω = `100000`). The Kconfig enforces a 155 Ω upper limit — values above that exceed the ADC absolute-maximum input at full-scale loop current.
+### 4–20 mA loop
 
-**Transient protection (recommended):** 4–20 mA cables in real installations pick up inductive spikes from relay coils, VFDs, and nearby switching supplies. Add a 3.3 V unidirectional TVS diode (e.g. PRTR5V0U2X) from the ADC pin to GND, or at minimum a 100 Ω series resistor plus a 3.3 V zener clamp between the shunt tap and the ADC pin, to protect the GPIO from overvoltage transients on the cable.
+The TPS61023 boost converter lifts VLOOP to 12 V to power the transducer loop. Firmware gates EN high for ≥ 5 ms (soft-start) before reading, then drives it low immediately after. Maximum ON time is 100 ms.
 
-**DS18B20 temperature probe**
+The ADS1115 measures the voltage across a shunt resistor on the loop return. PGA ±2.048 V, single-shot at 860 SPS, AIN0 vs GND.
 
-```
-DS18B20 VCC  ─── 3.3 V
-DS18B20 GND  ─── GND
-DS18B20 DATA ─┬─ GPIO4
-              └─ 4.7 kΩ ─── 3.3 V
-```
+### Battery monitoring
 
-Lower the probe alongside the pressure transducer. The data GPIO is configurable via `CONFIG_WELLD_DS18B20_GPIO`.
+MAX17048 is the primary source (coulomb-counted VCELL and SOC registers read over I²C). If not present, firmware falls back to the gated voltage divider on ADS1115 AIN2.
 
-**Battery voltage monitoring (optional)**
+### Dual-charger interlock
 
-```
-Battery (+) ─┬─ R1 ─┬─ ADC1_CHx
-             │      └─ R2 ─── GND
-             └─────────────── supply rail
-```
+When the CN3791 CHRG signal (GPIO6) is asserted low (solar charging active), the firmware drives GPIO4 high to disable the TP4056 USB charger, preventing simultaneous dual-charger operation.
 
-Size R1/R2 so the full battery voltage maps to ≤ 3.1 V at the ADC pin. Set `CONFIG_WELLD_BATT_ADC_CHANNEL` to the ADC1 channel used, and `CONFIG_WELLD_BATT_DIVIDER_RATIO` to `(R1+R2)/R2 × 100` (minimum 136 — a 1:1 pass-through at 4.2 V exceeds the ADC absolute maximum). For a 4.2 V Li-ion cell the default 2:1 divider (ratio 200, R1=R2) produces 2.1 V at the ADC pin. For 12 V SLA use a ratio of at least 465. Set the channel to `-1` to disable.
+### Enclosure
+
+Two variants in [`hardware/case/welld_case.scad`](hardware/case/welld_case.scad):
+
+- **Default** — sized for the PCB with a single-cell (18650) battery in the base.
+- **2S variant** — set `USE_2S_BATTERY = true` in the SCAD file to add a deeper battery bay (73 × 40 × 22 mm, e.g. CS-ARS200SL 2S1P 7.4 V 3400 mAh) with corner locating posts and hook-and-loop strap slots through the side walls.
+
+> **⚠ 2S electrical warning:** The 2S battery variant requires hardware modifications to the PCB. The TPS7A0533 LDO (abs-max 6.5 V), CN3791 (max 6 V input), and TP4056 (max 8 V input) are all rated below the 2S pack's 8.4 V charge voltage. Do not connect a 2S pack without replacing U1, U2, U7, and U3 with 2S-rated equivalents. The enclosure design is provided for convenience only.
 
 ---
 
@@ -73,7 +81,7 @@ Size R1/R2 so the full battery voltage maps to ≤ 3.1 V at the ADC pin. Set `CO
 ### Prerequisites
 
 - ESP-IDF **v5.3.5** installed and sourced — see the [Espressif getting-started guide](https://docs.espressif.com/projects/esp-idf/en/v5.3.5/esp32c6/get-started/)
-- USB cable to the ESP32-C6 board
+- Rev 2 PCB (or dev board — see legacy section below)
 
 ### Build and flash
 
@@ -99,25 +107,53 @@ Or use the interactive menu: `idf.py menuconfig` → **WellD Configuration**.
 
 ## Configuration
 
-All options have sensible defaults — only change what differs from your hardware.
+All options have sensible defaults. Only change what differs from your hardware.
+
+### Sensor
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `CONFIG_WELLD_SENSOR_ADC_CHANNEL` | `0` | ADC1 channel wired to the shunt (CH0 = GPIO0) |
-| `CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS` | `100000` | Shunt resistor in milliohms |
+| `CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS` | `100000` | Loop shunt resistor value in milliohms (100 Ω = `100000`) |
 | `CONFIG_WELLD_SENSOR_MAX_DEPTH_CM` | `600` | Full-scale depth at 20 mA, in cm |
 | `CONFIG_WELLD_SENSOR_OFFSET_CM` | `0` | Level offset in cm applied after conversion (±600). Persisted in NVS; runtime-writable via `sensor_set_offset_cm()` |
 | `CONFIG_WELLD_DS18B20_GPIO` | `7` | GPIO connected to DS18B20 data pin |
-| `CONFIG_WELLD_BATT_ADC_CHANNEL` | `-1` | ADC1 channel for battery divider; `-1` disables battery monitoring |
-| `CONFIG_WELLD_BATT_DIVIDER_RATIO` | `200` | Divider ratio × 100 (`200` = 2:1) |
+
+### Battery
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `CONFIG_WELLD_BATT_ADC_CHANNEL` | `-1` | ADS1115 channel for battery divider fallback; `-1` to disable ADC fallback (MAX17048 only) |
+| `CONFIG_WELLD_BATT_DIVIDER_RATIO` | `200` | Divider ratio × 100 for the ADS1115 fallback path |
 | `CONFIG_WELLD_BATT_FULL_MV` | `4200` | Voltage (mV) reported as 100 % by the Z2M converter |
-| `CONFIG_WELLD_BATT_EMPTY_MV` | `3000` | Voltage (mV) reported as 0 % by the Z2M converter |
+| `CONFIG_WELLD_BATT_EMPTY_MV` | `3000` | Voltage (mV) below which the device skips the Zigbee send to protect NVS |
+
+### Sleep
+
+| Option | Default | Description |
+|--------|---------|-------------|
 | `CONFIG_WELLD_SLEEP_DURATION_SEC` | `300` | Baseline sleep between readings (seconds). When adaptive sleep is enabled, this is the "normal rate" window |
 | `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED` | `y` | Scale sleep duration to the observed level rate-of-change |
-| `CONFIG_WELLD_SLEEP_MIN_SEC` | `60` | Lower bound on adaptive sleep |
-| `CONFIG_WELLD_SLEEP_MAX_SEC` | `1800` | Upper bound on adaptive sleep |
+| `CONFIG_WELLD_SLEEP_MIN_SEC` | `60` | Lower bound on adaptive sleep (seconds) |
+| `CONFIG_WELLD_SLEEP_MAX_SEC` | `1800` | Upper bound on adaptive sleep (seconds) |
+
+### Zigbee
+
+| Option | Default | Description |
+|--------|---------|-------------|
 | `CONFIG_WELLD_ZIGBEE_CHANNEL_MASK` | `0x07FFF800` | Channels to scan; narrow to your coordinator's channel to speed up joins |
 | `CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS` | `2000` | Time the stack stays alive after sending, to allow coordinator ACK |
+
+### Rev 2 hardware I/O
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `CONFIG_WELLD_I2C_SDA_GPIO` | `10` | I²C SDA pin (ADS1115 + MAX17048) |
+| `CONFIG_WELLD_I2C_SCL_GPIO` | `11` | I²C SCL pin |
+| `CONFIG_WELLD_VLOOP_GPIO` | `5` | TPS61023 EN — 12 V loop supply enable |
+| `CONFIG_WELLD_CHARGER_CE_GPIO` | `4` | TP4056 CE — USB charger interlock |
+| `CONFIG_WELLD_SOLAR_DETECT_GPIO` | `6` | CN3791 CHRG — solar-charging-active detect |
+| `CONFIG_WELLD_BATT_DIV_EN_GPIO` | `15` | Battery-divider FET gate |
+| `CONFIG_WELLD_MAX17048_ALRT_GPIO` | `14` | ADS1115 ALRT/RDY (input, not used in firmware yet) |
 
 ---
 
@@ -160,11 +196,11 @@ The device publishes to `zigbee2mqtt/<friendly_name>` on each wakeup:
 }
 ```
 
-- `battery_voltage` and `battery` are omitted when battery monitoring is disabled.
-- `battery` is a percentage computed by the converter from `battery_voltage` using the device options `battery_full_mv` / `battery_empty_mv` (defaults 4200 / 3000 mV). Override per-device in Z2M if your chemistry differs.
-- `temperature` is omitted when the DS18B20 isn't detected.
 - `water_level` is `null` when the pressure loop reads below 3.5 mA (open circuit). Trigger a Home Assistant alert on `water_level is null` to catch wiring faults.
-- `water_level_rate` is signed cm/h, derived from the previous valid reading. Positive = recovering, negative = drawing down. Omitted on the first valid wakeup after a cold boot (no baseline yet) and during open-loop cycles (carried over to the next valid reading).
+- `water_level_rate` is signed cm/h. Positive = recovering, negative = drawing down. Omitted on the first valid wakeup after a cold boot and during open-loop cycles.
+- `temperature` is omitted when the DS18B20 is not detected.
+- `battery_voltage` comes from the MAX17048 VCELL register (coulomb-counted) or the ADS1115 AIN2 divider fallback.
+- `battery` is a percentage derived from `battery_voltage` using the device options `battery_full_mv` / `battery_empty_mv` (defaults 4200 / 3000 mV).
 
 ### 4. Home Assistant
 
@@ -182,7 +218,7 @@ The Z2M–Home Assistant integration auto-creates these sensor entities:
 
 ## OTA firmware updates
 
-The device runs a Zigbee OTA Upgrade client. Zigbee2MQTT (`ota: true` in the converter) distributes images automatically once they're placed in its OTA folder.
+The device runs a Zigbee OTA Upgrade client. Zigbee2MQTT (`ota: true` in the converter) distributes images automatically once placed in its OTA folder.
 
 ### 1. Bump the version
 
@@ -192,7 +228,7 @@ Edit `PROJECT_VER` in the root `CMakeLists.txt`:
 project(welld VERSION 1.0.1)   # MAJOR.MINOR.PATCH
 ```
 
-The OTA file-version is derived from `PROJECT_VER` at build time — **don't edit `OTA_FW_VERSION` directly.**
+The OTA file-version `0xMMmmPP00` is derived from `PROJECT_VER` at build time — **don't edit `OTA_FW_VERSION` directly.**
 
 ### 2. Build the OTA image
 
@@ -202,12 +238,12 @@ After `idf.py build`, wrap the binary using `ota_image_create.py` from the esp-z
 python path/to/ota_image_create.py \
     --manufacturer-code 0x1234 \
     --image-type 0x0001 \
-    --file-version 0x00010001 \
+    --file-version 0x01000100 \
     --output welld-v1.0.1.zigbee \
     build/welld.bin
 ```
 
-`--manufacturer-code` and `--image-type` **must** match the constants in `components/zigbee/zigbee.c` (`OTA_MANUFACTURER_CODE = 0x1234`, `OTA_IMAGE_TYPE = 0x0001`). The device rejects mismatched headers — this is a security boundary against rogue OTA servers, so don't wildcard them to `0xFFFF`.
+`--manufacturer-code` and `--image-type` **must** match the constants in `components/zigbee/zigbee.c` (`0x1234` / `0x0001`). The device rejects mismatched headers — don't wildcard them to `0xFFFF`.
 
 `--file-version` must increase monotonically; the device only installs images with a higher version than the running one.
 
@@ -217,7 +253,7 @@ python path/to/ota_image_create.py \
 cp welld-v1.0.1.zigbee /opt/zigbee2mqtt/data/ota/
 ```
 
-Zigbee2MQTT picks the file up automatically. On the next wakeup the device queries for an update, downloads it in 128-byte blocks over Zigbee, and reboots into the new firmware. The post-send timeout is extended for the duration of the download.
+Zigbee2MQTT picks the file up automatically. On the next wakeup the device queries for an update, downloads it in 128-byte blocks over Zigbee, and reboots into the new firmware.
 
 ---
 
@@ -227,14 +263,14 @@ Zigbee2MQTT picks the file up automatically. On the next wakeup the device queri
 
 Use `CONFIG_WELLD_SENSOR_OFFSET_CM` (or `sensor_set_offset_cm()` at runtime) to shift the reported level without moving the transducer. For example, if the transducer hangs 15 cm above the well bottom, set the offset to `-15` to report depth from the bottom of the well.
 
-The offset is persisted in NVS (key `offset_cm` in namespace `welld`) and clamped to ±600 cm on read to guard against flash corruption.
+The offset is persisted in NVS (key `offset_cm` in namespace `welld`) and clamped to ±600 cm.
 
 ### Adaptive sleep & rate of change
 
-The device remembers its last valid reading and the elapsed time since then in RTC slow memory (preserved across deep sleep, zeroed on cold boot). At each wakeup it computes a signed rate of change in cm/h and uses it for two things:
+The device remembers its last valid reading and elapsed time in RTC slow memory (preserved across deep sleep, zeroed on cold boot). At each wakeup it computes a signed rate of change in cm/h and uses it to:
 
-1. **Reports `water_level_rate`** to Zigbee2MQTT as a fourth sensor entity. Positive = recovering, negative = drawing down.
-2. **Adjusts the next sleep duration** when `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED=y`. The mapping (absolute rate, cm/h → multiplier of `WELLD_SLEEP_DURATION_SEC`):
+1. **Report `water_level_rate`** to Zigbee2MQTT.
+2. **Adjust the next sleep duration** when `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED=y`:
 
    | Rate (cm/h) | Sleep multiplier | At default 300 s |
    |-------------|------------------|------------------|
@@ -244,25 +280,30 @@ The device remembers its last valid reading and the elapsed time since then in R
    | 20 – 50     | ½×               | 150 s            |
    | ≥ 50        | ¼×               | 75 s             |
 
-   The result is clamped to `[WELLD_SLEEP_MIN_SEC, WELLD_SLEEP_MAX_SEC]`. Cold boot and open-loop cycles fall back to `WELLD_SLEEP_DURATION_SEC` verbatim.
+   Result is clamped to `[WELLD_SLEEP_MIN_SEC, WELLD_SLEEP_MAX_SEC]`.
 
-Set `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED=n` to keep a fixed `WELLD_SLEEP_DURATION_SEC` regardless of the rate — useful when you want predictable reporting cadence.
+Set `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED=n` for a fixed reporting cadence.
+
+### Low-battery protection
+
+When battery voltage drops below `CONFIG_WELLD_BATT_EMPTY_MV`, the device skips the Zigbee send and all NVS writes, and sleeps for the maximum interval to conserve charge. The rate accumulator is reset on exit from this path so the next valid wakeup doesn't produce a false rate spike.
 
 ### Expected serial output
 
 Normal cycle:
 
 ```
-I (sensor): raw=1847  voltage=1485 mV  current=14850 µA  level=3.42 m
+I (sensor): voltage=1485 mV  current=14850 µA  level=3.42 m
 I (sensor): temperature=12.3 °C
-I (zigbee): joined; reporting level=3.42 m battery=3.71 V temp=12.3 °C
+I (sensor): battery=3.71 V (MAX17048)
+I (zigbee): joined; reporting level=3.42 m battery=3.71 V temp=12.3 °C rate=12.5 cm/h
 I (main):   sleeping 300 s
 ```
 
-With a non-zero offset:
+Solar charging active:
 
 ```
-I (sensor): raw=1847  voltage=1485 mV  current=14850 µA  level=3.27 m (offset -15 cm)
+I (main): solar charging active — USB charger disabled
 ```
 
 No coordinator in range:
@@ -273,7 +314,7 @@ W (main):   Zigbee send failed (1/5)
 I (main):   sleeping 300 s
 ```
 
-After 5 consecutive failures the NVS partition is erased on the next boot, forcing a clean Zigbee rejoin. The counter resets to zero on the first successful send.
+After 5 consecutive failures the NVS partition is erased on the next boot, forcing a clean Zigbee rejoin.
 
 Pressure transducer disconnected (open loop, < 3.5 mA):
 
@@ -281,21 +322,19 @@ Pressure transducer disconnected (open loop, < 3.5 mA):
 E (sensor): transducer open loop (voltage=12 mV, < 3.5 mA)
 ```
 
-`water_level` is reported as `null` for that cycle.
-
-DS18B20 not detected:
+DS18B20 ROM change (sensor replaced):
 
 ```
-E (sensor): no DS18B20 found on GPIO 7
+W (sensor): DS18B20 ROM changed: stored=28ff1234ab000002 active=28ff5678cd000003
 ```
-
-Temperature is omitted from the report and retried on the next wakeup.
 
 ---
 
 ## Power
 
-The device spends the vast majority of its time in deep sleep. Each wakeup is typically 6–12 seconds of active current, followed by a sleep window of 1–30 minutes depending on the rate of change. At the default 5-minute interval, average current is well under 1 mA — months of runtime on a small LiPo or 18650 cell.
+The device spends nearly all of its time in deep sleep. Each wakeup is typically 6–12 seconds of active current (I²C reads, Zigbee send, 1-Wire conversion), followed by a sleep window of 1–30 minutes depending on rate-of-change. At the default 5-minute interval, average current is well under 1 mA — months of runtime on a single 18650 cell.
+
+All power-control GPIOs (VLOOP, BATT_DIV_EN, CHARGER_CE) are driven low and the GPIO matrix is isolated (`esp_sleep_gpio_isolate()`) before every `esp_deep_sleep()` call to eliminate leakage through partially-driven outputs during sleep.
 
 ---
 
@@ -304,18 +343,21 @@ The device spends the vast majority of its time in deep sleep. Each wakeup is ty
 ### Project layout
 
 ```
-main/                 wakeup orchestration, NVS fail counter
-components/sensor/    ADC + DS18B20 + battery divider (pure helper exposed for tests)
-components/zigbee/    esp-zigbee-lib wrapper, OTA client, BDB commissioning task
-components/welld_core/  pure helpers shared across components
-zigbee2mqtt/welld.js  external converter for Zigbee2MQTT
-test/sensor/          on-device Unity test for sensor_level_from_mv
-test/welld_core/      on-device Unity test for welld_core helpers
+main/                    wakeup orchestration, NVS fail counter, RTC history
+components/sensor/       I²C (ADS1115/MAX17048), DS18B20, GPIO power control
+components/zigbee/       esp-zigbee-lib wrapper, OTA client, BDB commissioning task
+components/welld_core/   pure helpers (rate-of-change, adaptive sleep, ZCL encoding)
+zigbee2mqtt/welld.js     external converter for Zigbee2MQTT
+hardware/pcb/            PCB design reference, BOM, Gerber generation script
+hardware/case/           OpenSCAD parametric enclosure (default + 2S battery variant)
+test/sensor/             on-device Unity tests (1-Wire, NVS round-trips)
+test/welld_core/         on-device Unity tests (rate, sleep, ZCL helpers)
+test/host/               host CMake test project — no ESP-IDF required
 ```
 
 ### Host tests
 
-The pure helpers (`sensor_level_from_mv`, `sensor_battery_from_mv`, `sensor_temp_in_range`, `welld_*`) are exercised by a plain CMake project under `test/host/`. No ESP-IDF or hardware required:
+Pure helpers (`sensor_level_from_mv`, `sensor_battery_from_mv`, `sensor_temp_in_range`, `welld_*`) are exercised by a plain CMake project under `test/host/`:
 
 ```bash
 cmake -S test/host -B test/host/build
@@ -323,19 +365,30 @@ cmake --build test/host/build
 ctest --test-dir test/host/build --output-on-failure
 ```
 
-CI runs these on every push.
+CI runs these on every push. No ESP-IDF or hardware required.
 
 ### On-device tests
 
-For NVS round-trips and 1-Wire / ADC paths the host runner can't cover, standalone ESP-IDF test projects live under `test/sensor/` and `test/welld_core/` and run on real hardware via Unity over the serial console:
+For NVS round-trips and 1-Wire / ADC paths the host runner can't cover:
 
 ```bash
 idf.py -C test/sensor build flash monitor
 idf.py -C test/welld_core build flash monitor
 ```
 
-CI builds these to catch compile breaks but cannot execute them.
+CI builds these to catch compile breaks but cannot execute them (real hardware needed).
 
 ### CI
 
-`.github/workflows/build.yml` runs four jobs in parallel: ESP-IDF v5.3.5 firmware build for esp32c6, host unit tests under ctest, on-device test compilation, and the Zigbee2MQTT converter test suite. Firmware artifacts (`*.bin`, `*.elf`, `*.map`, `dependencies.lock`) are uploaded from the firmware job on success.
+`.github/workflows/build.yml` runs four jobs in parallel:
+
+- **ESP-IDF build** — v5.3.5, `esp32c6`, uploads `*.bin`, `*.elf`, `*.map`, `dependencies.lock`
+- **Host unit tests** — plain `ubuntu-latest`, ctest, fetches Unity v2.6.0
+- **On-device test build** — compile-only check for `test/sensor` and `test/welld_core`
+- **Z2M converter tests** — Node 20, `npm test` in `zigbee2mqtt/`
+
+---
+
+## Legacy: dev board wiring
+
+If building from an off-the-shelf ESP32-C6 dev board instead of the Rev 2 PCB, wire the pressure transducer shunt directly to an ADC1 pin and power the loop externally. The ADS1115, MAX17048, and TPS61023 boost are not available on a bare dev board — configure `CONFIG_WELLD_SENSOR_ADC_CHANNEL` to the ESP ADC channel used and set `CONFIG_WELLD_BATT_ADC_CHANNEL=-1` to disable battery monitoring. The Rev 2 GPIO options (`VLOOP`, `CHARGER_CE`, etc.) are still compiled in but the interlock GPIOs can be left disconnected if the solar/USB chargers are absent.
