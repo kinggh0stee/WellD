@@ -119,7 +119,7 @@ static int ads1115_read_mv(int ch) {
     if (i2c_master_transmit_receive(s_ads_dev, &ptr, 1, data, 2, 50) != ESP_OK)
         return INT_MIN;
 
-    int16_t raw = (int16_t)((data[0] << 8) | data[1]);
+    int16_t raw = (int16_t)(uint16_t)((data[0] << 8) | data[1]);
     /* ±2.048 V PGA: 1 LSB = 62.5 µV.  mv = raw * 2048 / 32768 */
     return (int)(raw * 2048L / 32768);
 }

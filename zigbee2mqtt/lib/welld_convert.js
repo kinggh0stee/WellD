@@ -20,6 +20,7 @@ function convertBattery(presentValue, options = {}) {
     const voltage = parseFloat(presentValue.toFixed(2));
     const fullMv  = options.battery_full_mv  ?? DEFAULT_BATTERY_FULL_MV;
     const emptyMv = options.battery_empty_mv ?? DEFAULT_BATTERY_EMPTY_MV;
+    if (fullMv === emptyMv) return undefined;
     const pct = Math.min(100, Math.max(0,
         Math.round((voltage * 1000 - emptyMv) / (fullMv - emptyMv) * 100)));
     return {battery_voltage: voltage, battery: pct};

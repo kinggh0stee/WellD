@@ -65,6 +65,11 @@ test('battery defaults match the firmware Kconfig defaults', () => {
     assert.equal(DEFAULT_BATTERY_EMPTY_MV, 3000);
 });
 
+test('convertBattery returns undefined when full and empty thresholds are equal', () => {
+    /* Prevents division by zero when a user misconfigures equal thresholds. */
+    assert.equal(convertBattery(3.6, {battery_full_mv: 3600, battery_empty_mv: 3600}), undefined);
+});
+
 test('convertBattery returns undefined for null/NaN/Infinity', () => {
     assert.equal(convertBattery(null), undefined);
     assert.equal(convertBattery(NaN), undefined);
