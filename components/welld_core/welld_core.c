@@ -18,7 +18,7 @@ int16_t welld_zb_encode_temp(float temp_c)
     if (temp_c <= -127.0f) {
         return (int16_t)0x8000;  /* ZCL invalid sentinel */
     }
-    return (int16_t)(temp_c * 100.0f);
+    return (int16_t)(temp_c * 100.0f + (temp_c >= 0.0f ? 0.5f : -0.5f));
 }
 
 bool welld_zb_should_report_battery(float battery_v)
