@@ -1,6 +1,12 @@
 #pragma once
 #include <stdbool.h>
 
+/* Acquire the shared ADC unit and calibration handles for a measurement session.
+ * Call once before any sensor_read_level() or sensor_read_battery_v() call,
+ * then release with sensor_adc_release() when both reads are done. */
+void sensor_adc_acquire(void);
+void sensor_adc_release(void);
+
 /* reads 4-20 mA transducer via ADC; maps 4 mA → 0 m, 20 mA → MAX_DEPTH_CM/100 m;
    returns -1 if loop current is below 3.5 mA (transducer disconnected) */
 float sensor_read_level(void);

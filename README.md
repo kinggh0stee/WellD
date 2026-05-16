@@ -36,7 +36,9 @@ Transducer (−) ─┬─ 100 Ω shunt ─── GND
                 └─ ADC1_CH0 (GPIO0)
 ```
 
-The 100 Ω shunt drops the 4–20 mA loop to 0.4–2.0 V, well inside the ESP32-C6 ADC range (0–3.1 V at 12 dB attenuation). For other shunt values, set `CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS` (in milliohms — 100 Ω = `100000`).
+The 100 Ω shunt drops the 4–20 mA loop to 0.4–2.0 V, well inside the ESP32-C6 ADC range (0–3.1 V at 12 dB attenuation). For other shunt values, set `CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS` (in milliohms — 100 Ω = `100000`). The Kconfig enforces a 155 Ω upper limit — values above that exceed the ADC absolute-maximum input at full-scale loop current.
+
+**Transient protection (recommended):** 4–20 mA cables in real installations pick up inductive spikes from relay coils, VFDs, and nearby switching supplies. Add a 3.3 V unidirectional TVS diode (e.g. PRTR5V0U2X) from the ADC pin to GND, or at minimum a 100 Ω series resistor plus a 3.3 V zener clamp between the shunt tap and the ADC pin, to protect the GPIO from overvoltage transients on the cable.
 
 **DS18B20 temperature probe**
 
@@ -57,7 +59,7 @@ Battery (+) ─┬─ R1 ─┬─ ADC1_CHx
              └─────────────── supply rail
 ```
 
-Size R1/R2 so the full battery voltage maps to ≤ 3.1 V at the ADC pin. Set `CONFIG_WELLD_BATT_ADC_CHANNEL` to the ADC1 channel used, and `CONFIG_WELLD_BATT_DIVIDER_RATIO` to `(R1+R2)/R2 × 100`. Set the channel to `-1` to disable.
+Size R1/R2 so the full battery voltage maps to ≤ 3.1 V at the ADC pin. Set `CONFIG_WELLD_BATT_ADC_CHANNEL` to the ADC1 channel used, and `CONFIG_WELLD_BATT_DIVIDER_RATIO` to `(R1+R2)/R2 × 100` (minimum 136 — a 1:1 pass-through at 4.2 V exceeds the ADC absolute maximum). For a 4.2 V Li-ion cell the default 2:1 divider (ratio 200, R1=R2) produces 2.1 V at the ADC pin. For 12 V SLA use a ratio of at least 465. Set the channel to `-1` to disable.
 
 ---
 
