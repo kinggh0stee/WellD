@@ -54,7 +54,7 @@ One `app_main()` = one report. The order matters and is load-bearing:
 
 1. **NVS init** (erase + retry on `NO_FREE_PAGES` / `NEW_VERSION_FOUND`).
 2. **Read consecutive-failure counter** from NVS namespace `"welld"`, key `"zb_fails"`. If ≥ `FAIL_THRESHOLD` (5), `nvs_flash_erase()` to drop stale Zigbee network state and force a fresh join. This also resets the sensor offset to the compile-time default — `main.c` logs a warning when that happens.
-3. **Read all sensors before starting the radio.** The ADC is sensitive to 802.15.4 RF interference, so `sensor_read_*` calls must precede `zigbee_send`.
+3. **Read all sensors before starting the radio.** The ADC is sensitive to 802.15.4 RF interference, so `sensor_read_*` calls must precede `zigbee_send`. GPIO5 (VLOOP) must be driven HIGH ≥5 ms before any 4–20 mA read and LOW immediately after. GPIO4 (charger CE) must be driven HIGH when GPIO6 (solar detect) reads HIGH, and LOW before deep-sleep. All power-control GPIOs (4, 5, 15) must be held LOW through deep-sleep via `esp_sleep_gpio_isolate()`.
 4. **Compute rate of change** from RTC-memory history (the previous valid level + cumulative elapsed time across any intervening invalid wakeups). NaN if there's no prior valid reading yet.
 5. **`zigbee_send()` blocks** until the radio is idle (success, timeout, or OTA reboot). Receives level / battery / temperature / rate.
 6. **Update fail counter** — only on change, since flash has limited write cycles.
@@ -65,7 +65,18 @@ One `app_main()` = one report. The order matters and is load-bearing:
 ### Components
 
 - `main/` — orchestration only; owns the NVS fail counter and the RTC-memory level history (`s_history`: `last_level_m`, accumulated `elapsed_since_last_valid_sec`, `pending_sleep_sec`). `RTC_DATA_ATTR` keeps it across deep sleep; cold boot zeroes it (and `valid = false` is the cold-boot signal).
-- `components/sensor/` — ADC + DS18B20 + battery divider. Owns NVS keys `"offset_cm"` and `"ds18b20_rom"`. `sensor_level_from_mv()` is the pure conversion function exposed in `sensor.h` so tests can hit it without NVS or hardware. DS18B20 default GPIO is 7 (PCB design); GPIO4 is ADC1_CH4 and reserved for analog use.
+- `components/sensor/` — ADC + DS18B20 + battery divider. Owns NVS keys `"offset_cm"` and `"ds18b20_rom"`. `sensor_level_from_mv()` is the pure conversion function exposed in `sensor.h` so tests can hit it without NVS or hardware. DS18B20 default GPIO is 7 (PCB design). Rev 2 GPIO assignments:
+
+  | GPIO | Rev 2 function |
+  |------|---------------|
+  | 4 | TP4056 charger CE interlock (Q1 gate) — HIGH disables USB charging |
+  | 5 | TPS61023 VLOOP boost enable — HIGH → 12 V VLOOP active |
+  | 6 | Solar charging detect input (CN3791 CHRG, active-high) |
+  | 7 | DS18B20 1-Wire data (default; CONFIG_WELLD_DS18B20_GPIO) |
+  | 10 | I2C SDA (ADS1115 + MAX17048) |
+  | 11 | I2C SCL (ADS1115 + MAX17048) |
+  | 14 | MAX17048 ALRT input (active-low; external pull-up R27) |
+  | 15 | Battery divider enable (Q2 gate; pulse HIGH before AIN2 read) |
 - `components/zigbee/` — esp-zigbee-lib wrapper. Spawns `zb_task` (10 KB stack, prio 5) which runs the BDB commissioning state machine and the stack main loop. Synchronisation back to the caller uses a FreeRTOS event group with `SENT_BIT` / `FAIL_BIT` / `STOPPED_BIT`. The caller must wait for `STOPPED_BIT` before deep-sleep so the radio is fully released.
 
 ### Zigbee endpoints
@@ -82,7 +93,7 @@ Reports are unsolicited `zcl_report_attr_cmd_req` to short address `0x0000` (the
 The OTA image version is **derived from `PROJECT_VER`** in the root `CMakeLists.txt` at build time:
 
 ```
-PROJECT_VER = "MAJOR.MINOR.PATCH"  →  OTA_FW_VERSION = 0x00MMmmPP
+PROJECT_VER = "MAJOR.MINOR.PATCH"  →  OTA_FW_VERSION = 0xMMmmPP00
 ```
 
 This conversion lives in `components/zigbee/CMakeLists.txt` and is passed as a `-D` compile definition. **To cut a new firmware release, bump `PROJECT_VER` in the root `CMakeLists.txt`** — don't touch `OTA_FW_VERSION` directly.

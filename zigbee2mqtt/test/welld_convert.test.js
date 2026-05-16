@@ -22,6 +22,12 @@ test('water level negative → null (open-loop transducer)', () => {
     assert.equal(convertLevel(-0.0001), null);
 });
 
+test('convertLevel returns undefined for null/NaN/Infinity', () => {
+    assert.equal(convertLevel(null), undefined);
+    assert.equal(convertLevel(NaN), undefined);
+    assert.equal(convertLevel(Infinity), undefined);
+});
+
 /* convertBattery ---------------------------------------------------------- */
 
 test('battery percentage uses defaults when options omitted', () => {
@@ -59,6 +65,12 @@ test('battery defaults match the firmware Kconfig defaults', () => {
     assert.equal(DEFAULT_BATTERY_EMPTY_MV, 3000);
 });
 
+test('convertBattery returns undefined for null/NaN/Infinity', () => {
+    assert.equal(convertBattery(null), undefined);
+    assert.equal(convertBattery(NaN), undefined);
+    assert.equal(convertBattery(Infinity), undefined);
+});
+
 /* convertAnalogInput ------------------------------------------------------ */
 
 test('endpoint 1 dispatches to water level', () => {
@@ -92,6 +104,12 @@ test('water level rate rounds to 1 decimal', () => {
     assert.equal(convertRate(12.345), 12.3);
     assert.equal(convertRate(-12.345), -12.3);
     assert.equal(convertRate(0), 0);
+});
+
+test('convertRate returns undefined for null/NaN/Infinity', () => {
+    assert.equal(convertRate(null), undefined);
+    assert.equal(convertRate(NaN), undefined);
+    assert.equal(convertRate(Infinity), undefined);
 });
 
 test('endpoint 4 dispatches to rate converter', () => {

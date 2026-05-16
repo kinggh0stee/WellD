@@ -9,8 +9,8 @@ U7,1,Solar MPPT LiPo charger,4.5-6.5V in / 4.2V out / 500mA,SOP-8,CN3791,LCSC C8
 U8,1,VLOOP 12V synchronous boost converter,VBAT→12V / 600mA / 1µA Iq,SOT-23-5,TPS61023DCKR,Texas Instruments; LCSC C2678025; EN driven by GPIO5
 U9,1,16-bit 4-channel I2C ADC,±2.048V PGA / 860SPS / addr 0x48,SOIC-8,ADS1115IDGST,Texas Instruments; LCSC C37593; replaces ESP32 ADC for depth/battery channels
 U10,1,LiPo fuel gauge I2C,coulomb-counting SoC / addr 0x36,SOT-23-6,MAX17048G+T10,Maxim/Analog; LCSC C82201; ALRT→GPIO14
-Q1,1,N-ch MOSFET TP4056 CE interlock,20V 300mA SOT-23,SOT-23,2N7002,Any mfr; LCSC C8545; gate=GPIO4; disables USB charging when solar active
-Q2,1,N-ch MOSFET battery divider enable,20V 300mA SOT-23,SOT-23,2N7002,Any mfr; LCSC C8545; gate=GPIO15; enables divider only during measurement
+Q1,1,N-ch MOSFET TP4056 CE interlock,100V 170mA SOT-23,SOT-23,BSS123,N-ch MOSFET, 100V 170mA, Vgs(th) max 1.5V, SOT-23, replaces 2N7002 for reliable 3.3V gate drive; gate=GPIO4; disables USB charging when solar active
+Q2,1,N-ch MOSFET battery divider enable,100V 170mA SOT-23,SOT-23,BSS123,N-ch MOSFET, 100V 170mA, Vgs(th) max 1.5V, SOT-23, replaces 2N7002 for reliable 3.3V gate drive; gate=GPIO15; enables divider only during measurement
 L1,1,VBOOST shielded power inductor,4.7µH 1.0A 250mΩ,4×4mm SMD,CDRH4D22NP-4R7NC,Bourns; LCSC C376098; or equivalent 4.7µH ≥1A shielded SMD
 D1,1,Dual-channel TVS ESD protection,3.3V/5V logic lines,SOT-363,PRTR5V0U2X,NXP; one device covers both 4-20mA ADC inputs
 D2,1,Charge indicator LED (optional DNF),Green 0603,0603,—,DNF in production; omit to reduce active current
@@ -66,8 +66,10 @@ R21,1,MPPT divider low-side,10kΩ 1%,0402,—,See R20 notes
 R22,1,Solar charge LED series (optional DNF),1.0kΩ,0402,—,DNF if solar LED omitted
 R23,1,VBOOST feedback high-side,1.1MΩ 1%,0402,—,Sets TPS61023 output: VOUT=0.5×(1+R23/R24)≈12.2V
 R24,1,VBOOST feedback low-side,47kΩ 1%,0402,—,See R23 notes
-R25,1,Q1 gate pull-down,10kΩ,0402,—,Holds TP4056 CE HIGH (enabled) when GPIO4 is floating
-R26,1,Q2 gate pull-down,10kΩ,0402,—,Holds battery divider off when GPIO15 is floating/reset
+R25,1,Q1 gate pull-down,4.7kΩ,0402,—,Holds TP4056 CE HIGH (enabled) when GPIO4 is floating
+R26,1,Q2 gate pull-down,4.7kΩ,0402,—,Holds battery divider off when GPIO15 is floating/reset
+R27,1,MAX17048 ALRT pull-up,4.7kΩ,0402,—,GPIO14→3V3 pull-up for MAX17048 ALRT open-drain output; replaces ~50 kΩ internal pull-up near boost node
+R28,1,DS18B20 VCC series protection,100Ω,0402,—,In VCC line to J6 pin 1; prevents 3V3 rail short on probe misconnection
 C1,1,TP4056 input bypass,10µF 10V,0805,—,
 C2,1,TP4056 output bypass,10µF 10V,0805,—,
 C3,1,4-20mA ADC ch1 filter cap,100nF,0402,—,Forms RC filter with R3
@@ -88,6 +90,8 @@ C17,1,CN3791 input filter,10µF 10V,0805,—,After D6 Schottky; D8 TVS also plac
 C18,1,CN3791 output / VBAT filter,10µF 10V,0805,—,
 C19,1,VBOOST input bypass,10µF 10V,0805,—,TPS61023 VIN; place within 2mm of U8
 C20,1,VBOOST output filter,22µF 16V,1206,—,TPS61023 VOUT; rated above 12V output; 1206 package for adequate capacitance at DC bias
+C21,1,TVS bypass cap,100nF,0402,—,Bypass cap across D8 (TVS clamp); absorbs inductive transients from panel cable
+C22,1,VBOOST output cap,10µF 16V,0805,—,In parallel with C20 to maintain ≥10 µF at 12V after X5R DC-bias derating
 SJ1,1,VBOOST_EN permanent tie (test/debug),2-pad solder jumper,—,—,Normally open; close to hold TPS61023 EN HIGH independently of GPIO5. DNF in production.
 SJ2,1,VLOOP bus jumper,2-pad solder jumper,—,—,Normally closed; cuts ch1/ch2 VLOOP sharing
 SJ3,1,Status LED disconnect,2-pad solder jumper,—,—,Normally closed; cut to save active-phase draw

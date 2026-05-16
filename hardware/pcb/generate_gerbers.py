@@ -393,8 +393,8 @@ COMPONENTS: list[tuple] = [
     ("J10", "Connector_PinHeader_1.27mm:PinHeader_1x06_P1.27mm_Vertical",  2, 20, 0, "PROG"),
     ("J12", "Connector_Phoenix_MC:PhoenixContact_MC_1,5_2-G-3,5_1x02_P3.50mm_Horizontal", 64, 2, 0, "Solar"),
     # MOSFETs
-    ("Q1",  "Package_TO_SOT_SMD:SOT-23",                   14,   43,   0, "2N7002"),
-    ("Q2",  "Package_TO_SOT_SMD:SOT-23",                   56,   36,   0, "2N7002"),
+    ("Q1",  "Package_TO_SOT_SMD:SOT-23",                   14,   43,   0, "BSS123"),
+    ("Q2",  "Package_TO_SOT_SMD:SOT-23",                   56,   36,   0, "BSS123"),
     # Inductor
     ("L1",  "welld:Inductor_4x4mm_SMD",                    74,   12,   0, "4.7uH"),
     # Switches
@@ -425,8 +425,10 @@ COMPONENTS: list[tuple] = [
     ("R22", "Resistor_SMD:R_0402_1005Metric",  62,  14, 0, "1k"),
     ("R23", "Resistor_SMD:R_0402_1005Metric",  76,  18, 0, "1M1"),
     ("R24", "Resistor_SMD:R_0402_1005Metric",  76,  20, 0, "47k"),
-    ("R25", "Resistor_SMD:R_0402_1005Metric",  14,  47, 0, "10k"),
-    ("R26", "Resistor_SMD:R_0402_1005Metric",  57,  38, 0, "10k"),
+    ("R25", "Resistor_SMD:R_0402_1005Metric",  14,  47, 0, "4.7kΩ"),
+    ("R26", "Resistor_SMD:R_0402_1005Metric",  57,  38, 0, "4.7kΩ"),
+    ("R27", "Resistor_SMD:R_0402_1005Metric",  88,  18, 0, "4.7kΩ"),
+    ("R28", "Resistor_SMD:R_0402_1005Metric",  50,  38, 0, "100Ω"),
     # Capacitors
     ("C1",   "Capacitor_SMD:C_0805_2012Metric",  8,  41, 0, "10uF"),
     ("C2",   "Capacitor_SMD:C_0805_2012Metric", 12,  41, 0, "10uF"),
@@ -451,6 +453,8 @@ COMPONENTS: list[tuple] = [
     ("C18",  "Capacitor_SMD:C_0805_2012Metric", 60,  12, 0, "10uF"),
     ("C19",  "Capacitor_SMD:C_0805_2012Metric", 76,  14, 0, "10uF"),
     ("C20",  "Capacitor_SMD:C_1206_3216Metric", 77,   8, 0, "22uF"),
+    ("C21",  "Capacitor_SMD:C_0402_1005Metric", 26,   8, 0, "100nF"),
+    ("C22",  "Capacitor_SMD:C_0805_2012Metric", 79,   8, 0, "10uF"),
     # Mounting holes  (NPTH — no copper pads)
     ("MH1", "MountingHole:MountingHole_3.2mm_M3",  3.5,  3.5, 0, "M3"),
     ("MH2", "MountingHole:MountingHole_3.2mm_M3", 76.5,  3.5, 0, "M3"),

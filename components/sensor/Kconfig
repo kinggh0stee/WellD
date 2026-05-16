@@ -30,6 +30,9 @@ menu "WellD Sensor"
             when the transducer sits below the true zero reference point
             (e.g. -50 if it hangs 50 cm below the water outlet pipe).
             Can be overridden at runtime via NVS key "welld/offset_cm".
+            Both this default and any runtime value written to NVS key
+            'welld/offset_cm' are clamped to the range -600 to +600 cm at
+            runtime.
 
     config WELLD_BATT_ADC_CHANNEL
         int "ADC1 channel for battery voltage (set to -1 to disable)"
