@@ -5,15 +5,21 @@ U3,1,LiPo protection IC,over-discharge/charge/current,SOT-23-6,DW01A,LCSC C35154
 U4,1,LiPo protection MOSFET pair,back-to-back switch for DW01A,SOT-23-6,FS8205A,LCSC C32254
 U5,1,USB ESD protection,±8kV ESD 0.5pF,SOT-23-6,USBLC6-2SC6,STMicroelectronics
 U6,1,ESP32-C6-MINI-1U module,ESP32-C6 with U.FL antenna,Module,ESP32-C6-MINI-1U-H4,Espressif; specify -H4 for 4MB flash
+U7,1,Solar MPPT LiPo charger,4.5-6.5V in / 4.2V out / 500mA,SOP-8,CN3791,LCSC C88093; verify availability before ordering
 D1,1,Dual-channel TVS ESD protection,3.3V/5V logic lines,SOT-363,PRTR5V0U2X,NXP; one device covers both 4-20mA ADC inputs
 D2,1,Charge indicator LED (optional DNF),Green 0603,0603,—,DNF in production; omit to reduce active current
 D3,1,Standby indicator LED (optional DNF),Red 0603,0603,—,DNF in production
 D4,1,Status LED,Green 0603,0603,—,Controlled by GPIO13; disconnect with SJ3
 D5,1,Reverse polarity MOSFET,P-ch 20V 3A,SOT-23,AO3407,Alpha & Omega; or equivalent P-ch SOT-23
+D6,1,Schottky diode solar input protection,1A 40V Schottky,SOD-123,MBRS140T3G,On Semi; prevents panel backfeed; also provides reverse polarity protection
+D7,1,Solar charge indicator LED (optional DNF),Green 0603,0603,—,DNF in production
 F1,1,Fuse polyfuse USB input,1A hold 2A trip,1206,—,Any 1206 PTC resettable fuse
 J1,1,LiPo battery connector,JST-PH 2-pin,SMD,S2B-PH-K-S,JST
 J2,1,USB-C 2.0 connector (power only),USB-C 2.0 16-pin,SMD,USB4135-GF-A,GCT; verify current catalog
 J3,1,U.FL antenna receptacle,50Ω,SMD,U.FL-R-SMT-1(10),Hirose
+A1,1,SMA female bulkhead (case-mounted),IP67 panel-mount SMA,Panel,132289,Amphenol RF; or equiv. IP67 SMA bulkhead; 6.35mm thread
+A2,1,U.FL to SMA pigtail cable,~100mm RG178 coax,Cable,CAB.100.07.0100B,Taoglas; verify length against case depth (~50mm from J3 to back wall)
+A3,1,2.4GHz omnidirectional SMA antenna,2 dBi rubber-duck SMA,Antenna,FXP73,Taoglas; or any 2.4GHz SMA rubber-duck ≥0dBi
 J4,1,4-20mA sensor 1 header (PCB half),3-pos 3.5mm pitch,SMD/THT,MC 1.5/3-G-3.5,Phoenix Contact
 J4P,1,4-20mA sensor 1 plug (field half),3-pos 3.5mm pitch,Pluggable,MC 1.5/3-ST-3.5,Phoenix Contact; ships separately
 J5,1,4-20mA sensor 2 header (PCB half),3-pos 3.5mm pitch,SMD/THT,MC 1.5/3-G-3.5,Phoenix Contact
@@ -22,6 +28,8 @@ J6,1,DS18B20 header (PCB half),3-pos 3.5mm pitch,SMD/THT,MC 1.5/3-G-3.5,Phoenix 
 J6P,1,DS18B20 plug (field half),3-pos 3.5mm pitch,Pluggable,MC 1.5/3-ST-3.5,Phoenix Contact
 J7,1,Spare sensor header (PCB half),3-pos 3.5mm pitch,SMD/THT,MC 1.5/3-G-3.5,Phoenix Contact
 J7P,1,Spare sensor plug (field half),3-pos 3.5mm pitch,Pluggable,MC 1.5/3-ST-3.5,Phoenix Contact
+J12,1,Solar panel header (PCB half),2-pos 3.5mm pitch,SMD/THT,MC 1.5/2-G-3.5,Phoenix Contact
+J12P,1,Solar panel plug (field half),2-pos 3.5mm pitch,Pluggable,MC 1.5/2-ST-3.5,Phoenix Contact
 J8,1,I2C expansion header,4-pin 2.54mm,THT,—,Standard 2.54mm single-row
 J9,1,GPIO expansion header,8-pin 2.54mm,THT,—,Standard 2.54mm single-row
 J10,1,Programming header,6-pin 1.27mm,SMD,—,1.27mm SMD right-angle or vertical
@@ -45,6 +53,10 @@ R15,1,USB-C CC1 resistor,5.1kΩ,0402,—,Presents device as USB sink
 R16,1,USB-C CC2 resistor,5.1kΩ,0402,—,Presents device as USB sink
 R17,1,Charge LED series (optional DNF),1.0kΩ,0402,—,DNF if LEDs omitted
 R18,1,Standby LED series (optional DNF),1.0kΩ,0402,—,DNF if LEDs omitted
+R19,1,CN3791 charge current set,2.0kΩ 1%,0402,—,Sets solar charge current to ~500mA; raise to 3.3kΩ for ~300mA
+R20,1,MPPT divider high-side,36kΩ 1%,0402,—,Sets MPPT to 5.5V (6V panel Vmp); change for different panel Vmp
+R21,1,MPPT divider low-side,10kΩ 1%,0402,—,See R20 notes
+R22,1,Solar charge LED series (optional DNF),1.0kΩ,0402,—,DNF if solar LED omitted
 C1,1,TP4056 input bypass,10µF 10V,0805,—,
 C2,1,TP4056 output bypass,10µF 10V,0805,—,
 C3,1,4-20mA ADC ch1 filter cap,100nF,0402,—,Forms RC filter with R3
@@ -61,6 +73,8 @@ C13,1,EN reset cap,100nF,0402,—,With R11 for clean power-on reset
 C14,4,Module VCC3V3 decoupling,100nF,0402,—,Place within 2mm of module pads
 C15,1,Module VCC3V3 bulk,10µF 10V,0805,—,
 C16,1,USB input filter,4.7µF 10V,0805,—,After F1
+C17,1,CN3791 input filter,10µF 10V,0805,—,After D6 Schottky
+C18,1,CN3791 output / VBAT filter,10µF 10V,0805,—,
 SJ1,1,3.3V-to-VLOOP jumper,2-pad solder jumper,—,—,Normally open; close for 3.3V-powered sensors
 SJ2,1,VLOOP bus jumper,2-pad solder jumper,—,—,Normally closed; cuts ch1/ch2 VLOOP sharing
 SJ3,1,Status LED disconnect,2-pad solder jumper,—,—,Normally closed; cut to save active-phase draw
