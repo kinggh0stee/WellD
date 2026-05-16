@@ -1,7 +1,7 @@
 idf_component_register(
     SRCS "zigbee.c"
     INCLUDE_DIRS "include"
-    REQUIRES freertos log app_update esp_system welld_core
+    REQUIRES freertos log app_update esp_system welld_core esp_timer
 )
 
 # Convert PROJECT_VER "MAJOR.MINOR.PATCH" to OTA uint32 (0xMMmmPP00).

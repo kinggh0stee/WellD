@@ -172,7 +172,7 @@ void app_main(void)
         gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 0);
         gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
         gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 0);
-        esp_sleep_gpio_isolate();
+        esp_sleep_config_gpio_isolate();
         esp_deep_sleep((uint64_t)low_batt_sleep * 1000000ULL);
     }
 #endif
@@ -224,6 +224,6 @@ void app_main(void)
     gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 0);
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
     gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 0);
-    esp_sleep_gpio_isolate();
+    esp_sleep_config_gpio_isolate();
     esp_deep_sleep((uint64_t)sleep_sec * 1000000ULL);
 }
