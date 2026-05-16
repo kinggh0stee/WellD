@@ -85,14 +85,18 @@ sma_hole_d       = 6.5;    // SMA panel-mount thread clearance hole, mm
 // U.FL (J3) is at PCB x=40, which is case-internal x=42.5.  Centre the bulkhead there.
 sma_x           = 42.5;    // mm from case left outer edge
 // Vertical position of the SMA hole — mid-height of the base shell
-sma_z           = ext_h_base / 2;   // computed below after ext_h_base is defined
+// Inlined to avoid forward-reference of ext_h_base (defined further below)
+sma_z           = (wall + floor_h + pcb_t + top_clear) / 2;
 
 // Back-wall solar cable gland X position (moved left to make room for SMA)
 solar_cg_x_frac = 0.25;   // fraction of ext_w; 0.25 × 85 = ~21 mm from left
 
 // Label emboss
-label_text  = "WellD v1";
-label_depth = 1;     // emboss depth, mm
+label_depth = 1;     // emboss depth into top surface, mm
+// Two-line branding: "WellD" large + "gh0stee.com" small
+// Horizontal centre of text block = right 55% of lid (clear of RF zone)
+// Inlined to avoid forward-reference of ext_w (defined further below)
+label_cx    = (pcb_w + 2 * wall) * 0.65;
 
 // Small epsilon for clean boolean differences
 eps = 0.01;
@@ -375,15 +379,25 @@ module lid() {
         translate([rf_zone_x, rf_zone_y, rf_wall_t])
             cube([rf_zone_w, rf_zone_d, recess_depth + eps]);
 
-        // ── Embossed label (recessed into top surface) ────────────────────
-        // Centred, right half of lid (away from RF zone)
-        translate([lid_w / 2 + 5, lid_d / 2, lid_t - label_depth])
-            linear_extrude(height = label_depth + eps)
-                text(label_text,
-                     size   = 7,
+        // ── Branding — recessed into top surface (debossed) ──────────────────
+        // Laid out in the right 55 % of the lid to stay clear of the RF zone.
+        // Depth 1.5 mm in a 3 mm lid — leaves 1.5 mm wall, visible and printable.
+        // "WellD"  — large bold product name
+        translate([label_cx, lid_d * 0.63, lid_t - 1.5])
+            linear_extrude(height = 1.5 + eps)
+                text("WellD",
+                     size   = 8,
                      halign = "center",
                      valign = "center",
                      font   = "Liberation Sans:style=Bold");
+        // "gh0stee.com" — smaller domain / maker mark below
+        translate([label_cx, lid_d * 0.35, lid_t - 1.5])
+            linear_extrude(height = 1.5 + eps)
+                text("gh0stee.com",
+                     size   = 4.5,
+                     halign = "center",
+                     valign = "center",
+                     font   = "Liberation Sans:style=Regular");
     }
 }
 
