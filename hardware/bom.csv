@@ -1,0 +1,68 @@
+Ref,Qty,Description,Value/Rating,Package,MPN,Notes
+U1,1,LDO 3.3V 1A low-Iq,3.3V 1A 1µA Iq,SC70-5,TPS7A0533DCKR,Texas Instruments
+U2,1,LiPo charger single-cell,4.2V 580mA (R1=2kΩ),SOP-8,TP4056,Multiple mfrs; LCSC C16581
+U3,1,LiPo protection IC,over-discharge/charge/current,SOT-23-6,DW01A,LCSC C351546
+U4,1,LiPo protection MOSFET pair,back-to-back switch for DW01A,SOT-23-6,FS8205A,LCSC C32254
+U5,1,USB ESD protection,±8kV ESD 0.5pF,SOT-23-6,USBLC6-2SC6,STMicroelectronics
+U6,1,ESP32-C6-MINI-1U module,ESP32-C6 with U.FL antenna,Module,ESP32-C6-MINI-1U-H4,Espressif; specify -H4 for 4MB flash
+D1,1,Dual-channel TVS ESD protection,3.3V/5V logic lines,SOT-363,PRTR5V0U2X,NXP; one device covers both 4-20mA ADC inputs
+D2,1,Charge indicator LED (optional DNF),Green 0603,0603,—,DNF in production; omit to reduce active current
+D3,1,Standby indicator LED (optional DNF),Red 0603,0603,—,DNF in production
+D4,1,Status LED,Green 0603,0603,—,Controlled by GPIO13; disconnect with SJ3
+D5,1,Reverse polarity MOSFET,P-ch 20V 3A,SOT-23,AO3407,Alpha & Omega; or equivalent P-ch SOT-23
+F1,1,Fuse polyfuse USB input,1A hold 2A trip,1206,—,Any 1206 PTC resettable fuse
+J1,1,LiPo battery connector,JST-PH 2-pin,SMD,S2B-PH-K-S,JST
+J2,1,USB-C 2.0 connector (power only),USB-C 2.0 16-pin,SMD,USB4135-GF-A,GCT; verify current catalog
+J3,1,U.FL antenna receptacle,50Ω,SMD,U.FL-R-SMT-1(10),Hirose
+J4,1,4-20mA sensor 1 header (PCB half),3-pos 3.5mm pitch,SMD/THT,MC 1.5/3-G-3.5,Phoenix Contact
+J4P,1,4-20mA sensor 1 plug (field half),3-pos 3.5mm pitch,Pluggable,MC 1.5/3-ST-3.5,Phoenix Contact; ships separately
+J5,1,4-20mA sensor 2 header (PCB half),3-pos 3.5mm pitch,SMD/THT,MC 1.5/3-G-3.5,Phoenix Contact
+J5P,1,4-20mA sensor 2 plug (field half),3-pos 3.5mm pitch,Pluggable,MC 1.5/3-ST-3.5,Phoenix Contact
+J6,1,DS18B20 header (PCB half),3-pos 3.5mm pitch,SMD/THT,MC 1.5/3-G-3.5,Phoenix Contact
+J6P,1,DS18B20 plug (field half),3-pos 3.5mm pitch,Pluggable,MC 1.5/3-ST-3.5,Phoenix Contact
+J7,1,Spare sensor header (PCB half),3-pos 3.5mm pitch,SMD/THT,MC 1.5/3-G-3.5,Phoenix Contact
+J7P,1,Spare sensor plug (field half),3-pos 3.5mm pitch,Pluggable,MC 1.5/3-ST-3.5,Phoenix Contact
+J8,1,I2C expansion header,4-pin 2.54mm,THT,—,Standard 2.54mm single-row
+J9,1,GPIO expansion header,8-pin 2.54mm,THT,—,Standard 2.54mm single-row
+J10,1,Programming header,6-pin 1.27mm,SMD,—,1.27mm SMD right-angle or vertical
+SW1,1,Reset button,6×6mm tactile 4.3mm height,SMD,—,Standard SMD tactile
+SW2,1,Boot button,6×6mm tactile 4.3mm height,SMD,—,Standard SMD tactile
+R1,1,Charge current set,2.0kΩ 1%,0402,—,Sets TP4056 charge current to ~580mA
+R2,1,4-20mA shunt ch1 precision,100Ω ±0.1% 0.25W,0805,RG2012N-101-W-T1,Susumu; precision required for accurate depth reading
+R3,1,ADC series limiter ch1,100Ω,0402,—,
+R4,1,4-20mA shunt ch2 precision,100Ω ±0.1% 0.25W,0805,RG2012N-101-W-T1,Susumu
+R5,1,ADC series limiter ch2,100Ω,0402,—,
+R6,1,DS18B20 pull-up,4.7kΩ,0402,—,
+R7,1,Battery divider high-side,100kΩ 1%,0402,—,
+R8,1,Battery divider low-side,100kΩ 1%,0402,—,
+R9,1,I2C SDA pull-up,4.7kΩ,0402,—,
+R10,1,I2C SCL pull-up,4.7kΩ,0402,—,
+R11,1,EN pull-up,10kΩ,0402,—,
+R12,1,GPIO9 BOOT pull-up,10kΩ,0402,—,
+R13,1,GPIO8 strapping pull-up,10kΩ,0402,—,
+R14,1,Status LED current limit,1.0kΩ,0402,—,
+R15,1,USB-C CC1 resistor,5.1kΩ,0402,—,Presents device as USB sink
+R16,1,USB-C CC2 resistor,5.1kΩ,0402,—,Presents device as USB sink
+R17,1,Charge LED series (optional DNF),1.0kΩ,0402,—,DNF if LEDs omitted
+R18,1,Standby LED series (optional DNF),1.0kΩ,0402,—,DNF if LEDs omitted
+C1,1,TP4056 input bypass,10µF 10V,0805,—,
+C2,1,TP4056 output bypass,10µF 10V,0805,—,
+C3,1,4-20mA ADC ch1 filter cap,100nF,0402,—,Forms RC filter with R3
+C4,1,4-20mA ADC ch1 bulk cap,10µF 10V,0805,—,
+C5,1,4-20mA ADC ch2 filter cap,100nF,0402,—,
+C6,1,4-20mA ADC ch2 bulk cap,10µF 10V,0805,—,
+C7,1,DS18B20 VCC bypass,100nF,0402,—,
+C8,1,Battery divider filter,100nF,0402,—,Across R8
+C9,1,LDO input bypass,100nF,0402,—,
+C10,1,LDO input bulk,1µF,0402,—,
+C11,1,LDO output bypass,100nF,0402,—,
+C12,1,LDO output bulk,1µF,0402,—,
+C13,1,EN reset cap,100nF,0402,—,With R11 for clean power-on reset
+C14,4,Module VCC3V3 decoupling,100nF,0402,—,Place within 2mm of module pads
+C15,1,Module VCC3V3 bulk,10µF 10V,0805,—,
+C16,1,USB input filter,4.7µF 10V,0805,—,After F1
+SJ1,1,3.3V-to-VLOOP jumper,2-pad solder jumper,—,—,Normally open; close for 3.3V-powered sensors
+SJ2,1,VLOOP bus jumper,2-pad solder jumper,—,—,Normally closed; cuts ch1/ch2 VLOOP sharing
+SJ3,1,Status LED disconnect,2-pad solder jumper,—,—,Normally closed; cut to save active-phase draw
+SJ4,1,Optional UART bridge TX (DNF),2-pad solder jumper,—,—,Bridges CH343 TX to GPIO16; DNF if no bridge chip
+SJ5,1,Optional UART bridge RX (DNF),2-pad solder jumper,—,—,Bridges CH343 RX to GPIO17; DNF if no bridge chip

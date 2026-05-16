@@ -70,7 +70,7 @@ menu "WellD Sensor"
 
     config WELLD_DS18B20_GPIO
         int "GPIO number for DS18B20 data line"
-        default 4
+        default 7
         range 0 21
         help
             GPIO connected to the DS18B20 data pin via a 4.7 kΩ pull-up to 3.3 V.
