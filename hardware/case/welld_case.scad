@@ -11,8 +11,9 @@
 //   Use the SHOW_BASE / SHOW_LID flags below, or call each module from a
 //   separate file that does:  use <welld_case.scad>  base();  (or lid();)
 
-SHOW_BASE = true;
-SHOW_LID  = true;
+SHOW_BASE            = true;
+SHOW_LID             = true;
+SHOW_DRILL_TEMPLATE  = false;  // set true to export the 1:1 concrete drill guide
 
 // ─────────────────────────────────────────────
 // --- Parameters ---
@@ -90,6 +91,28 @@ sma_z           = (wall + floor_h + pcb_t + top_clear) / 2;
 
 // Back-wall solar cable gland X position (moved left to make room for SMA)
 solar_cg_x_frac = 0.25;   // fraction of ext_w; 0.25 × 85 = ~21 mm from left
+
+// ── Concrete lid underside mounting ──────────────────────────────────────────
+//   When concrete_mount = true the lid grows four corner wings, each with an
+//   M6 anchor-bolt clearance hole + nut counterbore.  The lid face (branding
+//   side) presses against the concrete.  Sensor cables exit the base and hang
+//   down into the well; the external SMA antenna faces the air column below.
+//
+//   Mounting hardware: 4× M6×50 stainless hex-head anchor bolts or M6 concrete
+//   screws (e.g. Hilti HUS3-H 6×50, Rawlplug R-HPT6) in 6 mm pre-drilled holes,
+//   minimum 30 mm embedment in sound concrete.  Apply silicone or polyurethane
+//   sealant around each anchor entry point to maintain the enclosure's IP rating.
+//
+//   Anchor bolt pattern (centre-to-centre between opposite wings):
+//     X span: ext_w + mount_wing_w = 85 + 22 = 107 mm
+//     Y span: ext_d + mount_wing_d = 60 + 22 =  82 mm
+//   Use drill_template() to print a 1:1 paper/card drill guide.
+concrete_mount   = true;   // add corner wings to lid for concrete underside mount
+mount_wing_w     = 22;     // wing extent beyond lid in X, mm
+mount_wing_d     = 22;     // wing extent beyond lid in Y, mm
+mount_bolt_d     = 6.6;    // M6 anchor bolt clearance hole, mm
+mount_cbore_d    = 12.5;   // M6 hex-nut counterbore (AF 10 mm → 12.5 mm circle)
+mount_cbore_h    = 6.0;    // counterbore depth — M6 nut thickness 5 mm + 1 mm
 
 // Label emboss
 label_depth = 1;     // emboss depth into top surface, mm
@@ -233,6 +256,62 @@ module mounting_tab(z_centre) {
     }
 }
 
+// Corner mounting wing for concrete underside mounting.
+// Placed at (cx, cy) — a corner of the lid footprint.
+// sign_x / sign_y: +1 or -1, direction the wing extends from that corner.
+module mount_wing_tab(cx, cy, sign_x, sign_y) {
+    // Wing body origin (lower-left of its bounding box)
+    ox = (sign_x > 0) ? cx : cx - mount_wing_w;
+    oy = (sign_y > 0) ? cy : cy - mount_wing_d;
+    // Bolt hole centre inside the wing
+    hx = cx + sign_x * (mount_wing_w / 2);
+    hy = cy + sign_y * (mount_wing_d / 2);
+
+    difference() {
+        translate([ox, oy, 0])
+            rounded_box(mount_wing_w, mount_wing_d, lid_t, r = 3);
+
+        // M6 anchor bolt clearance hole (through full thickness)
+        translate([hx, hy, -eps])
+            cylinder(d = mount_bolt_d, h = lid_t + 2 * eps, $fn = 24);
+
+        // Nut counterbore on the top face (the face that presses against
+        // concrete).  Bolt head / nut sits here; depth = mount_cbore_h.
+        translate([hx, hy, lid_t - mount_cbore_h])
+            cylinder(d = mount_cbore_d, h = mount_cbore_h + eps, $fn = 32);
+    }
+}
+
+// Flat 1:1 drill template — print on paper/card, tape to concrete,
+// centre-punch through the holes to mark the anchor-bolt positions.
+// Template outline = lid + wing footprint; bolt holes are indicated by
+// 2 mm circles.  Export as a separate STL (paper template height = 0.3 mm).
+module drill_template() {
+    tw = ext_w + 2 * mount_wing_w;
+    td = ext_d + 2 * mount_wing_d;
+    th = 0.3;   // one layer — print with a coloured filament for visibility
+
+    difference() {
+        // Outer rectangle, centred on the lid footprint
+        translate([-mount_wing_w, -mount_wing_d, 0])
+            rounded_box(tw, td, th, r = 3);
+
+        // Lid outline cutout (leaves a frame showing the device footprint)
+        translate([0, 0, -eps])
+            rounded_box(ext_w, ext_d, th + 2 * eps, r = 3);
+
+        // Four anchor-hole markers (2 mm Ø pillars become holes in template)
+        for (cx_t = [0, ext_w], cy_t = [0, ext_d]) {
+            sx = (cx_t == 0) ? -1 : +1;
+            sy = (cy_t == 0) ? -1 : +1;
+            hx_t = cx_t + sx * (mount_wing_w / 2);
+            hy_t = cy_t + sy * (mount_wing_d / 2);
+            translate([hx_t, hy_t, -eps])
+                cylinder(d = 2.0, h = th + 2 * eps, $fn = 16);
+        }
+    }
+}
+
 // ─────────────────────────────────────────────
 // --- Base (bottom shell) ---
 // ─────────────────────────────────────────────
@@ -331,6 +410,11 @@ module lid() {
     // Lid sits on top of the base, with a 2 mm inner lip that drops into the
     // opening.  Four countersunk M3 clearance holes at the corner boss positions.
     //
+    // When concrete_mount = true, four corner wings extend beyond the lid
+    // footprint; each carries an M6 anchor-bolt clearance hole + nut counterbore.
+    // The lid face (branding side = top when installed normally) presses against
+    // the underside of the concrete well lid.
+    //
     // Coordinate origin of the lid module = bottom face of lid (as printed).
     // The lid is printed upside-down (label face down) for best surface finish,
     // but the module is oriented "installed" for the preview.
@@ -399,6 +483,22 @@ module lid() {
                      valign = "center",
                      font   = "Liberation Sans:style=Regular");
     }
+
+    // ── Concrete-lid mounting wings ────────────────────────────────────────
+    // Four corner tabs extend beyond the lid footprint; each has an M6
+    // anchor-bolt hole and nut counterbore.  The wings sit flush with the
+    // top (branding) face and share the same Z origin as the lid plate.
+    // Anchor bolt centres (relative to lid corner at 0,0):
+    //   BL: (−wing_w/2, −wing_d/2)   BR: (ext_w + wing_w/2, −wing_d/2)
+    //   TL: (−wing_w/2, ext_d+wing_d/2)   TR: (ext_w+wing_w/2, ext_d+wing_d/2)
+    // → bolt pattern span: (ext_w + mount_wing_w) × (ext_d + mount_wing_d)
+    //                     =  107 mm × 82 mm
+    if (concrete_mount) {
+        mount_wing_tab( 0,     0,     -1, -1);   // bottom-left
+        mount_wing_tab( ext_w, 0,     +1, -1);   // bottom-right
+        mount_wing_tab( 0,     ext_d, -1, +1);   // top-left
+        mount_wing_tab( ext_w, ext_d, +1, +1);   // top-right
+    }
 }
 
 // ─────────────────────────────────────────────
@@ -407,9 +507,11 @@ module lid() {
 
 // Both parts shown slightly separated so you can inspect the assembly.
 // To print: render and export each module separately.
-//   • Base: comment out the lid() line, press F6, export STL.
-//   • Lid:  comment out the base() line, press F6, export STL.
+//   • Base:           SHOW_BASE=true, others false → F6 → Export STL
+//   • Lid:            SHOW_LID=true,  others false → F6 → Export STL
 //     (Print lid upside-down — label face to the bed.)
+//   • Drill template: SHOW_DRILL_TEMPLATE=true, others false → F6 → Export STL
+//     Print at 100% scale on paper/card; tape to concrete; centre-punch holes.
 
 if (SHOW_BASE) {
     base();
@@ -419,6 +521,13 @@ if (SHOW_LID) {
     // Lift lid above base for assembly view (40 mm separation)
     translate([0, 0, ext_h_base + 40])
         lid();
+}
+
+if (SHOW_DRILL_TEMPLATE) {
+    // Shown in the XY plane beside the base for preview purposes.
+    // Wings extend into negative X/Y so offset it clear of the base model.
+    translate([-mount_wing_w - 5, -mount_wing_d - 5, 0])
+        drill_template();
 }
 
 // ─────────────────────────────────────────────
