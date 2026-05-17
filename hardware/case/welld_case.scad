@@ -14,6 +14,7 @@
 SHOW_BASE            = true;
 SHOW_LID             = true;
 SHOW_DRILL_TEMPLATE  = false;  // set true to export the 1:1 concrete drill guide
+SHOW_GASKET          = false;  // set true to export the TPU lid-sealing gasket STL
 
 // Render colour — grey-blue, ~RAL 5014 "Pigeon Blue"
 CASE_COLOR = [0.47, 0.58, 0.68];
@@ -65,11 +66,12 @@ lid_t       = 3;     // lid plate thickness, mm
 wing_t      = 8;     // concrete-mount wing tab thickness, mm  (must be > mount_cbore_h)
 lid_lip     = 2;     // lid inner lip depth (fits inside base top opening), mm
 lid_lip_t   = 1.5;   // lip wall thickness, mm (≤ wall)
+lip_clearance = 0.3; // radial clearance between lip OD and base interior, mm
 
 // Fastener geometry
 m3_hole     = 3.4;   // M3 clearance hole diameter, mm
 m3_cbore_d  = 6.5;   // M3 counterbore diameter (hex-head / washer face), mm
-m3_cbore_h  = 3.5;   // M3 counterbore depth, mm
+m3_cbore_h  = 2.5;   // M3 counterbore depth, mm  (must be < lid_t=3 to avoid breakthrough)
 m3_insert_d = 4.5;   // M3 heat-set insert OD — wall boss inner diameter, mm
 boss_d      = 8.0;   // corner boss outer diameter, mm
 
@@ -89,7 +91,8 @@ usbc_z_pcb  = 0;     // USB-C connector sits at PCB surface level (bottom of slo
                      // is at floor_h + 0; top at floor_h + usbc_h)
 
 // Programming header cutout (left wall, optional gland)
-prog_gland  = true;  // include M16 gland hole for programming cable
+prog_gland   = true;   // include gland hole for programming cable
+prog_gland_d = 16.0;   // M12 gland hole Ø — fits FTDI/SWD cables (smaller than M16), mm
 
 // Antenna / RF zone (lid)
 rf_zone_x   = 5;     // X offset of RF-thinned zone from lid left edge, mm
@@ -259,18 +262,19 @@ module corner_boss(x, y) {
     }
 }
 
-// M16 cable gland hole — cylindrical punch through a wall.
+// Cable gland hole — cylindrical punch through a wall.
 // orient: "x" punches along X axis, "y" punches along Y axis.
 // cx, cy, cz: centre of the hole in enclosure coordinates.
-module cg_hole(cx, cy, cz, orient = "y") {
+// d: hole diameter (defaults to m16_hole for M16 glands).
+module cg_hole(cx, cy, cz, orient = "y", d = m16_hole) {
     if (orient == "y") {
         translate([cx, cy, cz])
             rotate([90, 0, 0])
-                cylinder(d = m16_hole, h = wall * 4, center = true, $fn = 48);
+                cylinder(d = d, h = wall * 4, center = true, $fn = 48);
     } else {
         translate([cx, cy, cz])
             rotate([0, 90, 0])
-                cylinder(d = m16_hole, h = wall * 4, center = true, $fn = 48);
+                cylinder(d = d, h = wall * 4, center = true, $fn = 48);
     }
 }
 
@@ -395,10 +399,11 @@ module base() {
         // (No extra subtraction needed — the boss OD fits within the wall zone.)
 
         // ── Bottom-wall (Y=0 face) cable gland holes ─────────────────────
-        // Five M16 glands evenly spaced across pcb_w, centred on terminal height
-        // Spacing: divide pcb_w into 6 equal zones, place glands at zone centres
-        cg_spacing = pcb_w / 5;   // ~16 mm between centres across the 80 mm span
-        for (i = [0:4]) {
+        // Three M16 glands evenly spaced across pcb_w, centred on terminal height.
+        // 5× M16 (20.5 mm) in 80 mm is physically impossible (holes overlap).
+        // 3× M16: spacing = 80/3 = 26.7 mm, leaving 6.2 mm wall between holes.
+        cg_spacing = pcb_w / 3;   // ~26.7 mm between centres across the 80 mm span
+        for (i = [0:2]) {
             cg_cx = wall + cg_spacing * i + cg_spacing / 2;
             cg_hole(cg_cx, 0, cg_z_bottom, "y");
         }
@@ -410,12 +415,12 @@ module base() {
         usbc_cz = pcb_z + pcb_t / 2;
         usbc_slot(usbc_cy, usbc_cz);
 
-        // ── Left-wall programming header cable gland ─────────────────────
+        // ── Left-wall programming header cable gland (M12, smaller than sensor glands)
         if (prog_gland) {
             // Place it above the USB-C slot, centred in upper half of left wall
             prog_cy = ext_d / 2;
             prog_cz = pcb_top_z + top_clear * 0.55;
-            cg_hole(0, prog_cy, prog_cz, "x");
+            cg_hole(0, prog_cy, prog_cz, "x", prog_gland_d);
         }
 
         // ── Right-wall (X=ext_w face) battery cable gland ─────────────────
@@ -501,18 +506,25 @@ module lid() {
             rounded_box(lid_w, lid_d, lid_t, r = 3);
 
             // ── Inner lip (fits inside base top opening) ─────────────────
-            // Lip inner dimensions match the base interior (pcb_w × pcb_d),
-            // outer dimensions = inner + 2*lid_lip_t.
-            lip_x = wall - lid_lip_t;
-            lip_y = wall - lid_lip_t;
-            lip_ow = pcb_w + 2 * lid_lip_t;   // outer width of lip ring
-            lip_od = pcb_d + 2 * lid_lip_t;   // outer depth of lip ring
-            translate([lip_x, lip_y, -lid_lip])
-                difference() {
-                    rounded_box(lip_ow, lip_od, lid_lip + eps, r = 2);
-                    translate([lid_lip_t, lid_lip_t, -eps])
-                        cube([pcb_w, pcb_d, lid_lip + 3 * eps]);
-                }
+            // Suppressed for concrete_mount: when the lid is flipped face-down
+            // against concrete, the lip would point upward and press against the
+            // ceiling.  Gasket sealing is used instead.
+            //
+            // Lip OD = base interior − 2×lip_clearance so it slides in without
+            // binding.  The inner hollow leaves lid_lip_t wall all round.
+            if (!concrete_mount) {
+                lip_x  = wall + lip_clearance;
+                lip_y  = wall + lip_clearance;
+                lip_ow = pcb_w - 2 * lip_clearance;   // outer width of lip ring
+                lip_od = pcb_d - 2 * lip_clearance;   // outer depth of lip ring
+                translate([lip_x, lip_y, -lid_lip])
+                    difference() {
+                        rounded_box(lip_ow, lip_od, lid_lip + eps, r = 2);
+                        translate([lid_lip_t, lid_lip_t, -eps])
+                            cube([lip_ow - 2 * lid_lip_t, lip_od - 2 * lid_lip_t,
+                                  lid_lip + 3 * eps]);
+                    }
+            }
 
             // ── Concrete-lid mounting wings (unioned here so they fuse) ──
             if (concrete_mount) {
@@ -568,6 +580,26 @@ module lid() {
 }
 
 // ─────────────────────────────────────────────
+// --- TPU gasket ---
+// ─────────────────────────────────────────────
+
+// Flat lid-sealing gasket — print in TPU 95A.
+// Outer footprint matches the base top rim (ext_w × ext_d, r=3).
+// Inner opening matches the base interior (pcb_w × pcb_d).
+// Uncompressed thickness 1.5 mm → ~1.0 mm at 33 % compression under the lid.
+// The 2.5 mm wide rim provides the seating surface.
+// For concrete_mount lids (no inner lip), the gasket is the only seal path.
+// Print settings: 3 walls, 0 % infill (solid perimeters), 0.2 mm layers, no supports.
+module gasket() {
+    gasket_t = 1.5;   // uncompressed thickness, mm
+    difference() {
+        rounded_box(ext_w, ext_d, gasket_t, r = 3);
+        translate([wall, wall, -eps])
+            cube([pcb_w, pcb_d, gasket_t + 2 * eps]);
+    }
+}
+
+// ─────────────────────────────────────────────
 // --- Preview / export layout ---
 // ─────────────────────────────────────────────
 
@@ -596,6 +628,14 @@ if (SHOW_DRILL_TEMPLATE) {
         drill_template();
 }
 
+if (SHOW_GASKET) {
+    // Shown floating above the base top rim for preview.
+    // For STL export: set SHOW_GASKET=true, others false → F6 → Export STL.
+    // Slice in TPU 95A: 3 walls, 0 % infill, 0.2 mm layers.
+    color([0.95, 0.7, 0.2]) translate([0, 0, ext_h_base + 2])
+        gasket();
+}
+
 // ─────────────────────────────────────────────
 // --- Bill of materials (hardware per unit) ---
 // ─────────────────────────────────────────────
@@ -603,13 +643,18 @@ if (SHOW_DRILL_TEMPLATE) {
 // 4× M3 heat-set inserts (press into corner boss bores with soldering iron)
 // 4× M3×6 self-tapping or machine screws (PCB standoffs — optional; brass inserts preferred)
 // 4× M3 brass threaded inserts for PCB standoffs (press-fit, 3 mm OD bore)
-// 5× M16 cable glands (bottom wall — sensor/power cables)
-// 3× M16 cable glands (left, right, back walls — battery, solar, debug)
+// 3× M16 cable glands (bottom wall — sensor/power cables, e.g. 4–20 mA, DS18B20, GND)
+// 1× M12 cable gland (left wall — programming/debug cable)
+// 1× M16 cable gland (right wall — battery pigtail, standard LiPo variant only)
+// 1× M16 cable gland (back wall — solar panel cable)
 // 1× USB-C panel slot (open cutout — add a short rubber grommet for better IP rating)
 // 1× SMA female bulkhead connector (back wall, IP67 rated; e.g. Amphenol RF 132289)
 // 1× U.FL to SMA female pigtail, ~100 mm, RG178 (e.g. Taoglas CAB.100.07.0100B)
 // 1× 2.4 GHz omnidirectional SMA antenna (rubber duck, 2 dBi, e.g. Taoglas FXP73)
-// Silicone sealant bead between lid lip and base top rim for IP54 sealing
+// 1× TPU 95A gasket (printed from SHOW_GASKET export — replaces silicone sealant bead)
+// For concrete_mount variant additionally:
+// 4× M6×50 stainless anchor bolts (e.g. Hilti HUS3-H 6×50 or Rawlplug R-HPT6)
+// 4× M6 stainless hex nuts (tightened from inside the well against wing counterbore)
 //
 // Additional hardware for USE_2S_BATTERY variant only:
 // 1× 2S1P 18650 pack (e.g. CS-ARS200SL, 7.4 V 3400 mAh, ~73×40×22 mm)
