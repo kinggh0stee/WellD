@@ -15,6 +15,9 @@ SHOW_BASE            = true;
 SHOW_LID             = true;
 SHOW_DRILL_TEMPLATE  = false;  // set true to export the 1:1 concrete drill guide
 
+// Render colour — grey-blue, ~RAL 5014 "Pigeon Blue"
+CASE_COLOR = [0.47, 0.58, 0.68];
+
 // ─────────────────────────────────────────────
 // --- Parameters ---
 // ─────────────────────────────────────────────
@@ -57,6 +60,9 @@ top_clear   = 10;    // mm  (spec says ≥6; 10 gives comfortable margin)
 
 // Lid
 lid_t       = 3;     // lid plate thickness, mm
+// Concrete mounting wings need extra Z to seat an M6 nut (5 mm) with ≥1 mm base.
+// wing_t is independent of lid_t so the lid plate stays thin.
+wing_t      = 8;     // concrete-mount wing tab thickness, mm  (must be > mount_cbore_h)
 lid_lip     = 2;     // lid inner lip depth (fits inside base top opening), mm
 lid_lip_t   = 1.5;   // lip wall thickness, mm (≤ wall)
 
@@ -94,9 +100,9 @@ rf_wall_t   = 0.5;   // thinned wall thickness over antenna, mm
 
 // Mounting tabs (left external wall)
 tab_t       = 5;     // tab thickness (Y extent), mm
-tab_w       = 12;    // tab width (Z extent), mm
+tab_w       = 8;     // tab Z extent, mm — halved so both tabs stay inside ext_h_base=17.1
 tab_hole_d  = 5;     // hole through tab for M5 screw or cable tie, mm
-tab_offset  = 8;     // distance from each outer edge to tab centre (Z), mm
+tab_offset  = 4;     // half-gap from shell midpoint to tab centre (Z), mm
 
 // External antenna (SMA female bulkhead on back wall)
 //   The back wall (Y = ext_d face) is closest to the ESP32 U.FL connector.
@@ -300,24 +306,26 @@ module mounting_tab(z_centre) {
 // Placed at (cx, cy) — a corner of the lid footprint.
 // sign_x / sign_y: +1 or -1, direction the wing extends from that corner.
 module mount_wing_tab(cx, cy, sign_x, sign_y) {
-    // Wing body origin (lower-left of its bounding box)
-    ox = (sign_x > 0) ? cx : cx - mount_wing_w;
-    oy = (sign_y > 0) ? cy : cy - mount_wing_d;
-    // Bolt hole centre inside the wing
+    // Overlap into the lid corner so the wing is solidly fused when unioned.
+    lap = 5;
+    ox = (sign_x > 0) ? cx - lap : cx - mount_wing_w;
+    oy = (sign_y > 0) ? cy - lap : cy - mount_wing_d;
+    // Bolt hole centre stays at the mid-point of the outer wing span.
     hx = cx + sign_x * (mount_wing_w / 2);
     hy = cy + sign_y * (mount_wing_d / 2);
 
     difference() {
         translate([ox, oy, 0])
-            rounded_box(mount_wing_w, mount_wing_d, lid_t, r = 3);
+            rounded_box(mount_wing_w + lap, mount_wing_d + lap, wing_t, r = 3);
 
-        // M6 anchor bolt clearance hole (through full thickness)
+        // M6 anchor bolt clearance hole (through full wing thickness)
         translate([hx, hy, -eps])
-            cylinder(d = mount_bolt_d, h = lid_t + 2 * eps, $fn = 24);
+            cylinder(d = mount_bolt_d, h = wing_t + 2 * eps, $fn = 24);
 
-        // Nut counterbore on the top face (the face that presses against
-        // concrete).  Bolt head / nut sits here; depth = mount_cbore_h.
-        translate([hx, hy, lid_t - mount_cbore_h])
+        // M6 nut counterbore on the interior face (Z = wing_t).
+        // Bolt passes up through concrete anchor → wing → nut tightened from
+        // inside the well.  Counterbore depth leaves ≥1 mm at concrete face.
+        translate([hx, hy, wing_t - mount_cbore_h])
             cylinder(d = mount_cbore_d, h = mount_cbore_h + eps, $fn = 32);
     }
 }
@@ -505,6 +513,14 @@ module lid() {
                     translate([lid_lip_t, lid_lip_t, -eps])
                         cube([pcb_w, pcb_d, lid_lip + 3 * eps]);
                 }
+
+            // ── Concrete-lid mounting wings (unioned here so they fuse) ──
+            if (concrete_mount) {
+                mount_wing_tab( 0,     0,     -1, -1);   // bottom-left
+                mount_wing_tab( ext_w, 0,     +1, -1);   // bottom-right
+                mount_wing_tab( 0,     ext_d, -1, +1);   // top-left
+                mount_wing_tab( ext_w, ext_d, +1, +1);   // top-right
+            }
         }
 
         // ── M3 countersunk clearance holes (one per corner boss) ─────────
@@ -549,21 +565,6 @@ module lid() {
                      font   = "Liberation Sans:style=Regular");
     }
 
-    // ── Concrete-lid mounting wings ────────────────────────────────────────
-    // Four corner tabs extend beyond the lid footprint; each has an M6
-    // anchor-bolt hole and nut counterbore.  The wings sit flush with the
-    // top (branding) face and share the same Z origin as the lid plate.
-    // Anchor bolt centres (relative to lid corner at 0,0):
-    //   BL: (−wing_w/2, −wing_d/2)   BR: (ext_w + wing_w/2, −wing_d/2)
-    //   TL: (−wing_w/2, ext_d+wing_d/2)   TR: (ext_w+wing_w/2, ext_d+wing_d/2)
-    // → bolt pattern span: (ext_w + mount_wing_w) × (ext_d + mount_wing_d)
-    //                     =  107 mm × 82 mm
-    if (concrete_mount) {
-        mount_wing_tab( 0,     0,     -1, -1);   // bottom-left
-        mount_wing_tab( ext_w, 0,     +1, -1);   // bottom-right
-        mount_wing_tab( 0,     ext_d, -1, +1);   // top-left
-        mount_wing_tab( ext_w, ext_d, +1, +1);   // top-right
-    }
 }
 
 // ─────────────────────────────────────────────
@@ -579,19 +580,19 @@ module lid() {
 //     Print at 100% scale on paper/card; tape to concrete; centre-punch holes.
 
 if (SHOW_BASE) {
-    base();
+    color(CASE_COLOR) base();
 }
 
 if (SHOW_LID) {
     // Lift lid above base for assembly view (40 mm separation)
-    translate([0, 0, ext_h_base + 40])
+    color(CASE_COLOR) translate([0, 0, ext_h_base + 40])
         lid();
 }
 
 if (SHOW_DRILL_TEMPLATE) {
     // Shown in the XY plane beside the base for preview purposes.
     // Wings extend into negative X/Y so offset it clear of the base model.
-    translate([-mount_wing_w - 5, -mount_wing_d - 5, 0])
+    color(CASE_COLOR) translate([-mount_wing_w - 5, -mount_wing_d - 5, 0])
         drill_template();
 }
 
