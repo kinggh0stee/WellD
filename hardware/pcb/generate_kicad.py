@@ -227,7 +227,7 @@ COMPONENTS = [
     # ----- Block C: Battery / Protection -----
     ("J1",   "LiPo",           "Connector:Conn_01x02_Pin",  220,   80),
     ("D5",   "AO3407",         "welld:AO3407",               250,   80),
-    ("U3",   "DW01A",          "welld:DW01A",                280,   70),
+    ("U3",   "S-8261AAYFT",    "welld:S8261A",               280,   70),
     ("U4",   "FS8205A",        "welld:FS8205A",              280,   95),
 
     # ----- Block D: LDO -----
@@ -282,6 +282,40 @@ COMPONENTS = [
     # ----- Block H: LED indicators -----
     ("D4",   "Status_LED",     "Device:LED",                330,  200),
     ("R14",  "1k",             "Device:R",                  330,  215),
+
+    # ----- Block I: VLOOP 12 V boost -----
+    ("U8",   "TPS61023",       "welld:TPS61023",             40,  300),
+    ("L1",   "4.7uH",          "Device:L",                  240,  300),
+    ("R23",  "1.1M",           "Device:R",                  120,  315),
+    ("R24",  "47k",            "Device:R",                  160,  315),
+    ("C19",  "10uF",           "Device:C",                  160,  330),
+    ("C20",  "22uF",           "Device:C",                  200,  330),
+    ("C22",  "10uF",           "Device:C",                   40,  345),
+
+    # ----- Block J: Precision ADC + fuel gauge -----
+    ("U9",   "ADS1115",        "welld:ADS1115",              80,  300),
+    ("U10",  "MAX17048",       "welld:MAX17048",            120,  300),
+    ("R27",  "4.7k",           "Device:R",                   40,  330),
+    ("R28",  "100R",           "Device:R",                   80,  330),
+
+    # ----- Block K: Charger interlock + divider gate -----
+    ("Q1",   "BSS123",         "Device:Q_NMOS_GSD",         160,  300),
+    ("Q2",   "BSS123",         "Device:Q_NMOS_GSD",         200,  300),
+    ("R25",  "4.7k",           "Device:R",                  200,  315),
+    ("R26",  "4.7k",           "Device:R",                  240,  315),
+    ("R29",  "4.7k",           "Device:R",                  120,  330),
+
+    # ----- Block L: Solar TVS + indicator -----
+    ("D7",   "LED DNF",        "Device:LED",                 40,  315),
+    ("D8",   "SMAJ7.0A",       "Device:D_TVS",               80,  315),
+    ("C21",  "100nF",          "Device:C",                  240,  330),
+
+    # ----- Block M: Solder jumpers -----
+    ("SJ1",  "VBOOST_EN DNF",  "Jumper:SolderJumper_2_Open",  80, 345),
+    ("SJ2",  "VLOOP_BUS",      "Jumper:SolderJumper_2_Open", 120, 345),
+    ("SJ3",  "LED_DIS",        "Jumper:SolderJumper_2_Open", 160, 345),
+    ("SJ4",  "UART_TX DNF",    "Jumper:SolderJumper_2_Open", 200, 345),
+    ("SJ5",  "UART_RX DNF",    "Jumper:SolderJumper_2_Open", 240, 345),
 ]
 
 
@@ -407,18 +441,18 @@ def make_sch_lib_symbols() -> str:
       )
     )"""
 
-    # ---- DW01A LiPo protection (SOT-23-6) -----------------------------------
-    dw01a = f"""
-    (symbol "DW01A" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
+    # ---- S-8261A LiPo protection (SOT-23-6) ---------------------------------
+    s8261a = f"""
+    (symbol "S8261A" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
       (property "Reference" "U" (at 0 7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "DW01A" (at 0 -7.62 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "S-8261AAYFT" (at 0 -7.62 0) (effects (font (size 1.27 1.27))))
       (property "Footprint" "Package_TO_SOT_SMD:SOT-23-6" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
       (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (symbol "DW01A_0_1"
+      (symbol "S8261A_0_1"
         (rectangle (start -3.81 -6.35) (end 3.81 6.35)
           (stroke (width 0) (type default)) (fill (type background)))
       )
-      (symbol "DW01A_1_1"
+      (symbol "S8261A_1_1"
 {pin("power_in", "left",   6.35,  3.81, 180, "GND", "1")}
 {pin("input",    "left",   6.35,  1.27, 180, "CS",  "2")}
 {pin("output",   "right", -6.35,  3.81,   0, "DO",  "3")}
@@ -554,7 +588,7 @@ def make_sch_lib_symbols() -> str:
         pin("power_in",  "left",  -12.7,   7.62, 180, "3V3_b",  "3"),
         pin("power_in",  "left",  -12.7,  -7.62, 180, "GND",    "1"),
         pin("power_in",  "left",  -12.7,  -10.16,180, "GND_b",  "40"),
-        pin("input",     "left",  -12.7,   5.08, 180, "EN",     "3"),
+        pin("input",     "left",  -12.7,   5.08, 180, "EN",     "5"),
         pin("passive",   "left",  -12.7,   2.54, 180, "GPIO9",  "14"),
         pin("passive",   "left",  -12.7,   0,    180, "GPIO8",  "13"),
         pin("passive",   "left",  -12.7,  -2.54, 180, "GPIO18", "26"),
@@ -573,22 +607,23 @@ def make_sch_lib_symbols() -> str:
         pin("passive", "right",  12.7, -12.7,  0, "GPIO11", "24"),
         pin("passive", "right",  12.7, -15.24, 0, "GPIO12", "25"),
         pin("passive", "right",  12.7, -17.78, 0, "GPIO13", "28"),
-        pin("passive", "right",  12.7, -20.32, 0, "GPIO15", "30"),
-        pin("passive", "right",  12.7, -22.86, 0, "GPIO16", "31"),
-        pin("passive", "right",  12.7, -25.4,  0, "GPIO17", "32"),
-        pin("passive", "right",  12.7, -27.94, 0, "GPIO20", "33"),
-        pin("passive", "right",  12.7, -30.48, 0, "GPIO21", "34"),
+        pin("passive", "right",  12.7, -20.32, 0, "GPIO14", "29"),
+        pin("passive", "right",  12.7, -22.86, 0, "GPIO15", "30"),
+        pin("passive", "right",  12.7, -25.4,  0, "GPIO16", "31"),
+        pin("passive", "right",  12.7, -27.94, 0, "GPIO17", "32"),
+        pin("passive", "right",  12.7, -30.48, 0, "GPIO20", "33"),
+        pin("passive", "right",  12.7, -33.02, 0, "GPIO21", "34"),
     ]
     esp_all_pins = "\n".join(esp_pins_left + esp_pins_right)
 
     esp32 = f"""
     (symbol "ESP32_C6_MINI_1U" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
       (property "Reference" "U" (at 0 35.56 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "ESP32-C6-MINI-1U" (at 0 -35.56 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "ESP32-C6-MINI-1U" (at 0 -38.10 0) (effects (font (size 1.27 1.27))))
       (property "Footprint" "welld:ESP32_C6_MINI_1U" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
       (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
       (symbol "ESP32_C6_MINI_1U_0_1"
-        (rectangle (start -10.16 -33.02) (end 10.16 12.7)
+        (rectangle (start -10.16 -35.56) (end 10.16 12.7)
           (stroke (width 0) (type default)) (fill (type background)))
       )
       (symbol "ESP32_C6_MINI_1U_1_1"
@@ -596,7 +631,74 @@ def make_sch_lib_symbols() -> str:
       )
     )"""
 
-    return "\n".join([cn3791, tp4056, tps, dw01a, fs8205a, usblc6, prtr, ao3407, usbcpwr, ufl, esp32])
+    # ---- TPS61023 VLOOP 12 V boost converter (SOT-23-5) ---------------------
+    tps61023 = f"""
+    (symbol "TPS61023" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
+      (property "Reference" "U" (at 0 7.62 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "TPS61023" (at 0 -7.62 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "Package_TO_SOT_SMD:SOT-23-5" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "TPS61023_0_1"
+        (rectangle (start -3.81 -6.35) (end 3.81 6.35)
+          (stroke (width 0) (type default)) (fill (type background)))
+      )
+      (symbol "TPS61023_1_1"
+{pin("power_in",  "left",   6.35,  3.81, 180, "VIN",  "5")}
+{pin("power_in",  "left",   6.35,  1.27, 180, "GND",  "2")}
+{pin("input",     "left",   6.35, -1.27, 180, "EN",   "4")}
+{pin("input",     "left",   6.35, -3.81, 180, "FB",   "3")}
+{pin("power_out", "right", -6.35,  1.27,   0, "VOUT", "1")}
+      )
+    )"""
+
+    # ---- ADS1115 16-bit I2C ADC (MSOP-10 / VSSOP-10) ------------------------
+    ads1115 = f"""
+    (symbol "ADS1115" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
+      (property "Reference" "U" (at 0 10.16 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "ADS1115" (at 0 -10.16 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "Package_SO:MSOP-10_3x3mm_P0.5mm" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "ADS1115_0_1"
+        (rectangle (start -5.08 -8.89) (end 5.08 8.89)
+          (stroke (width 0) (type default)) (fill (type background)))
+      )
+      (symbol "ADS1115_1_1"
+{pin("power_in",      "left",   7.62,  6.35, 180, "VDD",   "8")}
+{pin("power_in",      "left",   7.62,  3.81, 180, "GND",   "3")}
+{pin("input",         "left",   7.62,  1.27, 180, "SCL",   "10")}
+{pin("bidirectional", "left",   7.62, -1.27, 180, "SDA",   "9")}
+{pin("input",         "left",   7.62, -3.81, 180, "ADDR",  "1")}
+{pin("output",        "right", -7.62,  6.35,   0, "ALERT", "2")}
+{pin("input",         "right", -7.62,  3.81,   0, "AIN0",  "4")}
+{pin("input",         "right", -7.62,  1.27,   0, "AIN1",  "5")}
+{pin("input",         "right", -7.62, -1.27,   0, "AIN2",  "6")}
+{pin("input",         "right", -7.62, -3.81,   0, "AIN3",  "7")}
+      )
+    )"""
+
+    # ---- MAX17048 I2C fuel gauge (SOT-23-6) ---------------------------------
+    max17048 = f"""
+    (symbol "MAX17048" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
+      (property "Reference" "U" (at 0 7.62 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "MAX17048" (at 0 -7.62 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "Package_TO_SOT_SMD:SOT-23-6" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "MAX17048_0_1"
+        (rectangle (start -3.81 -6.35) (end 3.81 6.35)
+          (stroke (width 0) (type default)) (fill (type background)))
+      )
+      (symbol "MAX17048_1_1"
+{pin("power_in",      "left",   6.35,  3.81, 180, "VDD",  "1")}
+{pin("power_in",      "left",   6.35,  1.27, 180, "CELL", "2")}
+{pin("power_in",      "left",   6.35, -1.27, 180, "GND",  "3")}
+{pin("bidirectional", "right", -6.35,  3.81,   0, "SDA",  "4")}
+{pin("input",         "right", -6.35,  1.27,   0, "SCL",  "5")}
+{pin("output",        "right", -6.35, -1.27,   0, "ALRT", "6")}
+      )
+    )"""
+
+    return "\n".join([cn3791, tp4056, tps, s8261a, fs8205a, usblc6, prtr, ao3407,
+                       usbcpwr, ufl, esp32, tps61023, ads1115, max17048])
 
 
 def make_sch() -> str:
@@ -629,6 +731,13 @@ def make_sch() -> str:
         ("/DONE_USB",   180,  130, "passive"),
         ("/CHRG_SOLAR", 120,   45, "passive"),
         ("/DONE_SOLAR", 120,   55, "passive"),
+        ("VLOOP",        60,  295, "passive"),
+        ("VBOOST_EN",    60,  360, "input"),
+        ("CHRG_USB_DIS",180,  360, "input"),
+        ("SOLAR_DET",   220,  360, "input"),
+        ("BATT_DIV_EN", 260,  360, "input"),
+        ("ADS_DRDY",    300,  360, "input"),
+        ("MAX_ALRT",    340,  360, "input"),
     ]
 
     global_labels_str = ""
@@ -705,9 +814,8 @@ def make_sch() -> str:
   (title_block
     (title "WellD Well-Level Monitor")
     (date "2026-05-16")
-    (rev "1.0")
     (company "WellD Project")
-    (comment 1 "ESP32-C6-MINI-1U + TP4056 + CN3791 + TPS7A0533")
+    (comment 1 "ESP32-C6-MINI-1U + TP4056 + CN3791 + TPS7A0533 + TPS61023")
   )
 
 {global_labels_str}
@@ -747,7 +855,7 @@ PCB_COMPONENTS = [
     # ICs
     ("U1",   "Package_TO_SOT_SMD:SC-70-5",                               56,   34,   0, "TPS7A0533"),
     ("U2",   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",                     10,   41,   0, "TP4056"),
-    ("U3",   "Package_TO_SOT_SMD:SOT-23-6",                              68,   21,   0, "DW01A"),
+    ("U3",   "Package_TO_SOT_SMD:SOT-23-6",                              68,   21,   0, "S-8261A"),
     ("U4",   "Package_TO_SOT_SMD:SOT-23-6",                              68,   14,   0, "FS8205A"),
     ("U5",   "Package_TO_SOT_SMD:SOT-23-6",                              10,   48,   0, "USBLC6"),
     ("U6",   "welld:ESP32_C6_MINI_1U",                                   31,   26,   0, "ESP32-C6"),
@@ -765,7 +873,7 @@ PCB_COMPONENTS = [
     ("F1",   "Fuse:Fuse_1206_3216Metric",                                 6,   44,   0, "PTC_1A"),
 
     # Connectors
-    ("J1",   "Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal",  74,   40,   0, "LiPo"),
+    ("J1",   "Connector_JST:JST_XH_B2B-XH-AM_1x02_P2.50mm_Horizontal", 74,   40,   0, "LiPo"),
     ("J2",   "welld:USB_C_9x3.2mm",                                       2,   47,   0, "USB-C"),
     ("J3",   "Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical",     40,   53,   0, "U.FL"),
     ("J4",   "Connector_Phoenix_MC:PhoenixContact_MC_1,5_3-G-3,5_1x03_P3.50mm_Horizontal", 12, 2, 0, "4-20mA_1"),
@@ -827,6 +935,40 @@ PCB_COMPONENTS = [
     ("C16",  "Capacitor_SMD:C_0805_2012Metric",   6,   46,  0, "4.7uF"),
     ("C17",  "Capacitor_SMD:C_0805_2012Metric",  58,    8,  0, "10uF"),
     ("C18",  "Capacitor_SMD:C_0805_2012Metric",  60,   12,  0, "10uF"),
+
+    # VLOOP 12 V boost
+    ("U8",   "Package_TO_SOT_SMD:SOT-23-5",      73,   20,  0, "TPS61023"),
+    ("L1",   "Inductor_SMD:L_1812_4532Metric",   74,   12,  0, "4.7uH"),
+    ("R23",  "Resistor_SMD:R_0402_1005Metric",   76,   18,  0, "1.1M"),
+    ("R24",  "Resistor_SMD:R_0402_1005Metric",   76,   20,  0, "47k"),
+    ("C19",  "Capacitor_SMD:C_0805_2012Metric",  70,   16,  0, "10uF"),
+    ("C20",  "Capacitor_SMD:C_1206_3216Metric",  77,    8,  0, "22uF"),
+    ("C22",  "Capacitor_SMD:C_0805_2012Metric",  72,    8,  0, "10uF"),
+
+    # Precision ADC + fuel gauge
+    ("U9",   "Package_SO:MSOP-10_3x3mm_P0.5mm",  42,   38,  0, "ADS1115"),
+    ("U10",  "Package_TO_SOT_SMD:SOT-23-6",      68,   42,  0, "MAX17048"),
+    ("R27",  "Resistor_SMD:R_0402_1005Metric",   62,   44,  0, "4k7"),
+    ("R28",  "Resistor_SMD:R_0402_1005Metric",   50,   38,  0, "100R"),
+
+    # Charger interlock + divider gate
+    ("Q1",   "Package_TO_SOT_SMD:SOT-23",        14,   43,  0, "BSS123"),
+    ("Q2",   "Package_TO_SOT_SMD:SOT-23",        56,   36,  0, "BSS123"),
+    ("R25",  "Resistor_SMD:R_0402_1005Metric",   16,   47,  0, "4k7"),
+    ("R26",  "Resistor_SMD:R_0402_1005Metric",   57,   38,  0, "4k7"),
+    ("R29",  "Resistor_SMD:R_0402_1005Metric",   10,   38,  0, "4k7"),
+
+    # Solar TVS + indicator
+    ("D7",   "LED_SMD:LED_0603_1608Metric",      52,    8,  0, "LED_SOLAR"),
+    ("D8",   "Diode_SMD:D_SMA",                  62,   20,  0, "SMAJ7.0A"),
+    ("C21",  "Capacitor_SMD:C_0402_1005Metric",  26,    8,  0, "100nF"),
+
+    # Solder jumpers
+    ("SJ1",  "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",   70, 24, 0, "VBOOST_EN"),
+    ("SJ2",  "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",   18,  6, 0, "VLOOP_BUS"),
+    ("SJ3",  "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",   53, 49, 0, "LED_DIS"),
+    ("SJ4",  "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",    8, 16, 0, "UART_TX"),
+    ("SJ5",  "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",    8, 24, 0, "UART_RX"),
 ]
 
 # Key nets declared in the PCB netlist
@@ -855,6 +997,13 @@ NETS = [
     "/DONE_USB",
     "/CHRG_SOLAR",
     "/DONE_SOLAR",
+    "VLOOP",
+    "VBOOST_EN",
+    "CHRG_USB_DIS",
+    "SOLAR_DET",
+    "BATT_DIV_EN",
+    "ADS_DRDY",
+    "MAX_ALRT",
 ]
 
 
@@ -949,7 +1098,7 @@ def make_pcb() -> str:
 
     # Board title graphic text
     title_text = f"""
-  (gr_text "WellD v1.0  ESP32-C6 Well Monitor" (at 40 53.5 0) (layer "F.SilkS")
+  (gr_text "WellD  ESP32-C6 Well Monitor" (at 40 53.5 0) (layer "F.SilkS")
     (uuid "{uid()}")
     (effects (font (size 1.0 1.0) (thickness 0.15)))
   )"""
@@ -966,7 +1115,6 @@ def make_pcb() -> str:
   (title_block
     (title "WellD Well-Level Monitor PCB")
     (date "2026-05-16")
-    (rev "1.0")
     (company "WellD Project")
   )
 

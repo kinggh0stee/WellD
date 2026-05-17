@@ -1,16 +1,16 @@
 Ref,Qty,Description,Value/Rating,Package,MPN,Notes
 U1,1,LDO 3.3V 1A low-Iq,3.3V 1A 1µA Iq,SC70-5,TPS7A0533DCKR,Texas Instruments
 U2,1,LiPo charger single-cell,4.2V 580mA (R1=2kΩ),SOP-8,TP4056,Multiple mfrs; LCSC C16581
-U3,1,LiPo protection IC,2.9V cutoff / 4.28V over-charge,SOT-23-6,S-8261AAYFT,Seiko Instruments; replaces DW01A; pin-compatible; LCSC C5353455
+U3,1,LiPo protection IC,2.9V cutoff / 4.28V over-charge,SOT-23-6,S-8261AAYFT,Seiko Instruments; 2.9V over-discharge cutoff keeps cell above 3.0V LiPo floor; LCSC C5353455
 U4,1,LiPo protection MOSFET pair,back-to-back switch for S-8261A,SOT-23-6,FS8205A,LCSC C32254
 U5,1,USB ESD protection,±8kV ESD 0.5pF,SOT-23-6,USBLC6-2SC6,STMicroelectronics
 U6,1,ESP32-C6-MINI-1U module,ESP32-C6 with U.FL antenna,Module,ESP32-C6-MINI-1U-H4,Espressif; specify -H4 for 4MB flash
 U7,1,Solar MPPT LiPo charger,4.5-6.5V in / 4.2V out / 500mA,SOP-8,CN3791,LCSC C88093; verify availability; AEM10941 or BQ25504 as alternate MPPT
 U8,1,VLOOP 12V synchronous boost converter,VBAT→12V / 600mA / 1µA Iq,SOT-23-5,TPS61023DCKR,Texas Instruments; LCSC C2678025; EN driven by GPIO5
-U9,1,16-bit 4-channel I2C ADC,±2.048V PGA / 860SPS / addr 0x48,SOIC-8,ADS1115IDGST,Texas Instruments; LCSC C37593; replaces ESP32 ADC for depth/battery channels
+U9,1,16-bit 4-channel I2C ADC,16-bit / 860SPS / addr 0x48,MSOP-10,ADS1115IDGST,Texas Instruments; LCSC C37593; precision depth/battery measurement (DGS package = MSOP-10/VSSOP-10)
 U10,1,LiPo fuel gauge I2C,coulomb-counting SoC / addr 0x36,SOT-23-6,MAX17048G+T10,Maxim/Analog; LCSC C82201; ALRT→GPIO14
-Q1,1,N-ch MOSFET TP4056 CE interlock,100V 170mA SOT-23,SOT-23,BSS123,N-ch MOSFET, 100V 170mA, Vgs(th) max 1.5V, SOT-23, replaces 2N7002 for reliable 3.3V gate drive; gate=GPIO4; disables USB charging when solar active
-Q2,1,N-ch MOSFET battery divider enable,100V 170mA SOT-23,SOT-23,BSS123,N-ch MOSFET, 100V 170mA, Vgs(th) max 1.5V, SOT-23, replaces 2N7002 for reliable 3.3V gate drive; gate=GPIO15; enables divider only during measurement
+Q1,1,N-ch MOSFET TP4056 CE interlock,100V 170mA SOT-23,SOT-23,BSS123,N-ch MOSFET 100V 170mA Vgs(th) max 1.5V SOT-23; reliable 3.3V gate drive; gate=GPIO4; disables USB charging when solar active
+Q2,1,N-ch MOSFET battery divider enable,100V 170mA SOT-23,SOT-23,BSS123,N-ch MOSFET 100V 170mA Vgs(th) max 1.5V SOT-23; reliable 3.3V gate drive; gate=GPIO15; enables divider only during measurement
 L1,1,VBOOST shielded power inductor,4.7µH 1.0A 250mΩ,4×4mm SMD,CDRH4D22NP-4R7NC,Bourns; LCSC C376098; or equivalent 4.7µH ≥1A shielded SMD
 D1,1,Dual-channel TVS ESD protection,3.3V/5V logic lines,SOT-363,PRTR5V0U2X,NXP; one device covers both 4-20mA ADC inputs
 D2,1,Charge indicator LED (optional DNF),Green 0603,0603,—,DNF in production; omit to reduce active current
@@ -19,9 +19,9 @@ D4,1,Status LED,Green 0603,0603,—,Controlled by GPIO13; disconnect with SJ3
 D5,1,Reverse polarity MOSFET,P-ch 20V 3A,SOT-23,AO3407,Alpha & Omega; or equivalent P-ch SOT-23
 D6,1,Schottky diode solar input protection,1A 40V Schottky,SOD-123,MBRS140T3G,On Semi; prevents panel backfeed; also provides reverse polarity protection
 D7,1,Solar charge indicator LED (optional DNF),Green 0603,0603,—,DNF in production
-D8,1,Solar input TVS clamp,7.0V standoff / 11.2V clamp @ 10A,DO-214AC (SMA),SMAJ7.0A,Vishay; LCSC C78310; placed across CN3791 VIN/GND after D6; clamps below CN3791 abs-max 7.5V
+D8,1,Solar input TVS clamp,7.0V standoff / 11.2V clamp @ 10A,DO-214AC (SMA),SMAJ7.0A,Vishay; LCSC C78310; placed across CN3791 VIN/GND after D6; clamps fast inductive transients; pair with panel Voc <= 7.5V
 F1,1,Fuse polyfuse USB input,1A hold 2A trip,1206,—,Any 1206 PTC resettable fuse
-J1,1,LiPo battery connector,JST-XH 2-pin 2.5mm pitch,SMD,B2B-XH-AM,JST; replaces JST PH; higher retention force for field use; LCSC C3501258
+J1,1,LiPo battery connector,JST-XH 2-pin 2.5mm pitch,SMD,B2B-XH-AM,JST; high retention force for field use; LCSC C3501258
 J2,1,USB-C 2.0 connector (power only),USB-C 2.0 16-pin,SMD,USB4135-GF-A,GCT; verify current catalog
 J3,1,U.FL antenna receptacle,50Ω,SMD,U.FL-R-SMT-1(10),Hirose
 A1,1,SMA female bulkhead (case-mounted),IP67 panel-mount SMA,Panel,132289,Amphenol RF; or equiv. IP67 SMA bulkhead; 6.35mm thread
@@ -70,6 +70,7 @@ R25,1,Q1 gate pull-down,4.7kΩ,0402,—,Holds TP4056 CE HIGH (enabled) when GPIO
 R26,1,Q2 gate pull-down,4.7kΩ,0402,—,Holds battery divider off when GPIO15 is floating/reset
 R27,1,MAX17048 ALRT pull-up,4.7kΩ,0402,—,GPIO14→3V3 pull-up for MAX17048 ALRT open-drain output; replaces ~50 kΩ internal pull-up near boost node
 R28,1,DS18B20 VCC series protection,100Ω,0402,—,In VCC line to J6 pin 1; prevents 3V3 rail short on probe misconnection
+R29,1,TP4056 CE pull-up,4.7kΩ,0402,—,Pulls TP4056 CE HIGH (USB charging enabled); Q1 drain pulls CE LOW to inhibit charging
 C1,1,TP4056 input bypass,10µF 10V,0805,—,
 C2,1,TP4056 output bypass,10µF 10V,0805,—,
 C3,1,4-20mA ADC ch1 filter cap,100nF,0402,—,Forms RC filter with R3

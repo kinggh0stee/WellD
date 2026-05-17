@@ -32,7 +32,6 @@ HERE   = os.path.dirname(os.path.abspath(__file__))
 OUTDIR = os.path.join(HERE, "gerbers")
 
 DATE = "2026-05-16"
-REV  = "1.0"
 
 # ---------------------------------------------------------------------------
 # Gerber coordinate helpers  (format %FSLAX46Y46*%  →  1 mm = 1 000 000 units)
@@ -158,7 +157,7 @@ FOOTPRINTS: dict[str, List[Pad]] = {
         _smd(+0.95,  0.00, 0.90, 0.90),   # pin 3
     ],
 
-    # ── SOT-23-6 (U3 DW01A, U4 FS8205A, U5 USBLC6) ──────────────────────────
+    # ── SOT-23-6 (U3 S-8261A, U4 FS8205A, U5 USBLC6, U10 MAX17048) ──────────
     "Package_TO_SOT_SMD:SOT-23-6": [
         _smd(-1.15, +0.95, 1.00, 0.65),   # pin 1  left-bottom
         _smd(-1.15,  0.00, 1.00, 0.65),   # pin 2  left-centre
@@ -198,6 +197,21 @@ FOOTPRINTS: dict[str, List[Pad]] = {
         _smd(+2.70, -0.635, 1.55, 0.60),  # pin 6
         _smd(+2.70, +0.635, 1.55, 0.60),  # pin 7
         _smd(+2.70, +1.905, 1.55, 0.60),  # pin 8
+    ],
+
+    # ── MSOP-10 / VSSOP-10 (U9 ADS1115) ─────────────────────────────────────
+    # 3×3mm body, 0.5mm pitch, 5 pads per side, row-to-row 4.4mm
+    "Package_SO:MSOP-10_3x3mm_P0.5mm": [
+        _smd(-2.20, +1.00, 1.45, 0.30),   # pin 1
+        _smd(-2.20, +0.50, 1.45, 0.30),   # pin 2
+        _smd(-2.20,  0.00, 1.45, 0.30),   # pin 3
+        _smd(-2.20, -0.50, 1.45, 0.30),   # pin 4
+        _smd(-2.20, -1.00, 1.45, 0.30),   # pin 5
+        _smd(+2.20, -1.00, 1.45, 0.30),   # pin 6
+        _smd(+2.20, -0.50, 1.45, 0.30),   # pin 7
+        _smd(+2.20,  0.00, 1.45, 0.30),   # pin 8
+        _smd(+2.20, +0.50, 1.45, 0.30),   # pin 9
+        _smd(+2.20, +1.00, 1.45, 0.30),   # pin 10
     ],
 
     # ── JST XH B2B-XH-AM (J1 LiPo, 2.5mm pitch SMD horizontal) ─────────────
@@ -368,7 +382,7 @@ COMPONENTS: list[tuple] = [
     ("U6",  "welld:ESP32_C6_MINI_1U",                     31,   26,   0, "ESP32-C6"),
     ("U7",  "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",       60,   10,   0, "CN3791"),
     ("U8",  "Package_TO_SOT_SMD:SOT-23-5",                73,   20,   0, "TPS61023"),
-    ("U9",  "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",       42,   38,   0, "ADS1115"),
+    ("U9",  "Package_SO:MSOP-10_3x3mm_P0.5mm",           42,   38,   0, "ADS1115"),
     ("U10", "Package_TO_SOT_SMD:SOT-23-6",                68,   42,   0, "MAX17048"),
     # Diodes
     ("D1",  "Package_TO_SOT_SMD:SOT-363_SC-70-6",         15,   14,   0, "PRTR5V0U2X"),
@@ -427,8 +441,9 @@ COMPONENTS: list[tuple] = [
     ("R24", "Resistor_SMD:R_0402_1005Metric",  76,  20, 0, "47k"),
     ("R25", "Resistor_SMD:R_0402_1005Metric",  14,  47, 0, "4.7kΩ"),
     ("R26", "Resistor_SMD:R_0402_1005Metric",  57,  38, 0, "4.7kΩ"),
-    ("R27", "Resistor_SMD:R_0402_1005Metric",  88,  18, 0, "4.7kΩ"),
+    ("R27", "Resistor_SMD:R_0402_1005Metric",  62,  44, 0, "4.7kΩ"),
     ("R28", "Resistor_SMD:R_0402_1005Metric",  50,  38, 0, "100Ω"),
+    ("R29", "Resistor_SMD:R_0402_1005Metric",  10,  38, 0, "4.7kΩ"),
     # Capacitors
     ("C1",   "Capacitor_SMD:C_0805_2012Metric",  8,  41, 0, "10uF"),
     ("C2",   "Capacitor_SMD:C_0805_2012Metric", 12,  41, 0, "10uF"),
@@ -454,7 +469,14 @@ COMPONENTS: list[tuple] = [
     ("C19",  "Capacitor_SMD:C_0805_2012Metric", 76,  14, 0, "10uF"),
     ("C20",  "Capacitor_SMD:C_1206_3216Metric", 77,   8, 0, "22uF"),
     ("C21",  "Capacitor_SMD:C_0402_1005Metric", 26,   8, 0, "100nF"),
-    ("C22",  "Capacitor_SMD:C_0805_2012Metric", 79,   8, 0, "10uF"),
+    ("C22",  "Capacitor_SMD:C_0805_2012Metric", 72,   8, 0, "10uF"),
+    # Solar charge indicator (DNF) and solder jumpers
+    ("D7",  "LED_SMD:LED_0603_1608Metric",      52,   8, 0, "LED_SOLAR"),
+    ("SJ1", "welld:SolderJumper_2_SJ1",         70,  24, 0, "VBOOST_EN"),
+    ("SJ2", "welld:SolderJumper_2_SJ2",         18,   6, 0, "VLOOP_BUS"),
+    ("SJ3", "welld:SolderJumper_2_SJ3",         53,  49, 0, "LED_DIS"),
+    ("SJ4", "welld:SolderJumper_2_SJ4",          8,  16, 0, "UART_TX"),
+    ("SJ5", "welld:SolderJumper_2_SJ5",          8,  24, 0, "UART_RX"),
     # Mounting holes  (NPTH — no copper pads)
     ("MH1", "MountingHole:MountingHole_3.2mm_M3",  3.5,  3.5, 0, "M3"),
     ("MH2", "MountingHole:MountingHole_3.2mm_M3", 76.5,  3.5, 0, "M3"),
@@ -529,10 +551,10 @@ class GerberLayer:
 
     def _header(self) -> str:
         return (
-            f"G04 Gerber X2 — WellD v{REV} — {self.filename}*\n"
-            f"%TF.GenerationSoftware,WellD,generate_gerbers.py,1.0*%\n"
+            f"G04 Gerber X2 — WellD — {self.filename}*\n"
+            f"%TF.GenerationSoftware,WellD,generate_gerbers.py*%\n"
             f"%TF.CreationDate,{DATE}T00:00:00+00:00*%\n"
-            f"%TF.ProjectId,welld,00000000-0000-0000-0000-000000000000,rev{REV}*%\n"
+            f"%TF.ProjectId,welld,00000000-0000-0000-0000-000000000000,*%\n"
             f"%TF.SameCoordinates,Original*%\n"
             f"%TF.FileFunction,{self.layer_fn}*%\n"
             f"%TF.FilePolarity,{self.polarity}*%\n"
@@ -577,7 +599,7 @@ class DrillFile:
         path = os.path.join(directory, self.filename)
         pth_str = "PTH" if self.plated else "NPTH"
         with open(path, "w", encoding="utf-8") as fh:
-            fh.write(f"; Excellon drill file — WellD v{REV} — {pth_str}\n")
+            fh.write(f"; Excellon drill file — WellD — {pth_str}\n")
             fh.write(f"; Generated {DATE}\n")
             fh.write("M48\n")
             fh.write("METRIC,LZ\n")
@@ -618,11 +640,11 @@ def write_job_file(directory: str, layer_files: list[str]) -> str:
 
     job = {
         "Header": {
-            "GenerationSoftware": {"Vendor": "WellD", "Application": "generate_gerbers.py", "Version": "1.0"},
+            "GenerationSoftware": {"Vendor": "WellD", "Application": "generate_gerbers.py"},
             "CreationDate": f"{DATE}T00:00:00+00:00",
         },
         "GeneralSpecs": {
-            "ProjectId": {"Name": "welld", "Revision": REV},
+            "ProjectId": {"Name": "welld"},
             "Size": {"X": 80.0, "Y": 55.0},
             "LayerNumber": 2,
             "BoardThickness": 1.6,

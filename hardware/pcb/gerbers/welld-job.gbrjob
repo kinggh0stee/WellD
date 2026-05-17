@@ -2,15 +2,13 @@
   "Header": {
     "GenerationSoftware": {
       "Vendor": "WellD",
-      "Application": "generate_gerbers.py",
-      "Version": "1.0"
+      "Application": "generate_gerbers.py"
     },
     "CreationDate": "2026-05-16T00:00:00+00:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
-      "Name": "welld",
-      "Revision": "1.0"
+      "Name": "welld"
     },
     "Size": {
       "X": 80.0,
