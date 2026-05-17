@@ -60,6 +60,9 @@ top_clear   = 10;    // mm  (spec says ≥6; 10 gives comfortable margin)
 
 // Lid
 lid_t       = 3;     // lid plate thickness, mm
+// Concrete mounting wings need extra Z to seat an M6 nut (5 mm) with ≥1 mm base.
+// wing_t is independent of lid_t so the lid plate stays thin.
+wing_t      = 8;     // concrete-mount wing tab thickness, mm  (must be > mount_cbore_h)
 lid_lip     = 2;     // lid inner lip depth (fits inside base top opening), mm
 lid_lip_t   = 1.5;   // lip wall thickness, mm (≤ wall)
 
@@ -97,9 +100,9 @@ rf_wall_t   = 0.5;   // thinned wall thickness over antenna, mm
 
 // Mounting tabs (left external wall)
 tab_t       = 5;     // tab thickness (Y extent), mm
-tab_w       = 12;    // tab width (Z extent), mm
+tab_w       = 8;     // tab Z extent, mm — halved so both tabs stay inside ext_h_base=17.1
 tab_hole_d  = 5;     // hole through tab for M5 screw or cable tie, mm
-tab_offset  = 8;     // distance from each outer edge to tab centre (Z), mm
+tab_offset  = 4;     // half-gap from shell midpoint to tab centre (Z), mm
 
 // External antenna (SMA female bulkhead on back wall)
 //   The back wall (Y = ext_d face) is closest to the ESP32 U.FL connector.
@@ -313,15 +316,16 @@ module mount_wing_tab(cx, cy, sign_x, sign_y) {
 
     difference() {
         translate([ox, oy, 0])
-            rounded_box(mount_wing_w + lap, mount_wing_d + lap, lid_t, r = 3);
+            rounded_box(mount_wing_w + lap, mount_wing_d + lap, wing_t, r = 3);
 
-        // M6 anchor bolt clearance hole (through full thickness)
+        // M6 anchor bolt clearance hole (through full wing thickness)
         translate([hx, hy, -eps])
-            cylinder(d = mount_bolt_d, h = lid_t + 2 * eps, $fn = 24);
+            cylinder(d = mount_bolt_d, h = wing_t + 2 * eps, $fn = 24);
 
-        // Nut counterbore on the top face (the face that presses against
-        // concrete).  Bolt head / nut sits here; depth = mount_cbore_h.
-        translate([hx, hy, lid_t - mount_cbore_h])
+        // M6 nut counterbore on the interior face (Z = wing_t).
+        // Bolt passes up through concrete anchor → wing → nut tightened from
+        // inside the well.  Counterbore depth leaves ≥1 mm at concrete face.
+        translate([hx, hy, wing_t - mount_cbore_h])
             cylinder(d = mount_cbore_d, h = mount_cbore_h + eps, $fn = 32);
     }
 }
