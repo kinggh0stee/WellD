@@ -12,7 +12,7 @@ Battery-powered well-level monitor for the ESP32-C6. Each wakeup it reads a 4–
 
 ---
 
-## Hardware — Rev 2 PCB
+## Hardware — Custom PCB
 
 The current design is a purpose-built **80 × 55 mm** custom PCB. Design files, BOM, and assembly guide live in [`hardware/`](hardware/).
 
@@ -81,7 +81,7 @@ Two variants in [`hardware/case/welld_case.scad`](hardware/case/welld_case.scad)
 ### Prerequisites
 
 - ESP-IDF **v5.3.5** installed and sourced — see the [Espressif getting-started guide](https://docs.espressif.com/projects/esp-idf/en/v5.3.5/esp32c6/get-started/)
-- Rev 2 PCB (or dev board — see legacy section below)
+- Custom PCB (or dev board — see legacy section below)
 
 ### Build and flash
 
@@ -143,7 +143,7 @@ All options have sensible defaults. Only change what differs from your hardware.
 | `CONFIG_WELLD_ZIGBEE_CHANNEL_MASK` | `0x07FFF800` | Channels to scan; narrow to your coordinator's channel to speed up joins |
 | `CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS` | `2000` | Time the stack stays alive after sending, to allow coordinator ACK |
 
-### Rev 2 hardware I/O
+### Hardware I/O
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -391,4 +391,4 @@ CI builds these to catch compile breaks but cannot execute them (real hardware n
 
 ## Legacy: dev board wiring
 
-If building from an off-the-shelf ESP32-C6 dev board instead of the Rev 2 PCB, wire the pressure transducer shunt directly to an ADC1 pin and power the loop externally. The ADS1115, MAX17048, and TPS61023 boost are not available on a bare dev board — configure `CONFIG_WELLD_SENSOR_ADC_CHANNEL` to the ESP ADC channel used and set `CONFIG_WELLD_BATT_ADC_CHANNEL=-1` to disable battery monitoring. The Rev 2 GPIO options (`VLOOP`, `CHARGER_CE`, etc.) are still compiled in but the interlock GPIOs can be left disconnected if the solar/USB chargers are absent.
+If building from an off-the-shelf ESP32-C6 dev board instead of the custom PCB, wire the pressure transducer shunt directly to an ADC1 pin and power the loop externally. The ADS1115, MAX17048, and TPS61023 boost are not available on a bare dev board — configure `CONFIG_WELLD_SENSOR_ADC_CHANNEL` to the ESP ADC channel used and set `CONFIG_WELLD_BATT_ADC_CHANNEL=-1` to disable battery monitoring. The power-control GPIO options (`VLOOP`, `CHARGER_CE`, etc.) are still compiled in but the interlock GPIOs can be left disconnected if the solar/USB chargers are absent.

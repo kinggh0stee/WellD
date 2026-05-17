@@ -1,7 +1,6 @@
 # WellD Assembly Guide
 
-**Revision:** 2.0  
-**PCB:** WellD v1 — ESP32-C6 Well-Level Monitor  
+**PCB:** WellD — ESP32-C6 Well-Level Monitor  
 **Enclosure:** `hardware/case/welld_case.scad` (3D-printed, FDM)
 
 ---
@@ -560,4 +559,4 @@ and groundwater wicking along the bolt shank.
 
 ---
 
-*gh0stee.com — WellD v2*
+*gh0stee.com — WellD*
