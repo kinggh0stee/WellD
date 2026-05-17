@@ -22,12 +22,12 @@ A purpose-built 80 × 55 mm 2-layer board targeting the Hammond 1551K IP65 enclo
 - Pluggable screw terminals (Phoenix Contact MC 1.5/3-ST-3.5, 3.5 mm pitch) for all sensor wires — no soldered leads in the field
 - Dual LiPo charging: TP4056 (USB-C, 580 mA) + CN3791 MPPT (solar panel, 500 mA)
 - Solar panel input (2-pin screw terminal, J12): 5 W / 5–6.5 V panel for trickle charging
-- Cell protection (DW01A + FS8205A) and reverse-polarity MOSFET (AO3407)
+- Cell protection (S-8261AAYFT + FS8205A) and reverse-polarity MOSFET (AO3407)
 - TPS7A0533 1 µA-Iq LDO to maximise deep-sleep battery life
 - PRTR5V0U2X dual-channel TVS on both 4–20 mA ADC inputs
 - Second 4–20 mA channel (GPIO2/CH2) pre-wired and ready for a second transducer
 - I²C header and 6-pin GPIO expansion header for future sensors
-- All seven ADC1 channels (GPIO0–GPIO6) reserved for analog; DS18B20 on GPIO7
+- ADC1 channels GPIO0–GPIO3 available for analog backup (GPIO4–GPIO6 are power-control pins); DS18B20 on GPIO7
 
 **3D-printed enclosure (`hardware/case/`):**
 - OpenSCAD parametric design — print in ASA or PETG for UV/moisture resistance

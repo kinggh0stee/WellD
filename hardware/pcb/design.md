@@ -46,14 +46,19 @@ disables CN3791 solar charging. GPIO10/11 are the shared I²C bus for ADS1115 an
 | 15 | — | BATT_DIV_EN | Gate of Q2 (N-MOSFET); enables battery voltage divider only during measurement |
 | 16 | — | UART0 TX | J10 programming header |
 | 17 | — | UART0 RX | J10 programming header |
-| 18 | — | USB D− | J2 USB-C (power only) |
-| 19 | — | USB D+ | J2 USB-C (power only) |
+| 18 | — | Spare | Unused — USB-C is power-only, no USB data path |
+| 19 | — | Spare | Unused — USB-C is power-only, no USB data path |
 | 20 | — | Spare digital | J9 expansion header |
 | 21 | — | Spare digital | J9 expansion header |
 
+> **USB note:** GPIO12/GPIO13 are the ESP32-C6 on-chip USB-Serial-JTAG D−/D+
+> lines. This board repurposes them (GPIO12 → ADS1115 DRDY, GPIO13 → status LED)
+> and the USB-C connector carries power only, so the native USB-Serial-JTAG
+> interface is not available. All flashing and debug is over the J10 UART header.
+
 ---
 
-> **Firmware changes required for rev-2 hardware:**
+> **Firmware requirements:**
 > 1. GPIO5 HIGH before any 4–20 mA reading; LOW after. Allow 5 ms for TPS61023 soft-start.
 > 2. GPIO15 HIGH for 1 ms before battery ADC read via U9 AIN2; LOW after.
 > 3. GPIO4 HIGH when /CHRG_SOLAR (GPIO6 read with pull-up) indicates solar charging active.
@@ -97,6 +102,11 @@ Default values: R20 = 36 kΩ, R21 = 10 kΩ → Vmppt = 1.205 × 46/10 = **5.5 V*
 
 For a regulated 5 V USB panel output, change R20 to 30 kΩ → Vmppt ≈ 4.8 V.
 
+The divider senses the CN3791 VIN pin, which sits one Schottky drop below the
+panel terminal (D6 is in series ahead of VIN). The panel therefore operates at
+roughly Vmppt + Vf(D6) ≈ Vmppt + 0.4 V. Account for this when matching the divider
+to a panel's true Vmp — drop R20 slightly if the panel should sit exactly at Vmp.
+
 ### Charge current (R19)
 
 CN3791 PROG pin: R19 = 2 kΩ → 500 mA charge current. This draws ≈ 600 mA from
@@ -126,8 +136,11 @@ output) to disable solar charging when USB is detected on VUSB.
 
 ### Power — Input & Reverse Polarity (D5)
 
-A P-channel MOSFET (e.g., AO3407, SOT-23) with gate pulled to VBAT and source at
-VBAT provides reverse-polarity protection with <150 mV drop at full load.
+A P-channel MOSFET (e.g., AO3407, SOT-23) provides reverse-polarity protection with
+< 150 mV drop at full load. The source connects to the incoming battery positive
+terminal, the drain to the VBAT rail, and the gate to GND. With the battery
+connected correctly the gate sits well below the source, turning the P-FET fully
+on; a reversed battery cannot turn it on, so no current flows.
 Alternative: series Schottky (MBR0530, SOD-323) for simplicity at the cost of ~0.3 V
 drop and 300 mW dissipation at 1 A — acceptable for a battery-powered device.
 
@@ -164,19 +177,16 @@ pull LOW from firmware to disable solar charging when USB is detected.
 
 ### Power — LiPo Protection (U3: S-8261AAYFT + U4: FS8205A)
 
-U3 has been changed from DW01A (over-discharge cutoff 2.4 V) to **S-8261AAYFT**
-(Seiko Instruments, SOT-23-6, pin-compatible). The DW01A 2.4 V cutoff is below the
-LiPo safe floor of 3.0 V; repeated discharge to 2.4 V degrades cell capacity by
-≈ 30 % per 100 cycles. The S-8261A trips at 2.9 V over-discharge (with 0.1 V
-hysteresis, i.e. recovery at 3.0 V) and 4.28 V over-charge, which is identical to
-the DW01A over-charge threshold. The SOT-23-6 pinout is identical (OD, OC, CS,
-NC/TM, GND, VCC) so no PCB change is required — only a BOM substitution.
+U3 is the **S-8261AAYFT** (Seiko Instruments, SOT-23-6). It trips at 2.9 V
+over-discharge (with 0.1 V hysteresis, i.e. recovery at 3.0 V) and 4.28 V
+over-charge. The 2.9 V cutoff keeps the cell above the LiPo safe floor of 3.0 V;
+a lower cutoff would degrade cell capacity by ≈ 30 % per 100 cycles. SOT-23-6
+pinout: OD, OC, CS, NC/TM, GND, VCC.
 
 U4 (FS8205A, SOT-23-6) provides the dual back-to-back MOSFET switch driven by U3
-for over-discharge, over-charge, and over-current protection. **J1 changed from JST
-PH (2.0 mm) to JST XH (2.5 mm, B2B-XH-AM). JST XH has higher retention force and
-is more robust for field battery connector use.** Place U3 and U4 as close to J1 as
-possible.
+for over-discharge, over-charge, and over-current protection. J1 is a JST XH
+connector (2.5 mm pitch, B2B-XH-AM) — JST XH has high retention force and is robust
+for field battery connector use. Place U3 and U4 as close to J1 as possible.
 
 ### Power — VLOOP 12 V Boost (U8: TPS61023)
 
@@ -186,7 +196,11 @@ boost) converts VBAT (3.0–4.2 V) to 12 V when the EN pin is driven HIGH by GPI
 The output voltage is set by a resistor divider from VOUT to the FB pin (0.5 V
 reference):
 
-    VOUT = 0.5 × (1 + R23/R24) = 0.5 × (1 + 1100/47) ≈ 12.2 V
+    VOUT = 0.5 × (1 + R23/R24) = 0.5 × (1 + 1.1 MΩ / 47 kΩ) ≈ 12.2 V
+
+The high divider impedance keeps the FB leg current to ≈ 10 µA while the boost is
+enabled. The TPS61023 FB bias current is small but non-zero — if VOUT accuracy is
+critical, verify the divider against the device datasheet for the production lot.
 
 L1 (4.7 µH, 1.0 A, CDRH4D22NP-4R7NC or equivalent 4×4 mm shielded) is placed
 within 3 mm of U8 SW pin. C19 (10 µF, input) and C20 (22 µF 16 V, output — rated
@@ -206,7 +220,7 @@ TP4056 and CN3791 both target the same 4.20 V CV threshold. When both chargers a
 simultaneously active and approaching termination, their CC→CV transition currents
 can interact and prevent either from reaching proper termination. Q1 (BSS123,
 SOT-23, N-ch, Vgs(th) max 1.5 V) has its drain tied to the TP4056 CE pin
-(active-HIGH enable) through a 4.7 kΩ pull-up to 3.3 V, and its source to GND.
+(active-HIGH enable) through R29 (4.7 kΩ pull-up to 3.3 V), and its source to GND.
 When GPIO4 is driven HIGH, Q1 pulls CE LOW, disabling USB charging. Firmware reads
 the /CHRG_SOLAR signal (from CN3791 open-drain CHRG pin, connected to GPIO6 internal
 pull-up) to determine whether solar charging is active, and then asserts GPIO4 HIGH
@@ -222,16 +236,24 @@ Firmware pulses GPIO15 HIGH for 1 ms before taking the ADC sample (allowing the
 RC filter C8 to settle), then returns GPIO15 LOW. R26 (4.7 kΩ) to GND keeps Q2
 gate defined when the GPIO is floating during reset.
 
+GPIO15 is an ESP32-C6 strapping pin (it selects the JTAG signal source at boot).
+R26 holds it LOW at reset, which is a defined and harmless strap state — the board
+uses UART programming via J10, so the JTAG strap is irrelevant. Driving GPIO15 as
+an output after boot does not affect the strap, which is sampled only at reset.
+
 ### Power — Solar Input TVS Protection (D8)
 
 Solar panel cables can carry inductive voltage spikes when partially shaded panels
 switch bypass diodes, or when long cable inductance is energised/de-energised by
 panel disconnection. D8 (SMAJ7.0A, DO-214AC/SMA, unidirectional TVS, 7.0 V
 standoff, 11.2 V clamp @ 10 A) is placed across the CN3791 VIN pin and GND after
-D6 (the Schottky input diode). This clamps transients below the CN3791 absolute
-maximum of 7.5 V. Standoff voltage 7.0 V is above the 6.5 V maximum MPPT operating
-point, preventing normal MPPT operation from triggering the TVS. Place D8 within
-5 mm of C17.
+D6 (the Schottky input diode). D8 absorbs the high-energy inductive surge and
+clamps it to ≈ 11 V for the duration of the transient — far below the
+multi-hundred-volt spikes long panel cables can otherwise deliver, though above
+the CN3791 7.5 V recommended maximum. D8 therefore protects against fast transient
+energy only; sustained-overvoltage protection relies on selecting a panel whose
+Voc stays ≤ 7.5 V. Standoff voltage 7.0 V is above the 6.5 V maximum MPPT operating
+point, so normal MPPT operation never triggers the TVS. Place D8 within 5 mm of C17.
 
 C21 (100 nF, 0402) is placed directly across D8 (TVS clamp) to absorb the L×dI/dt
 inductive transient from panel cable inductance before D8 clamps it. The RC formed
@@ -254,18 +276,21 @@ controlled power-down is needed in future.
 The ESP32-C6 ADC has ±5 % non-linearity even after efuse two-point calibration.
 Across the 4–20 mA measurement span (0.4–2.0 V on the shunt), this translates to
 ≈ ±80 mV ≈ ±10 % span error — equivalent to ±600 mm depth error on a 10 m
-transducer range. U9 (ADS1115IDGST, SOIC-8, 16-bit, I²C addr 0x48 via ADDR→GND)
+transducer range. U9 (ADS1115IDGST, MSOP-10, 16-bit, I²C addr 0x48 via ADDR→GND)
 replaces the onboard ADC for all precision measurements:
 
-- AIN0 (differential with AIN1 GND): 4–20 mA CH1 shunt voltage (from node between R3 and GPIO0)
-- AIN1 (single-ended): 4–20 mA CH2 shunt voltage (from node between R5 and GPIO2)
-- AIN2 (single-ended): battery voltage divider output (midpoint of R7/R8, same node as GPIO1)
+- AIN0 (single-ended, referenced to GND): 4–20 mA CH1 shunt voltage (from node between R3 and GPIO0)
+- AIN1 (single-ended, referenced to GND): 4–20 mA CH2 shunt voltage (from node between R5 and GPIO2)
+- AIN2 (single-ended, referenced to GND): battery voltage divider output (midpoint of R7/R8, same node as GPIO1)
 - AIN3: spare
 
-PGA set to ±2.048 V (LSB = 62.5 µV, non-linearity ±0.01 % FS). SPS = 128 for fast
-single-shot reads compatible with deep-sleep wakeup cycles. ALERT/DRDY tied to
-GPIO12 as an interrupt; firmware waits for DRDY rather than polling. GPIO backup
-readings on GPIO0/1/2 remain available for diagnostics.
+PGA set to ±4.096 V (LSB = 125 µV, non-linearity ±0.01 % FS). The 100 Ω shunt
+develops 0.4–2.0 V across the 4–20 mA span; the ±4.096 V range leaves headroom for
+the 21–24 mA fault-signalling currents some transmitters emit, which would clip a
+±2.048 V range. SPS = 128 for fast single-shot reads compatible with deep-sleep
+wakeup cycles. ALERT/DRDY tied to GPIO12 as an interrupt; firmware waits for DRDY
+rather than polling. GPIO backup readings on GPIO0/1/2 remain available for
+diagnostics.
 
 ### Battery State-of-Charge — MAX17048 Fuel Gauge (U10)
 
@@ -523,11 +548,11 @@ draw during active phase.
   or route manually after running DRC on the net list.
 - **Case:** `hardware/case/welld_case.scad` — parametric 3D-printed enclosure with
   M16 cable gland cutouts and SMA bulkhead hole on back wall for external antenna.
-- **Rev-2 BOM additions:** U8 TPS61023DCKR (SOT-23-5), L1 4.7 µH shielded inductor
-  (CDRH4D22NP-4R7NC), C19 10 µF 0402, C20 22 µF 16 V 0805, R23 1100 Ω 0402,
-  R24 47 Ω 0402, Q1 BSS123 SOT-23, Q2 BSS123 SOT-23, R25 4.7 kΩ 0402,
-  R26 4.7 kΩ 0402, R27 4.7 kΩ 0402 (GPIO14 ALRT pull-up), R28 100 Ω 0402
-  (DS18B20 VCC series), C21 100 nF 0402 (TVS bypass), C22 10 µF 0805 (VBOOST
-  parallel), U9 ADS1115IDGST SOIC-8, U10 MAX17048G+T10 SOT-23-6, D8 SMAJ7.0A
-  DO-214AC, U3 changed from DW01A to S-8261AAYFT (SOT-23-6, drop-in), J1 changed
-  from JST PH 2.0 mm to JST XH 2.5 mm (B2B-XH-AM).
+- **Power & measurement BOM summary:** U8 TPS61023DCKR (SOT-23-5), L1 4.7 µH
+  shielded inductor (CDRH4D22NP-4R7NC), C19 10 µF 0805, C20 22 µF 16 V 1206,
+  R23 1.1 MΩ 0402, R24 47 kΩ 0402, Q1 BSS123 SOT-23, Q2 BSS123 SOT-23,
+  R25 4.7 kΩ 0402, R26 4.7 kΩ 0402, R27 4.7 kΩ 0402 (MAX17048 ALRT pull-up),
+  R28 100 Ω 0402 (DS18B20 VCC series), R29 4.7 kΩ 0402 (TP4056 CE pull-up),
+  C21 100 nF 0402 (TVS bypass), C22 10 µF 0805 (VBOOST parallel),
+  U9 ADS1115IDGST MSOP-10, U10 MAX17048G+T10 SOT-23-6, D8 SMAJ7.0A DO-214AC,
+  U3 S-8261AAYFT (SOT-23-6), J1 JST XH 2.5 mm (B2B-XH-AM).

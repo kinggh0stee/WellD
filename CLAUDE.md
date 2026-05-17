@@ -65,9 +65,9 @@ One `app_main()` = one report. The order matters and is load-bearing:
 ### Components
 
 - `main/` — orchestration only; owns the NVS fail counter and the RTC-memory level history (`s_history`: `last_level_m`, accumulated `elapsed_since_last_valid_sec`, `pending_sleep_sec`). `RTC_DATA_ATTR` keeps it across deep sleep; cold boot zeroes it (and `valid = false` is the cold-boot signal).
-- `components/sensor/` — ADC + DS18B20 + battery divider. Owns NVS keys `"offset_cm"` and `"ds18b20_rom"`. `sensor_level_from_mv()` is the pure conversion function exposed in `sensor.h` so tests can hit it without NVS or hardware. DS18B20 default GPIO is 7 (PCB design). Rev 2 GPIO assignments:
+- `components/sensor/` — ADC + DS18B20 + battery divider. Owns NVS keys `"offset_cm"` and `"ds18b20_rom"`. `sensor_level_from_mv()` is the pure conversion function exposed in `sensor.h` so tests can hit it without NVS or hardware. DS18B20 default GPIO is 7 (PCB design). PCB GPIO assignments:
 
-  | GPIO | Rev 2 function |
+  | GPIO | PCB function |
   |------|---------------|
   | 4 | TP4056 charger CE interlock (Q1 gate) — HIGH disables USB charging |
   | 5 | TPS61023 VLOOP boost enable — HIGH → 12 V VLOOP active |

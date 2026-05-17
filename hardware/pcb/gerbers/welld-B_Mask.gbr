@@ -1,7 +1,7 @@
-G04 Gerber X2 — WellD v1.0 — welld-B_Mask.gbr*
-%TF.GenerationSoftware,WellD,generate_gerbers.py,1.0*%
+G04 Gerber X2 — WellD — welld-B_Mask.gbr*
+%TF.GenerationSoftware,WellD,generate_gerbers.py*%
 %TF.CreationDate,2026-05-16T00:00:00+00:00*%
-%TF.ProjectId,welld,00000000-0000-0000-0000-000000000000,rev1.0*%
+%TF.ProjectId,welld,00000000-0000-0000-0000-000000000000,*%
 %TF.SameCoordinates,Original*%
 %TF.FileFunction,SolderMask,Bot*%
 %TF.FilePolarity,Positive*%
