@@ -6,6 +6,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "sdkconfig.h"
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -22,6 +23,20 @@ static int s_offset_cm = INT32_MIN;
 static i2c_master_bus_handle_t  s_i2c_bus = NULL;
 static i2c_master_dev_handle_t  s_ads_dev = NULL;
 static i2c_master_dev_handle_t  s_max_dev = NULL;
+
+/* Binary semaphore released by the ADS1115 DRDY falling-edge ISR.
+ * Created in ads1115_drdy_init(); NULL means DRDY GPIO is not configured. */
+static SemaphoreHandle_t s_ads_drdy_sem = NULL;
+
+/* ISR handler: DRDY (GPIO12) fell — conversion complete. */
+static void IRAM_ATTR ads1115_drdy_isr(void *arg)
+{
+    BaseType_t woken = pdFALSE;
+    xSemaphoreGiveFromISR(s_ads_drdy_sem, &woken);
+    if (woken) {
+        portYIELD_FROM_ISR();
+    }
+}
 
 /* Configure VLOOP and BATT_DIV_EN GPIO outputs and drive them LOW at init time.
  * This ensures the TPS61023 boost and battery divider are off by default. */
@@ -41,6 +56,81 @@ static void power_gpio_init(void) {
         gpio_config(&cfg);
         gpio_set_level(pins[i], 0);
     }
+}
+
+/* ADS1115 comparator / DRDY registers */
+#define ADS1115_REG_LO_THRESH   0x02
+#define ADS1115_REG_HI_THRESH   0x03
+
+/* Configure the ADS1115 ALERT/DRDY pin as a conversion-ready signal and
+ * install a falling-edge ISR on GPIO CONFIG_WELLD_ADS1115_DRDY_GPIO.
+ *
+ * Per the ADS1115 datasheet §9.4.4: writing Lo_thresh = 0x8000 and
+ * Hi_thresh = 0x7FFF overrides the comparator and makes ALERT/DRDY pulse
+ * low for one conversion period when a single-shot conversion completes.
+ *
+ * The GPIO is open-drain so the internal pull-up must be enabled. */
+static esp_err_t ads1115_drdy_init(void)
+{
+    /* Write Lo_thresh = 0x8000 — MSB = 1 enables DRDY mode */
+    uint8_t lo_buf[3] = { ADS1115_REG_LO_THRESH, 0x80, 0x00 };
+    esp_err_t ret = i2c_master_transmit(s_ads_dev, lo_buf, 3, 50);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "ADS1115 Lo_thresh write failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    /* Write Hi_thresh = 0x7FFF — MSB = 0 (paired with Lo_thresh MSB = 1) */
+    uint8_t hi_buf[3] = { ADS1115_REG_HI_THRESH, 0x7F, 0xFF };
+    ret = i2c_master_transmit(s_ads_dev, hi_buf, 3, 50);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "ADS1115 Hi_thresh write failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    /* Create the binary semaphore before installing the ISR. */
+    SemaphoreHandle_t sem = xSemaphoreCreateBinary();
+    if (!sem) {
+        ESP_LOGE(TAG, "ADS1115 DRDY semaphore alloc failed");
+        return ESP_ERR_NO_MEM;
+    }
+
+    /* Configure GPIO as input with internal pull-up (open-drain output). */
+    gpio_config_t drdy_cfg = {
+        .pin_bit_mask = 1ULL << CONFIG_WELLD_ADS1115_DRDY_GPIO,
+        .mode         = GPIO_MODE_INPUT,
+        .pull_up_en   = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type    = GPIO_INTR_NEGEDGE,
+    };
+    ret = gpio_config(&drdy_cfg);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "ADS1115 DRDY GPIO config failed: %s", esp_err_to_name(ret));
+        vSemaphoreDelete(sem);
+        return ret;
+    }
+
+    /* Install the GPIO ISR service if not already running. Ignore
+     * ESP_ERR_INVALID_STATE — it just means another component started it. */
+    ret = gpio_install_isr_service(0);
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
+        ESP_LOGE(TAG, "gpio_install_isr_service: %s", esp_err_to_name(ret));
+        vSemaphoreDelete(sem);
+        return ret;
+    }
+
+    ret = gpio_isr_handler_add(CONFIG_WELLD_ADS1115_DRDY_GPIO, ads1115_drdy_isr, NULL);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "ADS1115 DRDY ISR add failed: %s", esp_err_to_name(ret));
+        vSemaphoreDelete(sem);
+        return ret;
+    }
+
+    s_ads_drdy_sem = sem;
+
+    ESP_LOGI(TAG, "ADS1115 DRDY interrupt configured on GPIO%d",
+             CONFIG_WELLD_ADS1115_DRDY_GPIO);
+    return ESP_OK;
 }
 
 /* Initialise the shared I2C bus and register ADS1115 (0x48) + MAX17048 (0x36).
@@ -84,6 +174,13 @@ esp_err_t sensor_i2c_init(void) {
         ESP_LOGW(TAG, "MAX17048 not found on I2C bus");
         s_max_dev = NULL;
     }
+
+    /* Configure ADS1115 DRDY interrupt (non-fatal: falls back to polling). */
+    if (ads1115_drdy_init() != ESP_OK) {
+        ESP_LOGW(TAG, "ADS1115 DRDY init failed — falling back to register polling");
+        s_ads_drdy_sem = NULL;   /* ensure polling path is taken */
+    }
+
     return ESP_OK;
 }
 
@@ -98,15 +195,42 @@ esp_err_t sensor_i2c_init(void) {
 #define ADS1115_PGA_2V048       (2U << 1)   /* ±2.048 V */
 #define ADS1115_MODE_SINGLE     (1U << 0)
 #define ADS1115_DR_860SPS       (7U << 5)
-#define ADS1115_COMP_QUE_DIS    (3U << 0)
+/* COMP_QUE = 00: assert after one conversion — required for DRDY mode.
+ * COMP_POL = 0 (active-low), COMP_LAT = 0 (non-latching). */
+#define ADS1115_COMP_QUE_ONE    (0U << 0)
 
-/* Poll the config register until the OS bit reads 1 (conversion complete).
- * Returns ESP_OK when ready, or ESP_ERR_TIMEOUT after max_wait_ms. */
-static esp_err_t ads1115_wait_conversion_done(uint32_t max_wait_ms)
+/* Maximum time to wait for an ADS1115 conversion-complete signal (ms).
+ * At 860 SPS one conversion takes ~1.16 ms; 10 ms gives an 8× safety margin. */
+#define ADS1115_CONV_TIMEOUT_MS 10
+
+/* Wait for an ADS1115 single-shot conversion to complete.
+ *
+ * Primary path (s_ads_drdy_sem != NULL): blocks on the binary semaphore
+ * that the GPIO12 falling-edge ISR releases when DRDY asserts.  The
+ * semaphore is drained before starting every conversion so a stale token
+ * from a previous cycle cannot produce a false-ready.
+ *
+ * Fallback path (semaphore NULL or ISR not configured): poll the OS bit in
+ * the config register, 2 ms per iteration, up to ADS1115_CONV_TIMEOUT_MS.
+ *
+ * Returns ESP_OK on success, ESP_ERR_TIMEOUT if the edge never arrives. */
+static esp_err_t ads1115_wait_conversion_done(void)
 {
+    if (s_ads_drdy_sem) {
+        /* Block until the ISR fires or the timeout expires. */
+        if (xSemaphoreTake(s_ads_drdy_sem,
+                           pdMS_TO_TICKS(ADS1115_CONV_TIMEOUT_MS)) == pdTRUE) {
+            return ESP_OK;
+        }
+        ESP_LOGW(TAG, "ADS1115 DRDY timeout (%d ms) — DRDY edge not received",
+                 ADS1115_CONV_TIMEOUT_MS);
+        return ESP_ERR_TIMEOUT;
+    }
+
+    /* Polling fallback: read OS bit from config register. */
     uint8_t reg = ADS1115_REG_CONFIG;
     uint8_t cfg[2];
-    for (uint32_t waited = 0; waited < max_wait_ms; waited += 2) {
+    for (uint32_t waited = 0; waited < ADS1115_CONV_TIMEOUT_MS; waited += 2) {
         if (i2c_master_transmit_receive(s_ads_dev, &reg, 1, cfg, 2, 50) != ESP_OK)
             return ESP_ERR_INVALID_RESPONSE;
         if (cfg[0] & ADS1115_OS_START)
@@ -118,20 +242,30 @@ static esp_err_t ads1115_wait_conversion_done(uint32_t max_wait_ms)
 
 /* Read one ADS1115 channel in single-shot mode.
  * ch: 0 = AIN0/GND (4-20 mA shunt), 2 = AIN2/GND (battery divider)
- * PGA ±2.048 V, 860 SPS, comparator disabled.
+ * PGA ±2.048 V, 860 SPS.  COMP_QUE = one-shot assert, required for DRDY.
  * Returns millivolts (signed), or INT_MIN on error. */
 static int ads1115_read_mv(int ch) {
     if (!s_ads_dev) return INT_MIN;
+
+    /* Drain any stale DRDY token left from a previous conversion so we block
+     * on the edge that belongs to *this* conversion, not a prior one.
+     * Disable the interrupt around drain+start to prevent an ISR from firing
+     * in the gap and giving the semaphore before the new conversion begins. */
+    if (s_ads_drdy_sem) {
+        gpio_intr_disable(CONFIG_WELLD_ADS1115_DRDY_GPIO);
+        xSemaphoreTake(s_ads_drdy_sem, 0);
+        gpio_intr_enable(CONFIG_WELLD_ADS1115_DRDY_GPIO);
+    }
 
     uint8_t mux = (ch == 2) ? ADS1115_MUX_AIN2 : ADS1115_MUX_AIN0;
     uint8_t buf[3] = {
         ADS1115_REG_CONFIG,
         ADS1115_OS_START | mux | ADS1115_PGA_2V048 | ADS1115_MODE_SINGLE | ADS1115_DR_860SPS,
-        ADS1115_COMP_QUE_DIS
+        ADS1115_COMP_QUE_ONE   /* assert DRDY after 1 conversion */
     };
     if (i2c_master_transmit(s_ads_dev, buf, 3, 50) != ESP_OK) return INT_MIN;
 
-    if (ads1115_wait_conversion_done(10) != ESP_OK) {
+    if (ads1115_wait_conversion_done() != ESP_OK) {
         ESP_LOGW(TAG, "ADS1115 conversion timeout");
         return INT_MIN;
     }
@@ -365,4 +499,34 @@ int sensor_read_battery_soc(void)
         return -1;
     }
     return (int)data[0];   /* high byte = integer percent 0-100 */
+}
+
+/* Clear the ALRT bit (bit 5) in the MAX17048 STATUS register (0x1A).
+ *
+ * The STATUS register is read-clear: the ALRT bit must be written back
+ * as 0 after reading, otherwise the ALRT pin stays asserted.  All other
+ * status bits are written back unchanged so they are not silently cleared.
+ *
+ * Returns ESP_OK on success, or ESP_ERR_NOT_FOUND if the device is absent. */
+esp_err_t sensor_max17048_clear_alrt(void)
+{
+    if (!s_max_dev) return ESP_ERR_NOT_FOUND;
+
+    /* Read current STATUS register value */
+    uint8_t reg = 0x1A;
+    uint8_t status[2] = {0};
+    if (i2c_master_transmit_receive(s_max_dev, &reg, 1, status, 2, 50) != ESP_OK) {
+        ESP_LOGW(TAG, "MAX17048 STATUS read error");
+        return ESP_ERR_INVALID_RESPONSE;
+    }
+
+    /* Clear bit 5 (ALRT) in the high byte, preserve all other bits. */
+    status[0] &= ~(1U << 5);
+
+    uint8_t write_buf[3] = { 0x1A, status[0], status[1] };
+    if (i2c_master_transmit(s_max_dev, write_buf, 3, 50) != ESP_OK) {
+        ESP_LOGW(TAG, "MAX17048 STATUS write error (ALRT clear)");
+        return ESP_ERR_INVALID_RESPONSE;
+    }
+    return ESP_OK;
 }

@@ -1,4 +1,5 @@
 #include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "esp_sleep.h"
 #include "esp_attr.h"
 #include "esp_log.h"
@@ -17,6 +18,42 @@
 static const char *TAG = "main";
 
 #define FAIL_THRESHOLD  5           /* NVS erase + rejoin after this many failures */
+
+/* Set by the MAX17048 ALRT ISR when GPIO14 falls (low-battery alert). */
+static volatile bool s_max17048_alrt_fired = false;
+
+/* ISR: MAX17048 ALRT line (GPIO14) went LOW — low-battery condition. */
+static void IRAM_ATTR max17048_alrt_isr(void *arg)
+{
+    s_max17048_alrt_fired = true;
+}
+
+/* Configure GPIO CONFIG_WELLD_MAX17048_ALRT_GPIO as a falling-edge input.
+ * External R27 (4.7 kΩ to 3V3) provides the pull-up — internal pull-up is
+ * deliberately disabled.  The ISR just sets a flag; the main wake cycle
+ * reads it after all sensor reads are done. */
+static void max17048_alrt_gpio_init(void)
+{
+    gpio_config_t cfg = {
+        .pin_bit_mask = 1ULL << CONFIG_WELLD_MAX17048_ALRT_GPIO,
+        .mode         = GPIO_MODE_INPUT,
+        .pull_up_en   = GPIO_PULLUP_DISABLE,   /* external R27 handles pull-up */
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type    = GPIO_INTR_NEGEDGE,
+    };
+    gpio_config(&cfg);
+
+    /* gpio_install_isr_service may already have been called by sensor_i2c_init()
+     * via the ADS1115 DRDY path.  ESP_ERR_INVALID_STATE is benign here. */
+    esp_err_t ret = gpio_install_isr_service(0);
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(TAG, "gpio_install_isr_service: %s", esp_err_to_name(ret));
+        return;
+    }
+    gpio_isr_handler_add(CONFIG_WELLD_MAX17048_ALRT_GPIO, max17048_alrt_isr, NULL);
+    ESP_LOGI(TAG, "MAX17048 ALRT interrupt configured on GPIO%d",
+             CONFIG_WELLD_MAX17048_ALRT_GPIO);
+}
 
 /* Bump this constant whenever the struct layout below changes.
  * A mismatch on wakeup (e.g. after an OTA that reorders fields) zeroes the
@@ -103,6 +140,11 @@ void app_main(void)
         enter_deep_sleep(CONFIG_WELLD_SLEEP_DURATION_SEC);
     }
 
+    /* Configure MAX17048 ALRT falling-edge interrupt (GPIO14, external R27).
+     * Must come after sensor_i2c_init() so the GPIO ISR service is already
+     * installed by the ADS1115 DRDY path when available. */
+    max17048_alrt_gpio_init();
+
     /* Charger interlock: read the CN3791 CHRG signal (GPIO6) and assert the
      * TP4056 CE interlock (GPIO4) when solar charging is active to prevent
      * simultaneous dual-charger operation. */
@@ -160,6 +202,23 @@ void app_main(void)
     float level_m   = sensor_read_level();
     float battery_v = sensor_read_battery_v();
     float temperature_c = sensor_read_temperature();
+
+    /* Check MAX17048 ALRT after all sensor reads.  The ISR flag covers both
+     * edges that arrived during the wake cycle AND a pin that is already LOW
+     * at boot (a persistent alert from the previous cycle).  Sample the GPIO
+     * level directly as a belt-and-suspenders check in case the ISR fired
+     * before we called max17048_alrt_gpio_init(). */
+    if (s_max17048_alrt_fired || !gpio_get_level(CONFIG_WELLD_MAX17048_ALRT_GPIO)) {
+        ESP_LOGW(TAG, "MAX17048 ALRT asserted (GPIO%d LOW) — low-battery condition",
+                 CONFIG_WELLD_MAX17048_ALRT_GPIO);
+        /* Clear the ALRT bit in STATUS (0x1A) so the pin de-asserts. */
+        if (sensor_max17048_clear_alrt() == ESP_OK) {
+            ESP_LOGI(TAG, "MAX17048 ALRT bit cleared");
+        } else {
+            ESP_LOGW(TAG, "MAX17048 ALRT clear failed (device absent or I2C error)");
+        }
+        s_max17048_alrt_fired = false;
+    }
 
     /* Accumulate elapsed time from the previous wakeup: both the programmed sleep
      * duration and the active phase, so the rate calculation reflects wall-clock

@@ -119,4 +119,18 @@ menu "WellD Sensor"
             to ADS1115 AIN2. Drive HIGH for 1 ms before reading; LOW after.
             Only used as fallback when MAX17048 is unavailable.
 
+    config WELLD_ADS1115_DRDY_GPIO
+        int "ADS1115 ALERT/DRDY GPIO"
+        range 0 21
+        default 12
+        help
+            GPIO connected to the ADS1115 ALERT/DRDY open-drain output. The
+            sensor component configures the ADS1115 in conversion-ready mode
+            (Lo_thresh = 0x8000, Hi_thresh = 0x7FFF per datasheet) so the pin
+            pulses LOW when each single-shot conversion completes. The GPIO is
+            configured as input with the ESP32-C6 internal pull-up enabled
+            (ADS1115 ALERT/DRDY is open-drain). A falling-edge ISR releases a
+            binary semaphore so the sensor task can block instead of polling.
+            Timeout fallback of 10 ms protects against a missing edge.
+
 endmenu

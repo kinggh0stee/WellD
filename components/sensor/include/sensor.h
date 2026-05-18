@@ -7,12 +7,6 @@
 typedef int esp_err_t;
 #endif
 
-/* Acquire the shared ADC unit and calibration handles for a measurement session.
- * Call once before any sensor_read_level() or sensor_read_battery_v() call,
- * then release with sensor_adc_release() when both reads are done. */
-void sensor_adc_acquire(void);
-void sensor_adc_release(void);
-
 /* reads 4-20 mA transducer via ADC; maps 4 mA → 0 m, 20 mA → MAX_DEPTH_CM/100 m;
    returns -1 if loop current is below 3.5 mA (transducer disconnected) */
 float sensor_read_level(void);
@@ -56,3 +50,9 @@ int       sensor_read_battery_soc(void);
 /* Read battery voltage from MAX17048 VCELL register.
  * Returns volts (e.g. 3.85), or -1.0f on error / device not present. */
 float     sensor_read_battery_vcell_v(void);
+
+/* Clear the ALRT bit in the MAX17048 STATUS register (0x1A) after handling
+ * a low-battery alert on GPIO CONFIG_WELLD_MAX17048_ALRT_GPIO.  The bit must
+ * be written back as 0 to de-assert the open-drain ALRT output.
+ * Returns ESP_OK, ESP_ERR_NOT_FOUND (device absent), or ESP_ERR_INVALID_RESPONSE. */
+esp_err_t sensor_max17048_clear_alrt(void);
