@@ -1,0 +1,38 @@
+# Clang-format style for WellD — closely matches existing ESP-IDF conventions
+Language: Cpp
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: false
+BreakBeforeBraces: Attach
+BraceWrapping:
+  AfterFunction: false
+  AfterControlStatement: false
+  AfterStruct: false
+  AfterEnum: false
+  AfterUnion: false
+  BeforeElse: false
+IndentCaseLabels: true
+SpaceAfterCStyleCast: false
+SpaceBeforeParens: ControlStatements
+PointerAlignment: Right
+SortIncludes: false
+IncludeBlocks: Preserve
+AlignConsecutiveMacros: AcrossEmptyLines
+AlignTrailingComments: true
+ReflowComments: false
+MaxEmptyLinesToKeep: 2
+KeepEmptyLinesAtTheStartOfBlocks: false
+ForEachMacros:
+  - foreach
+  - LIST_FOREACH
+  - SLIST_FOREACH
+  - STAILQ_FOREACH
+  - TAILQ_FOREACH
+  - CIRCLEQ_FOREACH
+  - RB_FOREACH
+  - SPLAY_FOREACH

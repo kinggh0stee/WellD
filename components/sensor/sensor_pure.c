@@ -8,6 +8,7 @@
 
 #include "sensor.h"
 #include "sdkconfig.h"
+#include <assert.h>
 #include <stdint.h>
 
 #define CURRENT_MIN_UA  4000   /* 4 mA  = 0 % depth */
@@ -15,6 +16,10 @@
 
 float sensor_level_from_mv(int volt_mv)
 {
+    _Static_assert(CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS > 0,
+                   "shunt resistance must be positive");
+    _Static_assert(CONFIG_WELLD_SENSOR_MAX_DEPTH_CM > 0,
+                   "max depth must be positive");
     /* I (µA) = V (mV) * 1 000 000 / R (mΩ) */
     int current_ua = (int)(((int64_t)volt_mv * 1000000LL) /
                             CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS);
@@ -30,6 +35,7 @@ float sensor_level_from_mv(int volt_mv)
 
 float sensor_battery_from_mv(int adc_mv, int divider_ratio_x100)
 {
+    assert(divider_ratio_x100 > 0);
     return (float)adc_mv * (float)divider_ratio_x100 / 100000.0f;
 }
 

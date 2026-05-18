@@ -24,6 +24,29 @@ jobs:
           target: esp32c6
           command: idf.py set-target esp32c6 && idf.py build
 
+      - name: Generate OTA image
+        if: success()
+        run: |
+          # Derive OTA file-version from PROJECT_VER (MAJOR.MINOR.PATCH → 0xMMmmPP00)
+          VER=$(grep -oP '^set\(PROJECT_VER "\K[0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt)
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VER"
+          FILE_VER=$(printf "0x%02X%02X%02X00" "$MAJOR" "$MINOR" "$PATCH")
+          OTA_SCRIPT=$(find $IDF_PATH -name ota_image_create.py 2>/dev/null | head -1)
+          if [ -z "$OTA_SCRIPT" ]; then
+            OTA_SCRIPT=$(find . -name ota_image_create.py 2>/dev/null | head -1)
+          fi
+          if [ -n "$OTA_SCRIPT" ]; then
+            python "$OTA_SCRIPT" \
+              --manufacturer-code 0x1234 \
+              --image-type 0x0001 \
+              --file-version "$FILE_VER" \
+              --output build/welld.ota.zigbee \
+              build/welld.bin
+            echo "OTA image generated: build/welld.ota.zigbee"
+          else
+            echo "WARNING: ota_image_create.py not found — skipping OTA image generation"
+          fi
+
       - name: Upload dependencies lock
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         if: success()
@@ -40,6 +63,58 @@ jobs:
             build/*.bin
             build/*.elf
             build/*.map
+            build/*.zigbee
+
+  static-analysis:
+    name: C static analysis (cppcheck)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Install cppcheck
+        run: sudo apt-get update && sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        run: |
+          cppcheck \
+            --enable=warning,style,performance,portability \
+            --suppress=missingIncludeSystem \
+            --suppress=unusedFunction \
+            --inline-suppr \
+            --error-exitcode=1 \
+            -I components/sensor/include \
+            -I components/zigbee/include \
+            -I components/welld_core/include \
+            -I main \
+            --std=c11 \
+            components/sensor/*.c \
+            components/zigbee/*.c \
+            components/welld_core/*.c \
+            main/*.c
+
+  version-bump:
+    name: Version bump check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Check CMakeLists.txt version bump
+        run: |
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          if echo "$CHANGED" | grep -qE '^(main/|components/)'; then
+            if ! echo "$CHANGED" | grep -q '^CMakeLists.txt$'; then
+              echo "::error::Firmware source changed but CMakeLists.txt (PROJECT_VER) was not bumped."
+              echo "Changed files:"
+              echo "$CHANGED"
+              exit 1
+            fi
+          fi
+          echo "Version bump check passed."
 
   host-tests:
     name: Host unit tests

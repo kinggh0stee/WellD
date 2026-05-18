@@ -4,6 +4,7 @@
 #include "esp_app_desc.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
+#include "esp_random.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -19,6 +20,7 @@ static const char *TAG = "zigbee";
 #define EP_BATTERY       2
 #define EP_TEMPERATURE   3
 #define EP_RATE          4
+#define EP_FAILS         5
 #define SEND_DELAY_MS    CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS
 #define TOTAL_TIMEOUT_MS 25000  /* max time to find coordinator before giving up */
 
@@ -60,18 +62,20 @@ static volatile bool   s_stop_requested  = false;
 static int64_t         s_ota_start_us    = 0;   /* wall-clock time when OTA began */
 static esp_ota_handle_t s_ota_handle     = 0;
 static const esp_partition_t *s_ota_partition = NULL;
+static uint32_t        s_zb_fails        = 0;   /* copied from main task before xTaskCreate */
 
 /* Fired TOTAL_TIMEOUT_MS after the Zigbee loop starts. If OTA is in progress
    we reschedule rather than killing the loop — OTA can take many minutes.
-   Uses a wall-clock check (240 s) to abort stalled downloads rather than a
-   reschedule counter, so the limit is independent of TOTAL_TIMEOUT_MS.
+   Uses a wall-clock check (CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC) to abort
+   stalled downloads rather than a reschedule counter, so the limit is
+   independent of TOTAL_TIMEOUT_MS.
    Once OTA finishes (reboot) or fails (clears s_ota_in_progress), the next
    fire stops the loop with FAIL_BIT to wake zigbee_send(). */
 static void zb_timeout_alarm(uint8_t param)
 {
     if (s_ota_in_progress) {
         int64_t elapsed_s = (esp_timer_get_time() - s_ota_start_us) / 1000000LL;
-        if (elapsed_s >= 240) {
+        if (elapsed_s >= CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC) {
             ESP_LOGE(TAG, "OTA stalled after %lld s, aborting", (long long)elapsed_s);
             esp_ota_abort(s_ota_handle);
             s_ota_in_progress = false;
@@ -255,6 +259,17 @@ static void send_reports(void)
         esp_zb_zcl_report_attr_cmd_req(&report);
     }
 
+    /* Zigbee failure counter — Analog Input cluster, endpoint 5.
+       Reported as a float so the Z2M converter can treat it uniformly. */
+    {
+        float fails_f = (float)s_zb_fails;
+        esp_zb_zcl_set_attribute_val(EP_FAILS,
+            ESP_ZB_ZCL_CLUSTER_ID_ANALOG_INPUT, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+            ESP_ZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID, &fails_f, false);
+        report.zcl_basic_cmd.src_endpoint = EP_FAILS;
+        esp_zb_zcl_report_attr_cmd_req(&report);
+    }
+
     /* Give the stack SEND_DELAY_MS to transmit before we declare success */
     esp_zb_scheduler_alarm(zb_finish_alarm, 0, SEND_DELAY_MS);
 }
@@ -269,6 +284,13 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
 
     switch ((esp_zb_app_signal_type_t)*p_sg_p) {
     case ESP_ZB_ZDO_SIGNAL_SKIP_STARTUP:
+        if (CONFIG_WELLD_ZIGBEE_BACKOFF_MAX_MS > 0) {
+            uint32_t backoff_ms = esp_random() % CONFIG_WELLD_ZIGBEE_BACKOFF_MAX_MS;
+            if (backoff_ms > 0) {
+                vTaskDelay(pdMS_TO_TICKS(backoff_ms));
+                ESP_LOGI(TAG, "Zigbee steering backoff %lu ms", (unsigned long)backoff_ms);
+            }
+        }
         esp_zb_bdb_start_top_level_commissioning(ESP_ZB_BDB_MODE_INITIALIZATION);
         break;
     case ESP_ZB_BDB_SIGNAL_DEVICE_FIRST_START:
@@ -456,6 +478,16 @@ static void zb_task(void *pvParameters)
     ep_cfg.endpoint = EP_RATE;
     ESP_ERROR_CHECK(esp_zb_ep_list_add_ep(ep_list, rate_clusters, ep_cfg));
 
+    /* Endpoint 5 — Zigbee failure counter (Analog Input).
+       Always registered so the descriptor is stable across wakeups. */
+    float initial_fails = (float)s_zb_fails;
+    esp_zb_cluster_list_t *fails_clusters = esp_zb_zcl_cluster_list_create();
+    ESP_ERROR_CHECK(esp_zb_cluster_list_add_analog_input_cluster(fails_clusters,
+                                                                  make_ai_cluster(initial_fails),
+                                                                  ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
+    ep_cfg.endpoint = EP_FAILS;
+    ESP_ERROR_CHECK(esp_zb_ep_list_add_ep(ep_list, fails_clusters, ep_cfg));
+
     esp_zb_device_register(ep_list);
 
     esp_zb_set_primary_network_channel_set(CONFIG_WELLD_ZIGBEE_CHANNEL_MASK);
@@ -483,12 +515,14 @@ static void zb_task(void *pvParameters)
 bool zigbee_send(float level_m,
                  float battery_v,
                  float temperature_c,
-                 float rate_cm_per_hour)
+                 float rate_cm_per_hour,
+                 uint32_t zb_fails)
 {
     s_level_m           = level_m;
     s_battery_v         = battery_v;
     s_temperature_c     = temperature_c;
     s_rate_cm_per_hour  = rate_cm_per_hour;
+    s_zb_fails          = zb_fails;
     portMEMORY_BARRIER();  /* prevent compiler from moving writes past xTaskCreate */
     s_events            = xEventGroupCreate();
 

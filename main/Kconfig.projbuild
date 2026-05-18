@@ -42,6 +42,42 @@ menu "WellD Configuration"
             Upper bound on adaptive sleep. The device will never sleep
             longer than this, even when the level is perfectly stable.
 
+    config WELLD_DIAGNOSTIC_MODE_ENABLED
+        bool "Diagnostic mode (bench test)"
+        default n
+        help
+            When enabled, the device stays awake for DIAGNOSTIC_STAY_AWAKE_SEC
+            after each sensor read, printing verbose logs at INFO level.
+            Useful for bench testing without recompiling. Deep sleep is still
+            entered after the stay-awake window expires.
+
+    config WELLD_DIAGNOSTIC_STAY_AWAKE_SEC
+        int "Diagnostic mode — stay-awake duration (seconds)"
+        default 60
+        range 10 300
+        depends on WELLD_DIAGNOSTIC_MODE_ENABLED
+        help
+            How long to stay awake in diagnostic mode before entering deep sleep.
+
+    config WELLD_ZIGBEE_BACKOFF_MAX_MS
+        int "Zigbee steering random backoff max (ms)"
+        default 500
+        range 0 5000
+        help
+            Random delay before starting Zigbee network steering on each wakeup.
+            Jitters the start time by 0 … N ms to prevent multiple devices from
+            steering simultaneously after a power outage ("steer storm").
+            Set to 0 to disable.
+
+    config WELLD_OTA_STALL_TIMEOUT_SEC
+        int "OTA stall timeout (seconds)"
+        default 240
+        range 60 600
+        help
+            Maximum wall-clock time an OTA download may take before it is
+            considered stalled and aborted. Prevents a hung download from
+            keeping the radio alive indefinitely.
+
 endmenu
 
 menu "Rev 2 Hardware I/O"
@@ -59,8 +95,9 @@ config WELLD_SOLAR_DETECT_GPIO
     range 0 21
     default 6
     help
-        Input. HIGH when the CN3791 MPPT charger is actively charging.
-        Used to gate the TP4056 interlock.
+        Input. Active-low: LOW means the CN3791 MPPT charger is actively
+        charging. HIGH means no solar charging. Used to gate the TP4056
+        interlock via GPIO4 (Q1).
 
 config WELLD_MAX17048_ALRT_GPIO
     int "MAX17048 ALRT input GPIO"

@@ -76,6 +76,74 @@ RTC_DATA_ATTR static struct {
     uint32_t last_active_sec;   /* active-phase duration of the previous wakeup */
 } s_history;
 
+/* RTC event log — small ring buffer of structured events for field debugging.
+ * Preserved across deep sleep, zeroed on cold boot. Each entry is a 32-bit
+ * seconds-since-boot timestamp and an 8-bit event code. */
+#define RTC_LOG_MAGIC    0x574C4402UL
+#define RTC_LOG_ENTRIES  16
+
+typedef enum {
+    RTC_EVT_BOOT            = 0x01,
+    RTC_EVT_SENSOR_OK       = 0x02,
+    RTC_EVT_ZB_SENT         = 0x03,
+    RTC_EVT_ZB_FAIL         = 0x04,
+    RTC_EVT_LOW_BATT_SKIP   = 0x05,
+    RTC_EVT_NVS_WIPE        = 0x06,
+    RTC_EVT_OTA_START       = 0x07,
+    RTC_EVT_OTA_COMPLETE    = 0x08,
+    RTC_EVT_OTA_ABORT       = 0x09,
+    RTC_EVT_MAX17048_ALRT   = 0x0A,
+} rtc_event_t;
+
+RTC_DATA_ATTR static struct {
+    uint32_t magic;
+    uint8_t  head;
+    uint32_t ts[RTC_LOG_ENTRIES];
+    uint8_t  ev[RTC_LOG_ENTRIES];
+} s_rtc_log;
+
+static void rtc_log_init(void)
+{
+    if (s_rtc_log.magic != RTC_LOG_MAGIC) {
+        memset(&s_rtc_log, 0, sizeof(s_rtc_log));
+        s_rtc_log.magic = RTC_LOG_MAGIC;
+    }
+}
+
+static void rtc_log_event(rtc_event_t ev)
+{
+    uint32_t now_sec = (uint32_t)(esp_timer_get_time() / 1000000LL);
+    uint8_t idx = s_rtc_log.head % RTC_LOG_ENTRIES;
+    s_rtc_log.ts[idx] = now_sec;
+    s_rtc_log.ev[idx] = (uint8_t)ev;
+    s_rtc_log.head++;
+}
+
+static void rtc_log_print(void)
+{
+    if (s_rtc_log.head == 0) return;
+    uint8_t count = (s_rtc_log.head < RTC_LOG_ENTRIES) ? s_rtc_log.head : RTC_LOG_ENTRIES;
+    uint8_t start = (s_rtc_log.head >= RTC_LOG_ENTRIES) ? s_rtc_log.head % RTC_LOG_ENTRIES : 0;
+    ESP_LOGI(TAG, "RTC event log (last %u entries):", count);
+    for (uint8_t i = 0; i < count; i++) {
+        uint8_t idx = (start + i) % RTC_LOG_ENTRIES;
+        const char *name = "unknown";
+        switch (s_rtc_log.ev[idx]) {
+            case RTC_EVT_BOOT:          name = "BOOT";          break;
+            case RTC_EVT_SENSOR_OK:     name = "SENSOR_OK";     break;
+            case RTC_EVT_ZB_SENT:       name = "ZB_SENT";       break;
+            case RTC_EVT_ZB_FAIL:       name = "ZB_FAIL";       break;
+            case RTC_EVT_LOW_BATT_SKIP: name = "LOW_BATT_SKIP"; break;
+            case RTC_EVT_NVS_WIPE:      name = "NVS_WIPE";      break;
+            case RTC_EVT_OTA_START:     name = "OTA_START";     break;
+            case RTC_EVT_OTA_COMPLETE:  name = "OTA_COMPLETE";  break;
+            case RTC_EVT_OTA_ABORT:     name = "OTA_ABORT";     break;
+            case RTC_EVT_MAX17048_ALRT: name = "MAX17048_ALRT"; break;
+        }
+        ESP_LOGI(TAG, "  [%u] t=%lus  %s", i, (unsigned long)s_rtc_log.ts[idx], name);
+    }
+}
+
 static uint32_t read_fail_count(void)
 {
     nvs_handle_t h;
@@ -118,6 +186,9 @@ void app_main(void)
 {
     int64_t wakeup_start_us = esp_timer_get_time();
 
+    rtc_log_init();
+    rtc_log_event(RTC_EVT_BOOT);
+
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -132,6 +203,11 @@ void app_main(void)
         memset(&s_history, 0, sizeof(s_history));
         s_history.magic = HISTORY_MAGIC;
     }
+
+    /* Print any events from previous wakeups so the serial log on this boot
+     * contains a short history (useful when the device is retrieved from the
+     * field and powered over USB for diagnosis). */
+    rtc_log_print();
 
     /* Initialise the I²C bus (ADS1115 + MAX17048) and power-control GPIOs.
      * Must be called before any sensor_read_level() or sensor_read_battery_v(). */
@@ -184,6 +260,7 @@ void app_main(void)
     if (welld_should_wipe_nvs(fail_count, FAIL_THRESHOLD)) {
         ESP_LOGW(TAG, "%lu consecutive Zigbee failures — erasing NVS to force rejoin",
                  (unsigned long)fail_count);
+        rtc_log_event(RTC_EVT_NVS_WIPE);
         /* Read the calibrated offset before wiping so it can be re-saved
          * immediately after. Without this, 5 Zigbee failures silently revert
          * the sensor to its compile-time zero reference. */
@@ -202,6 +279,9 @@ void app_main(void)
     float level_m   = sensor_read_level();
     float battery_v = sensor_read_battery_v();
     float temperature_c = sensor_read_temperature();
+    if (level_m >= 0.0f) {
+        rtc_log_event(RTC_EVT_SENSOR_OK);
+    }
 
     /* Check MAX17048 ALRT after all sensor reads.  The ISR flag covers both
      * edges that arrived during the wake cycle AND a pin that is already LOW
@@ -235,6 +315,7 @@ void app_main(void)
     if (battery_v > 0.0f && battery_v < CONFIG_WELLD_BATT_EMPTY_MV / 1000.0f) {
         ESP_LOGW(TAG, "battery critically low (%.2f V < %.2f V) — skipping send",
                  battery_v, CONFIG_WELLD_BATT_EMPTY_MV / 1000.0f);
+        rtc_log_event(RTC_EVT_LOW_BATT_SKIP);
         uint32_t low_batt_sleep = CONFIG_WELLD_SLEEP_DURATION_SEC;
 #ifdef CONFIG_WELLD_SLEEP_MAX_SEC
         low_batt_sleep = CONFIG_WELLD_SLEEP_MAX_SEC;
@@ -255,18 +336,21 @@ void app_main(void)
                                                    s_history.elapsed_since_last_valid_sec);
     }
 
-    bool sent = zigbee_send(level_m, battery_v, temperature_c, rate_cm_per_hour);
+    bool sent = zigbee_send(level_m, battery_v, temperature_c, rate_cm_per_hour, fail_count);
 
     switch (welld_post_send_action(fail_count, sent)) {
     case WELLD_FAIL_INCREMENT:
         write_fail_count(fail_count + 1);
         ESP_LOGW(TAG, "Zigbee send failed (%lu/%d)",
                  (unsigned long)(fail_count + 1), FAIL_THRESHOLD);
+        rtc_log_event(RTC_EVT_ZB_FAIL);
         break;
     case WELLD_FAIL_RESET:
         write_fail_count(0);
+        rtc_log_event(RTC_EVT_ZB_SENT);
         break;
     case WELLD_FAIL_NONE:
+        rtc_log_event(RTC_EVT_ZB_SENT);
         break;
     }
 
@@ -292,5 +376,14 @@ void app_main(void)
         (uint32_t)((esp_timer_get_time() - wakeup_start_us) / 1000000LL);
 
     ESP_LOGI(TAG, "sleeping %lu s", (unsigned long)sleep_sec);
+
+#ifdef CONFIG_WELLD_DIAGNOSTIC_MODE_ENABLED
+    {
+        uint32_t stay_ms = CONFIG_WELLD_DIAGNOSTIC_STAY_AWAKE_SEC * 1000U;
+        ESP_LOGI(TAG, "diagnostic mode — staying awake %u ms", stay_ms);
+        vTaskDelay(pdMS_TO_TICKS(stay_ms));
+    }
+#endif
+
     enter_deep_sleep(sleep_sec);
 }

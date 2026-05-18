@@ -34,6 +34,9 @@ const definition = {
         numeric('water_level_rate', ea.STATE)
             .withUnit('cm/h')
             .withDescription('Water level rate of change. Positive = rising (recovering), negative = falling (draw-down). Only reported once two valid readings are in.'),
+        numeric('zb_fails', ea.STATE)
+            .withUnit('')
+            .withDescription('Consecutive Zigbee send failures since last success. 0 = healthy. Warnings at 3+, auto-rejoin at 5.'),
     ],
     options: [
         numeric('battery_full_mv', ea.SET)

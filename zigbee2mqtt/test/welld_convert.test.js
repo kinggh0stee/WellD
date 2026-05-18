@@ -5,6 +5,7 @@ const {
     convertLevel,
     convertBattery,
     convertRate,
+    convertFails,
     convertAnalogInput,
     DEFAULT_BATTERY_FULL_MV,
     DEFAULT_BATTERY_EMPTY_MV,
@@ -157,4 +158,38 @@ test('endpoint 3 (temperature cluster) is not handled by convertAnalogInput', ()
         data: {presentValue: 25.0},
     });
     assert.equal(result, undefined);
+});
+
+/* convertFails ------------------------------------------------------------- */
+
+test('convertFails truncates float to integer', () => {
+    assert.equal(convertFails(3.9), 3);
+    assert.equal(convertFails(0.0), 0);
+});
+
+test('convertFails clamps to [0, 255]', () => {
+    assert.equal(convertFails(-1), 0);
+    assert.equal(convertFails(300), 255);
+});
+
+test('convertFails returns undefined for null/NaN/Infinity', () => {
+    assert.equal(convertFails(null), undefined);
+    assert.equal(convertFails(NaN), undefined);
+    assert.equal(convertFails(Infinity), undefined);
+});
+
+test('endpoint 5 dispatches to failure counter', () => {
+    const result = convertAnalogInput({
+        endpoint: {ID: 5},
+        data: {presentValue: 3.0},
+    });
+    assert.deepEqual(result, {zb_fails: 3});
+});
+
+test('endpoint 5 with zero failures reports 0', () => {
+    const result = convertAnalogInput({
+        endpoint: {ID: 5},
+        data: {presentValue: 0.0},
+    });
+    assert.deepEqual(result, {zb_fails: 0});
 });

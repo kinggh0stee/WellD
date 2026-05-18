@@ -34,6 +34,12 @@ function convertRate(presentValue) {
     return parseFloat(presentValue.toFixed(1));
 }
 
+/* Endpoint 5: Zigbee failure counter (0–255 float). Truncated to integer. */
+function convertFails(presentValue) {
+    if (presentValue == null || !isFinite(presentValue)) return undefined;
+    return Math.min(255, Math.max(0, Math.floor(presentValue)));
+}
+
 /* Mirrors the inline `convert` function in welld.js. Returns undefined when
    the message has no presentValue (early return) or the endpoint is unknown. */
 function convertAnalogInput(msg) {
@@ -52,6 +58,11 @@ function convertAnalogInput(msg) {
         if (rate === undefined) return undefined;
         return {water_level_rate: rate};
     }
+    if (ep === 5) {
+        const fails = convertFails(msg.data.presentValue);
+        if (fails === undefined) return undefined;
+        return {zb_fails: fails};
+    }
     return undefined;
 }
 
@@ -59,6 +70,7 @@ module.exports = {
     convertLevel,
     convertBattery,
     convertRate,
+    convertFails,
     convertAnalogInput,
     DEFAULT_BATTERY_FULL_MV,
     DEFAULT_BATTERY_EMPTY_MV,

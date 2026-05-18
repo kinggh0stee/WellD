@@ -8,3 +8,10 @@ CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 # ZED = Zigbee End Device (battery-powered, deep-sleeping well monitor).
 CONFIG_ZB_ENABLED=y
 CONFIG_ZB_ZED=y
+
+# Watchdog — reboot if a task (e.g. Zigbee stack callback) hangs.
+CONFIG_ESP_TASK_WDT_EN=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=30
+
+# Brownout detection — log reset reason when battery sags under TX load.
+CONFIG_ESP_BROWNOUT_DET=y
