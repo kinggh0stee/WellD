@@ -9,6 +9,7 @@ managed_components/
 *.swp
 *.orig
 
-# Claude Code internal state — track agents/, ignore everything else
+# Claude Code internal state — track agents/ and commands/, ignore everything else
 .claude/*
 !.claude/agents/
+!.claude/commands/
