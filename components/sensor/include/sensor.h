@@ -62,6 +62,12 @@ esp_err_t sensor_max17048_clear_alrt(void);
  * Returns the compensated level in metres. */
 float sensor_level_temp_compensate(float level_m, float temp_c);
 
+/* Release I2C bus driver and remove the ADS1115 DRDY ISR before deep sleep.
+ * Must be called from every code path that leads to esp_deep_sleep() so the
+ * I2C peripheral is not left in a partially initialised state on the next
+ * wakeup and the DRDY GPIO interrupt does not fire spuriously during sleep. */
+void sensor_pre_sleep_cleanup(void);
+
 /* Self-test: exercise every peripheral and log PASS/FAIL over serial.
  * Useful for factory QA and PCB bring-up. */
 void sensor_selftest(void);

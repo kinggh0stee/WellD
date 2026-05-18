@@ -79,7 +79,7 @@ The PCB now includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centre
 
 ### 4–20 mA loop
 
-The TPS61023 boost converter lifts VLOOP to 12 V to power the transducer loop. Firmware gates EN high for ≥ 5 ms (soft-start) before reading, then drives it low immediately after. Maximum ON time is 100 ms.
+The TPS61023 boost converter lifts VLOOP to 12 V to power the transducer loop. Firmware gates EN high for 2 ms (soft-start, matching the TPS61023 datasheet 1–2 ms typical) before reading, then drives it low immediately after. Maximum ON time is 100 ms.
 
 The ADS1115 measures the voltage across a shunt resistor on the loop return. PGA ±2.048 V, single-shot at 860 SPS, AIN0 vs GND.
 
@@ -207,9 +207,9 @@ All options have sensible defaults. Only change what differs from your hardware.
 | Option | Default | Description |
 |--------|---------|-------------|
 | `CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED` | `n` | Take 3 ADS1115 samples per measurement and report the median. Opt-in for electrically noisy installations (pump motor interference, long cable runs). Costs ~8 ms extra active time per wakeup; leave off for maximum battery life |
-| `CONFIG_WELLD_TEMP_COMPENSATION_ENABLED` | `n` | Apply water-density correction to the level reading: `level / (1 + alpha * (temp - 20))`. Only useful when the well has large thermal swings (> 20 °C) |
+| `CONFIG_WELLD_TEMP_COMPENSATION_ENABLED` | `y` | Apply water-density correction to the level reading: `level / (1 + alpha * (temp - 20))`. Suppressed automatically when DS18B20 fails (temp ≤ −127 °C) |
 | `CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C` | `207` | Water density coefficient in ppm/°C. Depends on `WELLD_TEMP_COMPENSATION_ENABLED`. Typical value for fresh water is 207 ppm/°C; range 0–500 |
-| `CONFIG_WELLD_DS18B20_RESOLUTION_BITS` | `12` | DS18B20 conversion resolution: 9 / 10 / 11 / 12 bit. Conversion time: 94 / 188 / 375 / 750 ms. Lower resolution saves active time and battery |
+| `CONFIG_WELLD_DS18B20_RESOLUTION_BITS` | `11` | DS18B20 conversion resolution: 9 / 10 / 11 / 12 bit. Conversion time: 94 / 188 / 375 / 750 ms. 11-bit gives 0.0625 °C steps — adequate for well water monitoring and saves 375 ms per wakeup vs 12-bit |
 | `CONFIG_WELLD_FACTORY_RESET_GPIO` | `13` | If this GPIO is held LOW at boot, NVS is erased and the device rejoins Zigbee fresh. Internal pull-up enabled; leave unconnected for normal operation |
 | `CONFIG_WELLD_SELFTEST_ENABLED` | `n` | Exercise all peripherals on every boot and log PASS/FAIL. Adds ~200 ms to boot time; useful for factory QA and PCB bring-up |
 | `CONFIG_WELLD_DIAGNOSTIC_MODE_ENABLED` | `n` | Stay awake for `WELLD_DIAGNOSTIC_STAY_AWAKE_SEC` after each sensor read, printing verbose logs. Deep sleep is still entered after the window expires |
@@ -338,13 +338,13 @@ The device remembers its last valid reading and elapsed time in RTC slow memory 
 1. **Report `water_level_rate`** to Zigbee2MQTT.
 2. **Adjust the next sleep duration** when `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED=y`:
 
-   | Rate (cm/h) | Sleep multiplier | At default 300 s |
-   |-------------|------------------|------------------|
-   | < 1         | 3×               | 900 s (15 min)   |
-   | 1 – 5       | 2×               | 600 s (10 min)   |
-   | 5 – 20      | 1×               | 300 s (5 min)    |
-   | 20 – 50     | ½×               | 150 s            |
-   | ≥ 50        | ¼×               | 75 s             |
+   | Rate (cm/h) | Sleep interval | Condition |
+   |-------------|----------------|-----------|
+   | 0 – 2       | 1800 s (max)   | well at rest |
+   | 2 – 5       | 600 s          | slow drawdown |
+   | 5 – 10      | 300 s          | active pumping |
+   | 10 – 20     | 150 s          | heavy pumping |
+   | ≥ 20        | 60 s (min)     | rapid event |
 
    Result is clamped to `[WELLD_SLEEP_MIN_SEC, WELLD_SLEEP_MAX_SEC]`.
 
@@ -357,6 +357,10 @@ Hold `CONFIG_WELLD_FACTORY_RESET_GPIO` (default GPIO13) LOW during boot to erase
 ### I2C bus recovery
 
 On every boot, `sensor_i2c_init()` checks whether SDA is stuck LOW (a common symptom of a previous aborted transaction). If SDA is LOW, it clocks 9 SCL pulses to force any stuck I2C slave to release the bus before initialising the I2C master. This is a no-op under normal conditions.
+
+### Pre-sleep GPIO and I2C cleanup
+
+Before every `esp_deep_sleep()` call, `sensor_pre_sleep_cleanup()` is invoked automatically. It removes the ADS1115 DRDY ISR (GPIO12), deletes the I2C semaphore, and releases the I2C bus handles for GPIO10 (SDA) and GPIO11 (SCL). Without this step the I2C driver retains ownership of those GPIOs across the sleep boundary; the driver context is invalid after wakeup and the bus can be left in a partially-driven state. Combined with `esp_sleep_gpio_isolate()`, all GPIOs are in a defined low-leakage state before the core powers down.
 
 ### MAX17048 alert handling
 

@@ -394,9 +394,11 @@ void sensor_offset_cache_reset(void)
  * Returns -2.0 if a short-circuit is detected (>21 mA). */
 float sensor_read_level(void)
 {
-    /* Gate VLOOP HIGH to enable the TPS61023 boost converter */
+    /* Gate VLOOP HIGH to enable the TPS61023 boost converter.
+     * TPS61023 datasheet specifies a 1-2 ms soft-start; 2 ms gives a 2× margin
+     * and cuts the previous 5 ms delay roughly in half. */
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 1);
-    vTaskDelay(pdMS_TO_TICKS(5));   /* 5 ms soft-start margin */
+    vTaskDelay(pdMS_TO_TICKS(2));   /* 2 ms soft-start margin (TPS61023 typ 1-2 ms) */
 
     int volt_mv;
 #if CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED
@@ -667,6 +669,45 @@ esp_err_t sensor_max17048_clear_alrt(void)
         return ESP_ERR_INVALID_RESPONSE;
     }
     return ESP_OK;
+}
+
+/* Remove the ADS1115 DRDY ISR and delete the I2C master bus before deep sleep.
+ *
+ * Without this:
+ *   - The ADS1115 DRDY GPIO12 ISR remains installed.  If DRDY happens to
+ *     glitch during the deep-sleep entry window the ISR fires, waking the
+ *     CPU before it has entered sleep.
+ *   - The I2C master bus handle (s_i2c_bus) is left open.  On the next
+ *     wakeup sensor_i2c_init() calls i2c_new_master_bus() again; ESP-IDF
+ *     will return ESP_ERR_INVALID_STATE because port 0 is still claimed,
+ *     causing the whole I2C init to fail silently.
+ *
+ * Call this from every path that leads to esp_deep_sleep(). */
+void sensor_pre_sleep_cleanup(void)
+{
+    /* Remove ADS1115 DRDY ISR so GPIO12 cannot wake us prematurely. */
+    if (s_ads_drdy_sem) {
+        gpio_isr_handler_remove(CONFIG_WELLD_ADS1115_DRDY_GPIO);
+        vSemaphoreDelete(s_ads_drdy_sem);
+        s_ads_drdy_sem = NULL;
+    }
+
+    /* Delete device handles before deleting the bus. */
+    if (s_ads_dev) {
+        i2c_master_bus_rm_device(s_ads_dev);
+        s_ads_dev = NULL;
+    }
+    if (s_max_dev) {
+        i2c_master_bus_rm_device(s_max_dev);
+        s_max_dev = NULL;
+    }
+
+    /* Release the I2C master bus so the next wakeup's i2c_new_master_bus()
+     * finds port 0 unclaimed. */
+    if (s_i2c_bus) {
+        i2c_del_master_bus(s_i2c_bus);
+        s_i2c_bus = NULL;
+    }
 }
 
 /* Self-test: exercise every peripheral and log PASS/FAIL.

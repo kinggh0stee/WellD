@@ -196,71 +196,88 @@ static void test_rate_accumulated_elapsed(void)
 }
 
 /* welld_adaptive_sleep_sec ------------------------------------------------- */
+/*
+ * Five-band schedule (tuned for well behaviour):
+ *   abs_rate < 2  cm/h  → max_sec        (idle / recovery)
+ *   abs_rate < 5  cm/h  → default × 2   (slow drawdown)
+ *   abs_rate < 10 cm/h  → default        (active pumping)
+ *   abs_rate < 20 cm/h  → default / 2   (heavy pumping)
+ *   abs_rate ≥ 20 cm/h  → min_sec        (rapid event)
+ * Result is always clamped to [min_sec, max_sec].
+ */
 
 static void test_adaptive_sleep_stable_stretches(void)
 {
-    TEST_ASSERT_EQUAL_UINT32(900, welld_adaptive_sleep_sec(0.5f, 300, 60, 1800));
+    /* 0.5 cm/h: < 2.0 → max_sec = 1800 */
+    TEST_ASSERT_EQUAL_UINT32(1800, welld_adaptive_sleep_sec(0.5f, 300, 60, 1800));
 }
 
 static void test_adaptive_sleep_slow_drift(void)
 {
+    /* 3.0 cm/h: < 5.0 → default * 2 = 600 */
     TEST_ASSERT_EQUAL_UINT32(600, welld_adaptive_sleep_sec(3.0f, 300, 60, 1800));
 }
 
 static void test_adaptive_sleep_normal(void)
 {
-    TEST_ASSERT_EQUAL_UINT32(300, welld_adaptive_sleep_sec(10.0f, 300, 60, 1800));
+    /* 7.0 cm/h: < 10.0 → default = 300 */
+    TEST_ASSERT_EQUAL_UINT32(300, welld_adaptive_sleep_sec(7.0f, 300, 60, 1800));
 }
 
 static void test_adaptive_sleep_rapid(void)
 {
-    TEST_ASSERT_EQUAL_UINT32(150, welld_adaptive_sleep_sec(30.0f, 300, 60, 1800));
+    /* 15.0 cm/h: < 20.0 → default / 2 = 150 */
+    TEST_ASSERT_EQUAL_UINT32(150, welld_adaptive_sleep_sec(15.0f, 300, 60, 1800));
 }
 
 static void test_adaptive_sleep_very_rapid(void)
 {
-    TEST_ASSERT_EQUAL_UINT32(75, welld_adaptive_sleep_sec(100.0f, 300, 60, 1800));
+    /* 100.0 cm/h: ≥ 20.0 → min_sec = 60 */
+    TEST_ASSERT_EQUAL_UINT32(60, welld_adaptive_sleep_sec(100.0f, 300, 60, 1800));
 }
 
 static void test_adaptive_sleep_sign_independent(void)
 {
+    /* Falling and rising at the same rate should produce the same sleep */
     TEST_ASSERT_EQUAL_UINT32(
-        welld_adaptive_sleep_sec( 30.0f, 300, 60, 1800),
-        welld_adaptive_sleep_sec(-30.0f, 300, 60, 1800));
+        welld_adaptive_sleep_sec( 15.0f, 300, 60, 1800),
+        welld_adaptive_sleep_sec(-15.0f, 300, 60, 1800));
 }
 
 static void test_adaptive_sleep_clamps_to_max(void)
 {
+    /* Idle: < 2.0 → max_sec; also tests that band already returns max_sec */
     TEST_ASSERT_EQUAL_UINT32(1800, welld_adaptive_sleep_sec(0.0f, 900, 60, 1800));
 }
 
 static void test_adaptive_sleep_clamps_to_min(void)
 {
+    /* Very fast rate, tiny default → band returns min_sec, clamp confirms */
     TEST_ASSERT_EQUAL_UINT32(60, welld_adaptive_sleep_sec(100.0f, 60, 60, 1800));
 }
 
-static void test_adaptive_sleep_boundary_1(void)
+static void test_adaptive_sleep_boundary_2(void)
 {
-    /* Exactly 1.0 cm/h: < 1.0f is false → falls to < 5.0f → 2× default */
-    TEST_ASSERT_EQUAL_UINT32(600, welld_adaptive_sleep_sec(1.0f, 300, 60, 1800));
+    /* Exactly 2.0 cm/h: < 2.0f is false → < 5.0f → default * 2 = 600 */
+    TEST_ASSERT_EQUAL_UINT32(600, welld_adaptive_sleep_sec(2.0f, 300, 60, 1800));
 }
 
 static void test_adaptive_sleep_boundary_5(void)
 {
-    /* Exactly 5.0 cm/h: < 5.0f is false → falls to < 20.0f → 1× default */
+    /* Exactly 5.0 cm/h: < 5.0f is false → < 10.0f → default = 300 */
     TEST_ASSERT_EQUAL_UINT32(300, welld_adaptive_sleep_sec(5.0f, 300, 60, 1800));
+}
+
+static void test_adaptive_sleep_boundary_10(void)
+{
+    /* Exactly 10.0 cm/h: < 10.0f is false → < 20.0f → default / 2 = 150 */
+    TEST_ASSERT_EQUAL_UINT32(150, welld_adaptive_sleep_sec(10.0f, 300, 60, 1800));
 }
 
 static void test_adaptive_sleep_boundary_20(void)
 {
-    /* Exactly 20.0 cm/h: < 20.0f is false → falls to < 50.0f → ½× default */
-    TEST_ASSERT_EQUAL_UINT32(150, welld_adaptive_sleep_sec(20.0f, 300, 60, 1800));
-}
-
-static void test_adaptive_sleep_boundary_50(void)
-{
-    /* Exactly 50.0 cm/h: < 50.0f is false → falls to else → ¼× default */
-    TEST_ASSERT_EQUAL_UINT32(75, welld_adaptive_sleep_sec(50.0f, 300, 60, 1800));
+    /* Exactly 20.0 cm/h: < 20.0f is false → min_sec = 60 */
+    TEST_ASSERT_EQUAL_UINT32(60, welld_adaptive_sleep_sec(20.0f, 300, 60, 1800));
 }
 
 static int run_tests(void)
@@ -300,10 +317,10 @@ static int run_tests(void)
     RUN_TEST(test_adaptive_sleep_sign_independent);
     RUN_TEST(test_adaptive_sleep_clamps_to_max);
     RUN_TEST(test_adaptive_sleep_clamps_to_min);
-    RUN_TEST(test_adaptive_sleep_boundary_1);
+    RUN_TEST(test_adaptive_sleep_boundary_2);
     RUN_TEST(test_adaptive_sleep_boundary_5);
+    RUN_TEST(test_adaptive_sleep_boundary_10);
     RUN_TEST(test_adaptive_sleep_boundary_20);
-    RUN_TEST(test_adaptive_sleep_boundary_50);
     return UNITY_END();
 }
 

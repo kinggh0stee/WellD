@@ -107,7 +107,8 @@ menu "WellD Sensor"
         range 0 21
         default 5
         help
-            Drive HIGH before any 4-20 mA transducer read; allow 5 ms soft-start;
+            Drive HIGH before any 4-20 mA transducer read; allow 2 ms soft-start
+            (TPS61023 datasheet specifies 1-2 ms typical);
             drive LOW immediately after. Max ON time 100 ms per wake cycle.
 
     config WELLD_BATT_DIV_EN_GPIO
@@ -153,11 +154,13 @@ menu "WellD Sensor"
 
     config WELLD_TEMP_COMPENSATION_ENABLED
         bool "Temperature compensation for water level"
-        default n
+        default y
         help
             Compensate water-level readings for water density change with
             temperature. Requires CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C.
-            Only enable if your well has large thermal swings (>20°C).
+            At 207 ppm/°C the correction is <0.21 % per 10 °C deviation from
+            20 °C — small but systematic. Disabled automatically when the
+            DS18B20 read fails (guard in main.c: temp > -127.0 °C).
 
     config WELLD_TEMP_COMPENSATION_PPM_PER_C
         int "Water density coefficient (ppm/°C)"
@@ -170,10 +173,12 @@ menu "WellD Sensor"
 
     config WELLD_DS18B20_RESOLUTION_BITS
         int "DS18B20 resolution (bits)"
-        default 12
+        default 11
         range 9 12
         help
             Conversion time: 9-bit = 94 ms, 10-bit = 188 ms, 11-bit = 375 ms,
             12-bit = 750 ms. Lower resolution saves active time and battery.
+            11-bit gives 0.0625 °C steps — adequate for well water monitoring
+            and saves 375 ms per wakeup compared to 12-bit.
 
 endmenu

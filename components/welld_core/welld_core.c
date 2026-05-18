@@ -50,6 +50,17 @@ float welld_rate_cm_per_hour(float prev_level_m,
     return delta_cm / hours;
 }
 
+/* Adaptive sleep — five-band rate-of-change schedule tuned for well behaviour:
+ *
+ *  Band                  Typical scenario         Sleep target
+ *  abs_rate < 2 cm/h     Idle / recovery          max_sec  (e.g. 30 min)
+ *  2–5 cm/h              Slow drawdown            default × 2
+ *  5–10 cm/h             Active pumping           default
+ *  10–20 cm/h            Heavy pumping            default / 2
+ *  ≥ 20 cm/h             Rapid event / failure    min_sec  (e.g. 2 min)
+ *
+ * The result is always clamped to [min_sec, max_sec] so extreme base values
+ * cannot produce unsafe sleep durations. */
 uint32_t welld_adaptive_sleep_sec(float rate_cm_per_hour,
                                   uint32_t default_sec,
                                   uint32_t min_sec,
@@ -58,11 +69,11 @@ uint32_t welld_adaptive_sleep_sec(float rate_cm_per_hour,
     float    abs_rate = fabsf(rate_cm_per_hour);
     uint32_t scaled;
 
-    if      (abs_rate < 1.0f)   scaled = default_sec * 3;
+    if      (abs_rate < 2.0f)   scaled = max_sec;
     else if (abs_rate < 5.0f)   scaled = default_sec * 2;
-    else if (abs_rate < 20.0f)  scaled = default_sec;
-    else if (abs_rate < 50.0f)  scaled = default_sec / 2;
-    else                        scaled = default_sec / 4;
+    else if (abs_rate < 10.0f)  scaled = default_sec;
+    else if (abs_rate < 20.0f)  scaled = default_sec / 2;
+    else                        scaled = min_sec;
 
     if (scaled < min_sec) scaled = min_sec;
     if (scaled > max_sec) scaled = max_sec;

@@ -309,9 +309,25 @@ static void write_fail_count(uint32_t count)
 
 /* Power down all peripheral GPIOs, isolate them for deep sleep, and enter
  * deep sleep for the requested duration. Called from every exit path in
- * app_main() so no wake cycle leaks power through partially-driven outputs. */
+ * app_main() so no wake cycle leaks power through partially-driven outputs.
+ *
+ * Sequence:
+ *  1. sensor_pre_sleep_cleanup() — removes ADS1115 DRDY ISR (prevents a
+ *     spurious GPIO12 edge from waking the CPU during sleep entry) and
+ *     deletes the I2C master bus (prevents port 0 staying claimed across
+ *     wakeups).
+ *  2. Drive power-control outputs LOW: GPIO4 (TP4056 CE), GPIO5 (VLOOP),
+ *     GPIO15 (BATT_DIV_EN).  VLOOP and BATT_DIV_EN are already LOW after
+ *     sensor reads; GPIO4 is driven LOW here to re-enable USB charging once
+ *     solar charging is no longer active (solar interlock is only held for
+ *     the duration of the wake cycle).
+ *  3. esp_sleep_config_gpio_isolate() — disconnects all GPIO pads from the
+ *     GPIO matrix so outputs hold their last state but draw no dynamic
+ *     current.  The three power-control outputs are already LOW before this
+ *     call so they remain LOW in isolation. */
 static void enter_deep_sleep(uint32_t sleep_sec)
 {
+    sensor_pre_sleep_cleanup();
     gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 0);
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
     gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 0);
