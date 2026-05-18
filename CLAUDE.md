@@ -138,6 +138,30 @@ These libraries have rough APIs that have churned across point releases (see com
 - Component `REQUIRES` lists are minimal and explicit; prefer adding to `REQUIRES` over reaching for transitive includes.
 - Log tag convention: one `static const char *TAG` per `.c` file, named for the component (`"main"`, `"sensor"`, `"zigbee"`).
 
+## Sub-Agent Routing Rules
+
+Agents live in `.claude/agents/`. Spawn them via the Agent tool when a task cleanly maps to one domain.
+
+**Parallel** (no shared files — safe to run simultaneously):
+- `firmware` + `host-tests` + `z2m-converter` + `case`
+
+**Sequential** (output of one constrains the next):
+- `pcb-engineer` → `firmware` (pin map may change) → `case` (board dimensions may change)
+
+**PCB agent required outputs** on every invocation:
+1. Summary of what changed and why
+2. Updated GPIO map (if any pin changed)
+3. PCB dimensions (if board outline changed)
+4. BOM diff (if components changed)
+5. Any constraints `firmware` or `case` agents must know about
+
+**Handoff contract**: when the PCB agent changes a GPIO assignment, the firmware agent must update `components/sensor/sensor.c`, `main/Kconfig.projbuild` defaults, and the GPIO table in this file before any case work begins.
+
+**Hardware sub-agent routing**:
+- PCB changes first → outputs GPIO map + dimensions → case and firmware agents consume those outputs
+- Case-only changes (no PCB change) → case-engineer runs independently
+- Never run PCB and case agents on the same files simultaneously
+
 ## CI
 
 `.github/workflows/build.yml` has four jobs:
