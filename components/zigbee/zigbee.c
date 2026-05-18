@@ -347,6 +347,7 @@ static void send_reports(void)
 /* Called by the Zigbee stack from within the main loop task (zb_task).
  * Drives the BDB commissioning state machine:
  *   SKIP_STARTUP → INITIALIZATION → NETWORK_STEERING → send reports */
+// cppcheck-suppress constParameterPointer
 void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct)
 {
     uint32_t *p_sg_p     = signal_struct->p_app_signal;

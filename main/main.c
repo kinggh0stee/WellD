@@ -22,20 +22,6 @@ static const char *TAG = "main";
 
 #define FAIL_THRESHOLD  5           /* NVS erase + rejoin after this many failures */
 
-/* Simple CRC-32 (IEEE 802.3) for RTC structure integrity checks.
- * Used to detect bit-flips from cosmic rays or voltage sag. */
-static uint32_t crc32(const void *data, size_t len)
-{
-    const uint8_t *bytes = (const uint8_t *)data;
-    uint32_t crc = 0xFFFFFFFFU;
-    for (size_t i = 0; i < len; i++) {
-        crc ^= bytes[i];
-        for (int j = 0; j < 8; j++) {
-            crc = (crc >> 1) ^ (0xEDB88320U & (0U - (crc & 1U)));
-        }
-    }
-    return ~crc;
-}
 
 /* OTA rollback: count consecutive boots without a successful Zigbee send.
  * If the new OTA image is broken (crashes before send), we roll back to
