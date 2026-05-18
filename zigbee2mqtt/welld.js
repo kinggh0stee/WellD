@@ -37,6 +37,12 @@ const definition = {
         numeric('zb_fails', ea.STATE)
             .withUnit('')
             .withDescription('Consecutive Zigbee send failures since last success. 0 = healthy. Warnings at 3+, auto-rejoin at 5.'),
+        numeric('linkquality', ea.STATE)
+            .withUnit('')
+            .withDescription('Zigbee link quality indicator (LQI), 0-255. Higher is better.'),
+        numeric('solar_charging', ea.STATE)
+            .withUnit('')
+            .withDescription('Solar charging active. true = charging, false = not charging.'),
     ],
     options: [
         numeric('battery_full_mv', ea.SET)

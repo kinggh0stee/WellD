@@ -78,6 +78,55 @@ menu "WellD Configuration"
             considered stalled and aborted. Prevents a hung download from
             keeping the radio alive indefinitely.
 
+    config WELLD_ADC_OVERSAMPLE_ENABLED
+        bool "ADC oversampling (median-of-three)"
+        default y
+        help
+            Take 3 ADS1115 samples per channel and report the median.
+            Rejects single-sample noise outliers at the cost of ~4 ms
+            extra active time per channel.
+
+    config WELLD_TEMP_COMPENSATION_ENABLED
+        bool "Temperature compensation for water level"
+        default n
+        help
+            Compensate water-level readings for water density change with
+            temperature. Requires CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C.
+            Only enable if your well has large thermal swings (>20°C).
+
+    config WELLD_TEMP_COMPENSATION_PPM_PER_C
+        int "Water density coefficient (ppm/°C)"
+        default 207
+        range 0 500
+        depends on WELLD_TEMP_COMPENSATION_ENABLED
+        help
+            Typical value for fresh water is ~207 ppm/°C. The reported level
+            is corrected as: level = raw / (1 + coeff*(temp - 20°C)).
+
+    config WELLD_DS18B20_RESOLUTION_BITS
+        int "DS18B20 resolution (bits)"
+        default 12
+        range 9 12
+        help
+            Conversion time: 9-bit = 94 ms, 10-bit = 188 ms, 11-bit = 375 ms,
+            12-bit = 750 ms. Lower resolution saves active time and battery.
+
+    config WELLD_SELFTEST_ENABLED
+        bool "Self-test mode (peripheral health check on boot)"
+        default n
+        help
+            On every boot, exercise all peripherals and log PASS/FAIL.
+            Adds ~200 ms to boot time. Useful for factory QA and PCB bring-up.
+
+    config WELLD_FACTORY_RESET_GPIO
+        int "Factory reset GPIO (hold LOW at boot)"
+        range 0 21
+        default 13
+        help
+            If this GPIO is held LOW during boot, NVS is erased and the
+            device reboots for a clean Zigbee join. Internal pull-up is
+            enabled; leave unconnected for normal operation.
+
 endmenu
 
 menu "Rev 2 Hardware I/O"

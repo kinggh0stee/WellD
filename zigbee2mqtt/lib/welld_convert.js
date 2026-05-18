@@ -40,6 +40,18 @@ function convertFails(presentValue) {
     return Math.min(255, Math.max(0, Math.floor(presentValue)));
 }
 
+/* Endpoint 6: Link Quality (LQI), 0–255 integer. */
+function convertLqi(presentValue) {
+    if (presentValue == null || !isFinite(presentValue)) return undefined;
+    return Math.min(255, Math.max(0, Math.round(presentValue)));
+}
+
+/* Endpoint 7: Solar charging state, 0/1 boolean. */
+function convertSolar(presentValue) {
+    if (presentValue == null || !isFinite(presentValue)) return undefined;
+    return presentValue >= 0.5;
+}
+
 /* Mirrors the inline `convert` function in welld.js. Returns undefined when
    the message has no presentValue (early return) or the endpoint is unknown. */
 function convertAnalogInput(msg) {
@@ -63,6 +75,16 @@ function convertAnalogInput(msg) {
         if (fails === undefined) return undefined;
         return {zb_fails: fails};
     }
+    if (ep === 6) {
+        const lqi = convertLqi(msg.data.presentValue);
+        if (lqi === undefined) return undefined;
+        return {linkquality: lqi};
+    }
+    if (ep === 7) {
+        const solar = convertSolar(msg.data.presentValue);
+        if (solar === undefined) return undefined;
+        return {solar_charging: solar};
+    }
     return undefined;
 }
 
@@ -71,6 +93,8 @@ module.exports = {
     convertBattery,
     convertRate,
     convertFails,
+    convertLqi,
+    convertSolar,
     convertAnalogInput,
     DEFAULT_BATTERY_FULL_MV,
     DEFAULT_BATTERY_EMPTY_MV,

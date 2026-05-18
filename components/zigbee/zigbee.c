@@ -21,6 +21,8 @@ static const char *TAG = "zigbee";
 #define EP_TEMPERATURE   3
 #define EP_RATE          4
 #define EP_FAILS         5
+#define EP_LQI           6
+#define EP_SOLAR         7
 #define SEND_DELAY_MS    CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS
 #define TOTAL_TIMEOUT_MS 25000  /* max time to find coordinator before giving up */
 
@@ -53,6 +55,11 @@ static float s_level_m;
 static float s_battery_v;
 static float s_temperature_c;
 static float s_rate_cm_per_hour;  /* NaN = "no history yet", do not report */
+static bool  s_solar_charging;
+static uint8_t s_store_count;
+static const float *s_store_level_m;
+static const float *s_store_battery_v;
+static const float *s_store_temp_c;
 
 /* volatile because s_ota_in_progress is written inside zb_task (via the Zigbee
    stack callbacks) and read by the alarm callbacks in the same task context —
@@ -268,6 +275,69 @@ static void send_reports(void)
             ESP_ZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID, &fails_f, false);
         report.zcl_basic_cmd.src_endpoint = EP_FAILS;
         esp_zb_zcl_report_attr_cmd_req(&report);
+    }
+
+    /* Link quality (LQI) — Analog Input cluster, endpoint 6.
+       TODO: read actual LQI from stack when API is available.
+       For now report 0 (unknown) so the endpoint is stable. */
+    {
+        float lqi_f = 0.0f;
+        esp_zb_zcl_set_attribute_val(EP_LQI,
+            ESP_ZB_ZCL_CLUSTER_ID_ANALOG_INPUT, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+            ESP_ZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID, &lqi_f, false);
+        report.zcl_basic_cmd.src_endpoint = EP_LQI;
+        esp_zb_zcl_report_attr_cmd_req(&report);
+    }
+
+    /* Solar charging state — Analog Input cluster, endpoint 7.
+       1.0 = charging, 0.0 = not charging. */
+    {
+        float solar_f = s_solar_charging ? 1.0f : 0.0f;
+        esp_zb_zcl_set_attribute_val(EP_SOLAR,
+            ESP_ZB_ZCL_CLUSTER_ID_ANALOG_INPUT, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+            ESP_ZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID, &solar_f, false);
+        report.zcl_basic_cmd.src_endpoint = EP_SOLAR;
+        esp_zb_zcl_report_attr_cmd_req(&report);
+    }
+
+    /* Store-and-forward burst: re-send previously-failed readings.
+       Each stored reading is sent on the level endpoint so the
+       coordinator receives the full history. */
+    for (uint8_t i = 0; i < s_store_count; i++) {
+        float burst_level = s_store_level_m[i];
+        float burst_batt  = s_store_battery_v[i];
+        if (burst_level >= 0.0f) {
+            esp_zb_zcl_set_attribute_val(EP_LEVEL,
+                ESP_ZB_ZCL_CLUSTER_ID_ANALOG_INPUT, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+                ESP_ZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID, &burst_level, false);
+            report.zcl_basic_cmd.src_endpoint = EP_LEVEL;
+            esp_zb_zcl_report_attr_cmd_req(&report);
+        }
+        if (welld_zb_should_report_battery(burst_batt)) {
+            esp_zb_zcl_set_attribute_val(EP_BATTERY,
+                ESP_ZB_ZCL_CLUSTER_ID_ANALOG_INPUT, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+                ESP_ZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID, &burst_batt, false);
+            report.zcl_basic_cmd.src_endpoint = EP_BATTERY;
+            esp_zb_zcl_report_attr_cmd_req(&report);
+        }
+        if (s_store_temp_c[i] > -127.0f) {
+            int16_t temp_zb = welld_zb_encode_temp(s_store_temp_c[i]);
+            esp_zb_zcl_set_attribute_val(EP_TEMPERATURE,
+                ESP_ZB_ZCL_CLUSTER_ID_TEMP_MEASUREMENT, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+                ESP_ZB_ZCL_ATTR_TEMP_MEASUREMENT_VALUE_ID, &temp_zb, false);
+            esp_zb_zcl_report_attr_cmd_t burst_temp = {
+                .zcl_basic_cmd = {
+                    .dst_addr_u.addr_short = 0x0000,
+                    .dst_endpoint          = 1,
+                    .src_endpoint          = EP_TEMPERATURE,
+                },
+                .address_mode = ESP_ZB_APS_ADDR_MODE_16_ENDP_PRESENT,
+                .clusterID    = ESP_ZB_ZCL_CLUSTER_ID_TEMP_MEASUREMENT,
+                .attributeID  = ESP_ZB_ZCL_ATTR_TEMP_MEASUREMENT_VALUE_ID,
+                .direction    = ESP_ZB_ZCL_CMD_DIRECTION_TO_CLI,
+            };
+            esp_zb_zcl_report_attr_cmd_req(&burst_temp);
+        }
     }
 
     /* Give the stack SEND_DELAY_MS to transmit before we declare success */
@@ -488,6 +558,23 @@ static void zb_task(void *pvParameters)
     ep_cfg.endpoint = EP_FAILS;
     ESP_ERROR_CHECK(esp_zb_ep_list_add_ep(ep_list, fails_clusters, ep_cfg));
 
+    /* Endpoint 6 — Link Quality (LQI) (Analog Input). */
+    esp_zb_cluster_list_t *lqi_clusters = esp_zb_zcl_cluster_list_create();
+    ESP_ERROR_CHECK(esp_zb_cluster_list_add_analog_input_cluster(lqi_clusters,
+                                                                  make_ai_cluster(0.0f),
+                                                                  ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
+    ep_cfg.endpoint = EP_LQI;
+    ESP_ERROR_CHECK(esp_zb_ep_list_add_ep(ep_list, lqi_clusters, ep_cfg));
+
+    /* Endpoint 7 — Solar charging state (Analog Input). */
+    float initial_solar = s_solar_charging ? 1.0f : 0.0f;
+    esp_zb_cluster_list_t *solar_clusters = esp_zb_zcl_cluster_list_create();
+    ESP_ERROR_CHECK(esp_zb_cluster_list_add_analog_input_cluster(solar_clusters,
+                                                                  make_ai_cluster(initial_solar),
+                                                                  ESP_ZB_ZCL_CLUSTER_SERVER_ROLE));
+    ep_cfg.endpoint = EP_SOLAR;
+    ESP_ERROR_CHECK(esp_zb_ep_list_add_ep(ep_list, solar_clusters, ep_cfg));
+
     esp_zb_device_register(ep_list);
 
     esp_zb_set_primary_network_channel_set(CONFIG_WELLD_ZIGBEE_CHANNEL_MASK);
@@ -516,13 +603,23 @@ bool zigbee_send(float level_m,
                  float battery_v,
                  float temperature_c,
                  float rate_cm_per_hour,
-                 uint32_t zb_fails)
+                 uint32_t zb_fails,
+                 bool solar_charging,
+                 uint8_t store_count,
+                 const float *store_level_m,
+                 const float *store_battery_v,
+                 const float *store_temp_c)
 {
     s_level_m           = level_m;
     s_battery_v         = battery_v;
     s_temperature_c     = temperature_c;
     s_rate_cm_per_hour  = rate_cm_per_hour;
     s_zb_fails          = zb_fails;
+    s_solar_charging    = solar_charging;
+    s_store_count       = store_count;
+    s_store_level_m     = store_level_m;
+    s_store_battery_v   = store_battery_v;
+    s_store_temp_c      = store_temp_c;
     portMEMORY_BARRIER();  /* prevent compiler from moving writes past xTaskCreate */
     s_events            = xEventGroupCreate();
 

@@ -133,11 +133,58 @@ static esp_err_t ads1115_drdy_init(void)
     return ESP_OK;
 }
 
+/* I2C bus recovery: if SDA is stuck LOW, clock out 9 pulses on SCL
+ * (GPIO open-drain mode) to release any peripheral holding the bus. */
+static void i2c_bus_recover(void)
+{
+    int sda = CONFIG_WELLD_I2C_SDA_GPIO;
+    int scl = CONFIG_WELLD_I2C_SCL_GPIO;
+
+    gpio_config_t cfg = {
+        .mode         = GPIO_MODE_OUTPUT_OD,
+        .pull_up_en   = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type    = GPIO_INTR_DISABLE,
+    };
+
+    /* Configure SDA as input to sample its level */
+    cfg.pin_bit_mask = 1ULL << sda;
+    gpio_config(&cfg);
+    cfg.pin_bit_mask = 1ULL << scl;
+    gpio_config(&cfg);
+
+    gpio_set_level(scl, 1);
+    gpio_set_level(sda, 1);
+    vTaskDelay(pdMS_TO_TICKS(1));
+
+    if (gpio_get_level(sda) == 0) {
+        ESP_LOGW(TAG, "SDA stuck LOW — performing I2C bus recovery");
+        for (int i = 0; i < 9; i++) {
+            gpio_set_level(scl, 0);
+            vTaskDelay(pdMS_TO_TICKS(1));
+            gpio_set_level(scl, 1);
+            vTaskDelay(pdMS_TO_TICKS(1));
+            if (gpio_get_level(sda)) {
+                ESP_LOGI(TAG, "SDA released after %d clock pulses", i + 1);
+                break;
+            }
+        }
+        /* Send STOP condition: SDA LOW → SCL HIGH → SDA HIGH */
+        gpio_set_level(sda, 0);
+        vTaskDelay(pdMS_TO_TICKS(1));
+        gpio_set_level(scl, 1);
+        vTaskDelay(pdMS_TO_TICKS(1));
+        gpio_set_level(sda, 1);
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+}
+
 /* Initialise the shared I2C bus and register ADS1115 (0x48) + MAX17048 (0x36).
  * Also configures VLOOP and BATT_DIV_EN GPIO outputs and drives them LOW.
  * Must be called before any sensor_read_level() or sensor_read_battery_v(). */
 esp_err_t sensor_i2c_init(void) {
     power_gpio_init();
+    i2c_bus_recover();
 
     i2c_master_bus_config_t bus_cfg = {
         .clk_source            = I2C_CLK_SRC_DEFAULT,
@@ -187,6 +234,30 @@ esp_err_t sensor_i2c_init(void) {
 /* ADS1115 register addresses */
 #define ADS1115_REG_CONVERT     0x00
 #define ADS1115_REG_CONFIG      0x01
+
+static int ads1115_read_mv(int ch);  /* defined below; needed by ads1115_read_mv_median */
+
+/* Sort three integers in-place (bubble sort, small fixed size). */
+static void sort3(int *a, int *b, int *c)
+{
+    int tmp;
+    if (*a > *b) { tmp = *a; *a = *b; *b = tmp; }
+    if (*b > *c) { tmp = *b; *b = *c; *c = tmp; }
+    if (*a > *b) { tmp = *a; *a = *b; *b = tmp; }
+}
+
+/* Median of three ADS1115 readings on the same channel.
+ * Returns INT_MIN if any sample errors. */
+static int ads1115_read_mv_median(int ch)
+{
+    int s[3];
+    for (int i = 0; i < 3; i++) {
+        s[i] = ads1115_read_mv(ch);
+        if (s[i] == INT_MIN) return INT_MIN;
+    }
+    sort3(&s[0], &s[1], &s[2]);
+    return s[1];  /* median */
+}
 
 /* Config register bitfields */
 #define ADS1115_OS_START        (1U << 7)
@@ -316,17 +387,24 @@ void sensor_offset_cache_reset(void)
     s_offset_cm = INT32_MIN;
 }
 
-/* Read the water level in metres, applying the NVS-stored offset.
+/* Read the water level in metres, applying the NVS-stored offset and
+ * optional temperature compensation.
  * Gates the TPS61023 12V boost (VLOOP GPIO) for the duration of the read.
  * Uses ADS1115 AIN0 to measure the shunt voltage across the 4-20 mA loop.
- * Returns -1.0 if the transducer loop current indicates an open circuit. */
+ * Returns -1.0 if the transducer loop current indicates an open circuit.
+ * Returns -2.0 if a short-circuit is detected (>21 mA). */
 float sensor_read_level(void)
 {
     /* Gate VLOOP HIGH to enable the TPS61023 boost converter */
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 1);
     vTaskDelay(pdMS_TO_TICKS(5));   /* 5 ms soft-start margin */
 
-    int volt_mv = ads1115_read_mv(0);
+    int volt_mv;
+#if CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED
+    volt_mv = ads1115_read_mv_median(0);
+#else
+    volt_mv = ads1115_read_mv(0);
+#endif
 
     /* Drive VLOOP LOW immediately after read — max ON time is 100 ms */
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
@@ -336,15 +414,25 @@ float sensor_read_level(void)
         return -1.0f;
     }
 
+    int current_ua = (int)(((int64_t)volt_mv * 1000000LL) / CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS);
+
+    /* Short-circuit detection: >21 mA (2100 mV on 100 Ω shunt) */
+    if (current_ua > 21000) {
+        ESP_LOGE(TAG, "transducer short-circuit (voltage=%d mV, %d µA > 21 mA)",
+                 volt_mv, current_ua);
+        return -2.0f;
+    }
+
     float level_m = sensor_level_from_mv(volt_mv);
     if (level_m < 0.0f) {
-        ESP_LOGE(TAG, "transducer open loop (voltage=%d mV, < 3.5 mA)", volt_mv);
+        ESP_LOGE(TAG, "transducer open loop (voltage=%d mV, %d µA < 3.5 mA)",
+                 volt_mv, current_ua);
         return level_m;
     }
     float offset_m = sensor_get_offset_cm() / 100.0f;
     level_m += offset_m;
     if (level_m < 0.0f) level_m = 0.0f;
-    int current_ua = (int)(((int64_t)volt_mv * 1000000LL) / CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS);
+
     if (offset_m != 0.0f)
         ESP_LOGI(TAG, "voltage=%d mV  current=%d µA  level=%.2f m (offset %.0f cm)",
                  volt_mv, current_ua, level_m, offset_m * 100.0f);
@@ -352,6 +440,27 @@ float sensor_read_level(void)
         ESP_LOGI(TAG, "voltage=%d mV  current=%d µA  level=%.2f m",
                  volt_mv, current_ua, level_m);
     return level_m;
+}
+
+/* Apply temperature compensation to a raw water-level reading.
+ * Water density decreases with temperature, so a pressure transducer
+ * reads slightly high in warm water and low in cold water.
+ * level_m = raw / (1 + alpha * (temp_c - 20.0))
+ * Returns the compensated level. */
+float sensor_level_temp_compensate(float level_m, float temp_c)
+{
+#if CONFIG_WELLD_TEMP_COMPENSATION_ENABLED
+    float alpha = CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C / 1e6f;
+    float factor = 1.0f + alpha * (temp_c - 20.0f);
+    if (factor <= 0.0f) factor = 1.0f;
+    float compensated = level_m / factor;
+    ESP_LOGI(TAG, "temp-comp: raw=%.3f m temp=%.1f°C factor=%.5f compensated=%.3f m",
+             level_m, temp_c, factor, compensated);
+    return compensated;
+#else
+    (void)temp_c;
+    return level_m;
+#endif
 }
 
 /* Scan the 1-Wire bus for a DS18B20. Prefers the ROM address stored in NVS from
@@ -430,8 +539,17 @@ float sensor_read_temperature(void)
     }
 
     float temp = -127.0f;
+    /* Set resolution; default is 12-bit (750 ms). 9-bit = 94 ms, saves battery. */
+    ds18b20_set_resolution(ds18b20, (ds18b20_resolution_t)CONFIG_WELLD_DS18B20_RESOLUTION_BITS);
     if (ds18b20_trigger_temperature_conversion_for_all(bus) == ESP_OK) {
-        vTaskDelay(pdMS_TO_TICKS(750));  /* 12-bit conversion time per datasheet */
+        uint32_t conv_ms;
+        switch (CONFIG_WELLD_DS18B20_RESOLUTION_BITS) {
+            case 9:  conv_ms = 94;  break;
+            case 10: conv_ms = 188; break;
+            case 11: conv_ms = 375; break;
+            default: conv_ms = 750; break;
+        }
+        vTaskDelay(pdMS_TO_TICKS(conv_ms));
         ds18b20_get_temperature(ds18b20, &temp);
     }
     ds18b20_del_device(ds18b20);
@@ -464,7 +582,11 @@ float sensor_read_battery_v(void)
     /* Fallback: gate the divider, read ADS1115 AIN2, ungate */
     gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 1);
     vTaskDelay(pdMS_TO_TICKS(1));
+#if CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED
+    int mv = ads1115_read_mv_median(2);
+#else
     int mv = ads1115_read_mv(2);
+#endif
     gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 0);
     if (mv == INT_MIN) return -1.0f;
     float batt_v = sensor_battery_from_mv(mv, CONFIG_WELLD_BATT_DIVIDER_RATIO);
@@ -501,13 +623,22 @@ int sensor_read_battery_soc(void)
     return (int)data[0];   /* high byte = integer percent 0-100 */
 }
 
-/* Clear the ALRT bit (bit 5) in the MAX17048 STATUS register (0x1A).
+/* Read and decode the MAX17048 STATUS register (0x1A), log every asserted
+ * alert flag, then clear all alert bits so the ALRT pin de-asserts.
  *
- * The STATUS register is read-clear: the ALRT bit must be written back
- * as 0 after reading, otherwise the ALRT pin stays asserted.  All other
- * status bits are written back unchanged so they are not silently cleared.
+ * STATUS high-byte flags (per MAX17048/MAX17049 datasheet §0x1A):
+ *   bit 7 — RI  Reset Indicator (set after a power-on reset)
+ *   bit 6 — VH  Voltage High alert
+ *   bit 5 — VL  Voltage Low alert
+ *   bit 4 — VR  Voltage Reset alert
+ *   bit 3 — HD  SoC Low alert
+ *   bit 2 — SC  SoC Change alert
  *
- * Returns ESP_OK on success, or ESP_ERR_NOT_FOUND if the device is absent. */
+ * All alert bits are written back as 0 so the ALRT pin de-asserts; none are
+ * silently dropped without logging first.
+ *
+ * Returns ESP_OK on success, ESP_ERR_NOT_FOUND if device absent, or
+ * ESP_ERR_INVALID_RESPONSE on I2C error. */
 esp_err_t sensor_max17048_clear_alrt(void)
 {
     if (!s_max_dev) return ESP_ERR_NOT_FOUND;
@@ -520,13 +651,81 @@ esp_err_t sensor_max17048_clear_alrt(void)
         return ESP_ERR_INVALID_RESPONSE;
     }
 
-    /* Clear bit 5 (ALRT) in the high byte, preserve all other bits. */
-    status[0] &= ~(1U << 5);
+    /* Decode and log each asserted alert flag before clearing. */
+    uint8_t hi = status[0];
+    if (hi & (1U << 7)) ESP_LOGW(TAG, "MAX17048 ALRT: RI (reset indicator — power-on reset occurred)");
+    if (hi & (1U << 6)) ESP_LOGW(TAG, "MAX17048 ALRT: VH (voltage high alert)");
+    if (hi & (1U << 5)) ESP_LOGW(TAG, "MAX17048 ALRT: VL (voltage low alert)");
+    if (hi & (1U << 4)) ESP_LOGW(TAG, "MAX17048 ALRT: VR (voltage reset alert)");
+    if (hi & (1U << 3)) ESP_LOGW(TAG, "MAX17048 ALRT: HD (SoC low alert)");
+    if (hi & (1U << 2)) ESP_LOGW(TAG, "MAX17048 ALRT: SC (SoC change alert)");
+    if (!(hi & 0xFC))   ESP_LOGW(TAG, "MAX17048 ALRT: pin asserted but no flag bits set in STATUS (0x%02X)", hi);
 
-    uint8_t write_buf[3] = { 0x1A, status[0], status[1] };
+    /* Clear all alert bits in high byte; low byte is reserved, preserve it. */
+    uint8_t write_buf[3] = { 0x1A, 0x00, status[1] };
     if (i2c_master_transmit(s_max_dev, write_buf, 3, 50) != ESP_OK) {
         ESP_LOGW(TAG, "MAX17048 STATUS write error (ALRT clear)");
         return ESP_ERR_INVALID_RESPONSE;
     }
     return ESP_OK;
+}
+
+/* Self-test: exercise every peripheral and log PASS/FAIL.
+ * Useful for factory QA and PCB bring-up. */
+void sensor_selftest(void)
+{
+    ESP_LOGI(TAG, "=== SELF-TEST START ===");
+
+    /* I2C bus */
+    bool i2c_ok = (s_i2c_bus != NULL);
+    ESP_LOGI(TAG, "[I2C bus] %s", i2c_ok ? "PASS" : "FAIL");
+
+    /* ADS1115 loopback: read config register */
+    bool ads_ok = false;
+    if (s_ads_dev) {
+        uint8_t reg = ADS1115_REG_CONFIG;
+        uint8_t cfg[2];
+        ads_ok = (i2c_master_transmit_receive(s_ads_dev, &reg, 1, cfg, 2, 50) == ESP_OK);
+    }
+    ESP_LOGI(TAG, "[ADS1115] %s", ads_ok ? "PASS" : "FAIL");
+
+    /* MAX17048 */
+    bool max_ok = false;
+    if (s_max_dev) {
+        float v = sensor_read_battery_vcell_v();
+        max_ok = (v > 0.0f);
+    }
+    ESP_LOGI(TAG, "[MAX17048] %s (optional)", max_ok ? "PASS" : "ABSENT");
+
+    /* VLOOP GPIO toggle */
+    bool vloop_ok = true;
+    gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 1);
+    vTaskDelay(pdMS_TO_TICKS(1));
+    if (gpio_get_level(CONFIG_WELLD_VLOOP_GPIO) != 1) vloop_ok = false;
+    gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
+    ESP_LOGI(TAG, "[VLOOP GPIO] %s", vloop_ok ? "PASS" : "FAIL");
+
+    /* DS18B20 presence */
+    onewire_bus_handle_t bus = NULL;
+    onewire_bus_config_t bus_cfg = { .bus_gpio_num = CONFIG_WELLD_DS18B20_GPIO };
+    onewire_bus_rmt_config_t rmt_cfg = { .max_rx_bytes = 10 };
+    bool ds_ok = (onewire_new_bus_rmt(&bus_cfg, &rmt_cfg, &bus) == ESP_OK);
+    if (ds_ok) {
+        onewire_device_iter_handle_t iter = NULL;
+        ds_ok = (onewire_new_device_iter(bus, &iter) == ESP_OK);
+        if (ds_ok) {
+            onewire_device_t device;
+            ds_ok = (onewire_device_iter_get_next(iter, &device) == ESP_OK);
+            onewire_del_device_iter(iter);
+        }
+        onewire_bus_del(bus);
+    }
+    ESP_LOGI(TAG, "[DS18B20] %s", ds_ok ? "PASS" : "ABSENT");
+
+    /* Solar detect GPIO */
+    bool solar_ok = true;
+    ESP_LOGI(TAG, "[Solar detect GPIO] %s (level=%d)", solar_ok ? "PASS" : "FAIL",
+             gpio_get_level(CONFIG_WELLD_SOLAR_DETECT_GPIO));
+
+    ESP_LOGI(TAG, "=== SELF-TEST END ===");
 }

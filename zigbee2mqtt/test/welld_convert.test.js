@@ -6,6 +6,8 @@ const {
     convertBattery,
     convertRate,
     convertFails,
+    convertLqi,
+    convertSolar,
     convertAnalogInput,
     DEFAULT_BATTERY_FULL_MV,
     DEFAULT_BATTERY_EMPTY_MV,
@@ -192,4 +194,40 @@ test('endpoint 5 with zero failures reports 0', () => {
         data: {presentValue: 0.0},
     });
     assert.deepEqual(result, {zb_fails: 0});
+});
+
+/* convertLqi --------------------------------------------------------------- */
+
+test('convertLqi rounds float to integer', () => {
+    assert.equal(convertLqi(200.7), 201);
+    assert.equal(convertLqi(0.0), 0);
+});
+
+test('convertLqi clamps to [0, 255]', () => {
+    assert.equal(convertLqi(-10), 0);
+    assert.equal(convertLqi(300), 255);
+});
+
+test('endpoint 6 dispatches to LQI', () => {
+    const result = convertAnalogInput({
+        endpoint: {ID: 6},
+        data: {presentValue: 200.0},
+    });
+    assert.deepEqual(result, {linkquality: 200});
+});
+
+/* convertSolar ------------------------------------------------------------- */
+
+test('convertSolar returns boolean', () => {
+    assert.equal(convertSolar(1.0), true);
+    assert.equal(convertSolar(0.0), false);
+    assert.equal(convertSolar(0.5), true);
+});
+
+test('endpoint 7 dispatches to solar charging', () => {
+    const result = convertAnalogInput({
+        endpoint: {ID: 7},
+        data: {presentValue: 1.0},
+    });
+    assert.deepEqual(result, {solar_charging: true});
 });

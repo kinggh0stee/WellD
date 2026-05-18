@@ -56,3 +56,12 @@ float     sensor_read_battery_vcell_v(void);
  * be written back as 0 to de-assert the open-drain ALRT output.
  * Returns ESP_OK, ESP_ERR_NOT_FOUND (device absent), or ESP_ERR_INVALID_RESPONSE. */
 esp_err_t sensor_max17048_clear_alrt(void);
+
+/* Apply temperature compensation to a raw water-level reading.
+ * Corrects for water density change with temperature.
+ * Returns the compensated level in metres. */
+float sensor_level_temp_compensate(float level_m, float temp_c);
+
+/* Self-test: exercise every peripheral and log PASS/FAIL over serial.
+ * Useful for factory QA and PCB bring-up. */
+void sensor_selftest(void);
