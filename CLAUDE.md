@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-WellD is an ESP32-C6 battery-powered well-level monitor. Each wakeup it reads a 4–20 mA pressure transducer, a DS18B20 temperature probe, and (optionally) battery voltage, joins a Zigbee HA network as an end device, reports to Zigbee2MQTT, then deep-sleeps. Built with ESP-IDF **v5.3.5** for the RISC-V ESP32-C6.
+WellD is an ESP32-C6 battery-powered well-level monitor. Each wakeup it reads a 4–20 mA pressure transducer, a DS18B20 temperature probe, and (optionally) battery voltage, joins a Zigbee HA network as an end device, reports to Zigbee2MQTT, then deep-sleeps. Built with ESP-IDF **v5.5.4** for the RISC-V ESP32-C6.
 
 ## Commands
 
@@ -182,7 +182,7 @@ Firmware agent → test agent → docs agent
 
 `.github/workflows/build.yml` has four jobs:
 
-- **ESP-IDF build (esp32c6)** — runs ESP-IDF v5.3.5 in `espressif/esp-idf-ci-action` (SHA-pinned), builds the firmware, uploads `build/*.bin|elf|map` plus `dependencies.lock`.
+- **ESP-IDF build (esp32c6)** — runs ESP-IDF v5.5.4 in `espressif/esp-idf-ci-action` (SHA-pinned), builds the firmware, uploads `build/*.bin|elf|map` plus `dependencies.lock`.
 - **Host unit tests** — plain `ubuntu-latest`, no Docker, no ESP-IDF. Runs the `test/host/` suite (welld_core + sensor pure helpers) via ctest. Fetches Unity at configure time.
 - **On-device unit tests (build only)** — builds `test/sensor` and `test/welld_core` for esp32c6 to catch compile breaks. The tests themselves need real hardware to execute.
 - **Zigbee2MQTT converter tests** — Node 20, runs `npm test` in `zigbee2mqtt/` against the external converter.

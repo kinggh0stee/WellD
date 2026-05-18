@@ -126,7 +126,7 @@ Two variants in [`hardware/case/welld_case.scad`](hardware/case/welld_case.scad)
 
 ### Prerequisites
 
-- ESP-IDF **v5.3.5** installed and sourced — see the [Espressif getting-started guide](https://docs.espressif.com/projects/esp-idf/en/v5.3.5/esp32c6/get-started/)
+- ESP-IDF **v5.5.4** installed and sourced — see the [Espressif getting-started guide](https://docs.espressif.com/projects/esp-idf/en/v5.5.4/esp32c6/get-started/)
 - Custom PCB (or dev board — see legacy section below)
 
 ### Build and flash
@@ -466,7 +466,7 @@ CI builds these to catch compile breaks but cannot execute them (real hardware n
 
 `.github/workflows/build.yml` runs four jobs in parallel:
 
-- **ESP-IDF build** — v5.3.5, `esp32c6`, uploads `*.bin`, `*.elf`, `*.map`, `dependencies.lock`
+- **ESP-IDF build** — v5.5.4, `esp32c6`, uploads `*.bin`, `*.elf`, `*.map`, `dependencies.lock`
 - **Host unit tests** — plain `ubuntu-latest`, ctest, fetches Unity v2.6.0
 - **On-device test build** — compile-only check for `test/sensor` and `test/welld_core`
 - **Z2M converter tests** — Node 20, `npm test` in `zigbee2mqtt/`

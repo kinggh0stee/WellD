@@ -20,7 +20,7 @@ jobs:
       - name: Build firmware
         uses: espressif/esp-idf-ci-action@e6f5c74232b1ccd4c97ed641f1e48553853f1fd5  # v1.2.0
         with:
-          esp_idf_version: v5.3.5
+          esp_idf_version: v5.5.4
           target: esp32c6
           command: idf.py set-target esp32c6 && idf.py build
 
@@ -142,7 +142,7 @@ jobs:
       - name: Build sensor unit-test app
         uses: espressif/esp-idf-ci-action@e6f5c74232b1ccd4c97ed641f1e48553853f1fd5  # v1.2.0
         with:
-          esp_idf_version: v5.3.5
+          esp_idf_version: v5.5.4
           target: esp32c6
           path: test/sensor
           command: idf.py set-target esp32c6 && idf.py build
@@ -150,7 +150,7 @@ jobs:
       - name: Build welld_core unit-test app
         uses: espressif/esp-idf-ci-action@e6f5c74232b1ccd4c97ed641f1e48553853f1fd5  # v1.2.0
         with:
-          esp_idf_version: v5.3.5
+          esp_idf_version: v5.5.4
           target: esp32c6
           path: test/welld_core
           command: idf.py set-target esp32c6 && idf.py build
