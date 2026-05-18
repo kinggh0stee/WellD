@@ -167,6 +167,16 @@ static esp_err_t zb_action_handler(esp_zb_core_action_callback_id_t callback_id,
         }
         break;
 
+    case ESP_ZB_ZCL_OTA_UPGRADE_STATUS_ABORT:
+        ESP_LOGW(TAG, "OTA aborted by stack");
+        if (s_ota_in_progress) {
+            esp_ota_abort(s_ota_handle);
+            s_ota_in_progress = false;
+            xEventGroupSetBits(s_events, FAIL_BIT);
+            s_stop_requested = true;
+        }
+        break;
+
     case ESP_ZB_ZCL_OTA_UPGRADE_STATUS_FINISH:
         ESP_LOGI(TAG, "OTA finished by stack");
         break;

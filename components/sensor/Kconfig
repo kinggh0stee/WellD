@@ -59,17 +59,21 @@ menu "WellD Sensor"
         int "Battery full voltage (mV)"
         default 4200
         range 3000 5000
-        depends on WELLD_BATT_ADC_CHANNEL >= 0
         help
             Voltage read at 100 % state of charge. 4200 = LiPo/Li-ion.
+            Used by the Z2M converter; also used by the firmware as the
+            threshold below which Zigbee sends and NVS writes are skipped
+            to protect a nearly-dead cell from brown-out during TX.
 
     config WELLD_BATT_EMPTY_MV
         int "Battery empty voltage (mV)"
         default 3000
         range 2000 4000
-        depends on WELLD_BATT_ADC_CHANNEL >= 0
         help
             Voltage read at 0 % state of charge. 3000 = LiPo/Li-ion cutoff.
+            When battery voltage (from MAX17048 or ADC divider) drops at or
+            below this threshold, the device skips the Zigbee send and all
+            NVS writes and sleeps for the maximum interval to conserve charge.
 
     config WELLD_DS18B20_GPIO
         int "GPIO number for DS18B20 data line"

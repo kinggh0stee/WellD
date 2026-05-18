@@ -10,13 +10,12 @@
 #include "zigbee.h"
 #include "welld_core.h"
 #include "sdkconfig.h"
+#include "welld_nvs.h"
 #include <math.h>
 #include <string.h>
 
 static const char *TAG = "main";
 
-#define NVS_NAMESPACE   "welld"
-#define NVS_KEY_FAILS   "zb_fails"  /* consecutive Zigbee failure counter */
 #define FAIL_THRESHOLD  5           /* NVS erase + rejoin after this many failures */
 
 /* Bump this constant whenever the struct layout below changes.
@@ -44,8 +43,8 @@ static uint32_t read_fail_count(void)
 {
     nvs_handle_t h;
     uint32_t count = 0;
-    if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &h) == ESP_OK) {
-        nvs_get_u32(h, NVS_KEY_FAILS, &count);
+    if (nvs_open(WELLD_NVS_NAMESPACE, NVS_READONLY, &h) == ESP_OK) {
+        nvs_get_u32(h, WELLD_NVS_KEY_FAILS, &count);
         nvs_close(h);
     }
     return count;
@@ -54,8 +53,8 @@ static uint32_t read_fail_count(void)
 static void write_fail_count(uint32_t count)
 {
     nvs_handle_t h;
-    if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK) {
-        esp_err_t _err = nvs_set_u32(h, NVS_KEY_FAILS, count);
+    if (nvs_open(WELLD_NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK) {
+        esp_err_t _err = nvs_set_u32(h, WELLD_NVS_KEY_FAILS, count);
         if (_err != ESP_OK)
             ESP_LOGW(TAG, "fail counter write: %s", esp_err_to_name(_err));
         _err = nvs_commit(h);
@@ -63,6 +62,18 @@ static void write_fail_count(uint32_t count)
             ESP_LOGW(TAG, "fail counter commit: %s", esp_err_to_name(_err));
         nvs_close(h);
     }
+}
+
+/* Power down all peripheral GPIOs, isolate them for deep sleep, and enter
+ * deep sleep for the requested duration. Called from every exit path in
+ * app_main() so no wake cycle leaks power through partially-driven outputs. */
+static void enter_deep_sleep(uint32_t sleep_sec)
+{
+    gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 0);
+    gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
+    gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 0);
+    esp_sleep_config_gpio_isolate();
+    esp_deep_sleep((uint64_t)sleep_sec * 1000000ULL);
 }
 
 /* One wake cycle — see CLAUDE.md for the full sequencing rationale. */
@@ -87,7 +98,10 @@ void app_main(void)
 
     /* Initialise the I²C bus (ADS1115 + MAX17048) and power-control GPIOs.
      * Must be called before any sensor_read_level() or sensor_read_battery_v(). */
-    sensor_i2c_init();
+    if (sensor_i2c_init() != ESP_OK) {
+        ESP_LOGE(TAG, "I2C init failed — aborting wakeup");
+        enter_deep_sleep(CONFIG_WELLD_SLEEP_DURATION_SEC);
+    }
 
     /* Charger interlock: read the CN3791 CHRG signal (GPIO6) and assert the
      * TP4056 CE interlock (GPIO4) when solar charging is active to prevent
@@ -111,9 +125,13 @@ void app_main(void)
         };
         gpio_config(&in_cfg);
 
-        if (gpio_get_level(CONFIG_WELLD_SOLAR_DETECT_GPIO)) {
+        /* CN3791 CHRG is active-low: LOW means solar charging is in progress.
+         * Assert GPIO4 HIGH (disable TP4056 CE via Q1) to prevent both chargers
+         * from driving the battery simultaneously. Hardware Q3 does the same in
+         * parallel; this software path ensures the GPIO state is explicit. */
+        if (!gpio_get_level(CONFIG_WELLD_SOLAR_DETECT_GPIO)) {
             gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 1);
-            ESP_LOGI(TAG, "solar charging active — USB charger disabled");
+            ESP_LOGI(TAG, "solar charging active (GPIO6 LOW) — USB charger disabled");
         } else {
             gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 0);
         }
@@ -151,7 +169,6 @@ void app_main(void)
             s_history.pending_sleep_sec + s_history.last_active_sec;
     }
 
-#if CONFIG_WELLD_BATT_ADC_CHANNEL >= 0
     /* Flash programming requires VCC >= 2.7 V. A 20 mA Zigbee TX spike on a
      * nearly-dead cell can dip below that, corrupting NVS. If the battery is at
      * or below the empty threshold, skip the send and all NVS writes and sleep
@@ -169,13 +186,8 @@ void app_main(void)
         /* Reset elapsed accumulator to prevent a stale gap producing a false
          * rate spike when the battery recovers and the device resumes sending. */
         s_history.elapsed_since_last_valid_sec = 0;
-        gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 0);
-        gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
-        gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 0);
-        esp_sleep_config_gpio_isolate();
-        esp_deep_sleep((uint64_t)low_batt_sleep * 1000000ULL);
+        enter_deep_sleep(low_batt_sleep);
     }
-#endif
 
     float rate_cm_per_hour = NAN;
     if (s_history.valid && level_m >= 0.0f) {
@@ -221,9 +233,5 @@ void app_main(void)
         (uint32_t)((esp_timer_get_time() - wakeup_start_us) / 1000000LL);
 
     ESP_LOGI(TAG, "sleeping %lu s", (unsigned long)sleep_sec);
-    gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 0);
-    gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
-    gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 0);
-    esp_sleep_config_gpio_isolate();
-    esp_deep_sleep((uint64_t)sleep_sec * 1000000ULL);
+    enter_deep_sleep(sleep_sec);
 }

@@ -9,15 +9,10 @@
 #include "sdkconfig.h"
 #include "nvs_flash.h"
 #include "nvs.h"
+#include "welld_nvs.h"
 #include <limits.h>
 
 static const char *TAG = "sensor";
-
-#define NUM_SAMPLES 16   /* ADS1115 reads averaged to reduce quantisation noise */
-
-#define NVS_NAMESPACE       "welld"
-#define NVS_KEY_OFFSET      "offset_cm"
-#define NVS_KEY_DS18B20_ROM "ds18b20_rom"
 
 /* INT32_MIN is used as a sentinel meaning "not yet loaded from NVS".
    Avoids an NVS read on every call after the first wakeup. */
@@ -92,6 +87,35 @@ esp_err_t sensor_i2c_init(void) {
     return ESP_OK;
 }
 
+/* ADS1115 register addresses */
+#define ADS1115_REG_CONVERT     0x00
+#define ADS1115_REG_CONFIG      0x01
+
+/* Config register bitfields */
+#define ADS1115_OS_START        (1U << 7)
+#define ADS1115_MUX_AIN0        (4U << 4)   /* AIN0 vs GND */
+#define ADS1115_MUX_AIN2        (6U << 4)   /* AIN2 vs GND */
+#define ADS1115_PGA_2V048       (2U << 1)   /* ±2.048 V */
+#define ADS1115_MODE_SINGLE     (1U << 0)
+#define ADS1115_DR_860SPS       (7U << 5)
+#define ADS1115_COMP_QUE_DIS    (3U << 0)
+
+/* Poll the config register until the OS bit reads 1 (conversion complete).
+ * Returns ESP_OK when ready, or ESP_ERR_TIMEOUT after max_wait_ms. */
+static esp_err_t ads1115_wait_conversion_done(uint32_t max_wait_ms)
+{
+    uint8_t reg = ADS1115_REG_CONFIG;
+    uint8_t cfg[2];
+    for (uint32_t waited = 0; waited < max_wait_ms; waited += 2) {
+        if (i2c_master_transmit_receive(s_ads_dev, &reg, 1, cfg, 2, 50) != ESP_OK)
+            return ESP_ERR_INVALID_RESPONSE;
+        if (cfg[0] & ADS1115_OS_START)
+            return ESP_OK;
+        vTaskDelay(pdMS_TO_TICKS(2));
+    }
+    return ESP_ERR_TIMEOUT;
+}
+
 /* Read one ADS1115 channel in single-shot mode.
  * ch: 0 = AIN0/GND (4-20 mA shunt), 2 = AIN2/GND (battery divider)
  * PGA ±2.048 V, 860 SPS, comparator disabled.
@@ -99,22 +123,20 @@ esp_err_t sensor_i2c_init(void) {
 static int ads1115_read_mv(int ch) {
     if (!s_ads_dev) return INT_MIN;
 
-    /* Config register (0x01):
-     *  Bit 15    OS   = 1  (start single-shot)
-     *  Bits 14:12 MUX = 100 (AIN0/GND) or 110 (AIN2/GND)
-     *  Bits 11:9  PGA = 010 (±2.048 V)
-     *  Bit 8     MODE = 1  (single-shot)
-     *  Bits 7:5  DR   = 111 (860 SPS)
-     *  Bits 1:0  COMP_QUE = 11 (disable)
-     * High byte: AIN0 = 0xC5, AIN2 = 0xE5
-     * Low byte:  0xE3 */
-    uint8_t hi  = (ch == 2) ? 0xE5 : 0xC5;
-    uint8_t buf[3] = {0x01, hi, 0xE3};
+    uint8_t mux = (ch == 2) ? ADS1115_MUX_AIN2 : ADS1115_MUX_AIN0;
+    uint8_t buf[3] = {
+        ADS1115_REG_CONFIG,
+        ADS1115_OS_START | mux | ADS1115_PGA_2V048 | ADS1115_MODE_SINGLE | ADS1115_DR_860SPS,
+        ADS1115_COMP_QUE_DIS
+    };
     if (i2c_master_transmit(s_ads_dev, buf, 3, 50) != ESP_OK) return INT_MIN;
 
-    vTaskDelay(pdMS_TO_TICKS(3));   /* 1/860 SPS ≈ 1.2 ms; 3 ms margin */
+    if (ads1115_wait_conversion_done(10) != ESP_OK) {
+        ESP_LOGW(TAG, "ADS1115 conversion timeout");
+        return INT_MIN;
+    }
 
-    uint8_t ptr = 0x00;
+    uint8_t ptr = ADS1115_REG_CONVERT;
     uint8_t data[2] = {0};
     if (i2c_master_transmit_receive(s_ads_dev, &ptr, 1, data, 2, 50) != ESP_OK)
         return INT_MIN;
@@ -131,8 +153,8 @@ int sensor_get_offset_cm(void)
     if (s_offset_cm == INT32_MIN) {
         nvs_handle_t h;
         int32_t val = CONFIG_WELLD_SENSOR_OFFSET_CM;
-        if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &h) == ESP_OK) {
-            nvs_get_i32(h, NVS_KEY_OFFSET, &val);
+        if (nvs_open(WELLD_NVS_NAMESPACE, NVS_READONLY, &h) == ESP_OK) {
+            nvs_get_i32(h, WELLD_NVS_KEY_OFFSET, &val);
             nvs_close(h);
         }
         if (val < -600) val = -600;
@@ -148,8 +170,8 @@ void sensor_set_offset_cm(int offset_cm)
     if (offset_cm >  600) offset_cm =  600;
     s_offset_cm = offset_cm;
     nvs_handle_t h;
-    if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK) {
-        nvs_set_i32(h, NVS_KEY_OFFSET, (int32_t)offset_cm);
+    if (nvs_open(WELLD_NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK) {
+        nvs_set_i32(h, WELLD_NVS_KEY_OFFSET, (int32_t)offset_cm);
         nvs_commit(h);
         nvs_close(h);
     }
@@ -216,8 +238,8 @@ float sensor_read_temperature(void)
     bool has_preferred = false;
     {
         nvs_handle_t nvs_h;
-        if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &nvs_h) == ESP_OK) {
-            has_preferred = nvs_get_u64(nvs_h, NVS_KEY_DS18B20_ROM, &preferred_rom) == ESP_OK;
+        if (nvs_open(WELLD_NVS_NAMESPACE, NVS_READONLY, &nvs_h) == ESP_OK) {
+            has_preferred = nvs_get_u64(nvs_h, WELLD_NVS_KEY_DS18B20, &preferred_rom) == ESP_OK;
             nvs_close(nvs_h);
         }
     }
@@ -257,8 +279,8 @@ float sensor_read_temperature(void)
                      (unsigned long long)preferred_rom, (unsigned long long)selected_rom);
         }
         nvs_handle_t nvs_h;
-        if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs_h) == ESP_OK) {
-            nvs_set_u64(nvs_h, NVS_KEY_DS18B20_ROM, selected_rom);
+        if (nvs_open(WELLD_NVS_NAMESPACE, NVS_READWRITE, &nvs_h) == ESP_OK) {
+            nvs_set_u64(nvs_h, WELLD_NVS_KEY_DS18B20, selected_rom);
             nvs_commit(nvs_h);
             nvs_close(nvs_h);
         }
