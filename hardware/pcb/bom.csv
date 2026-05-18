@@ -9,10 +9,14 @@ U7,1,Solar MPPT LiPo charger,4.5-6.5V in / 4.2V out / 500mA,SOP-8,CN3791,LCSC C8
 U8,1,VLOOP 12V synchronous boost converter,VBAT→12V / 600mA / 1µA Iq,SOT-23-5,TPS61023DCKR,Texas Instruments; LCSC C2678025; EN driven by GPIO5
 U9,1,16-bit 4-channel I2C ADC,16-bit / 860SPS / addr 0x48,MSOP-10,ADS1115IDGST,Texas Instruments; LCSC C37593; precision depth/battery measurement (DGS package = MSOP-10/VSSOP-10)
 U10,1,LiPo fuel gauge I2C,coulomb-counting SoC / addr 0x36,SOT-23-6,MAX17048G+T10,Maxim/Analog; LCSC C82201; ALRT→GPIO14
-Q1,1,N-ch MOSFET TP4056 CE interlock,100V 170mA SOT-23,SOT-23,BSS123,N-ch MOSFET 100V 170mA Vgs(th) max 1.5V SOT-23; reliable 3.3V gate drive; gate=GPIO4; disables USB charging when solar active
+Q1,1,N-ch MOSFET TP4056 CE software interlock,100V 170mA SOT-23,SOT-23,BSS123,N-ch MOSFET 100V 170mA Vgs(th) max 1.5V SOT-23; gate=GPIO4; firmware-driven USB disable when solar active
 Q2,1,N-ch MOSFET battery divider enable,100V 170mA SOT-23,SOT-23,BSS123,N-ch MOSFET 100V 170mA Vgs(th) max 1.5V SOT-23; reliable 3.3V gate drive; gate=GPIO15; enables divider only during measurement
+Q3,1,P-ch MOSFET TP4056 CE hardware interlock,−20V −130mA SOT-23,SOT-23,BSS84,P-ch MOSFET Vgs(th) max −1.5V SOT-23; source=CE node; gate=/CHRG_SOLAR; drain=GND; eliminates boot-window race before firmware asserts GPIO4; LCSC C114124
 L1,1,VBOOST shielded power inductor,4.7µH 1.0A 250mΩ,4×4mm SMD,CDRH4D22NP-4R7NC,Bourns; LCSC C376098; or equivalent 4.7µH ≥1A shielded SMD
-D1,1,Dual-channel TVS ESD protection,3.3V/5V logic lines,SOT-363,PRTR5V0U2X,NXP; one device covers both 4-20mA ADC inputs
+D1,1,Dual-channel TVS ESD protection,3.3V/5V logic lines,SOT-363,PRTR5V0U2X,NXP; ESD/EFT clamp at ADC tap (after R2/R3); one device covers both channels
+D9,1,Loop ch1 terminal surge TVS,5.0V standoff bidirectional 400W,DO-214AC (SMA),SMAJ5.0CA,Vishay; IEC 61000-4-5 surge protection at J4 SIG terminal before R2; LCSC C370131
+D10,1,Loop ch2 terminal surge TVS,5.0V standoff bidirectional 400W,DO-214AC (SMA),SMAJ5.0CA,Vishay; IEC 61000-4-5 surge protection at J5 SIG terminal before R4; LCSC C370131
+D11,1,VLOOP terminal surge TVS,13V standoff unidirectional 400W,DO-214AC (SMA),SMAJ13A,Vishay; clamps cable transients on VLOOP terminal before they reach TPS61023; between U8 VOUT and J4/J5 VLOOP pin; LCSC C8057
 D2,1,Charge indicator LED (optional DNF),Green 0603,0603,—,DNF in production; omit to reduce active current
 D3,1,Standby indicator LED (optional DNF),Red 0603,0603,—,DNF in production
 D4,1,Status LED,Green 0603,0603,—,Controlled by GPIO13; disconnect with SJ3
@@ -71,11 +75,15 @@ R26,1,Q2 gate pull-down,4.7kΩ,0402,—,Holds battery divider off when GPIO15 is
 R27,1,MAX17048 ALRT pull-up,4.7kΩ,0402,—,GPIO14→3V3 pull-up for MAX17048 ALRT open-drain output; replaces ~50 kΩ internal pull-up near boost node
 R28,1,DS18B20 VCC series protection,100Ω,0402,—,In VCC line to J6 pin 1; prevents 3V3 rail short on probe misconnection
 R29,1,TP4056 CE pull-up,4.7kΩ,0402,—,Pulls TP4056 CE HIGH (USB charging enabled); Q1 drain pulls CE LOW to inhibit charging
+R30,1,Q3 gate pull-up,10kΩ,0402,—,Pull-up from Q3 (BSS84) gate to +3V3; ensures Q3 stays OFF if /CHRG_SOLAR floats during boot
+C23,1,ADS1115 VDD bypass,100nF,0402,—,Local bypass on U9 VDD pin; on U9 side of FB1 within 1mm of U9; per ADS1115 datasheet
+C24,1,ADS1115 VDD bulk,1µF,0402,—,Bulk bypass on U9 VDD; on U9 side of FB1 within 1mm of U9
+FB1,1,ADS1115 supply ferrite bead,600Ω@100MHz 500mA,0402,BLM18KG601SN1D,Murata; in series with +3V3 to U9 VDD; isolates ADC supply from TPS61023 switching noise and 2.4GHz radio; LCSC C76537
 C1,1,TP4056 input bypass,10µF 10V,0805,—,
 C2,1,TP4056 output bypass,10µF 10V,0805,—,
-C3,1,4-20mA ADC ch1 filter cap,100nF,0402,—,Forms RC filter with R3
+C3,1,4-20mA ADC ch1 filter cap,1µF X5R,0402,—,Forms 1.6 kHz RC filter with R3; increased from 100nF for motor-drive/RF rejection
 C4,1,4-20mA ADC ch1 bulk cap,10µF 10V,0805,—,
-C5,1,4-20mA ADC ch2 filter cap,100nF,0402,—,
+C5,1,4-20mA ADC ch2 filter cap,1µF X5R,0402,—,Forms 1.6 kHz RC filter with R5; increased from 100nF for motor-drive/RF rejection
 C6,1,4-20mA ADC ch2 bulk cap,10µF 10V,0805,—,
 C7,1,DS18B20 VCC bypass,100nF,0402,—,
 C8,1,Battery divider filter,100nF,0402,—,Across R8; settles within 1ms after Q2 enables divider

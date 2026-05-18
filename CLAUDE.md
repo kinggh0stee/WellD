@@ -71,7 +71,7 @@ One `app_main()` = one report. The order matters and is load-bearing:
   |------|---------------|
   | 4 | TP4056 charger CE interlock (Q1 gate) — HIGH disables USB charging |
   | 5 | TPS61023 VLOOP boost enable — HIGH → 12 V VLOOP active |
-  | 6 | Solar charging detect input (CN3791 CHRG, active-high) |
+  | 6 | Solar charging detect input (CN3791 CHRG, active-low — LOW = solar charging in progress) |
   | 7 | DS18B20 1-Wire data (default; CONFIG_WELLD_DS18B20_GPIO) |
   | 10 | I2C SDA (ADS1115 + MAX17048) |
   | 11 | I2C SCL (ADS1115 + MAX17048) |
@@ -142,11 +142,26 @@ These libraries have rough APIs that have churned across point releases (see com
 
 Agents live in `.claude/agents/`. Spawn them via the Agent tool when a task cleanly maps to one domain.
 
+## Agent responsibilities summary
+- `pcb-engineer`      → `hardware/pcb/`
+- `case-engineer`     → `hardware/case/`
+- `firmware-engineer` → `main/`, `components/`
+- `z2m-converter`     → `zigbee2mqtt/`
+- `test-engineer`     → `test/`, runs `zigbee2mqtt/npm test`
+- `docs-writer`       → `README.md`, `docs/`
+- `ci-engineer`       → `.github/workflows/`
+
+## Handoff order for hardware changes
+PCB agent → firmware agent (pin map) → case agent (dimensions) → test agent → docs agent
+
+## Handoff order for firmware-only changes
+Firmware agent → test agent → docs agent
+
 **Parallel** (no shared files — safe to run simultaneously):
-- `firmware` + `host-tests` + `z2m-converter` + `case`
+- `firmware-engineer` + `test-engineer` + `z2m-converter` + `case-engineer`
 
 **Sequential** (output of one constrains the next):
-- `pcb-engineer` → `firmware` (pin map may change) → `case` (board dimensions may change)
+- `pcb-engineer` → `firmware-engineer` (pin map may change) → `case-engineer` (board dimensions may change)
 
 **PCB agent required outputs** on every invocation:
 1. Summary of what changed and why

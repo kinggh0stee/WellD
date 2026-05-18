@@ -262,11 +262,13 @@ COMPONENTS = [
     ("D1",   "PRTR5V0U2X",     "welld:PRTR5V0U2X",           420,  230),
     ("R2",   "100R 0.1%",      "Device:R",                  440,  215),
     ("R3",   "100R",           "Device:R",                  460,  215),
-    ("C3",   "100nF",          "Device:C",                  460,  225),
+    ("D9",   "SMAJ5.0CA",       "Device:D_TVS_Bidirectional", 420, 185),
+    ("C3",   "1uF",            "Device:C",                  460,  225),
     ("C4",   "10uF",           "Device:C",                  470,  225),
     ("R4",   "100R 0.1%",      "Device:R",                  480,  215),
     ("R5",   "100R",           "Device:R",                  500,  215),
-    ("C5",   "100nF",          "Device:C",                  500,  225),
+    ("D10",  "SMAJ5.0CA",      "Device:D_TVS_Bidirectional", 450, 185),
+    ("C5",   "1uF",            "Device:C",                  500,  225),
     ("C6",   "10uF",           "Device:C",                  510,  225),
     ("R6",   "4.7k",           "Device:R",                  490,  250),
     ("C7",   "100nF",          "Device:C",                  510,  250),
@@ -293,6 +295,9 @@ COMPONENTS = [
     ("C22",  "10uF",           "Device:C",                   40,  345),
 
     # ----- Block J: Precision ADC + fuel gauge -----
+    ("FB1",  "BLM18KG601SN1D", "Device:L",                   60,  285),
+    ("C23",  "100nF",          "Device:C",                   80,  285),
+    ("C24",  "1uF",            "Device:C",                   90,  285),
     ("U9",   "ADS1115",        "welld:ADS1115",              80,  300),
     ("U10",  "MAX17048",       "welld:MAX17048",            120,  300),
     ("R27",  "4.7k",           "Device:R",                   40,  330),
@@ -301,13 +306,16 @@ COMPONENTS = [
     # ----- Block K: Charger interlock + divider gate -----
     ("Q1",   "BSS123",         "Device:Q_NMOS_GSD",         160,  300),
     ("Q2",   "BSS123",         "Device:Q_NMOS_GSD",         200,  300),
+    ("Q3",   "BSS84",          "Device:Q_PMOS_GSD",         160,  315),
     ("R25",  "4.7k",           "Device:R",                  200,  315),
     ("R26",  "4.7k",           "Device:R",                  240,  315),
     ("R29",  "4.7k",           "Device:R",                  120,  330),
+    ("R30",  "10k",            "Device:R",                  160,  330),
 
     # ----- Block L: Solar TVS + indicator -----
     ("D7",   "LED DNF",        "Device:LED",                 40,  315),
     ("D8",   "SMAJ7.0A",       "Device:D_TVS",               80,  315),
+    ("D11",  "SMAJ13A",        "Device:D_TVS",              260,  300),
     ("C21",  "100nF",          "Device:C",                  240,  330),
 
     # ----- Block M: Solder jumpers -----
@@ -738,6 +746,9 @@ def make_sch() -> str:
         ("BATT_DIV_EN", 260,  360, "input"),
         ("ADS_DRDY",    300,  360, "input"),
         ("MAX_ALRT",    340,  360, "input"),
+        ("LOOP_TERM_CH1", 415, 175, "passive"),
+        ("LOOP_TERM_CH2", 445, 175, "passive"),
+        ("+3V3_ADS",     60,  280, "passive"),
     ]
 
     global_labels_str = ""
@@ -813,7 +824,7 @@ def make_sch() -> str:
 
   (title_block
     (title "WellD Well-Level Monitor")
-    (date "2026-05-16")
+    (date "2026-05-18")
     (company "WellD Project")
     (comment 1 "ESP32-C6-MINI-1U + TP4056 + CN3791 + TPS7A0533 + TPS61023")
   )
@@ -863,6 +874,9 @@ PCB_COMPONENTS = [
 
     # Diodes
     ("D1",   "Package_TO_SOT_SMD:SOT-363_SC-70-6",                      15,   14,   0, "PRTR5V0U2X"),
+    ("D9",   "Diode_SMD:D_SMA",                                         12,    6,   0, "SMAJ5.0CA"),
+    ("D10",  "Diode_SMD:D_SMA",                                         23,    6,   0, "SMAJ5.0CA"),
+    ("D11",  "Diode_SMD:D_SMA",                                         78,    6,   0, "SMAJ13A"),
     ("D2",   "LED_SMD:LED_0603_1608Metric",                              12,   47,   0, "LED_CHRG"),
     ("D3",   "LED_SMD:LED_0603_1608Metric",                              14,   47,   0, "LED_STBY"),
     ("D4",   "LED_SMD:LED_0603_1608Metric",                              50,   51,   0, "LED_STATUS"),
@@ -916,9 +930,9 @@ PCB_COMPONENTS = [
     # Capacitors
     ("C1",   "Capacitor_SMD:C_0805_2012Metric",   8,   41,  0, "10uF"),
     ("C2",   "Capacitor_SMD:C_0805_2012Metric",  12,   41,  0, "10uF"),
-    ("C3",   "Capacitor_SMD:C_0402_1005Metric",  20,   14,  0, "100nF"),
+    ("C3",   "Capacitor_SMD:C_0402_1005Metric",  20,   14,  0, "1uF"),
     ("C4",   "Capacitor_SMD:C_0805_2012Metric",  22,   14,  0, "10uF"),
-    ("C5",   "Capacitor_SMD:C_0402_1005Metric",  29,   14,  0, "100nF"),
+    ("C5",   "Capacitor_SMD:C_0402_1005Metric",  29,   14,  0, "1uF"),
     ("C6",   "Capacitor_SMD:C_0805_2012Metric",  31,   14,  0, "10uF"),
     ("C7",   "Capacitor_SMD:C_0402_1005Metric",  36,   12,  0, "100nF"),
     ("C8",   "Capacitor_SMD:C_0402_1005Metric",  55,   32,  0, "100nF"),
@@ -946,6 +960,9 @@ PCB_COMPONENTS = [
     ("C22",  "Capacitor_SMD:C_0805_2012Metric",  72,    8,  0, "10uF"),
 
     # Precision ADC + fuel gauge
+    ("FB1",  "Ferrite_Bead_SMD:L_0402_1005Metric", 38, 36,  0, "600R@100MHz"),
+    ("C23",  "Capacitor_SMD:C_0402_1005Metric",  40,   36,  0, "100nF"),
+    ("C24",  "Capacitor_SMD:C_0402_1005Metric",  42,   36,  0, "1uF"),
     ("U9",   "Package_SO:MSOP-10_3x3mm_P0.5mm",  42,   38,  0, "ADS1115"),
     ("U10",  "Package_TO_SOT_SMD:SOT-23-6",      68,   42,  0, "MAX17048"),
     ("R27",  "Resistor_SMD:R_0402_1005Metric",   62,   44,  0, "4k7"),
@@ -954,9 +971,11 @@ PCB_COMPONENTS = [
     # Charger interlock + divider gate
     ("Q1",   "Package_TO_SOT_SMD:SOT-23",        14,   43,  0, "BSS123"),
     ("Q2",   "Package_TO_SOT_SMD:SOT-23",        56,   36,  0, "BSS123"),
+    ("Q3",   "Package_TO_SOT_SMD:SOT-23",        16,   41,  0, "BSS84"),
     ("R25",  "Resistor_SMD:R_0402_1005Metric",   16,   47,  0, "4k7"),
     ("R26",  "Resistor_SMD:R_0402_1005Metric",   57,   38,  0, "4k7"),
     ("R29",  "Resistor_SMD:R_0402_1005Metric",   10,   38,  0, "4k7"),
+    ("R30",  "Resistor_SMD:R_0402_1005Metric",   18,   45,  0, "10k"),
 
     # Solar TVS + indicator
     ("D7",   "LED_SMD:LED_0603_1608Metric",      52,    8,  0, "LED_SOLAR"),
@@ -1004,6 +1023,9 @@ NETS = [
     "BATT_DIV_EN",
     "ADS_DRDY",
     "MAX_ALRT",
+    "LOOP_TERM_CH1",
+    "LOOP_TERM_CH2",
+    "+3V3_ADS",
 ]
 
 
@@ -1114,7 +1136,7 @@ def make_pcb() -> str:
 
   (title_block
     (title "WellD Well-Level Monitor PCB")
-    (date "2026-05-16")
+    (date "2026-05-18")
     (company "WellD Project")
   )
 

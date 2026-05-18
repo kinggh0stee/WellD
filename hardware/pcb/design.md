@@ -34,7 +34,7 @@ disables CN3791 solar charging. GPIO10/11 are the shared I²C bus for ADS1115 an
 | 3 | CH3 | Spare ADC | J9 expansion header |
 | 4 | — | CHRG_USB_DIS | Gate of Q1 (N-MOSFET); pulls TP4056 CE low to inhibit USB charging when solar is active |
 | 5 | — | VBOOST_EN | TPS61023 EN pin; firmware drives HIGH only during 4–20 mA measurement window |
-| 6 | — | CN3791 disable | 10 kΩ pull-up to CN3791 PROG; pull GPIO6 LOW to halt solar charging |
+| 6 | — | Solar CHRG detect | CN3791 open-drain /CHRG output (active-LOW = charging in progress); GPIO6 configured as input with internal pull-up; read LOW = solar charging active |
 | 7 | — | DS18B20 1-Wire | J6 screw terminal |
 | 8 | — | Strapping pull-up | 10 kΩ to 3.3 V, test pad |
 | 9 | — | BOOT strapping | 10 kΩ pull-up; SW2 to GND |
@@ -61,7 +61,7 @@ disables CN3791 solar charging. GPIO10/11 are the shared I²C bus for ADS1115 an
 > **Firmware requirements:**
 > 1. GPIO5 HIGH before any 4–20 mA reading; LOW after. Allow 5 ms for TPS61023 soft-start.
 > 2. GPIO15 HIGH for 1 ms before battery ADC read via U9 AIN2; LOW after.
-> 3. GPIO4 HIGH when /CHRG_SOLAR (GPIO6 read with pull-up) indicates solar charging active.
+> 3. GPIO4 HIGH when GPIO6 reads LOW (/CHRG_SOLAR active-LOW — LOW = solar is charging in progress). GPIO6 uses internal pull-up.
 > 4. Read U9 ADS1115 via I²C for all depth and battery voltage measurements; keep GPIO0/1/2 reads as fallback.
 > 5. Read U10 MAX17048 via I²C for SOC%; report via Zigbee EP2 (battery voltage) using the calibrated SOC value.
 > 6. Implement GPIO12 DRDY interrupt for ADS1115 single-shot completion signalling.
@@ -214,17 +214,47 @@ TPS61023 VOUT pin. X5R capacitors at 12 V DC bias derate significantly — a nom
 ≥10 µF effective output capacitance is maintained across the operating voltage range.
 Place C22 adjacent to C20, within 3 mm of U8 VOUT pin.
 
-### Power — Charger Interlock (Q1)
+D11 (SMAJ13A, DO-214AC/SMA, unidirectional TVS, 13 V standoff, ≈21.5 V clamp
+@ 10 A) is placed from the VLOOP rail to GND between U8 VOUT and J4/J5 pin 1
+(VLOOP terminal). Clamps cable-induced transients (back-EMF on cable disconnect,
+lightning induction) before they reach U8. Standoff 13 V is above VLOOP nominal
+(12.2 V) so D11 does not conduct in steady state. Place within 5 mm of C20/C22
+on the J4/J5 side of SJ2.
+
+### Power — Charger Interlock (Q1 + Q3)
 
 TP4056 and CN3791 both target the same 4.20 V CV threshold. When both chargers are
 simultaneously active and approaching termination, their CC→CV transition currents
-can interact and prevent either from reaching proper termination. Q1 (BSS123,
-SOT-23, N-ch, Vgs(th) max 1.5 V) has its drain tied to the TP4056 CE pin
-(active-HIGH enable) through R29 (4.7 kΩ pull-up to 3.3 V), and its source to GND.
-When GPIO4 is driven HIGH, Q1 pulls CE LOW, disabling USB charging. Firmware reads
-the /CHRG_SOLAR signal (from CN3791 open-drain CHRG pin, connected to GPIO6 internal
-pull-up) to determine whether solar charging is active, and then asserts GPIO4 HIGH
-to park the TP4056 until solar charging completes or USB is the only source present.
+can interact and prevent either from reaching proper termination.
+
+**Software interlock (Q1 / GPIO4):** Q1 (BSS123, SOT-23, N-ch, Vgs(th) max 1.5 V)
+has its drain tied to the TP4056 CE pin (active-HIGH enable) through R29 (4.7 kΩ
+pull-up to 3.3 V), and its source to GND. When GPIO4 is driven HIGH, Q1 pulls CE
+LOW, disabling USB charging. Firmware reads GPIO6 (CN3791 open-drain /CHRG output,
+active-LOW = charging in progress, internal pull-up) and asserts GPIO4 HIGH when
+GPIO6 reads LOW.
+
+**Hardware interlock (Q3):** To eliminate the boot-window race where both chargers
+are simultaneously active before firmware asserts GPIO4, Q3 (BSS84, SOT-23, P-ch,
+Vgs(th) max −1.5 V) directly monitors the /CHRG_SOLAR signal and pulls TP4056 CE
+LOW without firmware involvement.
+
+Q3 wiring:
+- Source: TP4056 CE node (between R29 and TP4056 CE pin)
+- Gate: /CHRG_SOLAR net (CN3791 CHRG pin, active-LOW)
+- Drain: GND
+- R30 (10 kΩ, 0402): pull-up from gate to +3V3, ensuring Q3 gate is defined if
+  /CHRG_SOLAR floats during boot
+
+Operation:
+- Solar charging active (/CHRG_SOLAR = 0 V): Vgs = 0 − 3.3 = −3.3 V → Q3 ON →
+  CE pulled LOW through Q3 drain → TP4056 disabled (no firmware required)
+- Solar idle (/CHRG_SOLAR = 3.3 V via pull-up): Vgs ≈ 0 V → Q3 OFF → CE held HIGH
+  by R29 → TP4056 enabled
+
+Q1 and Q3 both pull the CE node LOW in parallel; they do not interfere.
+R25 (4.7 kΩ to GND) holds Q1 gate LOW when GPIO4 floats (reset/deep-sleep), which
+is the correct fail-safe state (USB charging enabled when radio is silent).
 
 ### Power — Battery Divider Enable (Q2)
 
@@ -291,6 +321,12 @@ the 21–24 mA fault-signalling currents some transmitters emit, which would cli
 wakeup cycles. ALERT/DRDY tied to GPIO12 as an interrupt; firmware waits for DRDY
 rather than polling. GPIO backup readings on GPIO0/1/2 remain available for
 diagnostics.
+
+U9 supply filtering: FB1 (BLM18KG601SN1D, 600 Ω @ 100 MHz, 500 mA, 0402) is
+placed in series with the +3V3 feed to U9 VDD, isolating the ADC from switching
+noise from U8 (TPS61023, ~1.5 MHz) and the Zigbee radio. C23 (100 nF, 0402) and
+C24 (1 µF, 0402) are placed on the U9 side of FB1, within 1 mm of U9 VDD pin,
+per ADS1115 datasheet requirements.
 
 ### Battery State-of-Charge — MAX17048 Fuel Gauge (U10)
 
@@ -362,12 +398,18 @@ MC 1.5/3-G-3.5 PCB header):
 | 3 | GND | System ground. |
 
 On-PCB:
+- D9 (SMAJ5.0CA, DO-214AC, bidirectional TVS, 5.0 V standoff) is placed from the
+  SIG terminal (J4 pin 2) to GND **before** R2. Provides IEC 61000-4-5 surge
+  protection (400 W peak) at the field terminal. 5.0 V standoff is above the
+  2.0 V maximum shunt voltage so D9 does not conduct during normal operation.
+  Place within 3 mm of J4 SIG terminal.
 - R2 (100 Ω ±0.1%, 0805) is the current shunt, from SIG to GND.
 - R3 (100 Ω, 0402) is a series input limiter between SIG and the ADC tap.
 - D1 CH1 (PRTR5V0U2X, SOT-363, one device covers both channels 1 and 2) clamps the
-  ADC tap to the 3.3 V rail and GND against transients.
-- C3 (100 nF) + C4 (10 µF, 0805) on the ADC tap provide a 10 µs RC low-pass filter
-  in combination with R3.
+  ADC tap to the 3.3 V rail and GND against ESD transients (IEC 61000-4-2 / 4-4).
+- C3 (1 µF, X5R, 0402) + C4 (10 µF, 0805) on the ADC tap provide a 1.6 kHz RC
+  low-pass filter in combination with R3, rejecting motor-drive harmonics and
+  2.4 GHz pickup from the Zigbee radio.
 - ADC tap routed to U9 ADS1115 AIN0 (primary) and GPIO0 (backup).
 
 SJ1 (solder jumper, 2-pad, normally open): 2-pad solder jumper, normally open. When closed,
@@ -380,9 +422,11 @@ sensors share a single external supply. Cut to give channels independent supplie
 
 ### 4–20 mA Sensor Interface — Channel 2 (J5)
 
-Identical circuit to Channel 1. Shunt R4 (100 Ω ±0.1%), limiter R5 (100 Ω), ADC
-tap protected by D1 CH2. ADC tap routed to U9 ADS1115 AIN1 (primary) and GPIO2
-(backup).
+Identical circuit to Channel 1. D10 (SMAJ5.0CA, DO-214AC, bidirectional TVS)
+placed at J5 SIG terminal before R4 — same function as D9 on Channel 1. Shunt
+R4 (100 Ω ±0.1%), limiter R5 (100 Ω), ADC tap protected by D1 CH2. C5 (1 µF,
+X5R, 0402) forms the RC filter with R5 (fc = 1.6 kHz). ADC tap routed to U9
+ADS1115 AIN1 (primary) and GPIO2 (backup).
 
 Intended for a second submersible transducer (e.g. redundancy or separate measurement
 point). Firmware support not yet implemented; GPIO2/ADC1_CH2 and ADS1115 AIN1 are
@@ -538,6 +582,14 @@ draw during active phase.
   divider enable) near R8 lower leg; R26 gate bleed for Q2 within 2 mm of Q2 gate
 - **D8 TVS placement:** within 5 mm of C17 (CN3791 VIN filter cap) for effective
   transient clamping
+- **D9/D10 loop TVS placement:** within 3 mm of J4/J5 SIG terminal (pin 2); on the
+  terminal side of R2/R4 — D9/D10 must be between the field connector and the shunt
+- **D11 VLOOP TVS placement:** within 5 mm of C20/C22 on the J4/J5 side of SJ2;
+  clamps VLOOP cable transients before they reach U8
+- **FB1/C23/C24 ADS1115 supply filter:** FB1 in series with +3V3 to U9 VDD; C23 and
+  C24 on the U9 side of FB1, within 1 mm of U9 VDD pin
+- **Q3/R30 hardware interlock:** Q3 (BSS84 P-ch SOT-23) near TP4056 CE node, source
+  to CE, gate to /CHRG_SOLAR, drain to GND; R30 (10 kΩ) within 2 mm of Q3 gate
 - **50 Ω trace:** module U.FL pad to J3; calculate width for your specific
   stackup (typically 2.9–3.2 mm on standard 1.6 mm FR4 with 35 µm Cu)
 - **Test points:** expose VBAT, 3V3, GND, VLOOP, GPIO8, each ADC tap (GPIO0–GPIO2),
@@ -550,9 +602,15 @@ draw during active phase.
   M16 cable gland cutouts and SMA bulkhead hole on back wall for external antenna.
 - **Power & measurement BOM summary:** U8 TPS61023DCKR (SOT-23-5), L1 4.7 µH
   shielded inductor (CDRH4D22NP-4R7NC), C19 10 µF 0805, C20 22 µF 16 V 1206,
-  R23 1.1 MΩ 0402, R24 47 kΩ 0402, Q1 BSS123 SOT-23, Q2 BSS123 SOT-23,
+  R23 1.1 MΩ 0402, R24 47 kΩ 0402, Q1 BSS123 SOT-23 (software USB interlock),
+  Q2 BSS123 SOT-23 (battery divider gate), Q3 BSS84 SOT-23 (hardware USB interlock),
   R25 4.7 kΩ 0402, R26 4.7 kΩ 0402, R27 4.7 kΩ 0402 (MAX17048 ALRT pull-up),
   R28 100 Ω 0402 (DS18B20 VCC series), R29 4.7 kΩ 0402 (TP4056 CE pull-up),
-  C21 100 nF 0402 (TVS bypass), C22 10 µF 0805 (VBOOST parallel),
+  R30 10 kΩ 0402 (Q3 gate pull-up), C21 100 nF 0402 (TVS bypass),
+  C22 10 µF 0805 (VBOOST parallel), C23 100 nF 0402 (ADS1115 VDD bypass),
+  C24 1 µF 0402 (ADS1115 VDD bulk), FB1 BLM18KG601SN1D 0402 (ADS1115 supply filter),
+  D9 SMAJ5.0CA DO-214AC (loop ch1 terminal surge TVS),
+  D10 SMAJ5.0CA DO-214AC (loop ch2 terminal surge TVS),
+  D11 SMAJ13A DO-214AC (VLOOP terminal surge TVS),
   U9 ADS1115IDGST MSOP-10, U10 MAX17048G+T10 SOT-23-6, D8 SMAJ7.0A DO-214AC,
   U3 S-8261AAYFT (SOT-23-6), J1 JST XH 2.5 mm (B2B-XH-AM).
