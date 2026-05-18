@@ -114,6 +114,29 @@ a 6 V panel at the MPPT point (accounting for ~85 % conversion efficiency) — w
 within a 5 W panel's Isc. For smaller panels or higher battery capacity, raise R19:
 3.3 kΩ → 300 mA.
 
+### Solar terminal ESD protection (D14)
+
+D14 (SMAJ7.0A, DO-214AC/SMA, unidirectional TVS, 7.0 V standoff, 400 W peak)
+is placed from J12 SOLAR+ (pin 1) to GND, **before** D6 (the Schottky input diode).
+It provides the first stage of a two-stage solar transient protection chain:
+
+    J12 SOLAR+ → D14 (SMAJ7.0A, first-stage, at terminal)
+               → D6 (MBRS140 Schottky, backfeed block)
+               → D8 (SMAJ7.0A, second-stage, at CN3791 VIN)
+               → CN3791 VIN (abs max 7.5 V)
+
+Standoff selection rationale:
+- Normal MPPT operating range: 4.5 V to 6.5 V. The 7.0 V standoff is 7.7 % above
+  the 6.5 V maximum, so D14 does not conduct during MPPT regulation.
+- Panel Voc constraint: ≤ 7.5 V per design requirement. At Voc = 7.5 V (no-load),
+  D14 begins to conduct slightly, clamping the terminal and preventing the full
+  open-circuit voltage from reaching D6 and CN3791. This is the intended behaviour.
+- Unidirectional: the solar input is a single-polarity power rail; reverse polarity
+  is handled by D6. A unidirectional TVS from rail to GND is correct here.
+- Same MPN as D8 (SMAJ7.0A, LCSC C78310) — consolidate on one tape reel.
+
+Place D14 within 3 mm of J12 pin 1, on the terminal side of D6.
+
 ### Input protection (D6)
 
 A Schottky diode (D6: MBRS140, SOD-123) in series with J12 pin 1 prevents backfeed
@@ -134,15 +157,57 @@ output) to disable solar charging when USB is detected on VUSB.
 
 ---
 
-### Power — Input & Reverse Polarity (D5)
+### Power — Input & Reverse Polarity (D5 + R31)
 
-A P-channel MOSFET (e.g., AO3407, SOT-23) provides reverse-polarity protection with
-< 150 mV drop at full load. The source connects to the incoming battery positive
-terminal, the drain to the VBAT rail, and the gate to GND. With the battery
-connected correctly the gate sits well below the source, turning the P-FET fully
-on; a reversed battery cannot turn it on, so no current flows.
-Alternative: series Schottky (MBR0530, SOD-323) for simplicity at the cost of ~0.3 V
-drop and 300 mW dissipation at 1 A — acceptable for a battery-powered device.
+D5 (AO3407, SOT-23, P-channel MOSFET) provides reverse-polarity protection in series
+with the BAT+ rail, downstream of D13 (the battery terminal TVS). It is placed between
+J1 BAT+ and the VBAT system rail:
+
+    J1 BAT+ → D13 (SMAJ5.0CA TVS, across terminal) → D5 source → D5 drain → VBAT rail
+
+D5 wiring:
+- Source: J1 BAT+ terminal (VBAT_RAW node, after D13 TVS)
+- Drain: VBAT system rail (feeds U3 S-8261AAYFT, U4 FS8205A, U10 MAX17048, U1 LDO)
+- Gate: GND (through R31 — see below)
+
+R31 (10 kΩ, 0402) connects D5 gate to GND. This resistor is mandatory:
+- Holds gate at 0 V so Vgs = 0 − Vbat = −Vbat, keeping D5 fully saturated during
+  normal operation.
+- Defines the off-state (gate floating HIGH if battery disconnected would leave D5 off
+  and prevent body-diode-mediated inrush — the pull-down ensures gate = 0 V so
+  D5 turns on immediately when a good battery is connected).
+- Limits gate capacitance charge current on hot-plug events.
+- RC time constant with gate capacitance (~50 pF typical): τ = 10 kΩ × 50 pF = 500 ns;
+  MOSFET reaches full enhancement in < 3 µs — not perceptible at the system level.
+
+AO3407 electrical justification:
+- Vgs(th) max: −1.5 V. At minimum battery voltage 3.0 V, Vgs = −3.0 V, giving 1.5 V
+  margin above |Vgs(th)| max — D5 is fully saturated at the lowest expected battery
+  voltage. The DMG2305UX (|Vgs(th)| max 2.0 V) has only 1.0 V margin at 3.0 V and is
+  a worse fit for this battery voltage range.
+- RDS(on) max: 55 mΩ @ Vgs = −4.5 V. At Vgs = −4.2 V (full charge), RDS(on) is ≤
+  55 mΩ → drop at 1 A continuous ≤ 55 mV. Peak charge + discharge current ≤ 2 A →
+  worst-case drop ≤ 110 mV, well within acceptable limits.
+- Vgs absolute maximum: ±12 V. Maximum Vgs magnitude = 4.2 V (full charge battery
+  on source, gate at 0 V) — 65 % below the abs max. No gate-drain voltage clamp is
+  required.
+- ID max: 3 A continuous, 20 A pulsed. Continuous 1 A and peak 2 A are well within
+  the SOT-23 package thermal limits at ambient temperature.
+
+Operation with reversed battery:
+- Battery − connected to J1 BAT+, battery + to J1 BAT−: source is driven negative,
+  gate remains at 0 V (pulled down by R31), Vgs = 0 − (negative voltage) = positive.
+  A positive Vgs does not turn on a P-channel MOSFET; D5 stays off.
+- The body diode is forward-biased from drain to source in this reversed condition,
+  but the drain (VBAT rail) is at 0 V (system unpowered), so no significant current
+  flows. The D13 TVS at the terminal absorbs transient energy from a hot-plug event.
+
+A diode alternative (e.g. MBR0530) is explicitly rejected: the ~300 mV forward drop
+at 1 A shifts the voltage seen by MAX17048 (VCELL pin, connected to VBAT rail) and
+the S-8261AAYFT (VCC pin) by 300 mV, corrupting the 2.9 V over-discharge threshold
+and the MAX17048 SOC model calibration. The MOSFET solution has ≤ 55 mV drop which
+is within the measurement uncertainty of the MAX17048 model and below the S-8261AAYFT
+threshold hysteresis band of 100 mV.
 
 ### Power — LiPo Charging (U2: TP4056)
 
@@ -174,6 +239,30 @@ Key passives:
 
 The CN3791 EN/shutdown pin is connected to GPIO6 via a 10 kΩ pull-up to +3V3 —
 pull LOW from firmware to disable solar charging when USB is detected.
+
+### Power — Battery Terminal ESD Protection (D13)
+
+D13 (SMAJ5.0CA, DO-214AC/SMA, bidirectional TVS, 5.0 V standoff, 200 W peak pulse
+power) is placed across J1 BAT+ and BAT- (the system GND side of the battery
+connector, before D5 the reverse-polarity P-MOSFET). It absorbs ESD and inductive
+cable transients on the battery wiring in both polarities.
+
+Standoff selection rationale:
+- Normal battery voltage range: 3.0 V (over-discharge cutoff per S-8261AAYFT) to
+  4.2 V (full charge). The SMAJ5.0CA standoff is 5.0 V — 19 % above the 4.2 V
+  maximum, so it does not conduct during normal charge/discharge cycles.
+- Clamp voltage at 10 A pulse: 9.2 V. The S-8261AAYFT VCC absolute maximum is
+  ~6.5 V; the FS8205A gate-source absolute maximum is ±20 V. The 9.2 V clamp
+  voltage during a transient is above the S-8261AAYFT abs max — D13 is intended
+  to absorb ESD (sub-microsecond) energy that otherwise arrives as a much higher
+  uncontrolled voltage spike. For sustained overvoltage beyond 6.5 V, the
+  S-8261AAYFT over-charge protection is the active limit.
+- Bidirectional: required because charge current flows into BAT+ and discharge
+  current flows out of BAT+. Both polarities of transient must be clamped.
+- DO NOT substitute a unidirectional TVS on a bidirectional power rail.
+
+Place D13 within 5 mm of J1, on the same side of the PCB as U3/U4. Anode/cathode
+orientation is symmetric for bidirectional TVS — either orientation is correct.
 
 ### Power — LiPo Protection (U3: S-8261AAYFT + U4: FS8205A)
 
@@ -271,6 +360,57 @@ R26 holds it LOW at reset, which is a defined and harmless strap state — the b
 uses UART programming via J10, so the JTAG strap is irrelevant. Driving GPIO15 as
 an output after boot does not affect the strap, which is sampled only at reset.
 
+### Transient Protection — 4–20 mA LOOP Terminals (D9, D10, D1, R3, R5)
+
+The LOOP+ and LOOP− terminals are exposed to field wiring and can carry inductive
+transients, cable-coupled lightning surges (IEC 61000-4-5), and electrostatic
+discharge. A two-stage protection chain is used on each channel to safely clamp
+transients while satisfying the ADS1115 absolute-maximum input rating (VDD + 0.3 V =
+3.6 V at VDD = 3.3 V):
+
+**Stage 1 — High-energy clamp at the terminal (D9 / D10):**
+D9 and D10 (SMAJ3.3CA, DO-214AC/SMA, bidirectional TVS, 3.3 V standoff, 200 W
+peak pulse power) are placed at the J4/J5 SIG (LOOP−) terminal, between the
+field connector and the shunt resistor. They absorb the bulk of a cable-induced
+surge before it reaches R2/R4 and the ADC chain.
+
+Standoff selection rationale: the SMAJ3.3CA has a 3.3 V standoff voltage. The
+maximum SIG terminal voltage during normal 4–20 mA operation is 20 mA × 100 Ω =
+2.0 V, which is comfortably below 3.3 V, so D9/D10 remain non-conducting in steady
+state. The SMAJ3.3CA clamp voltage at 10 A is approximately 5.3 V — substantially
+tighter than the previous SMAJ5.0CA (9.2 V at 10 A), which reduces the peak voltage
+stress passed through to R3/R5 and D1 during a surge event. The 200 W peak rating
+is adequate for IEC 61000-4-5 Class 2 (1 kV) at the series impedances typical of a
+current-loop cable. If the installation has very long cable runs (>100 m) or
+exposure to direct lightning, an external surge arrester at the cable entry gland is
+recommended ahead of D9/D10.
+
+LOOP+ (VLOOP, J4/J5 pin 1) protection: VLOOP transients are clamped by D11
+(SMAJ13A, DO-214AC, 13 V standoff unidirectional TVS, 400 W) placed between
+the TPS61023 VOUT rail and J4/J5 — see **Power — VLOOP 12 V Boost (U8: TPS61023)**
+for details.
+
+**Stage 2 — ADS1115 input clamp (R3/R5 + D1):**
+R3 and R5 (100 Ω each, 0402) sit in series between the shunt voltage tap and
+the ADS1115 AIN0/AIN1 inputs (and the GPIO0/GPIO2 backup inputs). They limit
+fault current into the downstream clamp diodes. D1 (PRTR5V0U2X, SOT-363)
+provides dual-channel ESD/EFT clamping at the ADS1115 input nodes, with clamp
+voltage tied to VDD (3.3 V) and GND. At maximum residual transient current
+through R3/R5, D1 clamp voltage stays below VDD + 0.3 V = 3.6 V, satisfying the
+ADS1115 absolute maximum.
+
+With R3 = 100 Ω in series and D1 clamping at ~3.3 V, the worst-case current into
+D1 from a 5.3 V post-D9 residual is (5.3 − 3.3) / 100 = 20 mA — well within
+PRTR5V0U2X continuous clamp ratings.
+
+**Protection chain summary per channel:**
+
+    Field terminal → D9/D10 (SMAJ3.3CA, 3.3V standoff)
+                  → R2/R4 (100Ω shunt) ‖ C_SH1/C_SH2 (10nF HF bypass)
+                  → R3/R5 (100Ω series limiter)
+                  → D1 (PRTR5V0U2X, clamp to 3.3V/GND)
+                  → ADS1115 AIN0/AIN1 (abs max 3.6V)
+
 ### Power — Solar Input TVS Protection (D8)
 
 Solar panel cables can carry inductive voltage spikes when partially shaded panels
@@ -314,13 +454,36 @@ replaces the onboard ADC for all precision measurements:
 - AIN2 (single-ended, referenced to GND): battery voltage divider output (midpoint of R7/R8, same node as GPIO1)
 - AIN3: spare
 
-PGA set to ±4.096 V (LSB = 125 µV, non-linearity ±0.01 % FS). The 100 Ω shunt
-develops 0.4–2.0 V across the 4–20 mA span; the ±4.096 V range leaves headroom for
-the 21–24 mA fault-signalling currents some transmitters emit, which would clip a
-±2.048 V range. SPS = 128 for fast single-shot reads compatible with deep-sleep
+PGA set to ±2.048 V (LSB = 62.5 µV, non-linearity ±0.01 % FS). The 100 Ω shunt
+develops 0.4–2.0 V across the 4–20 mA span; the ±2.048 V range fully covers the
+normal operating range. Transmitters emitting 21–24 mA fault-signalling currents
+will clip at ±2.048 V; firmware detects this as a saturated reading and reports a
+sensor fault. SPS = 128 for fast single-shot reads compatible with deep-sleep
 wakeup cycles. ALERT/DRDY tied to GPIO12 as an interrupt; firmware waits for DRDY
 rather than polling. GPIO backup readings on GPIO0/1/2 remain available for
 diagnostics.
+
+#### Analog front-end noise filtering (three-stage chain)
+
+Each 4–20 mA channel has three cascaded filter/protection stages:
+
+1. **C_SH1 / C_SH2 (10 nF across R2 / R4):** HF bypass directly across the shunt
+   resistor. Corner frequency fc = 1/(2π × 100 Ω × 10 nF) ≈ 160 kHz. Absorbs
+   RF pickup and motor PWM harmonics coupled onto the loop cable before they enter
+   the measurement chain. Does not affect the 0–10 Hz measurement band.
+
+2. **R3 / R5 (100 Ω) + C3 / C5 (1 µF):** Anti-aliasing low-pass filter at the ADC
+   input tap. fc ≈ 1.6 kHz. Rejects motor-drive switching frequencies, 50/60 Hz
+   harmonics beyond the first, and RF pickup from the Zigbee 2.4 GHz radio.
+
+3. **FB1 + C23 (100 nF) + C24 (1 µF) on U9 VDD:** Isolates the ADS1115 supply rail
+   from TPS61023 switching noise (~1.5 MHz) and Zigbee radio interference on the
+   shared 3.3 V rail. FB1 (BLM18KG601SN1D, 600 Ω @ 100 MHz, 0402) attenuates
+   high-frequency supply ripple; C23 and C24 decouple the U9 VDD pin locally.
+
+Target measurement bandwidth: DC to ~5 Hz, set by the SPS = 8 or SPS = 16 ADS1115
+operating mode. At SPS = 128, the digital filter corner is ~36 Hz — well below stage 2
+anti-aliasing corner of 1.6 kHz, so no aliasing of 50/60 Hz mains.
 
 U9 supply filtering: FB1 (BLM18KG601SN1D, 600 Ω @ 100 MHz, 500 mA, 0402) is
 placed in series with the +3V3 feed to U9 VDD, isolating the ADC from switching
@@ -344,6 +507,189 @@ R27 (4.7 kΩ, 0402) provides an external pull-up from GPIO14 to 3.3 V for the
 MAX17048 ALRT open-drain output. The internal weak pull-up (~50 kΩ) in the boost
 converter neighbourhood is insufficient — R27 replaces it with a dedicated low-impedance
 pull-up near U10. Place R27 within 3 mm of U10.
+
+---
+
+## Thermal Review: TPS61023 Boost + CN3791 MPPT Simultaneous Operation
+
+Both U8 (TPS61023, 12 V VLOOP boost) and U7 (CN3791, solar MPPT charger) can operate
+concurrently during a wake cycle — firmware enables U8 (GPIO5 HIGH) while the solar
+charger runs continuously whenever the panel is illuminated.
+
+### TPS61023 (U8, SOT-23-5)
+
+- **Package:** SOT-23-5 — no exposed thermal pad; heat exits through the five leads.
+- **Switching frequency:** ~1.5 MHz (fixed, internal oscillator).
+- **SW node:** the source/drain of the internal synchronous switch. This node
+  transitions between VBAT and GND at 1.5 MHz. The hot-loop is SW → L1 → VOUT.
+- **Power dissipation during active measurement window:** at 12 V output and 20 mA
+  maximum loop current, output power ≈ 240 mW. At 90 % conversion efficiency,
+  Pdiss ≈ 27 mW. At 85 % (worst case with 3.0 V input), Pdiss ≈ 42 mW. SOT-23-5
+  θJA ≈ 250 °C/W (TI datasheet, worst case). ΔTj = 42 mW × 250 = 10.5 °C — negligible.
+- **Duty cycle:** 50–100 ms per wake cycle (GPIO5 gating), so average Pdiss is
+  effectively < 1 mW. U8 thermal management is a non-issue in this duty-cycle regime.
+- **SW node copper pour recommendation:** the hot-loop trace (U8 SW pin → L1 → C20/C22)
+  must be kept short (< 10 mm) and wide (≥ 0.5 mm). Do NOT pour copper under L1 on
+  either layer — the shielded CDRH4D22NP-4R7NC has its own magnetic shield, but stray
+  currents in a solid pour would add core losses. Fill the U8/L1/C20 island on F.Cu
+  with a GND via stitch perimeter to provide a low-inductance GND return path for the
+  SW node's return current, but keep the island itself clear of large fills.
+
+### CN3791 (U7, SOIC-8)
+
+- **Package:** SOIC-8 — no exposed thermal pad; heat exits through leads and pad
+  contact on the PCB land pattern.
+- **Maximum power dissipation:** at Vin = 6.5 V (maximum MPPT operating point) and
+  Vbat = 3.0 V (discharged cell), the linear pass element dissipates approximately:
+  Pdiss_max = (Vin − Vbat) × Ichg = (6.5 − 3.0) × 0.5 A = **1.75 W**.
+  This exceeds the SOIC-8 θJA-limited capability (~800 mW at 25 °C ambient for a
+  standard SOIC-8 with minimal PCB copper). The CN3791 has an internal thermal
+  fold-back that limits output current when the die temperature approaches 140 °C —
+  the actual delivered charge current will throttle below 500 mA under worst-case
+  conditions. This is the intended operating mode; the MPPT algorithm naturally
+  reduces input current when the panel sags, moderating dissipation.
+- **Copper pour recommendation:** place a 10 × 10 mm solid copper pour on F.Cu
+  under and around U7 (SOIC-8 land area), connected to GND via ≥ 4 thermal-relief
+  vias (0.6 mm drill, 1.0 mm pad) underneath the IC body. Mirror the pour on B.Cu
+  and connect with the same vias to form a thermal via array. This reduces effective
+  θJA to ~50–60 °C/W, keeping junction temperature below 125 °C at 1.75 W worst-case
+  (ΔTj ≈ 105 °C above 25 °C ambient = 130 °C junction — borderline; thermal fold-back
+  remains the safety net). Label this copper island `GND_THERMAL_U7` on the silkscreen.
+- **Placement constraint:** U7 must be placed away from U6 (ESP32-C6 module) and
+  U9 (ADS1115). Recommended position: bottom-left quadrant of the board, with at
+  least 15 mm clearance from U6 and 20 mm from U9. U7 and U8 may be in the same
+  quadrant (bottom-right) since both are power ICs, but place them ≥ 8 mm apart
+  to avoid mutual heating — combined worst-case Pdiss ≈ 1.8 W (U7 + U8) in the
+  same region would raise local PCB temperature by ~15–20 °C.
+
+### Simultaneous Operation Thermal Budget
+
+| Condition | U7 Pdiss | U8 Pdiss | Combined | Est. PCB ΔT |
+|-----------|----------|----------|----------|-------------|
+| Vin=5.5V, Vbat=3.7V, Ichg=500mA, Iloop=10mA | 0.9 W | 17 mW | ~0.92 W | ~18 °C |
+| Vin=6.5V, Vbat=3.0V, Ichg=500mA, Iloop=20mA | 1.75 W | 42 mW | ~1.79 W | ~36 °C |
+| Deep-sleep (GPIO5=LOW) | 3 µA × Vin | < 1 µW | negligible | — |
+
+The worst case (1.79 W combined) is thermally benign for U8 but causes U7 to
+enter thermal fold-back. The copper pour on U7 and physical separation between
+the two ICs are the critical mitigations. No component value changes are required.
+
+---
+
+## Test Points (TP1–TP14)
+
+Solderable test point pads for production testing, ICT fixtures, and field debugging.
+All are SMD pads, 1.0 mm diameter copper with solder mask opening. Fit as DNF
+(do-not-fit) by default — pads are present on the PCB but no component is required;
+a bare pad or a press-fit test nail is used in-fixture.
+
+| Ref | Net | Description |
+|-----|-----|-------------|
+| TP1 | VBAT | Battery rail (after D5 reverse-polarity MOSFET, before LDO/protection ICs) |
+| TP2 | VLOOP | 12 V boost output rail (after U8 TPS61023 VOUT, before J4/J5 VLOOP terminal) |
+| TP3 | +3V3 | 3.3 V regulated supply (after TPS7A0533 U1 output) |
+| TP4 | GND | System ground reference |
+| TP5 | LOOP_TERM_CH1 | CH1 current loop signal: J4 SIG → D9 → R2 shunt; tap is node between R2 and R3 (before ADS1115 AIN0 input limiter) |
+| TP6 | LOOP_TERM_CH2 | CH2 current loop signal: J5 SIG → D10 → R4 shunt; tap is node between R4 and R5 (before ADS1115 AIN1 input limiter) |
+| TP7 | 1WIRE | DS18B20 1-Wire data bus (J6 DATA line, after R6 pull-up, before D12 ESD clamp) |
+| TP8 | I2C_SDA | I²C SDA (GPIO10; shared ADS1115 + MAX17048 bus) |
+| TP9 | I2C_SCL | I²C SCL (GPIO11; shared ADS1115 + MAX17048 bus) |
+| TP10 | VSOLAR_IN | Solar panel input at J12 pin 1 (before D14 TVS and D6 Schottky; raw panel voltage) |
+| TP11 | VBAT_RAW | Battery terminal before D5 (at J1 BAT+, after D13 TVS; raw battery voltage pre-protection-MOSFET) |
+| TP12 | ADS_DRDY | ADS1115 ALERT/RDY → GPIO12 (interrupt signal for single-shot conversion complete) |
+| TP13 | MAX_ALRT | MAX17048 ALRT → GPIO14 (low-battery interrupt; active-low open-drain with R27 pull-up) |
+| TP14 | /CHRG_SOLAR | CN3791 /CHRG open-drain output (active-LOW = solar charging; also drives Q3 hardware interlock) |
+
+### Test point placement notes
+
+- TP1/TP3/TP4: place in a row near the LDO (U1) output, accessible from the top edge.
+- TP2: place near C20/C22 on the VLOOP rail.
+- TP5/TP6: place within 3 mm of R2/R4 shunt pads, on the ADC-tap (R3/R5) side.
+- TP7: place near J6 DATA terminal, on the GPIO7 side of D12.
+- TP8/TP9: place near J8 I²C header.
+- TP10/TP11: place near J12 and J1 respectively.
+- TP12/TP13/TP14: place near the edge of U6 (ESP32-C6) where GPIO12/14 route.
+- All TPs must have a 0.2 mm annular ring minimum and be clear of any keep-out zone.
+- SMD pad footprint: `TestPoint:TestPoint_Pad_1.0x1.0mm` (KiCad standard library).
+- **Case-engineer note:** TP pad height above PCB surface ≈ 0.1 mm (pad only, no
+  component body). No keep-out height constraint imposed. A test-nail ICT fixture
+  accessing all 14 TPs from the top side requires a 1.27 mm minimum nail-to-nail pitch
+  (all TPs are 1.0 mm pads; 0.27 mm clearance is sufficient for standard ICT probes).
+
+---
+
+## Decoupling Review
+
+### ESP32-C6 Module (U6)
+
+- **Present:** C14a–C14d (4× 100 nF, 0402) + C15 (10 µF, 0805) on VCC3V3 pads.
+- **Datasheet requirement:** Espressif ESP32-C6-MINI-1U hardware design guide
+  recommends 100 nF per VDD pin (4 pins require 4× 100 nF) plus one 10 µF bulk cap.
+- **Status:** Adequate. No change needed.
+
+### ADS1115 (U9)
+
+- **Present:** FB1 (600 Ω ferrite bead) in series with +3V3 to VDD; C23 (100 nF, 0402)
+  + C24 (1 µF, 0402) on U9 side of FB1.
+- **Datasheet requirement:** ADS1115 datasheet recommends 100 nF + 1 µF decoupling
+  on VDD, placed as close as possible to the VDD pin. The ferrite bead is additional
+  isolation added by this design.
+- **Status:** Adequate. No change needed.
+
+### MAX17048 (U10)
+
+- **Present:** R27 (4.7 kΩ pull-up on ALRT pin). No VDD bypass capacitor.
+- **Datasheet requirement:** MAX17048 datasheet (Maxim DS3739 rev 2) recommends a
+  100 nF ceramic decoupling capacitor on VDD pin, placed as close as possible to U10.
+- **Status:** MISSING. Added **C25** (100 nF, 0402, X7R, ≥ 6.3 V) from U10 VDD to GND.
+  Place within 1 mm of U10 VDD pin (pin 1). LCSC C14663 or equivalent.
+
+### TPS61023 (U8)
+
+- **Present:** C19 (10 µF, 0805) on VIN; C20 (22 µF 16 V, 1206) + C22 (10 µF 16 V,
+  0805) in parallel on VOUT.
+- **Datasheet requirement:** TPS61023 datasheet recommends ≥ 4.7 µF on VIN and ≥ 10 µF
+  effective on VOUT (the X5R derating note explains why C20 + C22 are both populated).
+  A bootstrap cap is not required — TPS61023 is a SOT-23-5 that does not expose a
+  BST pin; bootstrap is internal.
+- **Status:** Adequate. No change needed.
+
+### CN3791 (U7)
+
+- **Present:** C17 (10 µF, 0805) on VIN; C18 (10 µF, 0805) on BAT/VBAT output.
+  R19 sets PROG current; C21 (100 nF) across D8 TVS.
+- **Datasheet requirement:** CN3791 datasheet recommends 10 µF on VIN and 10 µF on
+  BAT. The PROG pin requires no capacitor. No additional decoupling pin exists.
+- **Status:** Adequate. No change needed.
+
+### S-8261AAYFT (U3)
+
+- **Present:** No dedicated VCC bypass capacitor in the BOM.
+- **Datasheet requirement:** Seiko S-8261A datasheet recommends a 0.1 µF (100 nF)
+  ceramic capacitor on VCC (pin 5) to GND (pin 1), placed as close as possible to U3.
+  This stabilises the internal reference and prevents oscillation in the protection
+  comparator during fast transients on the VBAT rail.
+- **Status:** MISSING. Added **C26** (100 nF, 0402, X7R, ≥ 6.3 V) from U3 VCC (pin 5)
+  to GND. Place within 1 mm of U3 VCC pin. LCSC C14663 or equivalent (same part as C25).
+
+### TP4056 (U2)
+
+- **Present:** C1 (10 µF, 0805) on VCC input; C2 (10 µF, 0805) on BAT output.
+- **Datasheet requirement:** TP4056 datasheet recommends 10 µF on VCC and 10 µF on
+  BAT. PROG pin needs no capacitor.
+- **Status:** Adequate. No change needed.
+
+### TPS7A0533 (U1 / 3.3 V LDO)
+
+- **Present:** C9 (100 nF, 0402) + C10 (1 µF, 0402) on VIN; C11 (100 nF, 0402)
+  + C12 (1 µF, 0402) on VOUT.
+- **Datasheet requirement:** TPS7A0533 datasheet (TI SBVS301) recommends 100 nF
+  input bypass + 1 µF minimum output for stability. Additional bulk on input reduces
+  dropout transients. ENABLE pin pull-up via R11 + C13 (100 nF) on EN for clean
+  power-on reset.
+- **Status:** Adequate. No change needed.
+
+---
 
 ### External Antenna (J3 → SMA bulkhead)
 
@@ -398,15 +744,27 @@ MC 1.5/3-G-3.5 PCB header):
 | 3 | GND | System ground. |
 
 On-PCB:
-- D9 (SMAJ5.0CA, DO-214AC, bidirectional TVS, 5.0 V standoff) is placed from the
-  SIG terminal (J4 pin 2) to GND **before** R2. Provides IEC 61000-4-5 surge
-  protection (400 W peak) at the field terminal. 5.0 V standoff is above the
-  2.0 V maximum shunt voltage so D9 does not conduct during normal operation.
-  Place within 3 mm of J4 SIG terminal.
+- D9 (SMAJ3.3CA, DO-214AC, bidirectional TVS, 3.3 V standoff, 200 W peak) is placed
+  from the SIG terminal (J4 pin 2) to GND **before** R2. Provides IEC 61000-4-5
+  surge protection at the field terminal. Changed from SMAJ5.0CA (5 V standoff) to
+  SMAJ3.3CA (3.3 V standoff): the 3.3 V standoff is above the 2.0 V maximum shunt
+  voltage during normal 4–20 mA operation so D9 does not conduct in steady state, yet
+  clamps transients to ~5.3 V at 10 A — well below the 9.2 V clamp of SMAJ5.0CA.
+  This lower clamp voltage substantially reduces the residual stress seen by R3 and
+  D1 during a surge event. Place within 3 mm of J4 SIG terminal.
 - R2 (100 Ω ±0.1%, 0805) is the current shunt, from SIG to GND.
-- R3 (100 Ω, 0402) is a series input limiter between SIG and the ADC tap.
+- **C_SH1 (10 nF, X7R, 25 V, 0402)** is placed directly across R2. This small cap
+  bypasses HF pickup (RF, motor PWM) on the loop cable before it reaches the ADC
+  measurement chain. The –3 dB corner with R2 is 1/(2π × 100 × 10 nF) ≈ 160 kHz,
+  well above the measurement bandwidth (<10 Hz) and well below the 1.6 kHz R3+C3
+  anti-aliasing corner. The 10 nF value is small enough to leave ADS1115 SPS
+  settling unaffected. Place C_SH1 within 1 mm of R2 pads.
+- R3 (100 Ω, 0402) is a series input limiter between SIG and the ADC tap. Together
+  with C3, R3 limits fault current into D1 and the ADS1115 AIN0 pin to safe levels.
 - D1 CH1 (PRTR5V0U2X, SOT-363, one device covers both channels 1 and 2) clamps the
   ADC tap to the 3.3 V rail and GND against ESD transients (IEC 61000-4-2 / 4-4).
+  This is the last-line clamp protecting the ADS1115 AIN0 pin; with R3 (100 Ω) in
+  series, fault current into D1 is limited to (Vclamp – Vsig) / R3 < 33 mA.
 - C3 (1 µF, X5R, 0402) + C4 (10 µF, 0805) on the ADC tap provide a 1.6 kHz RC
   low-pass filter in combination with R3, rejecting motor-drive harmonics and
   2.4 GHz pickup from the Zigbee radio.
@@ -422,11 +780,13 @@ sensors share a single external supply. Cut to give channels independent supplie
 
 ### 4–20 mA Sensor Interface — Channel 2 (J5)
 
-Identical circuit to Channel 1. D10 (SMAJ5.0CA, DO-214AC, bidirectional TVS)
-placed at J5 SIG terminal before R4 — same function as D9 on Channel 1. Shunt
-R4 (100 Ω ±0.1%), limiter R5 (100 Ω), ADC tap protected by D1 CH2. C5 (1 µF,
+Identical circuit to Channel 1. D10 (SMAJ3.3CA, DO-214AC, bidirectional TVS,
+3.3 V standoff, 200 W) placed at J5 SIG terminal before R4 — same function and
+same SMAJ5.0CA→SMAJ3.3CA change as D9 on Channel 1. Shunt R4 (100 Ω ±0.1%),
+**C_SH2 (10 nF, X7R, 25 V, 0402) directly across R4** (same HF bypass function as
+C_SH1 on ch1), limiter R5 (100 Ω), ADC tap protected by D1 CH2. C5 (1 µF,
 X5R, 0402) forms the RC filter with R5 (fc = 1.6 kHz). ADC tap routed to U9
-ADS1115 AIN1 (primary) and GPIO2 (backup).
+ADS1115 AIN1 (primary) and GPIO2 (backup). Place C_SH2 within 1 mm of R4 pads.
 
 Intended for a second submersible transducer (e.g. redundancy or separate measurement
 point). Firmware support not yet implemented; GPIO2/ADC1_CH2 and ADS1115 AIN1 are
@@ -449,6 +809,26 @@ be bussed on DATA; the firmware locks onto one ROM address after first discovery
 R28 (100 Ω, 0402) is placed in the VCC line between the 3.3 V rail and J6 pin 1.
 It limits fault current to ~33 mA in the event a misconnected probe cable short-circuits
 the VCC pin to GND, protecting the 3.3 V rail.
+
+**1-Wire DATA ESD protection (D12):**
+D12 (PRTR5V0U2X, SOT-363) provides ESD rail-clamp protection on the 1-Wire DATA line
+(J6 pin 2 → GPIO7). Long cable runs to field sensors are exposed to ESD (IEC 61000-4-2)
+and electrical fast transients (IEC 61000-4-4). D12 IO1 connects to the 1WIRE net; IO2
+is left no-connect. VCC pins connect to +3V3; GND pins to system GND.
+
+Protection characteristics:
+- Clamped voltage during ESD: VCC + 0.5 V = 3.8 V (sub-nanosecond transient).
+  This is 0.2 V above the ESP32-C6 GPIO7 absolute maximum of 3.6 V (= VDD + 0.3 V).
+  This brief overshoot is consistent with standard IEC 61000-4-2 level-4 GPIO
+  protection practice using rail-clamp devices on 3.3 V systems. If strict abs-max
+  compliance is required, add a 33 Ω series resistor (R32, DNF by default) between
+  J6 pin 2 and the D12 IO1 / 1WIRE junction.
+- Capacitance: 0.5 pF per IO pin, well below the DS18B20 spec's 800 pF maximum line
+  capacitance and the 100 pF target for added protection components. 1-Wire timing
+  is unaffected.
+- Same part as D1 (PRTR5V0U2X) — no new component introduced to the BOM.
+
+Place D12 within 3 mm of J6 DATA terminal (pin 2), on the terminal side of R6.
 
 ### Spare Sensor (J7)
 
@@ -582,18 +962,47 @@ draw during active phase.
   divider enable) near R8 lower leg; R26 gate bleed for Q2 within 2 mm of Q2 gate
 - **D8 TVS placement:** within 5 mm of C17 (CN3791 VIN filter cap) for effective
   transient clamping
+- **D14 solar terminal TVS placement:** within 3 mm of J12 SOLAR+ terminal (pin 1);
+  on the terminal side of D6 — D14 must be between J12 and D6; same footprint as
+  D8 (DO-214AC/SMA); cathode toward SOLAR+ rail, anode to GND
 - **D9/D10 loop TVS placement:** within 3 mm of J4/J5 SIG terminal (pin 2); on the
-  terminal side of R2/R4 — D9/D10 must be between the field connector and the shunt
+  terminal side of R2/R4 — D9/D10 must be between the field connector and the shunt;
+  D9 and D10 are now SMAJ3.3CA (3.3 V standoff) — verify silkscreen if a 5.0 V
+  variant was previously stuffed on any prototype
+- **C_SH1/C_SH2 shunt bypass cap placement:** 10 nF 0402 placed directly across R2
+  and R4 respectively; within 1 mm of the shunt resistor pads; on the shunt (not
+  ADC-tap) side of R3/R5
 - **D11 VLOOP TVS placement:** within 5 mm of C20/C22 on the J4/J5 side of SJ2;
   clamps VLOOP cable transients before they reach U8
+- **D12 1-Wire ESD clamp placement:** within 3 mm of J6 DATA terminal (pin 2);
+  SOT-363 footprint; VCC pins to +3V3, GND pins to GND, IO1 to 1WIRE, IO2 no-connect
+- **D13 battery TVS placement:** within 5 mm of J1 JST XH battery connector; DO-214AC
+  SMA footprint; across VBAT_RAW (J1 BAT+ pin) and GND; bidirectional — either
+  orientation correct; place near U3/U4 LiPo protection circuit
+- **D5/R31 reverse-polarity MOSFET placement:** D5 (AO3407 SOT-23) in series on
+  BAT+ rail, source toward J1 BAT+ and D13, drain toward VBAT system rail; R31
+  (10 kΩ, 0402) from D5 gate pin to GND; place R31 within 2 mm of D5 gate pin; D5
+  sits between J1 and U3/U4 LiPo protection IC cluster; protection chain order on
+  PCB copper: J1 BAT+ → D13 (TVS, at terminal) → D5 S→D → VBAT rail → U3/U4/U10
 - **FB1/C23/C24 ADS1115 supply filter:** FB1 in series with +3V3 to U9 VDD; C23 and
   C24 on the U9 side of FB1, within 1 mm of U9 VDD pin
 - **Q3/R30 hardware interlock:** Q3 (BSS84 P-ch SOT-23) near TP4056 CE node, source
   to CE, gate to /CHRG_SOLAR, drain to GND; R30 (10 kΩ) within 2 mm of Q3 gate
 - **50 Ω trace:** module U.FL pad to J3; calculate width for your specific
   stackup (typically 2.9–3.2 mm on standard 1.6 mm FR4 with 35 µm Cu)
-- **Test points:** expose VBAT, 3V3, GND, VLOOP, GPIO8, each ADC tap (GPIO0–GPIO2),
-  I²C SDA/SCL, GPIO12 (DRDY), and GPIO14 (MAX17048 ALRT) as 1 mm SMD test pads
+- **Test points:** TP1–TP14, 1.0 mm SMD pads (TestPoint:TestPoint_Pad_1.0x1.0mm),
+  DNF by default; see **Test Points** section above for full net-to-TP mapping and
+  placement notes. Verified footprints added to schematic and BOM as DNF entries.
+- **MAX17048 VDD bypass (C25):** 100 nF 0402 from U10 VDD (pin 1) to GND; within
+  1 mm of U10 VDD pin; required by MAX17048 datasheet; previously missing from BOM.
+- **S-8261A VCC bypass (C26):** 100 nF 0402 from U3 VCC (pin 5) to GND; within
+  1 mm of U3; required by S-8261AAYFT datasheet; previously missing from BOM.
+- **CN3791 thermal copper pour (U7):** 10 × 10 mm solid GND pour on F.Cu under
+  U7 SOIC-8, connected to B.Cu via ≥ 4 thermal vias (0.6 mm drill, 1.0 mm pad);
+  see **Thermal Review** section above for full rationale.
+- **TPS61023 SW-node copper (U8):** keep hot-loop trace (SW → L1 → C20/C22) under
+  10 mm, ≥ 0.5 mm wide; no solid copper pour under L1; GND via-stitch perimeter
+  around the U8/L1 island; see **Thermal Review** section for details.
 - **KiCad files:** `welld.kicad_sch` / `welld.kicad_pcb` (generated by
   `generate_kicad.py`) contain all component placements and net labels. Board
   outline and footprints are placed; no traces routed — use the KiCad autorouter
@@ -609,8 +1018,18 @@ draw during active phase.
   R30 10 kΩ 0402 (Q3 gate pull-up), C21 100 nF 0402 (TVS bypass),
   C22 10 µF 0805 (VBOOST parallel), C23 100 nF 0402 (ADS1115 VDD bypass),
   C24 1 µF 0402 (ADS1115 VDD bulk), FB1 BLM18KG601SN1D 0402 (ADS1115 supply filter),
-  D9 SMAJ5.0CA DO-214AC (loop ch1 terminal surge TVS),
-  D10 SMAJ5.0CA DO-214AC (loop ch2 terminal surge TVS),
+  C_SH1 10 nF 0402 (shunt ch1 HF bypass across R2),
+  C_SH2 10 nF 0402 (shunt ch2 HF bypass across R4),
+  D9 SMAJ3.3CA DO-214AC (loop ch1 terminal surge TVS — changed from SMAJ5.0CA),
+  D10 SMAJ3.3CA DO-214AC (loop ch2 terminal surge TVS — changed from SMAJ5.0CA),
   D11 SMAJ13A DO-214AC (VLOOP terminal surge TVS),
+  D12 PRTR5V0U2X SOT-363 (1-Wire DATA ESD rail clamp at J6; same part as D1),
+  D5 AO3407 SOT-23 (reverse-polarity P-ch MOSFET, BAT+ series; source→J1 drain→VBAT; LCSC C31417),
+  R31 10kΩ 0402 (D5 gate pull-down to GND; holds Vgs=−Vbat for full enhancement; mandatory),
+  D13 SMAJ5.0CA DO-214AC (battery terminal bidirectional TVS at J1),
+  D14 SMAJ7.0A DO-214AC (solar terminal TVS at J12 before D6; same part as D8),
   U9 ADS1115IDGST MSOP-10, U10 MAX17048G+T10 SOT-23-6, D8 SMAJ7.0A DO-214AC,
-  U3 S-8261AAYFT (SOT-23-6), J1 JST XH 2.5 mm (B2B-XH-AM).
+  U3 S-8261AAYFT (SOT-23-6), J1 JST XH 2.5 mm (B2B-XH-AM),
+  C25 100 nF 0402 (MAX17048 VDD bypass — new; previously missing),
+  C26 100 nF 0402 (S-8261AAYFT VCC bypass — new; previously missing),
+  TP1–TP14 SMD test point pads 1.0 mm (TestPoint:TestPoint_Pad_1.0x1.0mm; DNF).

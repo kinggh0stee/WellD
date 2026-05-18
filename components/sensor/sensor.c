@@ -235,9 +235,9 @@ esp_err_t sensor_i2c_init(void) {
 #define ADS1115_REG_CONVERT     0x00
 #define ADS1115_REG_CONFIG      0x01
 
+#if CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED
 static int ads1115_read_mv(int ch);  /* defined below; needed by ads1115_read_mv_median */
 
-/* Sort three integers in-place (bubble sort, small fixed size). */
 static void sort3(int *a, int *b, int *c)
 {
     int tmp;
@@ -246,8 +246,6 @@ static void sort3(int *a, int *b, int *c)
     if (*a > *b) { tmp = *a; *a = *b; *b = tmp; }
 }
 
-/* Median of three ADS1115 readings on the same channel.
- * Returns INT_MIN if any sample errors. */
 static int ads1115_read_mv_median(int ch)
 {
     int s[3];
@@ -258,6 +256,7 @@ static int ads1115_read_mv_median(int ch)
     sort3(&s[0], &s[1], &s[2]);
     return s[1];  /* median */
 }
+#endif /* CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED */
 
 /* Config register bitfields */
 #define ADS1115_OS_START        (1U << 7)

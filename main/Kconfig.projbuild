@@ -78,39 +78,6 @@ menu "WellD Configuration"
             considered stalled and aborted. Prevents a hung download from
             keeping the radio alive indefinitely.
 
-    config WELLD_ADC_OVERSAMPLE_ENABLED
-        bool "ADC oversampling (median-of-three)"
-        default y
-        help
-            Take 3 ADS1115 samples per channel and report the median.
-            Rejects single-sample noise outliers at the cost of ~4 ms
-            extra active time per channel.
-
-    config WELLD_TEMP_COMPENSATION_ENABLED
-        bool "Temperature compensation for water level"
-        default n
-        help
-            Compensate water-level readings for water density change with
-            temperature. Requires CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C.
-            Only enable if your well has large thermal swings (>20°C).
-
-    config WELLD_TEMP_COMPENSATION_PPM_PER_C
-        int "Water density coefficient (ppm/°C)"
-        default 207
-        range 0 500
-        depends on WELLD_TEMP_COMPENSATION_ENABLED
-        help
-            Typical value for fresh water is ~207 ppm/°C. The reported level
-            is corrected as: level = raw / (1 + coeff*(temp - 20°C)).
-
-    config WELLD_DS18B20_RESOLUTION_BITS
-        int "DS18B20 resolution (bits)"
-        default 12
-        range 9 12
-        help
-            Conversion time: 9-bit = 94 ms, 10-bit = 188 ms, 11-bit = 375 ms,
-            12-bit = 750 ms. Lower resolution saves active time and battery.
-
     config WELLD_SELFTEST_ENABLED
         bool "Self-test mode (peripheral health check on boot)"
         default n
@@ -138,15 +105,6 @@ config WELLD_CHARGER_CE_GPIO
     help
         Drives Q1 gate (BSS123). HIGH disables USB charging (TP4056 CE LOW).
         Assert when solar charging is active to prevent dual-charger conflict.
-
-config WELLD_SOLAR_DETECT_GPIO
-    int "Solar charging detect GPIO (CN3791 CHRG)"
-    range 0 21
-    default 6
-    help
-        Input. Active-low: LOW means the CN3791 MPPT charger is actively
-        charging. HIGH means no solar charging. Used to gate the TP4056
-        interlock via GPIO4 (Q1).
 
 config WELLD_MAX17048_ALRT_GPIO
     int "MAX17048 ALRT input GPIO"

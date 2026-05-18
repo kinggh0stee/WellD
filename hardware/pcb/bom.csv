@@ -14,13 +14,16 @@ Q2,1,N-ch MOSFET battery divider enable,100V 170mA SOT-23,SOT-23,BSS123,N-ch MOS
 Q3,1,P-ch MOSFET TP4056 CE hardware interlock,−20V −130mA SOT-23,SOT-23,BSS84,P-ch MOSFET Vgs(th) max −1.5V SOT-23; source=CE node; gate=/CHRG_SOLAR; drain=GND; eliminates boot-window race before firmware asserts GPIO4; LCSC C114124
 L1,1,VBOOST shielded power inductor,4.7µH 1.0A 250mΩ,4×4mm SMD,CDRH4D22NP-4R7NC,Bourns; LCSC C376098; or equivalent 4.7µH ≥1A shielded SMD
 D1,1,Dual-channel TVS ESD protection,3.3V/5V logic lines,SOT-363,PRTR5V0U2X,NXP; ESD/EFT clamp at ADC tap (after R2/R3); one device covers both channels
-D9,1,Loop ch1 terminal surge TVS,5.0V standoff bidirectional 400W,DO-214AC (SMA),SMAJ5.0CA,Vishay; IEC 61000-4-5 surge protection at J4 SIG terminal before R2; LCSC C370131
-D10,1,Loop ch2 terminal surge TVS,5.0V standoff bidirectional 400W,DO-214AC (SMA),SMAJ5.0CA,Vishay; IEC 61000-4-5 surge protection at J5 SIG terminal before R4; LCSC C370131
+D9,1,Loop ch1 terminal surge TVS,3.3V standoff bidirectional 200W,DO-214AC (SMA),SMAJ3.3CA,Vishay; IEC 61000-4-5 surge protection at J4 SIG terminal before R2; standoff 3.3V above normal 2.0V loop max — will not conduct in normal operation; clamp voltage ~5.3V@10A versus SMAJ5.0CA's 9.2V — tighter protection for ADS1115 AIN abs-max chain; LCSC C2836497
+D10,1,Loop ch2 terminal surge TVS,3.3V standoff bidirectional 200W,DO-214AC (SMA),SMAJ3.3CA,Vishay; IEC 61000-4-5 surge protection at J5 SIG terminal before R4; same rationale as D9; LCSC C2836497
 D11,1,VLOOP terminal surge TVS,13V standoff unidirectional 400W,DO-214AC (SMA),SMAJ13A,Vishay; clamps cable transients on VLOOP terminal before they reach TPS61023; between U8 VOUT and J4/J5 VLOOP pin; LCSC C8057
+D12,1,DS18B20 1-Wire DATA ESD rail clamp,3.3V/5V dual-channel rail clamp 0.5pF,SOT-363,PRTR5V0U2X,NXP; IO1 to 1WIRE DATA (J6 pin 2); IO2 no-connect; VCC to +3V3; GND to GND; clamp voltage VCC+0.5V = 3.8V during ESD transient (sub-ns); ESP32-C6 GPIO7 abs max is 3.6V but this brief overshoot is standard practice for IEC 61000-4-2 level-4 GPIO protection — add 33Ω series resistor R32 between J6 DATA and the D12/1WIRE junction if strict abs-max compliance is required; capacitance 0.5pF per channel well below 100pF 1-Wire add limit; same part as D1 — consolidate on one tape reel; LCSC C2687116
+D13,1,Battery terminal ESD/transient TVS,5.0V standoff bidirectional 200W,DO-214AC (SMA),SMAJ5.0CA,Vishay; placed across J1 BAT+ and BAT- (system ground side of J1 — before D5 reverse-polarity FET); standoff 5.0V is above 4.2V LiPo full-charge so TVS does not conduct in steady state; clamp voltage 9.2V@10A protects downstream circuits including S-8261AAYFT (VCC abs max ~6.5V) against cable-induction surges; bidirectional required because both charge and discharge current flow through the terminals; LCSC C2836466
+D14,1,Solar input terminal surge TVS,7.0V standoff unidirectional 400W,DO-214AC (SMA),SMAJ7.0A,Vishay; placed at J12 SOLAR+ terminal to GND before D6 Schottky; first-stage absorber for cable-coupled ESD and lightning induction; standoff 7.0V is above 6.5V max MPPT operating voltage so TVS does not conduct in normal operation; works in tandem with D8 (SMAJ7.0A after D6 at CN3791 VIN) to form two-stage protection chain; same MPN as D8 — consolidate on shared tape reel; LCSC C78310
 D2,1,Charge indicator LED (optional DNF),Green 0603,0603,—,DNF in production; omit to reduce active current
 D3,1,Standby indicator LED (optional DNF),Red 0603,0603,—,DNF in production
 D4,1,Status LED,Green 0603,0603,—,Controlled by GPIO13; disconnect with SJ3
-D5,1,Reverse polarity MOSFET,P-ch 20V 3A,SOT-23,AO3407,Alpha & Omega; or equivalent P-ch SOT-23
+D5,1,Reverse-polarity P-ch MOSFET (series BAT+ rail),P-ch 20V 3A Vgs(th) max −1.5V RDS(on) max 55mΩ,SOT-23,AO3407,Alpha & Omega Semiconductor; LCSC C31417; source→J1 BAT+ drain→VBAT rail gate→GND via R31; Vgs=-3.0V at Vbat=3.0V gives 1.5V margin above |Vgs(th)| max so MOSFET is fully saturated at minimum battery; drop at 1A continuous ≤55mV; Vgs abs max ±12V >> 4.2V bat max so no gate-drain clamp required; body diode blocks reverse current if battery connected backwards
 D6,1,Schottky diode solar input protection,1A 40V Schottky,SOD-123,MBRS140T3G,On Semi; prevents panel backfeed; also provides reverse polarity protection
 D7,1,Solar charge indicator LED (optional DNF),Green 0603,0603,—,DNF in production
 D8,1,Solar input TVS clamp,7.0V standoff / 11.2V clamp @ 10A,DO-214AC (SMA),SMAJ7.0A,Vishay; LCSC C78310; placed across CN3791 VIN/GND after D6; clamps fast inductive transients; pair with panel Voc <= 7.5V
@@ -76,6 +79,10 @@ R27,1,MAX17048 ALRT pull-up,4.7kΩ,0402,—,GPIO14→3V3 pull-up for MAX17048 AL
 R28,1,DS18B20 VCC series protection,100Ω,0402,—,In VCC line to J6 pin 1; prevents 3V3 rail short on probe misconnection
 R29,1,TP4056 CE pull-up,4.7kΩ,0402,—,Pulls TP4056 CE HIGH (USB charging enabled); Q1 drain pulls CE LOW to inhibit charging
 R30,1,Q3 gate pull-up,10kΩ,0402,—,Pull-up from Q3 (BSS84) gate to +3V3; ensures Q3 stays OFF if /CHRG_SOLAR floats during boot
+R31,1,D5 gate pull-down (reverse-polarity MOSFET),10kΩ,0402,—,Connects D5 (AO3407) gate to GND; holds gate at 0V so Vgs=−Vbat keeps MOSFET fully on in normal operation; defines off-state when battery is disconnected; limits gate inrush current during hot-plug; place within 2mm of D5 gate pin; standard 0402 10kΩ any 1%/5% tolerance — same value as R30 consolidate on one reel
+R32,1,DS18B20 1-Wire series protection resistor,33Ω,0402,—,DNF by default; series resistor between J6 pin 2 and D12 IO1/1WIRE junction for strict abs-max compliance with ESP32-C6 GPIO7 (3.6V max); limits current into GPIO during ESD clamp events; add if installation requires strict IEC 61000-4-2 level-4 compliance
+C_SH1,1,Shunt ch1 HF bypass,10nF X7R 25V,0402,—,Placed directly across R2 (100Ω shunt); suppresses HF pickup on loop cable before it reaches ADS1115 AIN0; forms 1.6 MHz RC with R2 — well above the <10 Hz measurement BW; place within 1mm of R2 pads
+C_SH2,1,Shunt ch2 HF bypass,10nF X7R 25V,0402,—,Placed directly across R4 (100Ω shunt); same function as C_SH1 for ch2; place within 1mm of R4 pads
 C23,1,ADS1115 VDD bypass,100nF,0402,—,Local bypass on U9 VDD pin; on U9 side of FB1 within 1mm of U9; per ADS1115 datasheet
 C24,1,ADS1115 VDD bulk,1µF,0402,—,Bulk bypass on U9 VDD; on U9 side of FB1 within 1mm of U9
 FB1,1,ADS1115 supply ferrite bead,600Ω@100MHz 500mA,0402,BLM18KG601SN1D,Murata; in series with +3V3 to U9 VDD; isolates ADC supply from TPS61023 switching noise and 2.4GHz radio; LCSC C76537
@@ -101,6 +108,22 @@ C19,1,VBOOST input bypass,10µF 10V,0805,—,TPS61023 VIN; place within 2mm of U
 C20,1,VBOOST output filter,22µF 16V,1206,—,TPS61023 VOUT; rated above 12V output; 1206 package for adequate capacitance at DC bias
 C21,1,TVS bypass cap,100nF,0402,—,Bypass cap across D8 (TVS clamp); absorbs inductive transients from panel cable
 C22,1,VBOOST output cap,10µF 16V,0805,—,In parallel with C20 to maintain ≥10 µF at 12V after X5R DC-bias derating
+C25,1,MAX17048 VDD bypass (NEW),100nF X7R ≥6.3V,0402,C14663,Maxim MAX17048 datasheet requires 100nF on VDD pin (pin 1); previously missing from BOM; place within 1mm of U10 VDD pin; LCSC C14663 or equivalent; same value as C23
+C26,1,S-8261AAYFT VCC bypass (NEW),100nF X7R ≥6.3V,0402,C14663,Seiko S-8261A datasheet requires 100nF on VCC (pin 5); previously missing from BOM; place within 1mm of U3 VCC pin; LCSC C14663 or equivalent; same value as C25
+TP1,1,Test point — VBAT (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF — solderable test pad only; net: VBAT rail after D5 reverse-polarity MOSFET; TestPoint:TestPoint_Pad_1.0x1.0mm
+TP2,1,Test point — VLOOP (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF — solderable test pad only; net: VLOOP 12V boost output after U8 VOUT; TestPoint:TestPoint_Pad_1.0x1.0mm
+TP3,1,Test point — +3V3 (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF — solderable test pad only; net: +3V3 regulated supply after U1 TPS7A0533; TestPoint:TestPoint_Pad_1.0x1.0mm
+TP4,1,Test point — GND (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF — solderable test pad only; net: system GND reference; TestPoint:TestPoint_Pad_1.0x1.0mm
+TP5,1,Test point — LOOP_TERM_CH1 (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF — solderable test pad only; net: J4 SIG node between R2 shunt and R3 limiter (after D9 TVS before ADS1115 AIN0 series resistor); TestPoint:TestPoint_Pad_1.0x1.0mm
+TP6,1,Test point — LOOP_TERM_CH2 (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF — solderable test pad only; net: J5 SIG node between R4 shunt and R5 limiter (after D10 TVS before ADS1115 AIN1 series resistor); TestPoint:TestPoint_Pad_1.0x1.0mm
+TP7,1,Test point — 1WIRE (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF — solderable test pad only; net: 1WIRE DS18B20 data bus at J6 DATA terminal (after R6 pull-up before D12 ESD clamp); TestPoint:TestPoint_Pad_1.0x1.0mm
+TP8,1,Test point — I2C_SDA (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF — solderable test pad only; net: I2C_SDA (GPIO10); shared ADS1115 + MAX17048 I2C bus; TestPoint:TestPoint_Pad_1.0x1.0mm
+TP9,1,Test point — I2C_SCL (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF — solderable test pad only; net: I2C_SCL (GPIO11); shared ADS1115 + MAX17048 I2C bus; TestPoint:TestPoint_Pad_1.0x1.0mm
+TP10,1,Test point — VSOLAR_IN (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF — solderable test pad only; net: VSOLAR_IN at J12 pin 1 before D14 TVS and D6 Schottky; raw panel terminal voltage; TestPoint:TestPoint_Pad_1.0x1.0mm
+TP11,1,Test point — VBAT_RAW (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF — solderable test pad only; net: VBAT_RAW at J1 BAT+ before D5 reverse-polarity MOSFET (after D13 TVS); battery terminal voltage; TestPoint:TestPoint_Pad_1.0x1.0mm
+TP12,1,Test point — ADS_DRDY (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF — solderable test pad only; net: ADS_DRDY ADS1115 ALERT/RDY output to GPIO12; active-low interrupt for single-shot conversion complete; TestPoint:TestPoint_Pad_1.0x1.0mm
+TP13,1,Test point — MAX_ALRT (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF — solderable test pad only; net: MAX_ALRT MAX17048 ALRT open-drain to GPIO14; active-low low-battery interrupt; pull-up via R27 4.7kΩ to 3V3; TestPoint:TestPoint_Pad_1.0x1.0mm
+TP14,1,Test point — /CHRG_SOLAR (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF — solderable test pad only; net: /CHRG_SOLAR CN3791 CHRG open-drain output; active-LOW = solar charging in progress; also drives Q3 hardware interlock gate; TestPoint:TestPoint_Pad_1.0x1.0mm
 SJ1,1,VBOOST_EN permanent tie (test/debug),2-pad solder jumper,—,—,Normally open; close to hold TPS61023 EN HIGH independently of GPIO5. DNF in production.
 SJ2,1,VLOOP bus jumper,2-pad solder jumper,—,—,Normally closed; cuts ch1/ch2 VLOOP sharing
 SJ3,1,Status LED disconnect,2-pad solder jumper,—,—,Normally closed; cut to save active-phase draw

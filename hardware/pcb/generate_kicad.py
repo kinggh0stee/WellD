@@ -227,6 +227,7 @@ COMPONENTS = [
     # ----- Block C: Battery / Protection -----
     ("J1",   "LiPo",           "Connector:Conn_01x02_Pin",  220,   80),
     ("D5",   "AO3407",         "welld:AO3407",               250,   80),
+    ("R31",  "10k",            "Device:R",                   250,   92),  # D5 gate pull-down to GND
     ("U3",   "S-8261AAYFT",    "welld:S8261A",               280,   70),
     ("U4",   "FS8205A",        "welld:FS8205A",              280,   95),
 
@@ -258,18 +259,21 @@ COMPONENTS = [
     ("J4",   "4-20mA_CH1",     "Connector:Conn_01x03_Pin",  420,  200),
     ("J5",   "4-20mA_CH2",     "Connector:Conn_01x03_Pin",  450,  200),
     ("J6",   "DS18B20",        "Connector:Conn_01x03_Pin",  480,  200),
+    ("R32",  "33R DNF",        "Device:R",                  495,  200),  # 1-Wire series protection (DNF default)
     ("J7",   "Spare",          "Connector:Conn_01x03_Pin",  510,  200),
-    ("D1",   "PRTR5V0U2X",     "welld:PRTR5V0U2X",           420,  230),
-    ("R2",   "100R 0.1%",      "Device:R",                  440,  215),
-    ("R3",   "100R",           "Device:R",                  460,  215),
-    ("D9",   "SMAJ5.0CA",       "Device:D_TVS_Bidirectional", 420, 185),
-    ("C3",   "1uF",            "Device:C",                  460,  225),
-    ("C4",   "10uF",           "Device:C",                  470,  225),
-    ("R4",   "100R 0.1%",      "Device:R",                  480,  215),
-    ("R5",   "100R",           "Device:R",                  500,  215),
-    ("D10",  "SMAJ5.0CA",      "Device:D_TVS_Bidirectional", 450, 185),
-    ("C5",   "1uF",            "Device:C",                  500,  225),
-    ("C6",   "10uF",           "Device:C",                  510,  225),
+    ("D1",    "PRTR5V0U2X",     "welld:PRTR5V0U2X",           420,  230),
+    ("R2",    "100R 0.1%",      "Device:R",                  440,  215),
+    ("R3",    "100R",           "Device:R",                  460,  215),
+    ("D9",    "SMAJ3.3CA",      "Device:D_TVS_Bidirectional", 420, 185),  # changed from SMAJ5.0CA
+    ("C3",    "1uF",            "Device:C",                  460,  225),
+    ("C4",    "10uF",           "Device:C",                  470,  225),
+    ("C_SH1", "10nF",           "Device:C",                  440,  245),  # shunt ch1 HF bypass across R2
+    ("R4",    "100R 0.1%",      "Device:R",                  480,  215),
+    ("R5",    "100R",           "Device:R",                  500,  215),
+    ("D10",   "SMAJ3.3CA",      "Device:D_TVS_Bidirectional", 450, 185),  # changed from SMAJ5.0CA
+    ("C5",    "1uF",            "Device:C",                  500,  225),
+    ("C6",    "10uF",           "Device:C",                  510,  225),
+    ("C_SH2", "10nF",           "Device:C",                  480,  245),  # shunt ch2 HF bypass across R4
     ("R6",   "4.7k",           "Device:R",                  490,  250),
     ("C7",   "100nF",          "Device:C",                  510,  250),
 
@@ -324,6 +328,26 @@ COMPONENTS = [
     ("SJ3",  "LED_DIS",        "Jumper:SolderJumper_2_Open", 160, 345),
     ("SJ4",  "UART_TX DNF",    "Jumper:SolderJumper_2_Open", 200, 345),
     ("SJ5",  "UART_RX DNF",    "Jumper:SolderJumper_2_Open", 240, 345),
+
+    # ----- Block N: Missing bypass caps (decoupling review) -----
+    ("C25",  "100nF",          "Device:C",                   125, 295),  # MAX17048 VDD bypass
+    ("C26",  "100nF",          "Device:C",                   285,  65),  # S-8261A VCC bypass
+
+    # ----- Block O: Test points TP1-TP14 (DNF) -----
+    ("TP1",  "VBAT",           "welld:TestPoint_Pad",        200, 370),
+    ("TP2",  "VLOOP",          "welld:TestPoint_Pad",        215, 370),
+    ("TP3",  "+3V3",           "welld:TestPoint_Pad",        230, 370),
+    ("TP4",  "GND",            "welld:TestPoint_Pad",        245, 370),
+    ("TP5",  "LOOP_TERM_CH1",  "welld:TestPoint_Pad",        260, 370),
+    ("TP6",  "LOOP_TERM_CH2",  "welld:TestPoint_Pad",        275, 370),
+    ("TP7",  "1WIRE",          "welld:TestPoint_Pad",        290, 370),
+    ("TP8",  "I2C_SDA",        "welld:TestPoint_Pad",        305, 370),
+    ("TP9",  "I2C_SCL",        "welld:TestPoint_Pad",        320, 370),
+    ("TP10", "VSOLAR_IN",      "welld:TestPoint_Pad",        335, 370),
+    ("TP11", "VBAT_RAW",       "welld:TestPoint_Pad",        350, 370),
+    ("TP12", "ADS_DRDY",       "welld:TestPoint_Pad",        365, 370),
+    ("TP13", "MAX_ALRT",       "welld:TestPoint_Pad",        380, 370),
+    ("TP14", "/CHRG_SOLAR",    "welld:TestPoint_Pad",        395, 370),
 ]
 
 
@@ -461,12 +485,12 @@ def make_sch_lib_symbols() -> str:
           (stroke (width 0) (type default)) (fill (type background)))
       )
       (symbol "S8261A_1_1"
-{pin("power_in", "left",   6.35,  3.81, 180, "GND", "1")}
-{pin("input",    "left",   6.35,  1.27, 180, "CS",  "2")}
-{pin("output",   "right", -6.35,  3.81,   0, "DO",  "3")}
-{pin("output",   "right", -6.35,  1.27,   0, "CO",  "4")}
+{pin("output",   "right", -6.35,  3.81,   0, "DO",  "1")}
+{pin("output",   "right", -6.35,  1.27,   0, "CO",  "2")}
+{pin("input",    "left",   6.35,  3.81, 180, "CS",  "3")}
+{pin("passive",  "left",   6.35,  1.27, 180, "VM",  "4")}
 {pin("power_in", "left",   6.35, -1.27, 180, "VCC", "5")}
-{pin("passive",  "right", -6.35, -1.27,   0, "VDD", "6")}
+{pin("power_in", "right", -6.35, -1.27,   0, "VDD", "6")}
       )
     )"""
 
@@ -705,8 +729,24 @@ def make_sch_lib_symbols() -> str:
       )
     )"""
 
+    # ---- TestPoint_Pad (1.0 mm SMD pad, DNF) --------------------------------
+    testpoint = f"""
+    (symbol "TestPoint_Pad" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
+      (property "Reference" "TP" (at 0 3.81 0) (effects (font (size 1.27 1.27))))
+      (property "Value" "TestPoint" (at 0 -3.81 0) (effects (font (size 1.27 1.27))))
+      (property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+      (symbol "TestPoint_Pad_0_1"
+        (circle (center 0 0) (radius 0.5)
+          (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "TestPoint_Pad_1_1"
+{pin("passive", "right", -2.54, 0, 0, "1", "1")}
+      )
+    )"""
+
     return "\n".join([cn3791, tp4056, tps, s8261a, fs8205a, usblc6, prtr, ao3407,
-                       usbcpwr, ufl, esp32, tps61023, ads1115, max17048])
+                       usbcpwr, ufl, esp32, tps61023, ads1115, max17048, testpoint])
 
 
 def make_sch() -> str:
@@ -749,6 +789,7 @@ def make_sch() -> str:
         ("LOOP_TERM_CH1", 415, 175, "passive"),
         ("LOOP_TERM_CH2", 445, 175, "passive"),
         ("+3V3_ADS",     60,  280, "passive"),
+        ("VBAT_RAW",    210,   65, "passive"),
     ]
 
     global_labels_str = ""
@@ -760,6 +801,7 @@ def make_sch() -> str:
         ("+3V3",    335,  65),
         ("GND",      35, 285),
         ("VBAT",    215,  65),
+        ("GND",     255, 100),   # GND return for D5 gate pull-down R31
     ]
     power_str = ""
     for net, x, y in power_flags:
@@ -801,8 +843,16 @@ def make_sch() -> str:
         # Battery protection chain
         wire(260, 80, 275, 80),
         wire(295, 80, 335, 80),
+        # D5 (AO3407) gate -> R31 (10k) -> GND pull-down
+        # Gate pin G is at (250+5.08, 80+1.27) ≈ (255.08, 81.27); snap to grid: (255, 81)
+        wire(255, 81, 255, 89),   # gate to top of R31
+        wire(255, 95, 255, 100),  # bottom of R31 to GND power symbol
         # LED path
         wire(330, 200, 330, 215),
+        # 1-Wire series protection R32 (DNF default): J6 pin 2 -> R32 -> 1WIRE net
+        wire(480, 200, 494, 200),   # J6 pin 2 (DATA) to R32 pin 1
+        wire(496, 200, 490, 200),   # R32 pin 2 to 1WIRE label x-position
+        wire(490, 200, 490, 195),   # down to 1WIRE global label
     ]
 
     wires_str = "".join(wires)
@@ -874,14 +924,15 @@ PCB_COMPONENTS = [
 
     # Diodes
     ("D1",   "Package_TO_SOT_SMD:SOT-363_SC-70-6",                      15,   14,   0, "PRTR5V0U2X"),
-    ("D9",   "Diode_SMD:D_SMA",                                         12,    6,   0, "SMAJ5.0CA"),
-    ("D10",  "Diode_SMD:D_SMA",                                         23,    6,   0, "SMAJ5.0CA"),
+    ("D9",   "Diode_SMD:D_SMA",                                         12,    6,   0, "SMAJ3.3CA"),  # changed from SMAJ5.0CA
+    ("D10",  "Diode_SMD:D_SMA",                                         23,    6,   0, "SMAJ3.3CA"),  # changed from SMAJ5.0CA
     ("D11",  "Diode_SMD:D_SMA",                                         78,    6,   0, "SMAJ13A"),
     ("D2",   "LED_SMD:LED_0603_1608Metric",                              12,   47,   0, "LED_CHRG"),
     ("D3",   "LED_SMD:LED_0603_1608Metric",                              14,   47,   0, "LED_STBY"),
     ("D4",   "LED_SMD:LED_0603_1608Metric",                              50,   51,   0, "LED_STATUS"),
     ("D5",   "Package_TO_SOT_SMD:SOT-23",                                65,   42,   0, "AO3407"),
     ("D6",   "Diode_SMD:D_SOD-123",                                      56,    7,   0, "MBRS140"),
+    ("R31",  "Resistor_SMD:R_0402_1005Metric",                           65,   44,   0, "10k"),  # D5 gate pull-down
 
     # Fuse
     ("F1",   "Fuse:Fuse_1206_3216Metric",                                 6,   44,   0, "PTC_1A"),
@@ -893,6 +944,7 @@ PCB_COMPONENTS = [
     ("J4",   "Connector_Phoenix_MC:PhoenixContact_MC_1,5_3-G-3,5_1x03_P3.50mm_Horizontal", 12, 2, 0, "4-20mA_1"),
     ("J5",   "Connector_Phoenix_MC:PhoenixContact_MC_1,5_3-G-3,5_1x03_P3.50mm_Horizontal", 23, 2, 0, "4-20mA_2"),
     ("J6",   "Connector_Phoenix_MC:PhoenixContact_MC_1,5_3-G-3,5_1x03_P3.50mm_Horizontal", 34, 2, 0, "DS18B20"),
+    ("R32",  "Resistor_SMD:R_0402_1005Metric",                           36,   4,  0, "33R_DNF"),  # 1-Wire series protection (DNF default)
     ("J7",   "Connector_Phoenix_MC:PhoenixContact_MC_1,5_3-G-3,5_1x03_P3.50mm_Horizontal", 45, 2, 0, "Spare"),
     ("J8",   "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical", 70, 46,  0, "I2C"),
     ("J9",   "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical", 70, 32,  0, "GPIO"),
@@ -930,10 +982,12 @@ PCB_COMPONENTS = [
     # Capacitors
     ("C1",   "Capacitor_SMD:C_0805_2012Metric",   8,   41,  0, "10uF"),
     ("C2",   "Capacitor_SMD:C_0805_2012Metric",  12,   41,  0, "10uF"),
-    ("C3",   "Capacitor_SMD:C_0402_1005Metric",  20,   14,  0, "1uF"),
-    ("C4",   "Capacitor_SMD:C_0805_2012Metric",  22,   14,  0, "10uF"),
-    ("C5",   "Capacitor_SMD:C_0402_1005Metric",  29,   14,  0, "1uF"),
-    ("C6",   "Capacitor_SMD:C_0805_2012Metric",  31,   14,  0, "10uF"),
+    ("C3",    "Capacitor_SMD:C_0402_1005Metric",  20,   14,  0, "1uF"),
+    ("C4",    "Capacitor_SMD:C_0805_2012Metric",  22,   14,  0, "10uF"),
+    ("C_SH1", "Capacitor_SMD:C_0402_1005Metric",  17,   12,  0, "10nF"),  # across R2 shunt ch1
+    ("C5",    "Capacitor_SMD:C_0402_1005Metric",  29,   14,  0, "1uF"),
+    ("C6",    "Capacitor_SMD:C_0805_2012Metric",  31,   14,  0, "10uF"),
+    ("C_SH2", "Capacitor_SMD:C_0402_1005Metric",  26,   12,  0, "10nF"),  # across R4 shunt ch2
     ("C7",   "Capacitor_SMD:C_0402_1005Metric",  36,   12,  0, "100nF"),
     ("C8",   "Capacitor_SMD:C_0402_1005Metric",  55,   32,  0, "100nF"),
     ("C9",   "Capacitor_SMD:C_0402_1005Metric",  54,   35,  0, "100nF"),
@@ -988,6 +1042,31 @@ PCB_COMPONENTS = [
     ("SJ3",  "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",   53, 49, 0, "LED_DIS"),
     ("SJ4",  "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",    8, 16, 0, "UART_TX"),
     ("SJ5",  "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",    8, 24, 0, "UART_RX"),
+
+    # Missing bypass caps (decoupling review additions)
+    ("C25",  "Capacitor_SMD:C_0402_1005Metric",  69, 42,  0, "100nF"),   # MAX17048 VDD bypass, within 1mm of U10
+    ("C26",  "Capacitor_SMD:C_0402_1005Metric",  68, 19,  0, "100nF"),   # S-8261A VCC bypass, within 1mm of U3
+
+    # Test points TP1-TP14 (DNF — 1.0mm SMD pads)
+    # Power rails row: top edge of board
+    ("TP1",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  56, 50,  0, "VBAT"),
+    ("TP2",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  79, 18,  0, "VLOOP"),
+    ("TP3",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  58, 50,  0, "+3V3"),
+    ("TP4",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  60, 50,  0, "GND"),
+    # Sensor signal taps
+    ("TP5",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  19, 11,  0, "LOOP_TERM_CH1"),
+    ("TP6",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  28, 11,  0, "LOOP_TERM_CH2"),
+    ("TP7",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  36,  8,  0, "1WIRE"),
+    # I2C
+    ("TP8",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  64, 44,  0, "I2C_SDA"),
+    ("TP9",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  66, 44,  0, "I2C_SCL"),
+    # Solar and battery raw terminals
+    ("TP10", "TestPoint:TestPoint_Pad_1.0x1.0mm",  64,  4,  0, "VSOLAR_IN"),
+    ("TP11", "TestPoint:TestPoint_Pad_1.0x1.0mm",  74, 38,  0, "VBAT_RAW"),
+    # Interrupt signals
+    ("TP12", "TestPoint:TestPoint_Pad_1.0x1.0mm",  22, 24,  0, "ADS_DRDY"),
+    ("TP13", "TestPoint:TestPoint_Pad_1.0x1.0mm",  24, 24,  0, "MAX_ALRT"),
+    ("TP14", "TestPoint:TestPoint_Pad_1.0x1.0mm",  64, 14,  0, "/CHRG_SOLAR"),
 ]
 
 # Key nets declared in the PCB netlist
@@ -1026,6 +1105,7 @@ NETS = [
     "LOOP_TERM_CH1",
     "LOOP_TERM_CH2",
     "+3V3_ADS",
+    "VBAT_RAW",
 ]
 
 
@@ -1100,6 +1180,129 @@ def pcb_board_outline() -> str:
     return "\n".join(lines)
 
 
+def pcb_thermal_zone_u7() -> str:
+    """
+    GND thermal copper pour for U7 (CN3791, SOIC-8) at PCB position (60, 10).
+    10x10 mm solid GND pour on F.Cu and B.Cu connected via thermal vias.
+    Per design.md: reduces effective theta_JA to 50-60 C/W for CN3791.
+    Zone corners: (55, 5) to (65, 15) centred on U7 at (60, 10).
+    Four thermal vias: 0.6mm drill, 1.0mm pad, spaced 2mm inside the zone.
+    """
+    # F.Cu zone (GND, solid fill, no thermal relief on zone connection)
+    zone_fcu = f"""
+  (zone (net 1) (net_name "GND") (layer "F.Cu") (uuid "{uid()}")
+    (name "GND_THERMAL_U7")
+    (hatch edge 0.508)
+    (connect_pads thru_hole_only (clearance 0.2))
+    (min_thickness 0.25)
+    (keepout_settings (no_tracks no) (no_vias no) (no_pads no) (no_copperpour no) (no_footprints no))
+    (fill yes (thermal_gap 0.3) (thermal_bridge_width 0.3))
+    (polygon
+      (pts (xy 55.0 5.0) (xy 65.0 5.0) (xy 65.0 15.0) (xy 55.0 15.0))
+    )
+  )"""
+
+    # B.Cu mirror zone (same net, same area, same fill)
+    zone_bcu = f"""
+  (zone (net 1) (net_name "GND") (layer "B.Cu") (uuid "{uid()}")
+    (name "GND_THERMAL_U7_B")
+    (hatch edge 0.508)
+    (connect_pads thru_hole_only (clearance 0.2))
+    (min_thickness 0.25)
+    (keepout_settings (no_tracks no) (no_vias no) (no_pads no) (no_copperpour no) (no_footprints no))
+    (fill yes (thermal_gap 0.3) (thermal_bridge_width 0.3))
+    (polygon
+      (pts (xy 55.0 5.0) (xy 65.0 5.0) (xy 65.0 15.0) (xy 55.0 15.0))
+    )
+  )"""
+
+    # Four thermal vias connecting F.Cu to B.Cu through U7 body area
+    # Placed at 2mm spacing inside the 10x10 zone centred on (60,10)
+    # Pattern: (58,8), (62,8), (58,12), (62,12)
+    via_positions = [(58.0, 8.0), (62.0, 8.0), (58.0, 12.0), (62.0, 12.0)]
+    vias_str = ""
+    for vx, vy in via_positions:
+        vias_str += f"""
+  (via (at {vx:.3f} {vy:.3f}) (size 1.0) (drill 0.6)
+    (layers "F.Cu" "B.Cu")
+    (net 1)
+    (uuid "{uid()}")
+  )"""
+
+    # Silkscreen label on F.SilkS identifying the thermal island
+    silk_label = f"""
+  (gr_text "GND_THERMAL_U7" (at 60 16.5 0) (layer "F.SilkS")
+    (uuid "{uid()}")
+    (effects (font (size 0.6 0.6) (thickness 0.1)))
+  )"""
+
+    return zone_fcu + zone_bcu + vias_str + silk_label
+
+
+def pcb_u8_gnd_viastitch() -> str:
+    """
+    GND via-stitch perimeter around U8 (TPS61023, SOT-23-5) at (73,20) and
+    L1 (inductor, at 74,12).  Perimeter ring of vias at ~2mm spacing outside
+    the U8/L1 cluster to provide a low-inductance GND return path for the SW
+    node's return current.  No solid copper pour under L1 — only the via ring.
+    Per design.md: keep hot-loop trace (SW->L1->C20/C22) short and wide;
+    via-stitch perimeter around the island; no pour under L1.
+    Via ring boundary: (68,7) to (80,25), one via every ~2.5mm on perimeter.
+    """
+    # Perimeter coordinates (rectangular ring, clockwise, corners at each corner
+    # plus intermediate points every ~2.5 mm)
+    import math
+
+    # Keep ring inside board boundary (board right edge = 80 mm; leave 1mm margin)
+    x0, y0 = 68.0, 7.0
+    x1, y1 = 79.0, 25.0
+
+    perimeter_vias = []
+    step = 2.5
+
+    # Top edge: left to right
+    x = x0
+    while x <= x1:
+        perimeter_vias.append((x, y0))
+        x += step
+
+    # Right edge: top to bottom
+    y = y0 + step
+    while y <= y1:
+        perimeter_vias.append((x1, y))
+        y += step
+
+    # Bottom edge: right to left
+    x = x1 - step
+    while x >= x0:
+        perimeter_vias.append((x, y1))
+        x -= step
+
+    # Left edge: bottom to top
+    y = y1 - step
+    while y > y0:
+        perimeter_vias.append((x0, y))
+        y -= step
+
+    vias_str = ""
+    for vx, vy in perimeter_vias:
+        vias_str += f"""
+  (via (at {vx:.3f} {vy:.3f}) (size 0.8) (drill 0.4)
+    (layers "F.Cu" "B.Cu")
+    (net 1)
+    (uuid "{uid()}")
+  )"""
+
+    # Silkscreen comment on F.SilkS marking the SW node island boundary
+    silk_label = f"""
+  (gr_text "SW_ISLAND_U8" (at 74 26.5 0) (layer "F.SilkS")
+    (uuid "{uid()}")
+    (effects (font (size 0.6 0.6) (thickness 0.1)))
+  )"""
+
+    return vias_str + silk_label
+
+
 def make_pcb() -> str:
     """Build the complete welld.kicad_pcb s-expression string."""
 
@@ -1117,6 +1320,10 @@ def make_pcb() -> str:
     footprints = ""
     for ref, fp, x, y, rot, value in PCB_COMPONENTS:
         footprints += pcb_footprint(ref, fp, x, y, rot, value)
+
+    # Thermal copper pours and via stitching
+    thermal_u7 = pcb_thermal_zone_u7()
+    u8_viastitch = pcb_u8_gnd_viastitch()
 
     # Board title graphic text
     title_text = f"""
@@ -1223,6 +1430,10 @@ def make_pcb() -> str:
 {mholes}
 
 {footprints}
+
+{thermal_u7}
+
+{u8_viastitch}
 
 )
 """
