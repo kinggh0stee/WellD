@@ -6,6 +6,12 @@ managed_components/
 # Secure boot — private signing key must never be committed
 secure_boot_signing_key.pem
 
+# KiCad GUI artifacts
+*.kicad_prl
+~*.lck
+hardware/pcb/.history/
+hardware/pcb/welld_bom.csv
+
 # IDE / local tooling
 .vscode/
 .idea/
