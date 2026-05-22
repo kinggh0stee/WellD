@@ -20,13 +20,20 @@ CONFIG_ESP_BROWNOUT_DET=y
 # The bootloader rejects any image whose signature does not verify against the
 # public key digest burned into eFuse. Once eFuses are burned this is permanent.
 #
+# CI builds are UNSIGNED (private key never leaves your machine).
+# Sign and flash locally:
+#   1. Build:  idf.py build
+#   2. Sign:   espsecure sign-data --version 2 --keyfile secure_boot_signing_key.pem \
+#                --output build/welld-signed.bin build/welld.bin
+#   3. Flash:  idf.py -p /dev/ttyUSB0 flash   (uses the signed binary automatically
+#              when CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y in local config)
+#
 # Key management:
 #   Generate once:  espsecure generate-signing-key --version 2 --scheme ecdsa256 secure_boot_signing_key.pem
-#   Back up the PEM file offline (hardware wallet or encrypted USB).
-#   secure_boot_signing_key.pem is gitignored — never commit it.
-#   For CI: store the PEM content as GitHub secret SECURE_BOOT_SIGNING_KEY;
-#           the build workflow writes it to the file before idf.py build runs.
+#   secure_boot_signing_key.pem is gitignored — never commit or upload it.
 CONFIG_SECURE_BOOT=y
 CONFIG_SECURE_BOOT_SIGNING_SCHEME_ECDSA_KEYBLOCK=y
-CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y
-CONFIG_SECURE_BOOT_SIGNING_KEY="secure_boot_signing_key.pem"
+# BUILD_SIGNED_BINARIES is intentionally off in shared defaults — CI builds
+# unsigned; enable in sdkconfig.defaults.local on the machine that holds the key.
+# CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y
+# CONFIG_SECURE_BOOT_SIGNING_KEY="secure_boot_signing_key.pem"

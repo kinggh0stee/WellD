@@ -50,6 +50,12 @@
 # USB-C charger enable — TP5100 CE (GPIO4); R37 holds LOW during sleep
 # CONFIG_WELLD_USB_CHG_GPIO=4
 
+# ---------- Secure boot (local signing machine only) ----------
+# Uncomment on the machine that holds secure_boot_signing_key.pem.
+# Do NOT enable in CI — the private key must never leave your machine.
+# CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y
+# CONFIG_SECURE_BOOT_SIGNING_KEY="secure_boot_signing_key.pem"
+
 # ---------- Adaptive sleep ----------
 # CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED=y
 # CONFIG_WELLD_SLEEP_MIN_SEC=60

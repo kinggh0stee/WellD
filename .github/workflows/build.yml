@@ -17,20 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Write secure boot signing key
-        env:
-          SECURE_BOOT_SIGNING_KEY: ${{ secrets.SECURE_BOOT_SIGNING_KEY }}
-        run: |
-          if [ -z "$SECURE_BOOT_SIGNING_KEY" ]; then
-            echo "::error::SECURE_BOOT_SIGNING_KEY secret is not set."
-            echo "Generate a key with: espsecure generate-signing-key --version 2 --scheme ecdsa256 secure_boot_signing_key.pem"
-            echo "Then add the PEM content as a repository secret named SECURE_BOOT_SIGNING_KEY."
-            exit 1
-          fi
-          printf '%s' "$SECURE_BOOT_SIGNING_KEY" > secure_boot_signing_key.pem
-          chmod 600 secure_boot_signing_key.pem
-
-      - name: Build firmware
+      - name: Build firmware (unsigned)
         uses: espressif/esp-idf-ci-action@e6f5c74232b1ccd4c97ed641f1e48553853f1fd5  # v1.2.0
         with:
           esp_idf_version: v5.5.4
