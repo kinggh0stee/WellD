@@ -3,6 +3,9 @@ sdkconfig.old
 sdkconfig.defaults.local
 managed_components/
 
+# Secure boot — private signing key must never be committed
+secure_boot_signing_key.pem
+
 # IDE / local tooling
 .vscode/
 .idea/

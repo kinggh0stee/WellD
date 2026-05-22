@@ -15,3 +15,18 @@ CONFIG_ESP_TASK_WDT_TIMEOUT_S=30
 
 # Brownout detection — log reset reason when battery sags under TX load.
 CONFIG_ESP_BROWNOUT_DET=y
+
+# Secure Boot V2 — ECDSA-P256 app signing.
+# The bootloader rejects any image whose signature does not verify against the
+# public key digest burned into eFuse. Once eFuses are burned this is permanent.
+#
+# Key management:
+#   Generate once:  espsecure.py generate_signing_key --version 2 --scheme ecdsa256 secure_boot_signing_key.pem
+#   Back up the PEM file offline (hardware wallet or encrypted USB).
+#   secure_boot_signing_key.pem is gitignored — never commit it.
+#   For CI: store the PEM content as GitHub secret SECURE_BOOT_SIGNING_KEY;
+#           the build workflow writes it to the file before idf.py build runs.
+CONFIG_SECURE_BOOT=y
+CONFIG_SECURE_BOOT_SIGNING_SCHEME_ECDSA_KEYBLOCK=y
+CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y
+CONFIG_SECURE_BOOT_SIGNING_KEY="secure_boot_signing_key.pem"
