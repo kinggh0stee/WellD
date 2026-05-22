@@ -22,7 +22,6 @@ static int s_offset_cm = INT32_MIN;
 /* I²C bus and device handles — initialised by sensor_i2c_init(). */
 static i2c_master_bus_handle_t  s_i2c_bus = NULL;
 static i2c_master_dev_handle_t  s_ads_dev = NULL;
-static i2c_master_dev_handle_t  s_max_dev = NULL;
 
 /* Binary semaphore released by the ADS1115 DRDY falling-edge ISR.
  * Created in ads1115_drdy_init(); NULL means DRDY GPIO is not configured. */
@@ -38,12 +37,15 @@ static void IRAM_ATTR ads1115_drdy_isr(void *arg)
     }
 }
 
-/* Configure VLOOP and BATT_DIV_EN GPIO outputs and drive them LOW at init time.
- * This ensures the TPS61023 boost and battery divider are off by default. */
+/* Configure power-control GPIO outputs and drive them to their safe-idle state.
+ * GPIO5 (VLOOP) and GPIO15 (BATT_DIV_EN) are driven LOW (peripherals off).
+ * GPIO4 (USB_CHG CE) is driven LOW first for safe config, then HIGH to enable
+ * USB-C charging via the TP5100 as soon as the firmware takes control. */
 static void power_gpio_init(void) {
     const int pins[] = {
         CONFIG_WELLD_VLOOP_GPIO,
         CONFIG_WELLD_BATT_DIV_EN_GPIO,
+        CONFIG_WELLD_USB_CHG_GPIO,
     };
     gpio_config_t cfg = {
         .mode         = GPIO_MODE_OUTPUT,
@@ -56,6 +58,10 @@ static void power_gpio_init(void) {
         gpio_config(&cfg);
         gpio_set_level(pins[i], 0);
     }
+    /* Enable USB-C charging: TP5100 CE is active-HIGH. R37 (4.7 kΩ) pulls CE
+     * LOW when GPIO4 floats (deep-sleep); drive HIGH here to re-enable charging
+     * once the firmware is running. */
+    gpio_set_level(CONFIG_WELLD_USB_CHG_GPIO, 1);
 }
 
 /* ADS1115 comparator / DRDY registers */
@@ -179,7 +185,8 @@ static void i2c_bus_recover(void)
     }
 }
 
-/* Initialise the shared I2C bus and register ADS1115 (0x48) + MAX17048 (0x36).
+/* Initialise the shared I2C bus and register ADS1115 (0x48) only.
+ * MAX17048 removed in 2S hardware redesign — ADS1115 is the only I2C device.
  * Also configures VLOOP and BATT_DIV_EN GPIO outputs and drives them LOW.
  * Must be called before any sensor_read_level() or sensor_read_battery_v(). */
 esp_err_t sensor_i2c_init(void) {
@@ -209,17 +216,6 @@ esp_err_t sensor_i2c_init(void) {
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "ADS1115 add failed: %s", esp_err_to_name(ret));
         return ret;
-    }
-
-    i2c_device_config_t max_cfg = {
-        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-        .device_address  = 0x36,
-        .scl_speed_hz    = 400000,
-    };
-    /* MAX17048 is non-fatal — board may not have it */
-    if (i2c_master_bus_add_device(s_i2c_bus, &max_cfg, &s_max_dev) != ESP_OK) {
-        ESP_LOGW(TAG, "MAX17048 not found on I2C bus");
-        s_max_dev = NULL;
     }
 
     /* Configure ADS1115 DRDY interrupt (non-fatal: falls back to polling). */
@@ -564,23 +560,13 @@ float sensor_read_temperature(void)
     return temp;
 }
 
-/* Read battery voltage.
- * Prefers the MAX17048 VCELL register (coulomb-counted, no divider needed).
- * Falls back to ADS1115 AIN2 via the gated battery divider (GPIO15) when the
- * MAX17048 is not present or returns an error.
- * Returns -1.0 if both methods fail or battery monitoring is not available. */
+/* Read battery voltage via the gated resistor divider on ADS1115 AIN2.
+ * MAX17048 removed in 2S hardware redesign — divider is the only path.
+ * R7/R8 = 330 kΩ / 100 kΩ (ratio 4.3). Gate BATT_DIV_EN (GPIO15) for
+ * 1 ms before reading, then drive LOW to prevent quiescent divider drain.
+ * Returns -1.0 if ADS1115 read fails. */
 float sensor_read_battery_v(void)
 {
-    /* Prefer MAX17048 VCELL (coulomb-counted, no divider needed) */
-    if (s_max_dev) {
-        float v = sensor_read_battery_vcell_v();
-        if (v > 0.0f) {
-            ESP_LOGI(TAG, "battery=%.2f V (MAX17048)", v);
-            return v;
-        }
-        ESP_LOGW(TAG, "MAX17048 VCELL unavailable, falling back to divider");
-    }
-    /* Fallback: gate the divider, read ADS1115 AIN2, ungate */
     gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 1);
     vTaskDelay(pdMS_TO_TICKS(1));
 #if CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED
@@ -593,82 +579,6 @@ float sensor_read_battery_v(void)
     float batt_v = sensor_battery_from_mv(mv, CONFIG_WELLD_BATT_DIVIDER_RATIO);
     ESP_LOGI(TAG, "battery=%.2f V (divider)", batt_v);
     return batt_v;
-}
-
-/* Read battery voltage from MAX17048 VCELL register (0x02).
- * Returns volts, or -1.0f on error or device not present. */
-float sensor_read_battery_vcell_v(void)
-{
-    if (!s_max_dev) return -1.0f;
-    uint8_t reg = 0x02;
-    uint8_t data[2] = {0};
-    if (i2c_master_transmit_receive(s_max_dev, &reg, 1, data, 2, 50) != ESP_OK) {
-        ESP_LOGW(TAG, "MAX17048 VCELL read error");
-        return -1.0f;
-    }
-    uint16_t raw = ((uint16_t)data[0] << 8) | data[1];
-    return (float)raw * 78.125e-6f;   /* 1 LSB = 78.125 µV */
-}
-
-/* Read battery state-of-charge from MAX17048 SOC register (0x04).
- * Returns 0-100 (integer percent), or -1 on error or device not present. */
-int sensor_read_battery_soc(void)
-{
-    if (!s_max_dev) return -1;
-    uint8_t reg = 0x04;
-    uint8_t data[2] = {0};
-    if (i2c_master_transmit_receive(s_max_dev, &reg, 1, data, 2, 50) != ESP_OK) {
-        ESP_LOGW(TAG, "MAX17048 SOC read error");
-        return -1;
-    }
-    return (int)data[0];   /* high byte = integer percent 0-100 */
-}
-
-/* Read and decode the MAX17048 STATUS register (0x1A), log every asserted
- * alert flag, then clear all alert bits so the ALRT pin de-asserts.
- *
- * STATUS high-byte flags (per MAX17048/MAX17049 datasheet §0x1A):
- *   bit 7 — RI  Reset Indicator (set after a power-on reset)
- *   bit 6 — VH  Voltage High alert
- *   bit 5 — VL  Voltage Low alert
- *   bit 4 — VR  Voltage Reset alert
- *   bit 3 — HD  SoC Low alert
- *   bit 2 — SC  SoC Change alert
- *
- * All alert bits are written back as 0 so the ALRT pin de-asserts; none are
- * silently dropped without logging first.
- *
- * Returns ESP_OK on success, ESP_ERR_NOT_FOUND if device absent, or
- * ESP_ERR_INVALID_RESPONSE on I2C error. */
-esp_err_t sensor_max17048_clear_alrt(void)
-{
-    if (!s_max_dev) return ESP_ERR_NOT_FOUND;
-
-    /* Read current STATUS register value */
-    uint8_t reg = 0x1A;
-    uint8_t status[2] = {0};
-    if (i2c_master_transmit_receive(s_max_dev, &reg, 1, status, 2, 50) != ESP_OK) {
-        ESP_LOGW(TAG, "MAX17048 STATUS read error");
-        return ESP_ERR_INVALID_RESPONSE;
-    }
-
-    /* Decode and log each asserted alert flag before clearing. */
-    uint8_t hi = status[0];
-    if (hi & (1U << 7)) ESP_LOGW(TAG, "MAX17048 ALRT: RI (reset indicator — power-on reset occurred)");
-    if (hi & (1U << 6)) ESP_LOGW(TAG, "MAX17048 ALRT: VH (voltage high alert)");
-    if (hi & (1U << 5)) ESP_LOGW(TAG, "MAX17048 ALRT: VL (voltage low alert)");
-    if (hi & (1U << 4)) ESP_LOGW(TAG, "MAX17048 ALRT: VR (voltage reset alert)");
-    if (hi & (1U << 3)) ESP_LOGW(TAG, "MAX17048 ALRT: HD (SoC low alert)");
-    if (hi & (1U << 2)) ESP_LOGW(TAG, "MAX17048 ALRT: SC (SoC change alert)");
-    if (!(hi & 0xFC))   ESP_LOGW(TAG, "MAX17048 ALRT: pin asserted but no flag bits set in STATUS (0x%02X)", hi);
-
-    /* Clear all alert bits in high byte; low byte is reserved, preserve it. */
-    uint8_t write_buf[3] = { 0x1A, 0x00, status[1] };
-    if (i2c_master_transmit(s_max_dev, write_buf, 3, 50) != ESP_OK) {
-        ESP_LOGW(TAG, "MAX17048 STATUS write error (ALRT clear)");
-        return ESP_ERR_INVALID_RESPONSE;
-    }
-    return ESP_OK;
 }
 
 /* Remove the ADS1115 DRDY ISR and delete the I2C master bus before deep sleep.
@@ -692,14 +602,10 @@ void sensor_pre_sleep_cleanup(void)
         s_ads_drdy_sem = NULL;
     }
 
-    /* Delete device handles before deleting the bus. */
+    /* Delete device handle before deleting the bus. */
     if (s_ads_dev) {
         i2c_master_bus_rm_device(s_ads_dev);
         s_ads_dev = NULL;
-    }
-    if (s_max_dev) {
-        i2c_master_bus_rm_device(s_max_dev);
-        s_max_dev = NULL;
     }
 
     /* Release the I2C master bus so the next wakeup's i2c_new_master_bus()
@@ -728,14 +634,6 @@ void sensor_selftest(void)
         ads_ok = (i2c_master_transmit_receive(s_ads_dev, &reg, 1, cfg, 2, 50) == ESP_OK);
     }
     ESP_LOGI(TAG, "[ADS1115] %s", ads_ok ? "PASS" : "FAIL");
-
-    /* MAX17048 */
-    bool max_ok = false;
-    if (s_max_dev) {
-        float v = sensor_read_battery_vcell_v();
-        max_ok = (v > 0.0f);
-    }
-    ESP_LOGI(TAG, "[MAX17048] %s (optional)", max_ok ? "PASS" : "ABSENT");
 
     /* VLOOP GPIO toggle */
     bool vloop_ok = true;

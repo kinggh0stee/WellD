@@ -14,13 +14,13 @@
 # Battery monitoring — set the ADC channel wired to your divider,
 # or leave BATT_ADC_CHANNEL=-1 to disable.
 # CONFIG_WELLD_BATT_ADC_CHANNEL=-1
-# CONFIG_WELLD_BATT_DIVIDER_RATIO=200
+# CONFIG_WELLD_BATT_DIVIDER_RATIO=430  # R7/R8 = 330 kΩ / 100 kΩ (2S1P 18650)
 
 # Battery percentage thresholds — these set the defaults shown in the Z2M
 # converter. Override per-device in the Zigbee2MQTT device options UI instead
 # of changing these, since they are not read by the firmware at runtime.
-# CONFIG_WELLD_BATT_FULL_MV=4200   # LiPo/Li-ion: 4200; 3xAA alkaline: 4500
-# CONFIG_WELLD_BATT_EMPTY_MV=3000  # LiPo/Li-ion: 3000; 3xAA alkaline: 3300
+# CONFIG_WELLD_BATT_FULL_MV=8400   # 2S1P 18650: 8400 (2 × 4.2 V)
+# CONFIG_WELLD_BATT_EMPTY_MV=6000  # 2S1P 18650: 6000 (2 × 3.0 V)
 
 # DS18B20 temperature sensor GPIO
 # CONFIG_WELLD_DS18B20_GPIO=4
@@ -34,24 +34,18 @@
 # CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS=2000
 
 # ---------- Rev 2 hardware I/O (custom PCB) ----------
-# I2C bus shared by ADS1115 (16-bit ADC) and MAX17048 (fuel gauge)
+# I2C bus — ADS1115 only (MAX17048 removed in 2S redesign)
 # CONFIG_WELLD_I2C_SDA_GPIO=10
 # CONFIG_WELLD_I2C_SCL_GPIO=11
 
 # 12 V boost enable — TPS61023 EN, gated by firmware before transducer read
 # CONFIG_WELLD_VLOOP_GPIO=5
 
-# TP4056 charger CE interlock (HIGH = USB charging disabled)
-# CONFIG_WELLD_CHARGER_CE_GPIO=4
-
-# Solar charging detect — CN3791 CHRG indicator, active-high
+# Solar charging detect — CN3791 CHRG indicator, active-low
 # CONFIG_WELLD_SOLAR_DETECT_GPIO=6
 
 # Battery resistor-divider enable — Q2 gate, pulsed before AIN2 read
 # CONFIG_WELLD_BATT_DIV_EN_GPIO=15
-
-# MAX17048 ALRT active-low input (PCB pull-up R27 4.7kΩ required)
-# CONFIG_WELLD_MAX17048_ALRT_GPIO=14
 
 # ---------- Adaptive sleep ----------
 # CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED=y

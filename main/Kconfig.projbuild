@@ -95,24 +95,3 @@ menu "WellD Configuration"
             enabled; leave unconnected for normal operation.
 
 endmenu
-
-menu "Rev 2 Hardware I/O"
-
-config WELLD_CHARGER_CE_GPIO
-    int "TP4056 charger CE interlock GPIO"
-    range 0 21
-    default 4
-    help
-        Drives Q1 gate (BSS123). HIGH disables USB charging (TP4056 CE LOW).
-        Assert when solar charging is active to prevent dual-charger conflict.
-
-config WELLD_MAX17048_ALRT_GPIO
-    int "MAX17048 ALRT input GPIO"
-    range 0 21
-    default 14
-    help
-        Active-low open-drain alert from MAX17048 fuel gauge. External pull-up
-        R27 (4.7 kOhm to 3.3 V) is required on the PCB. Can be configured as
-        a deep-sleep wakeup source for low-battery alerting.
-
-endmenu

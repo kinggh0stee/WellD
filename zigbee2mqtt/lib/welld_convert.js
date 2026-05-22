@@ -1,8 +1,8 @@
 /* Pure conversion helpers used by welld.js. Kept dependency-free so they can
    be unit-tested with `node --test` without installing zigbee-herdsman. */
 
-const DEFAULT_BATTERY_FULL_MV  = 4200;
-const DEFAULT_BATTERY_EMPTY_MV = 3000;
+const DEFAULT_BATTERY_FULL_MV  = 8400;
+const DEFAULT_BATTERY_EMPTY_MV = 6000;
 
 /* Endpoint 1: water level in metres. Negative present_value means the
    transducer loop is open — surface this to HA as null so the entity goes

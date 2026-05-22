@@ -92,9 +92,6 @@ static bool factory_reset_check(void)
     return false;
 }
 
-/* Set by the MAX17048 ALRT ISR when GPIO14 falls (low-battery alert). */
-static volatile bool s_max17048_alrt_fired = false;
-
 /* Power-profiling: time spent in each phase of the wake cycle (us).
  * Logged before deep sleep to help optimize battery life. */
 static struct {
@@ -103,39 +100,6 @@ static struct {
     int64_t t_zigbee;
     int64_t t_total;
 } s_profile;
-
-/* ISR: MAX17048 ALRT line (GPIO14) went LOW — low-battery condition. */
-static void IRAM_ATTR max17048_alrt_isr(void *arg)
-{
-    s_max17048_alrt_fired = true;
-}
-
-/* Configure GPIO CONFIG_WELLD_MAX17048_ALRT_GPIO as a falling-edge input.
- * External R27 (4.7 kΩ to 3V3) provides the pull-up — internal pull-up is
- * deliberately disabled.  The ISR just sets a flag; the main wake cycle
- * reads it after all sensor reads are done. */
-static void max17048_alrt_gpio_init(void)
-{
-    gpio_config_t cfg = {
-        .pin_bit_mask = 1ULL << CONFIG_WELLD_MAX17048_ALRT_GPIO,
-        .mode         = GPIO_MODE_INPUT,
-        .pull_up_en   = GPIO_PULLUP_DISABLE,   /* external R27 handles pull-up */
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type    = GPIO_INTR_NEGEDGE,
-    };
-    gpio_config(&cfg);
-
-    /* gpio_install_isr_service may already have been called by sensor_i2c_init()
-     * via the ADS1115 DRDY path.  ESP_ERR_INVALID_STATE is benign here. */
-    esp_err_t ret = gpio_install_isr_service(0);
-    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
-        ESP_LOGW(TAG, "gpio_install_isr_service: %s", esp_err_to_name(ret));
-        return;
-    }
-    gpio_isr_handler_add(CONFIG_WELLD_MAX17048_ALRT_GPIO, max17048_alrt_isr, NULL);
-    ESP_LOGI(TAG, "MAX17048 ALRT interrupt configured on GPIO%d",
-             CONFIG_WELLD_MAX17048_ALRT_GPIO);
-}
 
 /* Bump this constant whenever the struct layout below changes.
  * A mismatch on wakeup (e.g. after an OTA that reorders fields) zeroes the
@@ -214,7 +178,6 @@ typedef enum {
     RTC_EVT_OTA_START       = 0x07,
     RTC_EVT_OTA_COMPLETE    = 0x08,
     RTC_EVT_OTA_ABORT       = 0x09,
-    RTC_EVT_MAX17048_ALRT   = 0x0A,
     RTC_EVT_FACTORY_RESET   = 0x0B,
     RTC_EVT_BROWNOUT        = 0x0C,
     RTC_EVT_WATCHDOG        = 0x0D,
@@ -263,7 +226,6 @@ static void rtc_log_print(void)
             case RTC_EVT_OTA_START:     name = "OTA_START";     break;
             case RTC_EVT_OTA_COMPLETE:  name = "OTA_COMPLETE";  break;
             case RTC_EVT_OTA_ABORT:     name = "OTA_ABORT";     break;
-            case RTC_EVT_MAX17048_ALRT: name = "MAX17048_ALRT"; break;
             case RTC_EVT_FACTORY_RESET: name = "FACTORY_RESET"; break;
             case RTC_EVT_BROWNOUT:      name = "BROWNOUT";      break;
             case RTC_EVT_WATCHDOG:      name = "WATCHDOG";      break;
@@ -316,21 +278,21 @@ static void write_fail_count(uint32_t count)
  *     spurious GPIO12 edge from waking the CPU during sleep entry) and
  *     deletes the I2C master bus (prevents port 0 staying claimed across
  *     wakeups).
- *  2. Drive power-control outputs LOW: GPIO4 (TP4056 CE), GPIO5 (VLOOP),
- *     GPIO15 (BATT_DIV_EN).  VLOOP and BATT_DIV_EN are already LOW after
- *     sensor reads; GPIO4 is driven LOW here to re-enable USB charging once
- *     solar charging is no longer active (solar interlock is only held for
- *     the duration of the wake cycle).
+ *  2. Drive power-control outputs LOW: GPIO5 (VLOOP), GPIO15 (BATT_DIV_EN),
+ *     GPIO4 (USB_CHG CE). All are already LOW after sensor reads; driven LOW
+ *     again here as a belt-and-suspenders guard before isolation.
  *  3. esp_sleep_config_gpio_isolate() — disconnects all GPIO pads from the
  *     GPIO matrix so outputs hold their last state but draw no dynamic
- *     current.  The three power-control outputs are already LOW before this
- *     call so they remain LOW in isolation. */
+ *     current.  The power-control outputs are already LOW before this call
+ *     so they remain LOW in isolation.  For GPIO4 specifically, floating
+ *     during sleep lets R37 (4.7 kΩ) passively hold TP5100 CE LOW so the
+ *     USB charger is off while the MCU sleeps. */
 static void enter_deep_sleep(uint32_t sleep_sec)
 {
     sensor_pre_sleep_cleanup();
-    gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 0);
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
     gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 0);
+    gpio_set_level(CONFIG_WELLD_USB_CHG_GPIO, 0);
     esp_sleep_config_gpio_isolate();
     esp_deep_sleep((uint64_t)sleep_sec * 1000000ULL);
 }
@@ -396,7 +358,7 @@ void app_main(void)
      * field and powered over USB for diagnosis). */
     rtc_log_print();
 
-    /* Initialise the I²C bus (ADS1115 + MAX17048) and power-control GPIOs.
+    /* Initialise the I²C bus (ADS1115 only) and power-control GPIOs.
      * Must be called before any sensor_read_level() or sensor_read_battery_v(). */
     int64_t t0 = esp_timer_get_time();
     if (sensor_i2c_init() != ESP_OK) {
@@ -405,35 +367,12 @@ void app_main(void)
     }
     s_profile.t_i2c_init = esp_timer_get_time() - t0;
 
-    /* Configure MAX17048 ALRT falling-edge interrupt (GPIO14, external R27).
-     * Must come after sensor_i2c_init() so the GPIO ISR service is already
-     * installed by the ADS1115 DRDY path when available. */
-    max17048_alrt_gpio_init();
-
-    /* Startup check: if ALRT is already LOW before any sensor read, a persistent
-     * alert was set during the previous wake cycle (or at power-on).  Log it now
-     * so the warning appears before sensor reads in the serial output.  The alert
-     * will be decoded and cleared after sensor_read_battery_v() below. */
-    if (!gpio_get_level(CONFIG_WELLD_MAX17048_ALRT_GPIO)) {
-        ESP_LOGW(TAG, "MAX17048 ALRT asserted at startup (GPIO%d LOW) — will decode after I2C reads",
-                 CONFIG_WELLD_MAX17048_ALRT_GPIO);
-        s_max17048_alrt_fired = true;   /* ensure post-read handler runs */
-    }
-
-    /* Charger interlock: read the CN3791 CHRG signal (GPIO6) and assert the
-     * TP4056 CE interlock (GPIO4) when solar charging is active to prevent
-     * simultaneous dual-charger operation. */
+    /* Read the CN3791 CHRG signal (GPIO6) to determine whether solar charging
+     * is active. Active-low: LOW means solar charging is in progress.
+     * Reported to Zigbee coordinator via zigbee_send(); no GPIO4 interlock in
+     * the 2S hardware design (TP4056 removed). */
     bool solar_charging = false;
     {
-        gpio_config_t out_cfg = {
-            .pin_bit_mask = 1ULL << CONFIG_WELLD_CHARGER_CE_GPIO,
-            .mode         = GPIO_MODE_OUTPUT,
-            .pull_up_en   = GPIO_PULLUP_DISABLE,
-            .pull_down_en = GPIO_PULLDOWN_DISABLE,
-            .intr_type    = GPIO_INTR_DISABLE,
-        };
-        gpio_config(&out_cfg);
-
         gpio_config_t in_cfg = {
             .pin_bit_mask = 1ULL << CONFIG_WELLD_SOLAR_DETECT_GPIO,
             .mode         = GPIO_MODE_INPUT,
@@ -442,17 +381,9 @@ void app_main(void)
             .intr_type    = GPIO_INTR_DISABLE,
         };
         gpio_config(&in_cfg);
-
-        /* CN3791 CHRG is active-low: LOW means solar charging is in progress.
-         * Assert GPIO4 HIGH (disable TP4056 CE via Q1) to prevent both chargers
-         * from driving the battery simultaneously. Hardware Q3 does the same in
-         * parallel; this software path ensures the GPIO state is explicit. */
         solar_charging = !gpio_get_level(CONFIG_WELLD_SOLAR_DETECT_GPIO);
         if (solar_charging) {
-            gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 1);
-            ESP_LOGI(TAG, "solar charging active (GPIO6 LOW) — USB charger disabled");
-        } else {
-            gpio_set_level(CONFIG_WELLD_CHARGER_CE_GPIO, 0);
+            ESP_LOGI(TAG, "solar charging active (GPIO6 LOW)");
         }
     }
 
@@ -494,23 +425,6 @@ void app_main(void)
 #ifdef CONFIG_WELLD_SELFTEST_ENABLED
     sensor_selftest();
 #endif
-
-    /* Check MAX17048 ALRT after all sensor reads so the I2C bus is idle.
-     * s_max17048_alrt_fired is set by the falling-edge ISR (in-cycle edges)
-     * and by the startup level check above (persistent alerts from previous
-     * cycles).  Belt-and-suspenders: also re-sample the pin in case a new
-     * edge arrived in the gap between gpio_get_level() and ISR installation. */
-    if (s_max17048_alrt_fired || !gpio_get_level(CONFIG_WELLD_MAX17048_ALRT_GPIO)) {
-        rtc_log_event(RTC_EVT_MAX17048_ALRT);
-        /* sensor_max17048_clear_alrt() reads STATUS (0x1A), logs each asserted
-         * flag (RI/VH/VL/VR/HD/SC), then writes 0x00 to clear all flags. */
-        if (sensor_max17048_clear_alrt() == ESP_OK) {
-            ESP_LOGI(TAG, "MAX17048 STATUS flags cleared; ALRT pin should de-assert");
-        } else {
-            ESP_LOGW(TAG, "MAX17048 ALRT clear failed (device absent or I2C error)");
-        }
-        s_max17048_alrt_fired = false;
-    }
 
     /* Accumulate elapsed time from the previous wakeup: both the programmed sleep
      * duration and the active phase, so the rate calculation reflects wall-clock

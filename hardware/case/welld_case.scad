@@ -1,10 +1,17 @@
 // WellD Well-Level Monitor — Parametric Enclosure
-// Target printer: FDM, PETG or ASA recommended (outdoor/IP54 use)
+// Target printer: FDM, PETG or ASA recommended (outdoor/IP67 use)
 // ESP32-C6-MINI-1U based PCB, 80×55 mm
 //
 // Two-part design:
-//   base()  — bottom shell with PCB standoffs and wall cutouts
+//   base()  — bottom shell with PCB standoffs, 2S1P battery bay, and wall cutouts
 //   lid()   — flat plate with inner lip, screw counterbores, RF-thinned zone
+//
+// 2S1P 18650 battery bay (Sinowatt GR 3350 mAh, from Arizer Solo II):
+//   Pack spec: ~40×70×21 mm, 7.2 V nominal (8.4 V full, 6.0 V discharged)
+//   JST PH 2.0 mm 2-pin connector — pigtail exits via slot at X+ end of bay
+//   Bay: 41 mm wide (Y) × 71 mm long (X) × 22 mm deep (Z)
+//   Orientation: along X axis, centred in Y, below the PCB standoff zone.
+//   CN3722 (2S MPPT solar charger) and AP63205 (buck converter) on PCB rated for 2S.
 //
 // To print: render and export each module separately.
 //   F6 to render, then File → Export → Export as STL.
@@ -28,33 +35,26 @@ pcb_w       = 80;    // PCB width  — long axis (X), mm
 pcb_d       = 55;    // PCB depth  — short axis (Y), mm
 pcb_t       = 1.6;   // PCB thickness, mm
 
-// ── 2S 18650 battery pack variant ─────────────────────────────────────────────
-//   Set USE_2S_BATTERY = true to generate the taller-base variant sized for a
-//   side-by-side 2S1P 18650 pack (e.g. CS-ARS200SL, 7.4 V 3400 mAh) that sits
-//   directly on the enclosure floor below the PCB.
-//
-//   ⚠ ELECTRICAL WARNING — PCB IS NOT COMPATIBLE WITH A 2S PACK WITHOUT REWORK:
-//     • U1 TPS7A0533 LDO: abs-max input 6.5 V — 8.4 V (charged 2S) destroys it.
-//     • U2 TP4056 / U7 CN3791: both rated to 6.5 V input — same issue.
-//     • U3 S-8261AAYFT: single-cell protection (2.9 V cutoff) — replace with a
-//       2S-rated IC (e.g. S-8232) or discrete 2S BMS (cutoff ≈ 6.0 V).
-//     Required PCB changes before connecting the 2S pack:
-//       1. Replace U1 with a wide-input buck converter (e.g. TPS54331, 4.5–28 V in).
-//       2. Replace U2/U7 with a 2S charger (e.g. MCP73213 or BQ25606).
-//       3. Replace U3 with a 2S protection IC.
-//     The change here is enclosure geometry only.
-USE_2S_BATTERY = false;
+// ── 2S1P 18650 battery bay ────────────────────────────────────────────────
+//   Pack spec: Sinowatt GR 3350 mAh, ~40×70×21 mm, 7.4 V nominal (8.4 V full / 6.0 V empty)
+//   JST PH 2.0 mm 2-pin connector — pigtail exits via slot at X+ end of bay.
+//   Charged by CN3722 (2S MPPT solar charger) on the PCB; no USB charging path.
+//   The pack lives in a rectangular pocket in the base floor, below the PCB.
+//   Orientation: along X axis (longest PCB dimension), centred in Y.
+batt2s_w    = 41;   // bay width:  pack 40 mm + 1.0 mm clearance, mm (Y axis)
+batt2s_l    = 71;   // bay length: pack 70 mm + 1.0 mm clearance, mm (X axis)
+batt2s_h    = 22;   // bay depth:  pack 21 mm + 1.0 mm clearance, mm (Z axis) = floor_h
 
-BATT_2S_L   = 73;    // pack length  (along case X axis), mm  ← 18650×2 + wrap
-BATT_2S_W   = 40;    // pack width   (along case Y axis), mm  ← cell OD + wrap
-BATT_2S_H   = 22;    // pack height  (along case Z axis), mm  ← cell OD + wrap
-BATT_2S_TOL =  1.0;  // clearance each side of locating posts, mm
+// Wire-channel slot at X+ end of bay (JST PH 2.0 mm pigtail to J1 on PCB)
+batt_wire_slot_w = 6.0;   // slot width  (X), mm
+batt_wire_slot_d = 6.0;   // slot depth  (Y), mm
 
 // Walls / floors
 wall        = 2.5;   // nominal wall thickness, mm
-// floor_h: PCB underside clearance.  For the 2S variant the battery (BATT_2S_H)
-// plus a 3 mm service gap determines the standoff height.
-floor_h     = USE_2S_BATTERY ? (BATT_2S_H + 3) : 3;
+// floor_h: PCB underside clearance / standoff height.
+//   = 2S1P pack height (21 mm) + 1.0 mm clearance = 22 mm.
+//   Equals batt2s_h.  The 2.5 mm floor slab below adds to absolute height.
+floor_h     = 22;    // mm
 
 // Internal air gap above PCB top surface (components + service loop)
 top_clear   = 10;    // mm  (spec says ≥6; 10 gives comfortable margin)
@@ -82,17 +82,20 @@ standoff_id = 3.2;   // inner bore (tap to M3, or press-fit brass insert), mm
 
 // Cable glands
 m16_hole    = 20.5;  // M16 cable gland thread OD → drill/cut this diameter, mm
-// Five M16 glands on bottom wall, one each on left/right/back walls
+// Four M16 glands: three on bottom wall, one on back wall (solar)
 
-// USB-C cutout (left wall)
-usbc_w      = 10;    // slot width,  mm
-usbc_h      = 5;     // slot height, mm
-usbc_z_pcb  = 0;     // USB-C connector sits at PCB surface level (bottom of slot
-                     // is at floor_h + 0; top at floor_h + usbc_h)
+// USB-C connector slot (J13, USB4135-GF-A) on left wall — 5 V charging / programming input.
+// Slot is centred in Y on the PCB edge and placed at PCB surface level (Z = pcb_z).
+// The USB4135-GF-A body is ~3.3 mm tall above PCB; 5 mm slot gives 1.7 mm clearance.
+usbc_w     = 10;   // slot width,  mm  (USB-C receptacle opening ≈ 9 mm; +1 mm clearance)
+usbc_h     = 5;    // slot height, mm  (connector body ~3.3 mm + 1.7 mm margin)
+usbc_z_pcb = 0;    // slot bottom flush with PCB bottom face (Z offset from pcb_z)
 
 // Programming header cutout (left wall, optional gland)
+// Placed at Y = 80 % of pcb_d to keep it clear of the USB-C slot (Y centre = 30 mm).
+// Minimum centre-to-centre distance from USB-C: |46.5 - 30| = 16.5 mm > gland radius 8 mm.
 prog_gland   = true;   // include gland hole for programming cable
-prog_gland_d = 16.0;   // M12 gland hole Ø — fits FTDI/SWD cables (smaller than M16), mm
+prog_gland_d = 16.0;   // M16 gland hole Ø — fits FTDI/SWD cables, mm
 
 // Antenna / RF zone (lid)
 rf_zone_x   = 5;     // X offset of RF-thinned zone from lid left edge, mm
@@ -103,19 +106,21 @@ rf_wall_t   = 0.5;   // thinned wall thickness over antenna, mm
 
 // Mounting tabs (left external wall)
 tab_t       = 5;     // tab thickness (Y extent), mm
-tab_w       = 8;     // tab Z extent, mm — halved so both tabs stay inside ext_h_base=17.1
+tab_w       = 8;     // tab Z extent, mm — halved so both tabs stay inside ext_h_base
 tab_hole_d  = 5;     // hole through tab for M5 screw or cable tie, mm
 tab_offset  = 4;     // half-gap from shell midpoint to tab centre (Z), mm
 
 // External antenna (SMA female bulkhead on back wall)
-//   The back wall (Y = ext_d face) is closest to the ESP32 U.FL connector.
+//   U.FL connector J3 is at PCB Y ≈ 53 mm (2 mm from PCB back edge, Y = 55 mm).
+//   The back wall inner face is at enclosure Y = ext_d - wall = 57.5 mm.
+//   Pigtail run: PCB J3 → back-wall bulkhead ≈ 4–5 mm + routing arc → ~100 mm pigtail is ample.
 //   A U.FL-to-SMA pigtail (~100 mm RG178) runs from J3 on the PCB to the bulkhead.
 //   Set ext_antenna = false to omit the hole and use the on-module chip antenna instead.
 ext_antenna      = true;   // include SMA bulkhead hole on back wall
 sma_hole_d       = 6.5;    // SMA panel-mount thread clearance hole, mm
                             // (SMA thread OD = 6.35 mm = 1/4-36 UNS; 6.5 mm is snug clearance)
-// Horizontal position of the SMA hole on the back wall (from left outer edge)
-// U.FL (J3) is at PCB x=40, which is case-internal x=42.5.  Centre the bulkhead there.
+// Horizontal position of the SMA hole on the back wall (from left outer edge).
+// U.FL (J3) is at PCB X ≈ 40 mm, which is enclosure X = wall + 40 = 42.5 mm.
 sma_x           = 42.5;    // mm from case left outer edge
 // Vertical position of the SMA hole — mid-height of the base shell
 // Inlined to avoid forward-reference of ext_h_base (defined further below)
@@ -165,20 +170,23 @@ ext_w = pcb_w + 2 * wall;          // X:  85 mm
 ext_d = pcb_d + 2 * wall;          // Y:  60 mm
 
 // Internal height breakdown
-//   floor slab  : wall (printed floor thickness, same as wall)
-//   floor_h gap : clearance between floor face and PCB underside
-//   pcb_t       : PCB itself
-//   top_clear   : above PCB top surface
+//   floor slab  : wall (printed floor thickness, same as wall)       =  2.5 mm
+//   floor_h gap : standoff height / battery bay zone                 = 22.0 mm
+//   pcb_t       : PCB itself                                         =  1.6 mm
+//   top_clear   : above PCB top surface                              = 10.0 mm
 // External shell height (base only, no lid):
-ext_h_base = wall + floor_h + pcb_t + top_clear;
+ext_h_base = wall + floor_h + pcb_t + top_clear;   // = 36.1 mm
 // total with lid:
-ext_h_total = ext_h_base + lid_t;
+ext_h_total = ext_h_base + lid_t;                  // = 39.1 mm
 
-// Z-coordinate of PCB bottom face (inside enclosure, above floor face)
-pcb_z = wall + floor_h;            // 3 + 2.5 = 5.5 mm from enclosure base
+// Z-coordinate of PCB bottom face (inside enclosure, above floor slab face)
+pcb_z = wall + floor_h;            // 2.5 + 22 = 24.5 mm from enclosure base
 
 // Z-coordinate of PCB top face
-pcb_top_z = pcb_z + pcb_t;         // 7.1 mm
+pcb_top_z = pcb_z + pcb_t;         // 26.1 mm
+
+// Z-centre of the USB-C slot on the left wall
+usbc_z_centre = pcb_z + usbc_z_pcb + usbc_h / 2;   // 24.5 + 0 + 2.5 = 27.0 mm
 
 // Z height of top of base walls (= top of the shell opening)
 shell_top_z = ext_h_base;
@@ -197,10 +205,17 @@ function mh_enc(i) = [mh[i][0] + wall, mh[i][1] + wall];
 
 // Cable-gland Z centre on bottom (Y=0) wall — mid-height of screw terminal connectors
 // Terminals are 8.5 mm tall above PCB, centred vertically on PCB + 4.25 mm
-cg_z_bottom = pcb_top_z + (8.5 / 2);   // ≈ 11.4 mm from enclosure floor face
+cg_z_bottom = pcb_top_z + (8.5 / 2);   // ≈ 30.4 mm from enclosure floor face
 
-// USB-C Z centre — connector sits at PCB surface, opening centred on connector body
-usbc_z_centre = pcb_z + pcb_t / 2 + usbc_h / 2;
+// 2S1P bay position (interior coordinates) — rectangular pocket, centred in X and Y
+batt_cx = wall + pcb_w / 2;    // X centre: 2.5 + 40 = 42.5 mm
+batt_cy = wall + pcb_d / 2;    // Y centre: 2.5 + 27.5 = 30 mm
+// Bay carved from interior floor surface (Z = wall) downward (pocket in floor zone)
+batt_bay_z  = wall;             // start Z (bottom of pocket = top of floor slab)
+batt_bay_h  = batt2s_h;        // 22 mm — fills full floor_h zone (0 mm gap to PCB)
+
+// JST pigtail wire-slot — X+ end only; routes pigtail up to J1 on PCB
+batt_wire_x_pos = batt_cx + batt2s_l / 2 - batt_wire_slot_w / 2;  // near X+ end of bay
 
 // ─────────────────────────────────────────────
 // --- Helper modules ---
@@ -224,23 +239,6 @@ module standoff(x, y) {
             translate([0, 0, -eps])
                 cylinder(d = standoff_id, h = standoff_h + 2 * eps, $fn = 24);
         }
-    }
-}
-
-// Four corner locating posts for the 2S 18650 pack.
-// The pack slots in between them; BATT_2S_TOL clearance each side.
-// Posts height = BATT_2S_H so the PCB standoffs clear the pack by ~3 mm.
-module battery_locators_2s() {
-    cx = wall + pcb_w / 2;
-    cy = wall + pcb_d / 2;
-    hl = (BATT_2S_L / 2) + BATT_2S_TOL;   // half-span X, to post inner edge
-    hw = (BATT_2S_W / 2) + BATT_2S_TOL;   // half-span Y, to post inner edge
-    post_d = 5;
-    for (sx = [-1, 1], sy = [-1, 1]) {
-        translate([cx + sx * hl - (sx > 0 ? post_d : 0),
-                   cy + sy * hw - (sy > 0 ? post_d : 0),
-                   wall])
-            cube([post_d, post_d, BATT_2S_H]);
     }
 }
 
@@ -276,13 +274,6 @@ module cg_hole(cx, cy, cz, orient = "y", d = m16_hole) {
             rotate([0, 90, 0])
                 cylinder(d = d, h = wall * 4, center = true, $fn = 48);
     }
-}
-
-// USB-C rectangular slot — punches through left wall (at x=0 face).
-// Centred at (0, usbc_cy, usbc_cz) in enclosure coords.
-module usbc_slot(cy, cz) {
-    translate([-eps, cy - usbc_w / 2, cz - usbc_h / 2])
-        cube([wall + 2 * eps, usbc_w, usbc_h]);
 }
 
 // Programming header cable gland (M16) on left wall.
@@ -332,6 +323,27 @@ module mount_wing_tab(cx, cy, sign_x, sign_y) {
         translate([hx, hy, wing_t - mount_cbore_h])
             cylinder(d = mount_cbore_d, h = mount_cbore_h + eps, $fn = 32);
     }
+}
+
+// 2S1P battery bay — rectangular pocket carved into the floor zone.
+// Pocket dimensions: batt2s_l (X) × batt2s_w (Y) × batt2s_h (Z).
+// Centred in both X and Y; carved from Z = wall (interior floor surface) upward.
+// batt2s_h = floor_h = 22 mm so the pocket uses the full standoff-height zone.
+module batt_bay_cutout() {
+    translate([batt_cx - batt2s_l / 2, batt_cy - batt2s_w / 2, batt_bay_z])
+        cube([batt2s_l, batt2s_w, batt_bay_h]);
+}
+
+// JST pigtail wire-channel slot — X+ end of the bay only.
+// The JST PH 2.0 mm pigtail exits the bay at the positive X end and routes
+// up through the standoff zone to J1 on the PCB.
+// Slot runs from bay floor (Z = wall) up through the full floor_h zone.
+module batt_wire_channels() {
+    slot_h = floor_h + eps;   // spans the full standoff zone above the floor slab
+    translate([batt_wire_x_pos,
+               batt_cy - batt_wire_slot_d / 2,
+               wall - eps])
+        cube([batt_wire_slot_w, batt_wire_slot_d, slot_h + eps]);
 }
 
 // Flat 1:1 drill template — print on paper/card, tape to concrete,
@@ -393,10 +405,15 @@ module base() {
         translate([wall, wall, wall])
             cube([pcb_w, pcb_d, ext_h_base - wall + eps]);
 
-        // Carve out boss interiors that overlap the hollow (keep boss walls)
-        // — already handled: bosses are solid cylinders, hull subtracted above
-        // carves only the rectangular main body; cylindrical bosses stand proud.
-        // (No extra subtraction needed — the boss OD fits within the wall zone.)
+        // ── 2S1P battery bay ──────────────────────────────────────────────
+        // Rectangular pocket in the floor zone, centred in X and Y.
+        // 71 mm (X) × 41 mm (Y) × 22 mm (Z); fills the full floor_h zone.
+        batt_bay_cutout();
+
+        // ── JST pigtail wire-channel slot ────────────────────────────────
+        // 6×6 mm slot at X+ end of bay, spanning the full floor_h zone.
+        // JST PH 2.0 mm pigtail routes from bay up to J1 on the PCB.
+        batt_wire_channels();
 
         // ── Bottom-wall (Y=0 face) cable gland holes ─────────────────────
         // Three M16 glands evenly spaced across pcb_w, centred on terminal height.
@@ -408,43 +425,22 @@ module base() {
             cg_hole(cg_cx, 0, cg_z_bottom, "y");
         }
 
-        // ── Left-wall (X=0 face) USB-C slot ──────────────────────────────
-        // USB-C is at x≈2 mm on PCB, centred roughly at Y mid of left short edge.
-        // We centre the slot at the mid-depth of the left wall face.
-        usbc_cy = ext_d / 2;      // centred on the short wall
-        usbc_cz = pcb_z + pcb_t / 2;
-        usbc_slot(usbc_cy, usbc_cz);
+        // ── Left-wall: USB-C connector slot (J13, USB4135-GF-A) ─────────────────
+        // Slot: 10 mm wide (Y), 5 mm tall (Z), centred on PCB Y-midline.
+        // Bottom edge flush with PCB bottom face (usbc_z_centre = pcb_z + usbc_h/2 = 27.0 mm).
+        // usbc_z_centre is computed in the derived-dimensions block above.
+        translate([-eps, ext_d / 2 - usbc_w / 2, usbc_z_centre - usbc_h / 2])
+            cube([wall + 2 * eps, usbc_w, usbc_h]);
 
-        // ── Left-wall programming header cable gland (M12, smaller than sensor glands)
+        // ── Left-wall programming header cable gland ─────────────────────────────
+        // Y-offset toward the back wall to avoid merging with the USB-C slot.
+        // USB-C slot: Y centre = ext_d/2 = 30 mm.
+        // Gland centre: Y = wall + pcb_d*0.8 = 2.5 + 44 = 46.5 mm → 16.5 mm clear.
+        // Z: upper third of the left-wall height to stay above the USB-C slot (Z ≈ 24-30 mm).
         if (prog_gland) {
-            // Place it above the USB-C slot, centred in upper half of left wall
-            prog_cy = ext_d / 2;
-            prog_cz = pcb_top_z + top_clear * 0.55;
+            prog_cy = wall + pcb_d * 0.8;           // 46.5 mm — toward back wall
+            prog_cz = pcb_top_z + top_clear * 0.55; // ≈ 31.6 mm — above USB-C zone
             cg_hole(0, prog_cy, prog_cz, "x", prog_gland_d);
-        }
-
-        // ── Right-wall (X=ext_w face) battery cable gland ─────────────────
-        // External battery only (single-cell LiPo pigtail).  Omitted for the
-        // 2S variant because the pack lives inside the case.
-        if (!USE_2S_BATTERY) {
-            cg_hole(ext_w, ext_d / 2, ext_h_base / 2, "x");
-        }
-
-        // ── 2S battery strap slots ─────────────────────────────────────────
-        // Two horizontal slots through the left (X=0) and right (X=ext_w) walls,
-        // sized for a 16 mm wide × 3 mm thick nylon strap or velcro band.
-        // Centred on the battery mid-height; keeps pack secure when lid is off.
-        if (USE_2S_BATTERY) {
-            strap_w   = 18;   // slot width  (slightly wider than 16 mm strap)
-            strap_h   =  4;   // slot height (slightly taller than 3 mm strap)
-            strap_cx  = wall + pcb_w / 2;
-            strap_cz  = wall + BATT_2S_H / 2;
-            // Left wall (X = 0)
-            translate([         -eps, strap_cx - strap_w / 2, strap_cz - strap_h / 2])
-                cube([wall + 2 * eps, strap_w, strap_h]);
-            // Right wall (X = ext_w)
-            translate([ext_w - wall - eps, strap_cx - strap_w / 2, strap_cz - strap_h / 2])
-                cube([wall + 2 * eps, strap_w, strap_h]);
         }
 
         // ── Back-wall (Y=ext_d face): solar cable gland + SMA antenna ────
@@ -470,13 +466,11 @@ module base() {
     } // end difference (base)
 
     // ── PCB standoffs (added after difference so they're not hollowed) ──
+    // Standoffs are 22 mm tall (= floor_h), placing PCB tops at Z = 24.5 + 1.6 = 26.1 mm.
+    // The battery bay (71×41 mm) clears the standoff columns — standoffs sit at
+    // the four PCB hole corners (3.5 mm from edges) which are outside the bay footprint.
     for (i = [0:3]) {
         standoff(mh_enc(i)[0], mh_enc(i)[1]);
-    }
-
-    // ── 2S battery locating posts ──────────────────────────────────────────
-    if (USE_2S_BATTERY) {
-        battery_locators_2s();
     }
 }
 
@@ -643,11 +637,12 @@ if (SHOW_GASKET) {
 // 4× M3 heat-set inserts (press into corner boss bores with soldering iron)
 // 4× M3×6 self-tapping or machine screws (PCB standoffs — optional; brass inserts preferred)
 // 4× M3 brass threaded inserts for PCB standoffs (press-fit, 3 mm OD bore)
-// 3× M16 cable glands (bottom wall — sensor/power cables, e.g. 4–20 mA, DS18B20, GND)
-// 1× M12 cable gland (left wall — programming/debug cable)
-// 1× M16 cable gland (right wall — battery pigtail, standard LiPo variant only)
+// 1× 2S1P 18650 battery pack (Sinowatt GR 3350 mAh from Arizer Solo II,
+//    ~40×70×21 mm, 7.2 V nominal, JST PH 2.0 mm 2-pin connector)
+// 3× M16 cable glands (bottom wall — 4-20 mA transducer, DS18B20 1-wire, GND/power)
+// 1× USB-C slot cutout (left wall — J13 USB4135-GF-A, 5 V charging input; no gland, connector flush)
+// 1× M16 cable gland (left wall — programming/debug cable; offset toward back wall, Y ≈ 46.5 mm)
 // 1× M16 cable gland (back wall — solar panel cable)
-// 1× USB-C panel slot (open cutout — add a short rubber grommet for better IP rating)
 // 1× SMA female bulkhead connector (back wall, IP67 rated; e.g. Amphenol RF 132289)
 // 1× U.FL to SMA female pigtail, ~100 mm, RG178 (e.g. Taoglas CAB.100.07.0100B)
 // 1× 2.4 GHz omnidirectional SMA antenna (rubber duck, 2 dBi, e.g. Taoglas FXP73)
@@ -655,8 +650,3 @@ if (SHOW_GASKET) {
 // For concrete_mount variant additionally:
 // 4× M6×50 stainless anchor bolts (e.g. Hilti HUS3-H 6×50 or Rawlplug R-HPT6)
 // 4× M6 stainless hex nuts (tightened from inside the well against wing counterbore)
-//
-// Additional hardware for USE_2S_BATTERY variant only:
-// 1× 2S1P 18650 pack (e.g. CS-ARS200SL, 7.4 V 3400 mAh, ~73×40×22 mm)
-// 1× nylon strap or velcro band, 16 mm wide × ≥ 200 mm long (battery retention)
-// ⚠ PCB requires charger and LDO rework before connecting 2S pack — see SCAD comments

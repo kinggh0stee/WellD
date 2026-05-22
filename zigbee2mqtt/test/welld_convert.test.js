@@ -34,38 +34,39 @@ test('convertLevel returns undefined for null/NaN/Infinity', () => {
 /* convertBattery ---------------------------------------------------------- */
 
 test('battery percentage uses defaults when options omitted', () => {
-    /* 3.6 V with default 3.0 V empty / 4.2 V full → 50 % */
-    const out = convertBattery(3.6);
-    assert.equal(out.battery_voltage, 3.6);
+    /* 7.2 V with default 6.0 V empty / 8.4 V full → 50 % */
+    const out = convertBattery(7.2);
+    assert.equal(out.battery_voltage, 7.2);
     assert.equal(out.battery, 50);
 });
 
 test('battery percentage clamps to 0 below empty threshold', () => {
-    const out = convertBattery(2.5);
+    const out = convertBattery(5.5);
     assert.equal(out.battery, 0);
 });
 
 test('battery percentage clamps to 100 above full threshold', () => {
-    const out = convertBattery(5.0);
+    const out = convertBattery(9.0);
     assert.equal(out.battery, 100);
 });
 
 test('battery percentage honours custom full/empty options', () => {
-    /* 3×AA alkaline: empty 3.0 V (default), full 4.5 V */
-    const out = convertBattery(3.75, {battery_full_mv: 4500});
+    /* Custom 2S range: empty 6.5 V, full 8.0 V → midpoint 7.25 V → 50 % */
+    const out = convertBattery(7.25, {battery_full_mv: 8000, battery_empty_mv: 6500});
     assert.equal(out.battery, 50);
 });
 
 test('battery percentage rounds to nearest integer', () => {
-    /* 3.61 V → 50.83…% → rounds to 51 */
-    const out = convertBattery(3.61);
-    assert.equal(out.battery, 51);
+    /* 7.21 V with defaults 6.0 V empty / 8.4 V full → (7.21-6.0)/(8.4-6.0)*100
+       = 1.21/2.4*100 = 50.416…% → rounds to 50 */
+    const out = convertBattery(7.21);
+    assert.equal(out.battery, 50);
 });
 
 test('battery defaults match the firmware Kconfig defaults', () => {
     /* If these drift, the JS converter will silently misreport %. */
-    assert.equal(DEFAULT_BATTERY_FULL_MV, 4200);
-    assert.equal(DEFAULT_BATTERY_EMPTY_MV, 3000);
+    assert.equal(DEFAULT_BATTERY_FULL_MV, 8400);
+    assert.equal(DEFAULT_BATTERY_EMPTY_MV, 6000);
 });
 
 test('convertBattery returns undefined when full and empty thresholds are equal', () => {
@@ -77,6 +78,25 @@ test('convertBattery returns undefined for null/NaN/Infinity', () => {
     assert.equal(convertBattery(null), undefined);
     assert.equal(convertBattery(NaN), undefined);
     assert.equal(convertBattery(Infinity), undefined);
+});
+
+test('2S1P 18650 battery at full charge (8400 mV) reports 100 %', () => {
+    const out = convertBattery(8.4);
+    assert.equal(out.battery_voltage, 8.4);
+    assert.equal(out.battery, 100);
+});
+
+test('2S1P 18650 battery at midpoint (7200 mV) reports 50 %', () => {
+    /* (7200 - 6000) / (8400 - 6000) * 100 = 50 % */
+    const out = convertBattery(7.2);
+    assert.equal(out.battery_voltage, 7.2);
+    assert.equal(out.battery, 50);
+});
+
+test('2S1P 18650 battery at minimum safe discharge (6000 mV) reports 0 %', () => {
+    const out = convertBattery(6.0);
+    assert.equal(out.battery_voltage, 6);
+    assert.equal(out.battery, 0);
 });
 
 /* convertAnalogInput ------------------------------------------------------ */
@@ -100,9 +120,9 @@ test('endpoint 1 with negative present value reports null', () => {
 test('endpoint 2 dispatches to battery converter', () => {
     const result = convertAnalogInput({
         endpoint: {ID: 2},
-        data: {presentValue: 3.6},
+        data: {presentValue: 7.2},
     });
-    assert.equal(result.battery_voltage, 3.6);
+    assert.equal(result.battery_voltage, 7.2);
     assert.equal(result.battery, 50);
 });
 

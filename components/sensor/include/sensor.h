@@ -38,24 +38,11 @@ void sensor_set_offset_cm(int offset_cm);
    call re-reads NVS. Lets a test verify NVS round-trip without rebooting. */
 void sensor_offset_cache_reset(void);
 
-/* Initialise the shared I2C bus and register ADS1115 (0x48) + MAX17048 (0x36).
+/* Initialise the shared I2C bus and register ADS1115 (0x48) only.
+ * MAX17048 removed in 2S hardware redesign.
  * Also configures VLOOP and BATT_DIV_EN GPIO outputs and drives them LOW.
  * Must be called before any sensor_read_level() or sensor_read_battery_v(). */
 esp_err_t sensor_i2c_init(void);
-
-/* Read battery state-of-charge from MAX17048 SOC register.
- * Returns 0-100 (integer percent), or -1 on error / device not present. */
-int       sensor_read_battery_soc(void);
-
-/* Read battery voltage from MAX17048 VCELL register.
- * Returns volts (e.g. 3.85), or -1.0f on error / device not present. */
-float     sensor_read_battery_vcell_v(void);
-
-/* Clear the ALRT bit in the MAX17048 STATUS register (0x1A) after handling
- * a low-battery alert on GPIO CONFIG_WELLD_MAX17048_ALRT_GPIO.  The bit must
- * be written back as 0 to de-assert the open-drain ALRT output.
- * Returns ESP_OK, ESP_ERR_NOT_FOUND (device absent), or ESP_ERR_INVALID_RESPONSE. */
-esp_err_t sensor_max17048_clear_alrt(void);
 
 /* Apply temperature compensation to a raw water-level reading.
  * Corrects for water density change with temperature.
