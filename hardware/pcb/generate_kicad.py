@@ -2,12 +2,12 @@
 """
 generate_kicad.py
 -----------------
-Generates KiCad 7 project files for WellD well-level monitor.
+Generates KiCad 10 project files for WellD well-level monitor.
 
 Outputs (all in the same directory as this script):
   welld.kicad_pro  — project JSON
-  welld.kicad_sch  — schematic (KiCad 7 s-expression)
-  welld.kicad_pcb  — PCB layout (KiCad 7 s-expression)
+  welld.kicad_sch  — schematic (KiCad 10 s-expression)
+  welld.kicad_pcb  — PCB layout (KiCad 10 s-expression)
 
 Run:
   python3 generate_kicad.py
@@ -15,6 +15,8 @@ Run:
 
 import json
 import os
+import re
+import subprocess
 import uuid
 
 # ---------------------------------------------------------------------------
@@ -22,6 +24,26 @@ import uuid
 # ---------------------------------------------------------------------------
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def find_kicad_sym_dir() -> str | None:
+    """Locate KiCad symbol libraries across platforms."""
+    candidates = [
+        "/usr/share/kicad/symbols",
+        "/usr/local/share/kicad/symbols",
+        os.path.expanduser("~/.local/share/kicad/8.0/symbols"),
+        os.path.expanduser("~/.local/share/kicad/7.0/symbols"),
+        os.path.expanduser("~/.local/share/kicad/6.0/symbols"),
+        "C:/Program Files/KiCad/8.0/share/kicad/symbols",
+        "C:/Program Files/KiCad/7.0/share/kicad/symbols",
+        "C:/Program Files/KiCad/6.0/share/kicad/symbols",
+        "/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols",
+    ]
+    for path in candidates:
+        if os.path.isdir(path):
+            return path
+    return None
+
 
 def uid() -> str:
     """Return a fresh UUID string."""
@@ -191,337 +213,766 @@ def make_pro() -> str:
 # 2.  welld.kicad_sch
 # ===========================================================================
 
-# Component data: (ref, description, lib_id, x, y, rotation, value)
-# Schematic coordinates are in mm on KiCad A2 sheet (594×420 mm)
-# We place functional blocks as described in the spec.
+# Component data: (ref, value, lib_id, x, y)
+# Schematic coordinates are in mm on KiCad A2 sheet (594×420 mm).
+
+# ── KiCad footprint per reference ────────────────────────────────────────────
+FOOTPRINTS: dict = {
+    "U1":    "Package_TO_SOT_SMD:SOT-23-6",
+    "U6":    "welld:ESP32_C6_MINI_1U",
+    "U7":    "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+    "U8":    "Package_TO_SOT_SMD:SOT-23-6",
+    "U9":    "Package_SO:MSOP-10_3x3mm_P0.5mm",
+    "U11":   "Package_TO_SOT_SMD:SOT-23-6",
+    "U12":   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+    "D1":    "Package_TO_SOT_SMD:SOT-363_SC-70-6",
+    "D4":    "LED_SMD:LED_0603_1608Metric",
+    "D5":    "Package_TO_SOT_SMD:SOT-23",
+    "D6":    "Diode_SMD:D_SOD-123",
+    "D7":    "LED_SMD:LED_0603_1608Metric",
+    "D8":    "Diode_SMD:D_SMA",
+    "D9":    "Diode_SMD:D_SMA",
+    "D10":   "Diode_SMD:D_SMA",
+    "D11":   "Diode_SMD:D_SMA",
+    "D12":   "Package_TO_SOT_SMD:SOT-363_SC-70-6",
+    "D13":   "Diode_SMD:D_SMA",
+    "D14":   "Diode_SMD:D_SMA",
+    "L1":    "Inductor_SMD:L_4x4mm",
+    "L2":    "Inductor_SMD:L_2520_6332Metric",
+    "FB1":   "Inductor_SMD:L_0402_1005Metric",
+    "F2":    "Fuse:Fuse_1206_3216Metric",
+    "Q2":    "Package_TO_SOT_SMD:SOT-23",
+    "J1":    "Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical",
+    "J3":    "Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical",
+    "J4":    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MC-1.5_3pin_3.5mm",
+    "J5":    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MC-1.5_3pin_3.5mm",
+    "J6":    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MC-1.5_3pin_3.5mm",
+    "J7":    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MC-1.5_3pin_3.5mm",
+    "J8":    "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+    "J9":    "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical",
+    "J10":   "Connector_PinHeader_1.27mm:PinHeader_1x06_P1.27mm_Vertical",
+    "J12":   "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MC-1.5_2pin_3.5mm",
+    "J13":   "welld:USB_C_GCT_USB4135-GF-A",
+    "SW1":   "Button_Switch_SMD:SW_SPST_PTS636",
+    "SW2":   "Button_Switch_SMD:SW_SPST_PTS636",
+    "R2":    "Resistor_SMD:R_0805_2012Metric",
+    "R4":    "Resistor_SMD:R_0805_2012Metric",
+    **{f"TP{n}": "TestPoint:TestPoint_Pad_1.0x1.0mm"
+       for n in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15]},
+}
+
+_C_0805 = {"C4","C6","C15","C17","C18","C19","C22","C27","C28","C29","C_BUCK"}
+_C_1206 = {"C20"}
+
+
+def get_footprint(ref: str) -> str:
+    if ref in FOOTPRINTS:
+        return FOOTPRINTS[ref]
+    if ref.startswith("R") or ref == "R_CC1" or ref == "R_CC2":
+        return "Resistor_SMD:R_0402_1005Metric"
+    if ref.startswith("C") or ref.startswith("C_"):
+        if ref in _C_1206:
+            return "Capacitor_SMD:C_1206_3216Metric"
+        if ref in _C_0805:
+            return "Capacitor_SMD:C_0805_2012Metric"
+        return "Capacitor_SMD:C_0402_1005Metric"
+    if ref.startswith("SJ"):
+        return "Jumper:SolderJumper_2_Open"
+    return ""
+
+
+# ── LCSC part numbers (from bom.csv) ─────────────────────────────────────────
+LCSC_PARTS: dict = {
+    "U1":    "C2862534",
+    "U7":    "C2690716",
+    "U8":    "C84005",
+    "U9":    "C37593",
+    "U11":   "C7519",
+    "U12":   "C841540",
+    "D1":    "C2687116",
+    "D5":    "C31417",
+    "D9":    "C2836497",
+    "D10":   "C2836497",
+    "D11":   "C8057",
+    "D12":   "C2687116",
+    "D13":   "C2836474",
+    "FB1":   "C76537",
+    "J1":    "C457925",
+    "L1":    "C376098",
+    "L2":    "C376098",
+    "C_BST": "C14663",
+}
 
 COMPONENTS = [
-    # ref,   value,            lib_id,                      x,     y
-    # ----- Block A: Solar input -----
-    ("J12",  "SolarPanel",     "Connector:Conn_01x02_Pin",  20,    30),
-    ("D6",   "MBRS140",        "Device:D_Schottky",         50,    30),
-    ("C17",  "10uF",           "Device:C",                  80,    30),
-    ("R20",  "36k",            "Device:R",                  50,    50),
-    ("R21",  "10k",            "Device:R",                  50,    65),
-    ("U7",   "CN3791",         "welld:CN3791",               100,   45),
-    ("C18",  "10uF",           "Device:C",                  130,   45),
-    ("R19",  "2k",             "Device:R",                  100,   65),
-    ("R22",  "1k DNF",         "Device:R",                  130,   65),
+    # ref,      value,               lib_id,                          x,     y
+    # ── Block A: Solar input (top-left) ───────────────────────────────────────
+    ("J12",  "MC 1.5/2-G-3.5",  "Connector:Conn_01x02_Pin",       30,    40),
+    ("D14",  "SMAJ28CA",         "Device:D_TVS",                   70,    40),
+    ("D6",   "MBRS140T3G",       "Device:D_Schottky",             110,    40),
+    ("D8",   "SMAJ28CA",         "Device:D_TVS",                  150,    40),
+    ("C17",  "10uF 25V",         "Device:C",                      190,    40),
+    ("U7",   "CN3722",           "welld:CN3722",                  250,    40),
+    ("C18",  "10uF 16V",         "Device:C",                      310,    40),
+    ("R19",  "2k0 1%",           "Device:R",                       80,    80),
+    ("R20",  "36k 1%",           "Device:R",                      120,    80),
+    ("R21",  "10k 1%",           "Device:R",                      160,    80),
+    ("R33",  "604k 1%",          "Device:R",                      250,    80),
+    ("R34",  "100k 1%",          "Device:R",                      290,    80),
+    ("R22",  "1k DNF",           "Device:R",                      330,    80),
+    ("D7",   "Solar_LED_DNF",    "Device:LED",                     40,    80),
 
-    # ----- Block B: USB input -----
-    ("J2",   "USB-C",          "welld:USB_C_Power",         20,   130),
-    ("R15",  "5.1k",           "Device:R",                  20,   155),
-    ("R16",  "5.1k",           "Device:R",                  35,   155),
-    ("F1",   "PTC 1A",         "Device:Polyfuse",           60,   130),
-    ("C16",  "4.7uF",          "Device:C",                  45,   140),
-    ("U5",   "USBLC6-2SC6",    "welld:USBLC6_2SC6",         90,   130),
-    ("U2",   "TP4056",         "welld:TP4056",               150,  130),
-    ("R1",   "2.0k",           "Device:R",                  130,  155),
-    ("C1",   "10uF",           "Device:C",                  135,  130),
-    ("C2",   "10uF",           "Device:C",                  165,  130),
-    ("D2",   "LED DNF",        "Device:LED",                155,  155),
-    ("D3",   "LED DNF",        "Device:LED",                170,  155),
-    ("R17",  "1k DNF",         "Device:R",                  155,  165),
-    ("R18",  "1k DNF",         "Device:R",                  170,  165),
+    # ── Block B: USB-C input (top, next to solar) ────────────────────────────
+    ("J13",  "USB4135-GF-A",     "welld:USB_C_Power",             400,    40),
+    ("R_CC1","5k1",              "Device:R",                      400,    80),
+    ("R_CC2","5k1",              "Device:R",                      440,    80),
+    ("U11",  "USBLC6-2SC6",      "welld:USBLC6_2SC6",             490,    40),
+    ("F2",   "MF-MSMF110/16X",   "Device:Polyfuse",               540,    40),
+    ("C27",  "4.7uF 10V",        "Device:C",                      490,    80),
+    ("U12",  "TP5100",           "welld:TP5100",                  600,    40),
+    ("C28",  "10uF 10V",         "Device:C",                      660,    40),
+    ("C29",  "10uF 16V",         "Device:C",                      660,    80),
+    ("R35",  "1k2 1%",           "Device:R",                      600,    80),
+    ("R36",  "100k",             "Device:R",                      640,    80),
+    ("R37",  "4k7",              "Device:R",                      720,    40),
+    ("R38",  "4k7",              "Device:R",                      720,    80),
 
-    # ----- Block C: Battery / Protection -----
-    ("J1",   "LiPo",           "Connector:Conn_01x02_Pin",  220,   80),
-    ("D5",   "AO3407",         "welld:AO3407",               250,   80),
-    ("R31",  "10k",            "Device:R",                   250,   92),  # D5 gate pull-down to GND
-    ("U3",   "S-8261AAYFT",    "welld:S8261A",               280,   70),
-    ("U4",   "FS8205A",        "welld:FS8205A",              280,   95),
+    # ── Block C: Battery + protection (left side, middle) ─────────────────────
+    ("J1",   "B2B-PH-K-S",       "Connector:Conn_01x02_Pin",       30,   150),
+    ("D13",  "SMAJ10CA",         "Device:D_TVS",                   80,   150),
+    ("D5",   "AO3407",           "welld:AO3407",                  140,   150),
+    ("R31",  "10k",              "Device:R",                      140,   190),
 
-    # ----- Block D: LDO -----
-    ("U1",   "TPS7A0533",      "welld:TPS7A0533",            340,   80),
-    ("C9",   "100nF",          "Device:C",                  370,   65),
-    ("C10",  "1uF",            "Device:C",                  385,   65),
-    ("C11",  "100nF",          "Device:C",                  370,   95),
-    ("C12",  "1uF",            "Device:C",                  385,   95),
+    # ── Block D: 3.3 V buck converter (middle-left) ───────────────────────────
+    ("U1",   "AP63205WU",        "welld:AP63205WU",               250,   150),
+    ("L2",   "4.7uH",            "Device:L",                      310,   150),
+    ("C9",   "100nF 16V",        "Device:C",                      370,   150),
+    ("C10",  "1uF 16V",          "Device:C",                      430,   150),
+    ("C11",  "100nF",            "Device:C",                      370,   190),
+    ("C12",  "1uF",              "Device:C",                      430,   190),
+    ("C_BUCK","10uF 10V",        "Device:C",                      490,   150),
+    ("R11",  "10k",              "Device:R",                      250,   190),
 
-    # ----- Block E: ESP32-C6 -----
-    ("U6",   "ESP32-C6-MINI",  "welld:ESP32_C6_MINI_1U",    430,   80),
-    ("R11",  "10k",            "Device:R",                  490,   60),
-    ("R12",  "10k",            "Device:R",                  490,   70),
-    ("R13",  "10k",            "Device:R",                  490,   80),
-    ("SW1",  "RESET",          "Device:SW_Push",             410,   50),
-    ("SW2",  "BOOT",           "Device:SW_Push",             410,   65),
-    ("C13",  "100nF",          "Device:C",                  410,   75),
-    ("C14a", "100nF",          "Device:C",                  400,   95),
-    ("C14b", "100nF",          "Device:C",                  410,   95),
-    ("C14c", "100nF",          "Device:C",                  420,   95),
-    ("C14d", "100nF",          "Device:C",                  430,   95),
-    ("C15",  "10uF",           "Device:C",                  445,   95),
-    ("R7",   "100k",           "Device:R",                  490,   90),
-    ("R8",   "100k",           "Device:R",                  490,  100),
-    ("C8",   "100nF",          "Device:C",                  510,   95),
+    # ── Block E: ESP32-C6 module (center) ─────────────────────────────────────
+    ("U6",   "ESP32-C6-MINI-1U-H4","welld:ESP32_C6_MINI_1U",     560,   150),
+    ("R12",  "10k",              "Device:R",                      680,   150),
+    ("R13",  "10k",              "Device:R",                      680,   190),
+    ("SW1",  "RESET",            "Switch:SW_Push",                520,   120),
+    ("SW2",  "BOOT",             "Switch:SW_Push",                520,   210),
+    ("C13",  "100nF",            "Device:C",                      560,   230),
+    ("C14a", "100nF",            "Device:C",                      600,   230),
+    ("C14b", "100nF",            "Device:C",                      640,   230),
+    ("C14c", "100nF",            "Device:C",                      680,   230),
+    ("C14d", "100nF",            "Device:C",                      720,   230),
+    ("C15",  "10uF 10V",         "Device:C",                      750,   190),
 
-    # ----- Block F: Sensor interfaces -----
-    ("J4",   "4-20mA_CH1",     "Connector:Conn_01x03_Pin",  420,  200),
-    ("J5",   "4-20mA_CH2",     "Connector:Conn_01x03_Pin",  450,  200),
-    ("J6",   "DS18B20",        "Connector:Conn_01x03_Pin",  480,  200),
-    ("R32",  "33R DNF",        "Device:R",                  495,  200),  # 1-Wire series protection (DNF default)
-    ("J7",   "Spare",          "Connector:Conn_01x03_Pin",  510,  200),
-    ("D1",    "PRTR5V0U2X",     "welld:PRTR5V0U2X",           420,  230),
-    ("R2",    "100R 0.1%",      "Device:R",                  440,  215),
-    ("R3",    "100R",           "Device:R",                  460,  215),
-    ("D9",    "SMAJ3.3CA",      "Device:D_TVS_Bidirectional", 420, 185),  # changed from SMAJ5.0CA
-    ("C3",    "1uF",            "Device:C",                  460,  225),
-    ("C4",    "10uF",           "Device:C",                  470,  225),
-    ("C_SH1", "10nF",           "Device:C",                  440,  245),  # shunt ch1 HF bypass across R2
-    ("R4",    "100R 0.1%",      "Device:R",                  480,  215),
-    ("R5",    "100R",           "Device:R",                  500,  215),
-    ("D10",   "SMAJ3.3CA",      "Device:D_TVS_Bidirectional", 450, 185),  # changed from SMAJ5.0CA
-    ("C5",    "1uF",            "Device:C",                  500,  225),
-    ("C6",    "10uF",           "Device:C",                  510,  225),
-    ("C_SH2", "10nF",           "Device:C",                  480,  245),  # shunt ch2 HF bypass across R4
-    ("R6",   "4.7k",           "Device:R",                  490,  250),
-    ("C7",   "100nF",          "Device:C",                  510,  250),
+    # ── Block F: Sensor interfaces (right side, middle) ───────────────────────
+    ("J4",   "4-20mA_CH1",       "Connector:Conn_01x03_Pin",      820,   150),
+    ("J5",   "4-20mA_CH2",       "Connector:Conn_01x03_Pin",      880,   150),
+    ("J6",   "DS18B20",          "Connector:Conn_01x03_Pin",      940,   150),
+    ("R32",  "33R DNF",          "Device:R",                      980,   150),
+    ("J7",   "Spare",            "Connector:Conn_01x03_Pin",     1040,   150),
+    ("D1",   "PRTR5V0U2X",       "welld:PRTR5V0U2X",              820,   190),
+    ("D12",  "PRTR5V0U2X",       "welld:PRTR5V0U2X",              940,   190),
+    ("R2",   "100R 0.1%",        "Device:R",                      850,   230),
+    ("R3",   "100R",             "Device:R",                      890,   230),
+    ("D9",   "SMAJ3.3CA",        "Device:D_TVS",                  820,   110),
+    ("D10",  "SMAJ3.3CA",        "Device:D_TVS",                  880,   110),
+    ("C3",   "1uF",              "Device:C",                      850,   270),
+    ("C4",   "10uF 10V",         "Device:C",                      890,   270),
+    ("C_SH1","10nF",             "Device:C",                      850,   310),
+    ("R4",   "100R 0.1%",        "Device:R",                      970,   230),
+    ("R5",   "100R",             "Device:R",                     1010,   230),
+    ("C5",   "1uF",              "Device:C",                      970,   270),
+    ("C6",   "10uF 10V",         "Device:C",                     1010,   270),
+    ("C_SH2","10nF",             "Device:C",                      970,   310),
+    ("R6",   "4k7",              "Device:R",                      940,   270),
+    ("C7",   "100nF",            "Device:C",                     1040,   270),
 
-    # ----- Block G: Expansion headers -----
-    ("J8",   "I2C_4pin",       "Connector:Conn_01x04_Pin",  530,   80),
-    ("J9",   "GPIO_8pin",      "Connector:Conn_01x08_Pin",  530,  110),
-    ("J10",  "PROG_6pin",      "Connector:Conn_01x06_Pin",  530,  160),
-    ("J3",   "U.FL_Antenna",   "welld:U_FL_Antenna",         530,  190),
-    ("R9",   "4.7k",           "Device:R",                  555,   75),
-    ("R10",  "4.7k",           "Device:R",                  565,   75),
+    # ── Block G: Expansion headers (right of ESP32) ──────────────────────────
+    ("J8",   "I2C_4pin",         "Connector:Conn_01x04_Pin",      760,   150),
+    ("J9",   "GPIO_8pin",        "Connector:Conn_01x08_Pin",      760,   200),
+    ("J10",  "PROG_6pin",        "Connector:Conn_01x06_Pin",      760,   260),
+    ("J3",   "U.FL",             "welld:U_FL_Antenna",            760,   310),
+    ("R9",   "4k7",              "Device:R",                      800,   150),
+    ("R10",  "4k7",              "Device:R",                      800,   200),
 
-    # ----- Block H: LED indicators -----
-    ("D4",   "Status_LED",     "Device:LED",                330,  200),
-    ("R14",  "1k",             "Device:R",                  330,  215),
+    # ── Block H: Status LED (below buck) ──────────────────────────────────────
+    ("D4",   "Status_LED",       "Device:LED",                    250,   280),
+    ("R14",  "1k",               "Device:R",                      290,   280),
 
-    # ----- Block I: VLOOP 12 V boost -----
-    ("U8",   "TPS61023",       "welld:TPS61023",             40,  300),
-    ("L1",   "4.7uH",          "Device:L",                  240,  300),
-    ("R23",  "1.1M",           "Device:R",                  120,  315),
-    ("R24",  "47k",            "Device:R",                  160,  315),
-    ("C19",  "10uF",           "Device:C",                  160,  330),
-    ("C20",  "22uF",           "Device:C",                  200,  330),
-    ("C22",  "10uF",           "Device:C",                   40,  345),
+    # ── Block I: VLOOP 12 V boost (bottom-left) ───────────────────────────────
+    ("U8",   "MT3608B",          "welld:MT3608B",                  40,   350),
+    ("L1",   "4.7uH",            "Device:L",                      100,   350),
+    ("C_BST","100nF 16V",        "Device:C",                       70,   390),
+    ("C22",  "10uF 16V",         "Device:C",                      130,   390),
+    ("R23",  "1.91M 1%",         "Device:R",                      160,   350),
+    ("R24",  "100k 1%",          "Device:R",                      220,   350),
+    ("C19",  "10uF 16V",         "Device:C",                      280,   350),
+    ("C20",  "22uF 16V",         "Device:C",                      340,   350),
+    ("D11",  "SMAJ13A",          "Device:D_TVS",                  400,   350),
+    ("C21",  "100nF",            "Device:C",                      400,   390),
 
-    # ----- Block J: Precision ADC + fuel gauge -----
-    ("FB1",  "BLM18KG601SN1D", "Device:L",                   60,  285),
-    ("C23",  "100nF",          "Device:C",                   80,  285),
-    ("C24",  "1uF",            "Device:C",                   90,  285),
-    ("U9",   "ADS1115",        "welld:ADS1115",              80,  300),
-    ("U10",  "MAX17048",       "welld:MAX17048",            120,  300),
-    ("R27",  "4.7k",           "Device:R",                   40,  330),
-    ("R28",  "100R",           "Device:R",                   80,  330),
+    # ── Block J: Precision ADC (bottom, left of center) ───────────────────────
+    ("FB1",  "BLM18KG601SN1D",   "Device:L",                       40,   450),
+    ("C23",  "100nF",            "Device:C",                       90,   450),
+    ("C24",  "1uF",              "Device:C",                      140,   450),
+    ("U9",   "ADS1115IDGST",     "welld:ADS1115",                 200,   450),
 
-    # ----- Block K: Charger interlock + divider gate -----
-    ("Q1",   "BSS123",         "Device:Q_NMOS_GSD",         160,  300),
-    ("Q2",   "BSS123",         "Device:Q_NMOS_GSD",         200,  300),
-    ("Q3",   "BSS84",          "Device:Q_PMOS_GSD",         160,  315),
-    ("R25",  "4.7k",           "Device:R",                  200,  315),
-    ("R26",  "4.7k",           "Device:R",                  240,  315),
-    ("R29",  "4.7k",           "Device:R",                  120,  330),
-    ("R30",  "10k",            "Device:R",                  160,  330),
+    # ── Block K: Battery-voltage divider gate (bottom, center) ────────────────
+    ("Q2",   "BSS123",           "Device:Q_NMOS",                 320,   450),
+    ("R7",   "330k 1%",          "Device:R",                      380,   450),
+    ("R8",   "100k 1%",          "Device:R",                      440,   450),
+    ("C8",   "100nF",            "Device:C",                      500,   450),
+    ("R26",  "4k7",              "Device:R",                      560,   450),
+    ("R28",  "100R",             "Device:R",                       90,   500),
 
-    # ----- Block L: Solar TVS + indicator -----
-    ("D7",   "LED DNF",        "Device:LED",                 40,  315),
-    ("D8",   "SMAJ7.0A",       "Device:D_TVS",               80,  315),
-    ("D11",  "SMAJ13A",        "Device:D_TVS",              260,  300),
-    ("C21",  "100nF",          "Device:C",                  240,  330),
+    # ── Block M: Solder jumpers (bottom, right of center) ─────────────────────
+    ("SJ1",  "VBOOST_EN DNF",    "Jumper:SolderJumper_2_Open",    620,   450),
+    ("SJ2",  "VLOOP_BUS",        "Jumper:SolderJumper_2_Open",    680,   450),
+    ("SJ3",  "LED_DIS",          "Jumper:SolderJumper_2_Open",    740,   450),
+    ("SJ4",  "UART_TX DNF",      "Jumper:SolderJumper_2_Open",    800,   450),
+    ("SJ5",  "UART_RX DNF",      "Jumper:SolderJumper_2_Open",    860,   450),
 
-    # ----- Block M: Solder jumpers -----
-    ("SJ1",  "VBOOST_EN DNF",  "Jumper:SolderJumper_2_Open",  80, 345),
-    ("SJ2",  "VLOOP_BUS",      "Jumper:SolderJumper_2_Open", 120, 345),
-    ("SJ3",  "LED_DIS",        "Jumper:SolderJumper_2_Open", 160, 345),
-    ("SJ4",  "UART_TX DNF",    "Jumper:SolderJumper_2_Open", 200, 345),
-    ("SJ5",  "UART_RX DNF",    "Jumper:SolderJumper_2_Open", 240, 345),
-
-    # ----- Block N: Missing bypass caps (decoupling review) -----
-    ("C25",  "100nF",          "Device:C",                   125, 295),  # MAX17048 VDD bypass
-    ("C26",  "100nF",          "Device:C",                   285,  65),  # S-8261A VCC bypass
-
-    # ----- Block O: Test points TP1-TP14 (DNF) -----
-    ("TP1",  "VBAT",           "welld:TestPoint_Pad",        200, 370),
-    ("TP2",  "VLOOP",          "welld:TestPoint_Pad",        215, 370),
-    ("TP3",  "+3V3",           "welld:TestPoint_Pad",        230, 370),
-    ("TP4",  "GND",            "welld:TestPoint_Pad",        245, 370),
-    ("TP5",  "LOOP_TERM_CH1",  "welld:TestPoint_Pad",        260, 370),
-    ("TP6",  "LOOP_TERM_CH2",  "welld:TestPoint_Pad",        275, 370),
-    ("TP7",  "1WIRE",          "welld:TestPoint_Pad",        290, 370),
-    ("TP8",  "I2C_SDA",        "welld:TestPoint_Pad",        305, 370),
-    ("TP9",  "I2C_SCL",        "welld:TestPoint_Pad",        320, 370),
-    ("TP10", "VSOLAR_IN",      "welld:TestPoint_Pad",        335, 370),
-    ("TP11", "VBAT_RAW",       "welld:TestPoint_Pad",        350, 370),
-    ("TP12", "ADS_DRDY",       "welld:TestPoint_Pad",        365, 370),
-    ("TP13", "MAX_ALRT",       "welld:TestPoint_Pad",        380, 370),
-    ("TP14", "/CHRG_SOLAR",    "welld:TestPoint_Pad",        395, 370),
+    # ── Block N: Test points (bottom row) ─────────────────────────────────────
+    ("TP1",  "VBAT",             "welld:TestPoint_Pad",           100,   550),
+    ("TP2",  "VLOOP",            "welld:TestPoint_Pad",           160,   550),
+    ("TP3",  "+3V3",             "welld:TestPoint_Pad",           220,   550),
+    ("TP4",  "GND",              "welld:TestPoint_Pad",           280,   550),
+    ("TP5",  "LOOP_TERM_CH1",    "welld:TestPoint_Pad",           340,   550),
+    ("TP6",  "LOOP_TERM_CH2",    "welld:TestPoint_Pad",           400,   550),
+    ("TP7",  "1WIRE",            "welld:TestPoint_Pad",           460,   550),
+    ("TP8",  "I2C_SDA",          "welld:TestPoint_Pad",           520,   550),
+    ("TP9",  "I2C_SCL",          "welld:TestPoint_Pad",           580,   550),
+    ("TP10", "VSOLAR_IN",        "welld:TestPoint_Pad",           640,   550),
+    ("TP11", "VBAT_RAW",         "welld:TestPoint_Pad",           700,   550),
+    ("TP12", "ADS_DRDY",         "welld:TestPoint_Pad",           760,   550),
+    ("TP14", "/CHRG_SOLAR",      "welld:TestPoint_Pad",           820,   550),
+    ("TP15", "/CHRG_USB",        "welld:TestPoint_Pad",           880,   550),
 ]
 
 
+def _p10(name: str, val: str, ax: float, ay: float, hidden: bool = False,
+         size: float = 0.8, bold: bool = False) -> str:
+    """KiCad 10 property s-expression."""
+    h = '\n      (hide yes)' if hidden else ''
+    bold_attr = ' (bold yes)' if bold else ''
+    return (
+        f'    (property "{name}" "{val}"\n'
+        f'      (at {ax:.2f} {ay:.2f} 0){h}\n'
+        f'      (show_name no)\n'
+        f'      (do_not_autoplace no)\n'
+        f'      (effects (font (size {size} {size}){bold_attr}))\n'
+        f'    )'
+    )
+
+
 def sch_global_label(net: str, x: float, y: float, shape: str = "passive") -> str:
-    """Emit a global_label s-expression."""
     return f"""
-  (global_label "{net}" (shape {shape}) (at {x:.2f} {y:.2f} 0) (fields_autoplaced)
-    (effects (font (size 1.27 1.27)) (justify left))
+  (global_label "{net}"
+    (shape {shape})
+    (at {x:.2f} {y:.2f} 0)
+    (fields_autoplaced yes)
+    (effects (font (size 0.8 0.8)) (justify left))
     (uuid "{uid()}")
-    (property "Intersheets" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    (property "Intersheetrefs" "${{INTERSHEET_REFS}}"
+      (at {x:.2f} {y:.2f} 0)
+      (hide yes)
+      (show_name no)
+      (do_not_autoplace no)
+      (effects (font (size 0.8 0.8)))
+    )
+    (property "Intersheets" ""
+      (at 0 0 0)
+      (hide yes)
+      (show_name no)
+      (do_not_autoplace no)
+      (effects (font (size 0.8 0.8)))
+    )
   )"""
 
 
-def sch_power_symbol(net: str, x: float, y: float) -> str:
-    """Emit a power symbol (power port / PWR_FLAG)."""
+def sch_power_symbol(net: str, x: float, y: float, root_uuid: str = "") -> str:
+    inst = (
+        f'\n    (instances\n'
+        f'      (project "welld"\n'
+        f'        (path "/{root_uuid}"\n'
+        f'          (reference "#PWR")\n'
+        f'          (unit 1)\n'
+        f'        )\n'
+        f'      )\n'
+        f'    )'
+    ) if root_uuid else ""
     return f"""
-  (power "{net}" (at {x:.2f} {y:.2f} 0) (fields_autoplaced)
+  (symbol
+    (lib_id "power:{net}")
+    (at {x:.2f} {y:.2f} 0)
+    (unit 1)
+    (body_style 1)
+    (exclude_from_sim no)
+    (in_bom no)
+    (on_board no)
+    (in_pos_files yes)
+    (dnp no)
+    (fields_autoplaced yes)
     (uuid "{uid()}")
-    (property "Reference" "#PWR" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-    (property "Value" "{net}" (at 0 -3.81 0) (effects (font (size 1.27 1.27))))
-    (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-    (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-    (pin "1" (at 0 0 270))
+{_p10("Reference", "#PWR", 0, 0, hidden=True)}
+{_p10("Value", net, 0, -3.81)}
+{_p10("Footprint", "", 0, 0, hidden=True)}
+{_p10("Datasheet", "", 0, 0, hidden=True)}
+{_p10("Description", "", x, y)}
+    (pin "1" (uuid "{uid()}"))
+{inst}
   )"""
 
 
-def sch_component(ref: str, value: str, lib_id: str, x: float, y: float) -> str:
-    """Emit a symbol instance s-expression for the schematic."""
-    footprint = ""
+def sch_component(ref: str, value: str, lib_id: str, x: float, y: float,
+                  root_uuid: str = "") -> str:
+    footprint = get_footprint(ref)
+    lcsc = LCSC_PARTS.get(ref, "")
+    lcsc_prop = (
+        f'\n{_p10("LCSC", lcsc, 0, 0, hidden=True)}'
+        if lcsc else ""
+    )
+    inst = (
+        f'\n    (instances\n'
+        f'      (project "welld"\n'
+        f'        (path "/{root_uuid}"\n'
+        f'          (reference "{ref}")\n'
+        f'          (unit 1)\n'
+        f'        )\n'
+        f'      )\n'
+        f'    )'
+    ) if root_uuid else ""
     return f"""
-  (symbol (lib_id "{lib_id}") (at {x:.2f} {y:.2f} 0) (unit 1)
-    (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
+  (symbol
+    (lib_id "{lib_id}")
+    (at {x:.2f} {y:.2f} 0)
+    (unit 1)
+    (body_style 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (in_pos_files yes)
+    (dnp no)
+    (fields_autoplaced yes)
     (uuid "{uid()}")
-    (property "Reference" "{ref}" (at {x:.2f} {y - 3.81:.2f} 0)
-      (effects (font (size 1.27 1.27))))
-    (property "Value" "{value}" (at {x:.2f} {y + 3.81:.2f} 0)
-      (effects (font (size 1.27 1.27))))
-    (property "Footprint" "{footprint}" (at 0 0 0)
-      (effects (font (size 1.27 1.27)) (hide yes)))
-    (property "Datasheet" "~" (at 0 0 0)
-      (effects (font (size 1.27 1.27)) (hide yes)))
+{_p10("Reference", ref, x, y - 2.0, bold=True)}
+{_p10("Value", value, x, y + 2.0)}
+{_p10("Footprint", footprint, 0, 0, hidden=True)}
+{_p10("Datasheet", "", 0, 0, hidden=True)}
+{_p10("Description", "", 0, 0, hidden=True)}{lcsc_prop}
+{inst}
   )"""
+
+
+KICAD_SYM_DIR = find_kicad_sym_dir() or "/usr/share/kicad/symbols"
+
+def _extract_sym(lib: str, name: str) -> str:
+    """Extract a single top-level symbol block from a .kicad_sym library file.
+
+    Returns the raw s-expression text (unindented) suitable for embedding
+    directly inside a (lib_symbols ...) block, or '' if not found.
+    """
+    path = os.path.join(KICAD_SYM_DIR, f"{lib}.kicad_sym")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError:
+        return ""
+
+    # Match the opening of a top-level symbol with exactly this name.
+    # Accept tabs or spaces for indentation.
+    pattern = re.compile(r'(?m)^[ \t]*\(symbol "' + re.escape(name) + r'"\b')
+    m = pattern.search(text)
+    if not m:
+        return ""
+
+    # Find the position of the opening paren
+    match_text = m.group()
+    paren_offset = match_text.find('(symbol')
+    start = m.start() + paren_offset
+
+    # Walk from the opening paren, counting depth to find the matching close.
+    depth = 0
+    i = start
+    while i < len(text):
+        if text[i] == '(':
+            depth += 1
+        elif text[i] == ')':
+            depth -= 1
+            if depth == 0:
+                block = text[start:i + 1]
+                # Re-indent: replace leading tabs with 4 spaces per level.
+                lines = []
+                first_line = True
+                for line in block.splitlines():
+                    n = len(line) - len(line.lstrip('\t'))
+                    indented = '    ' + '  ' * n + line.lstrip('\t')
+                    if first_line:
+                        # Add library prefix so lib_id "Device:R" resolves
+                        indented = indented.replace(
+                            f'(symbol "{name}"',
+                            f'(symbol "{lib}:{name}"',
+                            1
+                        )
+                        first_line = False
+                    lines.append(indented)
+                return '\n'.join(lines)
+        i += 1
+    return ""
+
+
+def _fallback_symbol(lib: str, name: str) -> str:
+    """Generate a minimal fallback symbol when KiCad libraries are not installed."""
+    full = f"{lib}:{name}"
+    
+    def _prop(key: str, val: str, ax: float, ay: float, hidden: bool = False) -> str:
+        h = " (hide yes)" if hidden else ""
+        return (f'      (property "{key}" "{val}" (at {ax:.2f} {ay:.2f} 0)'
+                f' (show_name no) (do_not_autoplace no){h}'
+                f' (effects (font (size 0.8 0.8))))')
+    
+    def _pin(ptype: str, x: float, y: float, angle: int, pname: str, num: str) -> str:
+        return (
+            f'      (pin {ptype} line (at {x:.2f} {y:.2f} {angle}) (length 1.27)\n'
+            f'        (name "{pname}" (effects (font (size 0.8 0.8))))\n'
+            f'        (number "{num}" (effects (font (size 0.8 0.8))))\n'
+            f'      )'
+        )
+    
+    # Power symbols
+    if lib == "power":
+        if name == "+3V3":
+            return f"""
+    (symbol "{full}"
+      (power global)
+      (pin_numbers (hide yes))
+      (pin_names (offset 0) (hide yes))
+      (exclude_from_sim no)
+      (in_bom no)
+      (on_board no)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+{_prop("Reference", "#PWR", 0, -3.81, True)}
+{_prop("Value", "+3V3", 0, 3.81)}
+{_prop("Footprint", "", 0, 0, True)}
+{_prop("Datasheet", "", 0, 0, True)}
+{_prop("Description", "", 0, 0, True)}
+      (symbol "+3V3_0_1"
+        (polyline (pts (xy -0.762 1.27) (xy 0 2.54)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy 0 2.54) (xy 0.762 1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy 0 0) (xy 0 2.54)) (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "+3V3_1_1"
+        (pin power_in line (at 0 0 90) (length 0)
+          (name "" (effects (font (size 0.8 0.8))))
+          (number "1" (effects (font (size 0.8 0.8))))
+        )
+      )
+      (embedded_fonts no)
+    )"""
+        elif name == "GND":
+            return f"""
+    (symbol "{full}"
+      (power global)
+      (pin_numbers (hide yes))
+      (pin_names (offset 0) (hide yes))
+      (exclude_from_sim no)
+      (in_bom no)
+      (on_board no)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+{_prop("Reference", "#PWR", 0, -3.81, True)}
+{_prop("Value", "GND", 0, 3.81)}
+{_prop("Footprint", "", 0, 0, True)}
+{_prop("Datasheet", "", 0, 0, True)}
+{_prop("Description", "", 0, 0, True)}
+      (symbol "GND_0_1"
+        (polyline (pts (xy 0 0) (xy 0 -1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -1.27 -1.27) (xy 1.27 -1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -0.762 -1.778) (xy 0.762 -1.778)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -0.254 -2.286) (xy 0.254 -2.286)) (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "GND_1_1"
+        (pin power_in line (at 0 0 270) (length 0)
+          (name "" (effects (font (size 0.8 0.8))))
+          (number "1" (effects (font (size 0.8 0.8))))
+        )
+      )
+      (embedded_fonts no)
+    )"""
+    
+    # Two-pin passives (R, C, L, LED, D_Schottky, D_TVS, Polyfuse)
+    if name in ("R", "C", "L", "LED", "D_Schottky", "D_TVS", "Polyfuse"):
+        ref = "R" if name == "R" else "C" if name == "C" else "L" if name == "L" else "D" if name in ("LED", "D_Schottky", "D_TVS") else "F"
+        return f"""
+    (symbol "{full}"
+      (pin_names (offset 1.016))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+{_prop("Reference", ref, 0, 5.08)}
+{_prop("Value", name, 0, -5.08)}
+{_prop("Footprint", "", 0, 0, True)}
+{_prop("Datasheet", "", 0, 0, True)}
+{_prop("Description", "", 0, 0, True)}
+      (symbol "{name}_0_1"
+        (rectangle (start -3.81 -3.81) (end 3.81 3.81)
+          (stroke (width 0) (type default)) (fill (type background)))
+      )
+      (symbol "{name}_1_1"
+{_pin("passive", -5.08, 0, 0, "1", "1")}
+{_pin("passive", 5.08, 0, 180, "2", "2")}
+      )
+      (embedded_fonts no)
+    )"""
+    
+    # NMOS transistor
+    if name == "Q_NMOS":
+        return f"""
+    (symbol "{full}"
+      (pin_names (offset 1.016))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+{_prop("Reference", "Q", 0, 5.08)}
+{_prop("Value", "Q_NMOS", 0, -5.08)}
+{_prop("Footprint", "", 0, 0, True)}
+{_prop("Datasheet", "", 0, 0, True)}
+{_prop("Description", "", 0, 0, True)}
+      (symbol "Q_NMOS_0_1"
+        (circle (center 0 0) (radius 2.54)
+          (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "Q_NMOS_1_1"
+{_pin("passive", -5.08, 2.54, 0, "D", "2")}
+{_pin("passive", -5.08, -2.54, 0, "S", "3")}
+{_pin("input", -5.08, 0, 0, "G", "1")}
+      )
+      (embedded_fonts no)
+    )"""
+    
+    # Push switch
+    if name == "SW_Push":
+        return f"""
+    (symbol "{full}"
+      (pin_names (offset 1.016))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+{_prop("Reference", "SW", 0, 5.08)}
+{_prop("Value", "SW_Push", 0, -5.08)}
+{_prop("Footprint", "", 0, 0, True)}
+{_prop("Datasheet", "", 0, 0, True)}
+{_prop("Description", "", 0, 0, True)}
+      (symbol "SW_Push_0_1"
+        (circle (center -2.54 0) (radius 0.508)
+          (stroke (width 0) (type default)) (fill (type none)))
+        (circle (center 2.54 0) (radius 0.508)
+          (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy -2.54 -2.54) (xy 2.54 -2.54)) (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "SW_Push_1_1"
+{_pin("passive", -5.08, 0, 0, "1", "1")}
+{_pin("passive", 5.08, 0, 180, "2", "2")}
+      )
+      (embedded_fonts no)
+    )"""
+    
+    # Connectors
+    if name.startswith("Conn_01x"):
+        # Parse "Conn_01x02_Pin" -> 2 pins
+        dims = name.split("_")[1]  # "01x02"
+        pins = int(dims.split("x")[1])  # "02" -> 2
+        height = max(pins * 2.54, 5.08)
+        pin_strs = []
+        for i in range(pins):
+            y = (pins - 1) * 1.27 - i * 2.54
+            pin_strs.append(_pin("passive", 5.08, y, 180, str(i+1), str(i+1)))
+        return f"""
+    (symbol "{full}"
+      (pin_names (offset 1.016))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+{_prop("Reference", "J", 0, height/2 + 2.54)}
+{_prop("Value", name, 0, -height/2 - 2.54)}
+{_prop("Footprint", "", 0, 0, True)}
+{_prop("Datasheet", "", 0, 0, True)}
+{_prop("Description", "", 0, 0, True)}
+      (symbol "{name}_0_1"
+        (rectangle (start -2.54 {-height/2}) (end 2.54 {height/2})
+          (stroke (width 0) (type default)) (fill (type background)))
+      )
+      (symbol "{name}_1_1"
+{"\n".join(pin_strs)}
+      )
+      (embedded_fonts no)
+    )"""
+    
+    # Solder jumper
+    if name == "SolderJumper_2_Open":
+        return f"""
+    (symbol "{full}"
+      (pin_names (offset 1.016))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+{_prop("Reference", "JP", 0, 3.81)}
+{_prop("Value", "SolderJumper_2_Open", 0, -3.81)}
+{_prop("Footprint", "", 0, 0, True)}
+{_prop("Datasheet", "", 0, 0, True)}
+{_prop("Description", "", 0, 0, True)}
+      (symbol "SolderJumper_2_Open_0_1"
+        (rectangle (start -2.54 -1.27) (end 2.54 1.27)
+          (stroke (width 0) (type default)) (fill (type background)))
+      )
+      (symbol "SolderJumper_2_Open_1_1"
+{_pin("passive", -3.81, 0, 0, "1", "1")}
+{_pin("passive", 3.81, 0, 180, "2", "2")}
+      )
+      (embedded_fonts no)
+    )"""
+    
+    return ""
+
+
+# Standard library symbols needed by the schematic.
+# Format: {lib_name: [symbol_name, ...]}
+_STDLIB_NEEDED: dict[str, list[str]] = {
+    "Device":    ["R", "C", "L", "LED", "D_Schottky", "D_TVS",
+                  "Polyfuse", "Q_NMOS"],
+    "Switch":    ["SW_Push"],
+    "Connector": ["Conn_01x02_Pin", "Conn_01x03_Pin", "Conn_01x04_Pin",
+                  "Conn_01x06_Pin", "Conn_01x08_Pin"],
+    "Jumper":    ["SolderJumper_2_Open"],
+    "power":     ["+3V3", "GND"],
+}
 
 
 def make_sch_lib_symbols() -> str:
-    """
-    Define all custom IC symbols inline.
-    Each symbol follows KiCad 7 s-expression format.
-    Pin format: (pin <type> <direction> (at x y angle) (length l) (name "n" ...) (number "n" ...))
-    """
+    """Define all custom IC symbols inline (KiCad 10 s-expression format)."""
 
     def pin(ptype: str, pdir: str, x: float, y: float, angle: int, name: str, num: str, length: float = 2.54) -> str:
         return (
-            f'      (pin {ptype} {pdir} (at {x:.2f} {y:.2f} {angle}) (length {length:.2f})\n'
-            f'        (name "{name}" (effects (font (size 1.27 1.27))))\n'
-            f'        (number "{num}" (effects (font (size 1.27 1.27))))\n'
+            f'      (pin {ptype} line (at {x:.2f} {y:.2f} {angle}) (length {length:.2f})\n'
+            f'        (name "{name}" (effects (font (size 0.8 0.8))))\n'
+            f'        (number "{num}" (effects (font (size 0.8 0.8))))\n'
             f'      )'
         )
 
-    # ---- CN3791 solar MPPT charger (SOIC-8) --------------------------------
-    cn3791 = f"""
-    (symbol "CN3791" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "U" (at 0 10.16 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "CN3791" (at 0 -10.16 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (symbol "CN3791_0_1"
+    def lp(name: str, val: str, ax: float, ay: float, hidden: bool = False) -> str:
+        h = " (hide yes)" if hidden else ""
+        return (f'      (property "{name}" "{val}" (at {ax:.2f} {ay:.2f} 0)'
+                f' (show_name no) (do_not_autoplace no){h}'
+                f' (effects (font (size 0.8 0.8))))')
+
+    def hdr(sym_name: str, ref: str, ref_y: float, val: str, val_y: float, fp: str) -> str:
+        full_name = f"welld:{sym_name}"
+        return (
+            f'\n    (symbol "{full_name}"\n'
+            f'      (pin_names (offset 1.016))\n'
+            f'      (exclude_from_sim no)\n'
+            f'      (in_bom yes)\n'
+            f'      (on_board yes)\n'
+            f'      (in_pos_files yes)\n'
+            f'      (duplicate_pin_numbers_are_jumpers no)\n'
+            + lp("Reference", ref, 0, ref_y) + "\n"
+            + lp("Value", val, 0, val_y) + "\n"
+            + lp("Footprint", fp, 0, 0, hidden=True) + "\n"
+            + lp("Datasheet", "", 0, 0, hidden=True) + "\n"
+            + lp("Description", "", 0, 0, hidden=True)
+        )
+
+    # ---- AP63205WU 3.3V 2A synchronous buck (SOT-23-6) ----------------------
+    ap63205wu = hdr("AP63205WU", "U", 7.62, "AP63205WU", -7.62,
+                    "Package_TO_SOT_SMD:SOT-23-6") + f"""
+      (symbol "AP63205WU_0_1"
+        (rectangle (start -3.81 -6.35) (end 3.81 6.35)
+          (stroke (width 0) (type default)) (fill (type background)))
+      )
+      (symbol "AP63205WU_1_1"
+{pin("input",     "left",   6.35,  3.81, 180, "EN",  "1")}
+{pin("power_in",  "left",   6.35,  1.27, 180, "GND", "2")}
+{pin("input",     "left",   6.35, -1.27, 180, "FB",  "3")}
+{pin("power_in",  "left",   6.35, -3.81, 180, "VIN", "4")}
+{pin("power_out", "right", -6.35,  1.27,   0, "SW",  "5")}
+{pin("passive",   "right", -6.35, -1.27,   0, "BST", "6")}
+      )
+      (embedded_fonts no)
+    )"""
+
+    # ---- MT3608B VLOOP 12V boost converter (SOT-23-6) -----------------------
+    mt3608b = hdr("MT3608B", "U", 7.62, "MT3608B", -7.62,
+                  "Package_TO_SOT_SMD:SOT-23-6") + f"""
+      (symbol "MT3608B_0_1"
+        (rectangle (start -3.81 -6.35) (end 3.81 6.35)
+          (stroke (width 0) (type default)) (fill (type background)))
+      )
+      (symbol "MT3608B_1_1"
+{pin("power_in",  "left",   6.35,  3.81, 180, "IN",  "1")}
+{pin("power_in",  "left",   6.35,  1.27, 180, "GND", "2")}
+{pin("input",     "left",   6.35, -1.27, 180, "FB",  "3")}
+{pin("input",     "left",   6.35, -3.81, 180, "EN",  "4")}
+{pin("power_out", "right", -6.35,  1.27,   0, "SW",  "5")}
+{pin("passive",   "right", -6.35, -1.27,   0, "BST", "6")}
+      )
+      (embedded_fonts no)
+    )"""
+
+    # ---- CN3722 2S MPPT solar charger (SOP-8) --------------------------------
+    cn3722 = hdr("CN3722", "U", 10.16, "CN3722", -10.16,
+                 "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm") + f"""
+      (symbol "CN3722_0_1"
         (rectangle (start -3.81 -8.89) (end 3.81 8.89)
           (stroke (width 0) (type default)) (fill (type background)))
       )
-      (symbol "CN3791_1_1"
-{pin("passive",       "right",  -6.35, 6.35,  0,   "VBAT",  "1")}
-{pin("power_in",      "right",  -6.35, 3.81,  0,   "GND",   "2")}
-{pin("input",         "left",    6.35, 3.81,  180, "MPPT",  "3")}
-{pin("power_in",      "left",    6.35, 6.35,  180, "VIN",   "4")}
-{pin("passive",       "left",    6.35, -3.81, 180, "PROG",  "5")}
-{pin("open_collector","right",  -6.35, -3.81, 0,   "/CHRG", "6")}
-{pin("open_collector","right",  -6.35, -6.35, 0,   "/DONE", "7")}
-{pin("no_connect",    "left",    6.35, -6.35, 180, "VIN2",  "8")}
+      (symbol "CN3722_1_1"
+{pin("passive",       "left",   6.35,  6.35, 180, "VPROG", "1")}
+{pin("power_in",      "left",   6.35,  3.81, 180, "GND",   "2")}
+{pin("power_in",      "left",   6.35,  1.27, 180, "VIN",   "3")}
+{pin("power_in",      "left",   6.35, -1.27, 180, "VIN2",  "4")}
+{pin("passive",       "right", -6.35,  3.81,   0, "VBAT",  "5")}
+{pin("passive",       "right", -6.35,  1.27,   0, "VBAT2", "6")}
+{pin("open_collector","right", -6.35, -1.27,   0, "/CHRG", "7")}
+{pin("input",         "right", -6.35, -3.81,   0, "MPPT",  "8")}
       )
+      (embedded_fonts no)
     )"""
 
-    # ---- TP4056 USB charger (SOIC-8) ----------------------------------------
-    tp4056 = f"""
-    (symbol "TP4056" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "U" (at 0 10.16 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "TP4056" (at 0 -10.16 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (symbol "TP4056_0_1"
+    # ---- TP5100 2S USB-C boost charger (SOP-8) --------------------------------
+    tp5100 = hdr("TP5100", "U", 10.16, "TP5100", -10.16,
+                 "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm") + f"""
+      (symbol "TP5100_0_1"
         (rectangle (start -3.81 -8.89) (end 3.81 8.89)
           (stroke (width 0) (type default)) (fill (type background)))
       )
-      (symbol "TP4056_1_1"
-{pin("passive",  "left",    6.35,  6.35,  180, "PROG",  "1")}
-{pin("power_in", "left",    6.35,  3.81,  180, "GND",   "2")}
-{pin("power_in", "left",    6.35,  1.27,  180, "VCC",   "3")}
-{pin("output",   "right",  -6.35,  3.81,    0, "STDBY", "4")}
-{pin("output",   "right",  -6.35,  1.27,    0, "CHRG",  "5")}
-{pin("passive",  "right",  -6.35, -1.27,    0, "BAT",   "6")}
-{pin("input",    "left",    6.35, -1.27,  180, "TE",    "7")}
-{pin("input",    "left",    6.35, -3.81,  180, "CE",    "8")}
+      (symbol "TP5100_1_1"
+{pin("passive",       "left",   6.35,  6.35, 180, "PROG",  "1")}
+{pin("power_in",      "left",   6.35,  3.81, 180, "VCC",   "2")}
+{pin("open_collector","left",   6.35,  1.27, 180, "/CHRG", "3")}
+{pin("passive",       "left",   6.35, -1.27, 180, "BAT",   "4")}
+{pin("passive",       "right", -6.35, -1.27,   0, "BAT2",  "5")}
+{pin("input",         "right", -6.35,  1.27,   0, "CE",    "6")}
+{pin("power_in",      "right", -6.35,  3.81,   0, "GND",   "7")}
+{pin("power_in",      "right", -6.35,  6.35,   0, "GND2",  "8")}
       )
-    )"""
-
-    # ---- TPS7A0533 LDO (SC70-5) ---------------------------------------------
-    tps = f"""
-    (symbol "TPS7A0533" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "U" (at 0 7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "TPS7A0533" (at 0 -7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "Package_TO_SOT_SMD:SC-70-5" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (symbol "TPS7A0533_0_1"
-        (rectangle (start -3.81 -6.35) (end 3.81 6.35)
-          (stroke (width 0) (type default)) (fill (type background)))
-      )
-      (symbol "TPS7A0533_1_1"
-{pin("power_in",  "left",  6.35,  3.81, 180, "IN",  "1")}
-{pin("power_in",  "left",  6.35,  1.27, 180, "GND", "2")}
-{pin("input",     "left",  6.35, -1.27, 180, "EN",  "3")}
-{pin("no_connect","left",  6.35, -3.81, 180, "NC",  "4")}
-{pin("power_out", "right",-6.35,  1.27,   0, "OUT", "5")}
-      )
-    )"""
-
-    # ---- S-8261A LiPo protection (SOT-23-6) ---------------------------------
-    s8261a = f"""
-    (symbol "S8261A" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "U" (at 0 7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "S-8261AAYFT" (at 0 -7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "Package_TO_SOT_SMD:SOT-23-6" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (symbol "S8261A_0_1"
-        (rectangle (start -3.81 -6.35) (end 3.81 6.35)
-          (stroke (width 0) (type default)) (fill (type background)))
-      )
-      (symbol "S8261A_1_1"
-{pin("output",   "right", -6.35,  3.81,   0, "DO",  "1")}
-{pin("output",   "right", -6.35,  1.27,   0, "CO",  "2")}
-{pin("input",    "left",   6.35,  3.81, 180, "CS",  "3")}
-{pin("passive",  "left",   6.35,  1.27, 180, "VM",  "4")}
-{pin("power_in", "left",   6.35, -1.27, 180, "VCC", "5")}
-{pin("power_in", "right", -6.35, -1.27,   0, "VDD", "6")}
-      )
-    )"""
-
-    # ---- FS8205A dual P-ch MOSFET (SOT-23-6) --------------------------------
-    fs8205a = f"""
-    (symbol "FS8205A" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "U" (at 0 7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "FS8205A" (at 0 -7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "Package_TO_SOT_SMD:SOT-23-6" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (symbol "FS8205A_0_1"
-        (rectangle (start -3.81 -6.35) (end 3.81 6.35)
-          (stroke (width 0) (type default)) (fill (type background)))
-      )
-      (symbol "FS8205A_1_1"
-{pin("passive", "left",   6.35,  3.81, 180, "S1",   "1")}
-{pin("input",   "left",   6.35,  1.27, 180, "G1",   "2")}
-{pin("passive", "left",   6.35, -1.27, 180, "S2",   "3")}
-{pin("passive", "right", -6.35,  1.27,   0, "D1D2", "4")}
-{pin("input",   "right", -6.35, -1.27,   0, "G2",   "5")}
-{pin("passive", "right", -6.35, -3.81,   0, "S2b",  "6")}
-      )
+      (embedded_fonts no)
     )"""
 
     # ---- USBLC6-2SC6 USB ESD (SOT-23-6) ------------------------------------
-    usblc6 = f"""
-    (symbol "USBLC6_2SC6" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "U" (at 0 7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "USBLC6-2SC6" (at 0 -7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "Package_TO_SOT_SMD:SOT-23-6" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    usblc6 = hdr("USBLC6_2SC6", "U", 7.62, "USBLC6-2SC6", -7.62,
+                 "Package_TO_SOT_SMD:SOT-23-6") + f"""
       (symbol "USBLC6_2SC6_0_1"
         (rectangle (start -3.81 -6.35) (end 3.81 6.35)
           (stroke (width 0) (type default)) (fill (type background)))
@@ -534,15 +985,12 @@ def make_sch_lib_symbols() -> str:
 {pin("passive",  "right", -6.35, -1.27,   0, "IO2_NEG", "5")}
 {pin("passive",  "right", -6.35,  1.27,   0, "IO1_POS", "6")}
       )
+      (embedded_fonts no)
     )"""
 
     # ---- PRTR5V0U2X dual TVS (SOT-363 / SC-70-6) ---------------------------
-    prtr = f"""
-    (symbol "PRTR5V0U2X" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "D" (at 0 7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "PRTR5V0U2X" (at 0 -7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "Package_TO_SOT_SMD:SOT-363_SC-70-6" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    prtr = hdr("PRTR5V0U2X", "D", 7.62, "PRTR5V0U2X", -7.62,
+               "Package_TO_SOT_SMD:SOT-363_SC-70-6") + f"""
       (symbol "PRTR5V0U2X_0_1"
         (rectangle (start -3.81 -6.35) (end 3.81 6.35)
           (stroke (width 0) (type default)) (fill (type background)))
@@ -555,15 +1003,12 @@ def make_sch_lib_symbols() -> str:
 {pin("power_in",      "right", -6.35, -1.27,   0, "VCC2", "5")}
 {pin("power_in",      "left",   6.35, -1.27, 180, "GND2", "6")}
       )
+      (embedded_fonts no)
     )"""
 
     # ---- AO3407 P-channel MOSFET (SOT-23) -----------------------------------
-    ao3407 = f"""
-    (symbol "AO3407" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "D" (at 0 5.08 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "AO3407" (at 0 -5.08 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "Package_TO_SOT_SMD:SOT-23" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    ao3407 = hdr("AO3407", "D", 5.08, "AO3407", -5.08,
+                 "Package_TO_SOT_SMD:SOT-23") + f"""
       (symbol "AO3407_0_1"
         (rectangle (start -2.54 -3.81) (end 2.54 3.81)
           (stroke (width 0) (type default)) (fill (type background)))
@@ -573,15 +1018,12 @@ def make_sch_lib_symbols() -> str:
 {pin("passive", "left",  5.08, -1.27, 180, "S", "2")}
 {pin("passive", "right",-5.08,  0,      0, "D", "3")}
       )
+      (embedded_fonts no)
     )"""
 
     # ---- USB-C power connector (stub) --------------------------------------
-    usbcpwr = f"""
-    (symbol "USB_C_Power" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "J" (at 0 7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "USB_C_Power" (at 0 -7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "welld:USB_C_9x3.2mm" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    usbcpwr = hdr("USB_C_Power", "J", 7.62, "USB_C_Power", -7.62,
+                  "welld:USB_C_9x3.2mm") + f"""
       (symbol "USB_C_Power_0_1"
         (rectangle (start -3.81 -5.08) (end 3.81 5.08)
           (stroke (width 0) (type default)) (fill (type background)))
@@ -594,15 +1036,12 @@ def make_sch_lib_symbols() -> str:
 {pin("passive",   "left",   6.35, -1.27, 180, "CC2",  "B5")}
 {pin("power_in",  "left",   6.35, -3.81, 180, "GND",  "A1")}
       )
+      (embedded_fonts no)
     )"""
 
     # ---- U.FL antenna stub -------------------------------------------------
-    ufl = f"""
-    (symbol "U_FL_Antenna" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "J" (at 0 3.81 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "U.FL" (at 0 -3.81 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    ufl = hdr("U_FL_Antenna", "J", 3.81, "U.FL", -3.81,
+              "Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical") + f"""
       (symbol "U_FL_Antenna_0_1"
         (rectangle (start -2.54 -2.54) (end 2.54 2.54)
           (stroke (width 0) (type default)) (fill (type background)))
@@ -611,6 +1050,7 @@ def make_sch_lib_symbols() -> str:
 {pin("passive",  "right", -5.08, 1.27,   0, "RF",  "1")}
 {pin("power_in", "left",   5.08, -1.27, 180, "GND", "2")}
       )
+      (embedded_fonts no)
     )"""
 
     # ---- ESP32-C6-MINI-1U (large custom) ------------------------------------
@@ -648,12 +1088,8 @@ def make_sch_lib_symbols() -> str:
     ]
     esp_all_pins = "\n".join(esp_pins_left + esp_pins_right)
 
-    esp32 = f"""
-    (symbol "ESP32_C6_MINI_1U" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "U" (at 0 35.56 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "ESP32-C6-MINI-1U" (at 0 -38.10 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "welld:ESP32_C6_MINI_1U" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    esp32 = hdr("ESP32_C6_MINI_1U", "U", 35.56, "ESP32-C6-MINI-1U", -38.10,
+                "welld:ESP32_C6_MINI_1U") + f"""
       (symbol "ESP32_C6_MINI_1U_0_1"
         (rectangle (start -10.16 -35.56) (end 10.16 12.7)
           (stroke (width 0) (type default)) (fill (type background)))
@@ -661,35 +1097,12 @@ def make_sch_lib_symbols() -> str:
       (symbol "ESP32_C6_MINI_1U_1_1"
 {esp_all_pins}
       )
-    )"""
-
-    # ---- TPS61023 VLOOP 12 V boost converter (SOT-23-5) ---------------------
-    tps61023 = f"""
-    (symbol "TPS61023" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "U" (at 0 7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "TPS61023" (at 0 -7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "Package_TO_SOT_SMD:SOT-23-5" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (symbol "TPS61023_0_1"
-        (rectangle (start -3.81 -6.35) (end 3.81 6.35)
-          (stroke (width 0) (type default)) (fill (type background)))
-      )
-      (symbol "TPS61023_1_1"
-{pin("power_in",  "left",   6.35,  3.81, 180, "VIN",  "5")}
-{pin("power_in",  "left",   6.35,  1.27, 180, "GND",  "2")}
-{pin("input",     "left",   6.35, -1.27, 180, "EN",   "4")}
-{pin("input",     "left",   6.35, -3.81, 180, "FB",   "3")}
-{pin("power_out", "right", -6.35,  1.27,   0, "VOUT", "1")}
-      )
+      (embedded_fonts no)
     )"""
 
     # ---- ADS1115 16-bit I2C ADC (MSOP-10 / VSSOP-10) ------------------------
-    ads1115 = f"""
-    (symbol "ADS1115" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "U" (at 0 10.16 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "ADS1115" (at 0 -10.16 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "Package_SO:MSOP-10_3x3mm_P0.5mm" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    ads1115 = hdr("ADS1115", "U", 10.16, "ADS1115", -10.16,
+                  "Package_SO:MSOP-10_3x3mm_P0.5mm") + f"""
       (symbol "ADS1115_0_1"
         (rectangle (start -5.08 -8.89) (end 5.08 8.89)
           (stroke (width 0) (type default)) (fill (type background)))
@@ -706,36 +1119,12 @@ def make_sch_lib_symbols() -> str:
 {pin("input",         "right", -7.62, -1.27,   0, "AIN2",  "6")}
 {pin("input",         "right", -7.62, -3.81,   0, "AIN3",  "7")}
       )
-    )"""
-
-    # ---- MAX17048 I2C fuel gauge (SOT-23-6) ---------------------------------
-    max17048 = f"""
-    (symbol "MAX17048" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "U" (at 0 7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "MAX17048" (at 0 -7.62 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "Package_TO_SOT_SMD:SOT-23-6" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (symbol "MAX17048_0_1"
-        (rectangle (start -3.81 -6.35) (end 3.81 6.35)
-          (stroke (width 0) (type default)) (fill (type background)))
-      )
-      (symbol "MAX17048_1_1"
-{pin("power_in",      "left",   6.35,  3.81, 180, "VDD",  "1")}
-{pin("power_in",      "left",   6.35,  1.27, 180, "CELL", "2")}
-{pin("power_in",      "left",   6.35, -1.27, 180, "GND",  "3")}
-{pin("bidirectional", "right", -6.35,  3.81,   0, "SDA",  "4")}
-{pin("input",         "right", -6.35,  1.27,   0, "SCL",  "5")}
-{pin("output",        "right", -6.35, -1.27,   0, "ALRT", "6")}
-      )
+      (embedded_fonts no)
     )"""
 
     # ---- TestPoint_Pad (1.0 mm SMD pad, DNF) --------------------------------
-    testpoint = f"""
-    (symbol "TestPoint_Pad" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
-      (property "Reference" "TP" (at 0 3.81 0) (effects (font (size 1.27 1.27))))
-      (property "Value" "TestPoint" (at 0 -3.81 0) (effects (font (size 1.27 1.27))))
-      (property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-      (property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+    testpoint = hdr("TestPoint_Pad", "TP", 3.81, "TestPoint", -3.81,
+                    "TestPoint:TestPoint_Pad_1.0x1.0mm") + f"""
       (symbol "TestPoint_Pad_0_1"
         (circle (center 0 0) (radius 0.5)
           (stroke (width 0) (type default)) (fill (type none)))
@@ -743,53 +1132,111 @@ def make_sch_lib_symbols() -> str:
       (symbol "TestPoint_Pad_1_1"
 {pin("passive", "right", -2.54, 0, 0, "1", "1")}
       )
+      (embedded_fonts no)
     )"""
 
-    return "\n".join([cn3791, tp4056, tps, s8261a, fs8205a, usblc6, prtr, ao3407,
-                       usbcpwr, ufl, esp32, tps61023, ads1115, max17048, testpoint])
+    # ---- VBAT power rail (not in KiCad 10 standard power library) ----------
+    vbat_pwr = f"""
+    (symbol "power:VBAT"
+      (power global)
+      (pin_numbers (hide yes))
+      (pin_names (offset 0) (hide yes))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+      (property "Reference" "#PWR" (at 0 -3.81 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 0.8 0.8))))
+      (property "Value" "VBAT" (at 0 3.556 0) (show_name no) (do_not_autoplace no) (effects (font (size 0.8 0.8))))
+      (property "Footprint" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 0.8 0.8))))
+      (property "Datasheet" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 0.8 0.8))))
+      (property "Description" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 0.8 0.8))))
+      (symbol "VBAT_0_1"
+        (polyline (pts (xy -0.762 1.27) (xy 0 2.54)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy 0 2.54) (xy 0.762 1.27)) (stroke (width 0) (type default)) (fill (type none)))
+        (polyline (pts (xy 0 0) (xy 0 2.54)) (stroke (width 0) (type default)) (fill (type none)))
+      )
+      (symbol "VBAT_1_1"
+        (pin power_in line (at 0 0 90) (length 0)
+          (name "" (effects (font (size 0.8 0.8))))
+          (number "1" (effects (font (size 0.8 0.8))))
+        )
+      )
+      (embedded_fonts no)
+    )"""
+
+    custom = "\n".join([ap63205wu, mt3608b, cn3722, tp5100, usblc6, prtr, ao3407,
+                        usbcpwr, ufl, esp32, ads1115, testpoint, vbat_pwr])
+
+    if not os.path.isdir(KICAD_SYM_DIR):
+        print(f"  WARNING: KiCad symbol libraries not found at {KICAD_SYM_DIR}")
+        print(f"           Standard symbols (R, C, L, GND, etc.) will show as '??'.")
+        print(f"           Install KiCad libraries via Preferences → Package and Content Manager.")
+
+    stdlib_parts = []
+    missing_libs = set()
+    for lib, names in _STDLIB_NEEDED.items():
+        for name in names:
+            sym = _extract_sym(lib, name)
+            if sym:
+                stdlib_parts.append(sym)
+            else:
+                missing_libs.add(lib)
+                fallback = _fallback_symbol(lib, name)
+                if fallback:
+                    stdlib_parts.append(fallback)
+                else:
+                    print(f"  WARNING: could not extract {lib}:{name} from {KICAD_SYM_DIR}")
+    
+    if missing_libs:
+        print(f"  INFO: Used fallback inline symbols for: {', '.join(sorted(missing_libs))}")
+        print(f"        (Install KiCad libraries for prettier symbols)")
+
+    return custom + "\n" + "\n".join(stdlib_parts)
 
 
 def make_sch() -> str:
     """Build the complete welld.kicad_sch s-expression string."""
 
+    root_uuid = uid()
     lib_symbols = make_sch_lib_symbols()
 
     # Global labels for all key nets
     nets = [
-        ("VSOLAR_IN",    30,   15, "passive"),
-        ("VSOLAR",       70,   15, "passive"),
-        ("VUSB_IN",      30,  120, "passive"),
-        ("VUSB",         80,  120, "passive"),
-        ("VBAT",        210,   70, "passive"),
-        ("+3V3",        330,   70, "passive"),
-        ("GND",          30,  280, "passive"),
-        ("ADC_CH0",     415,  195, "input"),
-        ("ADC_CH1",     485,  195, "input"),
-        ("ADC_CH2",     470,  195, "input"),
-        ("1WIRE",       490,  195, "input"),
-        ("I2C_SDA",     545,   70, "passive"),
-        ("I2C_SCL",     555,   70, "passive"),
-        ("GPIO13_LED",  320,  190, "passive"),
-        ("UART_TX",     545,  100, "passive"),
-        ("UART_RX",     545,  110, "passive"),
-        ("EN",          405,   45, "input"),
-        ("BOOT",        405,   60, "input"),
-        ("MPPT_REF",     50,   60, "passive"),
-        ("/CHRG_USB",   180,  120, "passive"),
-        ("/DONE_USB",   180,  130, "passive"),
-        ("/CHRG_SOLAR", 120,   45, "passive"),
-        ("/DONE_SOLAR", 120,   55, "passive"),
-        ("VLOOP",        60,  295, "passive"),
-        ("VBOOST_EN",    60,  360, "input"),
-        ("CHRG_USB_DIS",180,  360, "input"),
-        ("SOLAR_DET",   220,  360, "input"),
-        ("BATT_DIV_EN", 260,  360, "input"),
-        ("ADS_DRDY",    300,  360, "input"),
-        ("MAX_ALRT",    340,  360, "input"),
-        ("LOOP_TERM_CH1", 415, 175, "passive"),
-        ("LOOP_TERM_CH2", 445, 175, "passive"),
-        ("+3V3_ADS",     60,  280, "passive"),
-        ("VBAT_RAW",    210,   65, "passive"),
+        ("VSOLAR_IN",    30,   20, "passive"),
+        ("VSOLAR",      100,   20, "passive"),
+        ("VUSB_IN",     400,   20, "passive"),
+        ("VUSB",        470,   20, "passive"),
+        ("VBAT",         30,  140, "passive"),
+        ("+3V3",        250,  140, "passive"),
+        ("GND",          30,  520, "passive"),
+        ("ADC_CH0",     820,  140, "input"),
+        ("ADC_CH1",     880,  140, "input"),
+        ("ADC_CH2",     940,  140, "input"),
+        ("1WIRE",       980,  140, "input"),
+        ("I2C_SDA",     760,  140, "passive"),
+        ("I2C_SCL",     760,  200, "passive"),
+        ("GPIO13_LED",  250,  270, "passive"),
+        ("UART_TX",     760,  280, "passive"),
+        ("UART_RX",     760,  300, "passive"),
+        ("EN",          520,  110, "input"),
+        ("BOOT",        520,  230, "input"),
+        ("MPPT_REF",     50,   70, "passive"),
+        ("/CHRG_USB",   400,  100, "passive"),
+        ("/DONE_USB",   400,  110, "passive"),
+        ("/CHRG_SOLAR",  30,   70, "passive"),
+        ("/DONE_SOLAR",  30,   80, "passive"),
+        ("VLOOP",        40,  340, "passive"),
+        ("VBOOST_EN",    40,  420, "input"),
+        ("CHRG_USB_DIS",400,  420, "input"),
+        ("SOLAR_DET",   140,  420, "input"),
+        ("BATT_DIV_EN", 320,  420, "input"),
+        ("ADS_DRDY",    200,  420, "input"),
+        ("MAX_ALRT",    320,  520, "input"),
+        ("LOOP_TERM_CH1", 820,  270, "passive"),
+        ("LOOP_TERM_CH2", 880,  270, "passive"),
+        ("+3V3_ADS",     40,  480, "passive"),
+        ("VBAT_RAW",     80,  140, "passive"),
     ]
 
     global_labels_str = ""
@@ -798,19 +1245,19 @@ def make_sch() -> str:
 
     # Power symbols (PWR_FLAG at rail entry points)
     power_flags = [
-        ("+3V3",    335,  65),
-        ("GND",      35, 285),
-        ("VBAT",    215,  65),
-        ("GND",     255, 100),   # GND return for D5 gate pull-down R31
+        ("+3V3",    250,  130),
+        ("GND",      30,  510),
+        ("VBAT",     80,  130),
+        ("GND",     140,  180),   # GND return for D5 gate pull-down R31
     ]
     power_str = ""
     for net, x, y in power_flags:
-        power_str += sch_power_symbol(net, x, y)
+        power_str += sch_power_symbol(net, x, y, root_uuid)
 
     # All component symbol instances
     comps_str = ""
     for ref, value, lib_id, x, y in COMPONENTS:
-        comps_str += sch_component(ref, value, lib_id, x, y)
+        comps_str += sch_component(ref, value, lib_id, x, y, root_uuid)
 
     # Wire list: key structural wires to visually connect blocks
     # Format: (wire (pts (xy x1 y1) (xy x2 y2)) ...)
@@ -823,36 +1270,33 @@ def make_sch() -> str:
 
     wires = [
         # Solar path: J12 -> D6 -> VSOLAR label
-        wire(20, 30, 45, 30),
-        wire(55, 30, 70, 30),
-        # USB path: J2 -> F1
-        wire(20, 130, 55, 130),
-        wire(65, 130, 90, 130),
-        # TP4056 output -> VBAT
-        wire(170, 128, 210, 128),
-        # LDO input <- VBAT
-        wire(320, 80, 335, 80),
-        # LDO output -> +3V3
-        wire(360, 80, 375, 80),
+        wire(30, 40, 70, 40),
+        wire(90, 40, 100, 40),
+        # USB path: J13 -> F2
+        wire(400, 40, 470, 40),
+        wire(510, 40, 540, 40),
+        # TP5100 output -> VBAT
+        wire(630, 40, 80, 40),
+        # Buck input <- VBAT
+        wire(210, 150, 250, 150),
+        # Buck output -> +3V3
+        wire(310, 150, 330, 150),
         # ESP32 VCC
-        wire(420, 60, 420, 80),
+        wire(550, 150, 560, 150),
         # Batt divider
-        wire(490, 90, 490, 100),
+        wire(680, 150, 700, 150),
         # MPPT divider
-        wire(50, 50, 50, 65),
+        wire(50, 40, 50, 70),
         # Battery protection chain
-        wire(260, 80, 275, 80),
-        wire(295, 80, 335, 80),
+        wire(140, 150, 170, 150),
+        wire(190, 150, 250, 150),
         # D5 (AO3407) gate -> R31 (10k) -> GND pull-down
-        # Gate pin G is at (250+5.08, 80+1.27) ≈ (255.08, 81.27); snap to grid: (255, 81)
-        wire(255, 81, 255, 89),   # gate to top of R31
-        wire(255, 95, 255, 100),  # bottom of R31 to GND power symbol
+        wire(140, 150, 140, 190),   # gate to R31
+        wire(140, 190, 140, 510),   # R31 to GND
         # LED path
-        wire(330, 200, 330, 215),
+        wire(250, 280, 290, 280),
         # 1-Wire series protection R32 (DNF default): J6 pin 2 -> R32 -> 1WIRE net
-        wire(480, 200, 494, 200),   # J6 pin 2 (DATA) to R32 pin 1
-        wire(496, 200, 490, 200),   # R32 pin 2 to 1WIRE label x-position
-        wire(490, 200, 490, 195),   # down to 1WIRE global label
+        wire(940, 150, 980, 150),   # J6 to 1WIRE label
     ]
 
     wires_str = "".join(wires)
@@ -862,21 +1306,22 @@ def make_sch() -> str:
         return f"""
   (no_connect (at {x:.2f} {y:.2f}) (uuid "{uid()}"))"""
 
-    noconns_str = noconn(535, 190)  # J3 shield
+    noconns_str = noconn(760, 310)  # J3 shield
 
-    sch = f"""(kicad_sch (version 20230121) (generator "welld_generate_kicad")
-
-  (lib_symbols
-{lib_symbols}
-  )
-
+    sch = f"""(kicad_sch
+  (version 20260306)
+  (generator "eeschema")
+  (generator_version "10.0")
+  (uuid "{root_uuid}")
   (paper "A2")
-
   (title_block
     (title "WellD Well-Level Monitor")
     (date "2026-05-18")
     (company "WellD Project")
-    (comment 1 "ESP32-C6-MINI-1U + TP4056 + CN3791 + TPS7A0533 + TPS61023")
+    (comment 1 "ESP32-C6-MINI-1U + AP63205WU + MT3608B + CN3722 + TP5100 + ADS1115")
+  )
+  (lib_symbols
+{lib_symbols}
   )
 
 {global_labels_str}
@@ -911,7 +1356,7 @@ MOUNTING_HOLES = [
 ]
 
 # PCB component placement: (ref, footprint, x, y, rotation, description)
-# Footprints use standard KiCad 7 library paths.
+# Footprints use standard KiCad 10 library paths.
 PCB_COMPONENTS = [
     # ICs
     ("U1",   "Package_TO_SOT_SMD:SC-70-5",                               56,   34,   0, "TPS7A0533"),
@@ -1118,7 +1563,7 @@ def pcb_net_declarations() -> str:
 
 def pcb_footprint(ref: str, fp: str, x: float, y: float, rot: float, value: str) -> str:
     """
-    Generate a minimal KiCad 7 footprint placement s-expression.
+    Generate a minimal KiCad 10 footprint placement s-expression.
     We don't embed full pad geometry (that lives in the footprint library);
     we just emit the placed instance with reference/value text.
     """
@@ -1195,7 +1640,6 @@ def pcb_thermal_zone_u7() -> str:
     (hatch edge 0.508)
     (connect_pads thru_hole_only (clearance 0.2))
     (min_thickness 0.25)
-    (keepout_settings (no_tracks no) (no_vias no) (no_pads no) (no_copperpour no) (no_footprints no))
     (fill yes (thermal_gap 0.3) (thermal_bridge_width 0.3))
     (polygon
       (pts (xy 55.0 5.0) (xy 65.0 5.0) (xy 65.0 15.0) (xy 55.0 15.0))
@@ -1209,7 +1653,6 @@ def pcb_thermal_zone_u7() -> str:
     (hatch edge 0.508)
     (connect_pads thru_hole_only (clearance 0.2))
     (min_thickness 0.25)
-    (keepout_settings (no_tracks no) (no_vias no) (no_pads no) (no_copperpour no) (no_footprints no))
     (fill yes (thermal_gap 0.3) (thermal_bridge_width 0.3))
     (polygon
       (pts (xy 55.0 5.0) (xy 65.0 5.0) (xy 65.0 15.0) (xy 55.0 15.0))
@@ -1332,7 +1775,7 @@ def make_pcb() -> str:
     (effects (font (size 1.0 1.0) (thickness 0.15)))
   )"""
 
-    pcb = f"""(kicad_pcb (version 20221018) (generator "welld_generate_kicad")
+    pcb = f"""(kicad_pcb (version 20260206) (generator "pcbnew") (generator_version "10.0")
 
   (general
     (thickness 1.6)
@@ -1444,17 +1887,116 @@ def make_pcb() -> str:
 # Entry point
 # ===========================================================================
 
+def make_sym_lib() -> str:
+    """Build welld.kicad_sym — a KiCad symbol library with all custom welld ICs.
+
+    Extracts the welld-prefixed symbol blocks from the (lib_symbols ...) section
+    of the generated schematic (after upgrade) so the library file is always in
+    sync with whatever kicad-cli writes.
+    """
+    sch_path = os.path.join(HERE, "welld.kicad_sch")
+    text = open(sch_path).read()
+
+    # Collect every top-level symbol inside lib_symbols whose name has no
+    # library prefix and is one of our custom welld symbols (identified by the
+    # fact that they appear as "welld:NAME" in component instances).
+    welld_names = set()
+    for m in re.finditer(r'\(lib_id "welld:([^"]+)"', text):
+        welld_names.add(m.group(1))
+
+    blocks = []
+    for name in sorted(welld_names):
+        # Symbols inside lib_symbols are at 2-tab indent.
+        # In a .kicad_sym file they must be at 1-tab indent.
+        # Strategy: find the full block (including leading \t\t), extract it,
+        # then replace each line's leading \t\t with \t (net: -1 tab).
+        # lib_symbols stores symbols as "welld:NAME" (KiCad 10 requirement)
+        pat = re.compile(r'(?m)^\t\t\(symbol "welld:' + re.escape(name) + r'"')
+        m = pat.search(text)
+        if not m:
+            continue
+        start = m.start()   # include both leading tabs
+        depth = 0
+        i = start
+        while i < len(text):
+            if text[i] == '(':
+                depth += 1
+            elif text[i] == ')':
+                depth -= 1
+                if depth == 0:
+                    block_lines = text[start:i + 1].splitlines()
+                    # Remove exactly one leading tab; strip "welld:" prefix from
+                    # the first line so .kicad_sym stores plain names (correct
+                    # sym lib format — library name is implicit from the file).
+                    reindented = []
+                    for idx, ln in enumerate(block_lines):
+                        stripped = ln[1:] if ln.startswith('\t') else ln
+                        if idx == 0:
+                            stripped = stripped.replace(
+                                f'(symbol "welld:{name}"', f'(symbol "{name}"', 1)
+                        reindented.append(stripped)
+                    blocks.append('\n'.join(reindented))
+                    break
+            i += 1
+
+    symbols_text = '\n'.join(blocks)
+    return f"""(kicad_symbol_lib
+\t(version 20260306)
+\t(generator "kicad_symbol_editor")
+\t(generator_version "10.0")
+{symbols_text}
+)
+"""
+
+
+def make_sym_lib_table() -> str:
+    """Project-level sym-lib-table: direct paths bypass the global Table-type wrapper
+    that KiCad 10's GUI does not always expand correctly."""
+    sd = "/usr/share/kicad/symbols"
+    libs = [
+        ("welld",     "KiCad", "${KIPRJMOD}/welld.kicad_sym",     "WellD custom symbols"),
+        ("Device",    "KiCad", f"{sd}/Device.kicad_sym",          "Generic devices"),
+        ("Connector", "KiCad", f"{sd}/Connector.kicad_sym",       "Connectors"),
+        ("Switch",    "KiCad", f"{sd}/Switch.kicad_sym",          "Switches"),
+        ("Jumper",    "KiCad", f"{sd}/Jumper.kicad_sym",          "Jumpers"),
+        ("power",     "KiCad", f"{sd}/power.kicad_sym",           "Power symbols"),
+    ]
+    entries = "\n".join(
+        f'\t(lib (name "{n}") (type "{t}") (uri "{u}") (options "") (descr "{d}"))'
+        for n, t, u, d in libs
+    )
+    return f"(sym_lib_table\n\t(version 7)\n{entries}\n)\n"
+
+
 def main():
-    print("Generating KiCad 7 project files …")
+    print("Generating KiCad 10 project files …")
 
     print("\n[1/3] welld.kicad_pro")
     write("welld.kicad_pro", make_pro())
 
     print("\n[2/3] welld.kicad_sch")
     write("welld.kicad_sch", make_sch())
+    sch_path = os.path.join(HERE, "welld.kicad_sch")
+    result = subprocess.run(
+        ["kicad-cli", "sch", "upgrade", "--force", sch_path],
+        capture_output=True, text=True
+    )
+    if result.returncode == 0:
+        print("  normalised via kicad-cli sch upgrade")
+    else:
+        print(f"  WARNING: kicad-cli upgrade failed: {result.stderr.strip()}")
 
     print("\n[3/3] welld.kicad_pcb")
     write("welld.kicad_pcb", make_pcb())
+
+    print("\n[+] welld.kicad_sym  (custom symbol library)")
+    write("welld.kicad_sym", make_sym_lib())
+    sym_path = os.path.join(HERE, "welld.kicad_sym")
+    subprocess.run(["kicad-cli", "sym", "upgrade", "--force", sym_path],
+                   capture_output=True)
+
+    print("[+] sym-lib-table  (project library paths)")
+    write("sym-lib-table", make_sym_lib_table())
 
     print("\nDone.  Files written to:", HERE)
 
