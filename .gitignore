@@ -3,9 +3,10 @@ sdkconfig.old
 sdkconfig.defaults.local
 managed_components/
 
-# IDE
+# IDE / local tooling
 .vscode/
 .idea/
+.opencode/
 *.swp
 *.orig
 
