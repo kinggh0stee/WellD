@@ -1,0 +1,97 @@
+Comment,Designator,Footprint,LCSC Part #,Notes
+AP63205WU 3.3V 2A synchronous buck,U1,SOT-23-6,,No LCSC — Diodes Inc AP63205WU; source Mouser/Digi-Key; replaces TPS7A0533
+ESP32-C6-MINI-1U-H4,U6,Module,,No LCSC — Espressif direct or Mouser; specify -H4 (4MB flash); hand-place recommended
+CN3722 2S MPPT solar charger,U7,SOP-8,C2690716,LCSC C2690716; verify stock before ordering
+MT3608B 12V boost converter,U8,SOT-23-6,C84005,LCSC C84005
+ADS1115IDGST 16-bit I2C ADC,U9,MSOP-10,C37593,LCSC C37593
+TP5100 2S USB-C boost charger,U12,SOP-8,C841540,LCSC C841540
+USBLC6-2SC6 USB ESD protection,U11,SOT-23-6,C7519,LCSC C7519
+PRTR5V0U2X dual TVS ESD (ADC tap),D1,SOT-363,C2687116,LCSC C2687116
+AO3407 P-ch MOSFET rev-polarity protect,D5,SOT-23,C31417,LCSC C31417
+MBRS140T3G Schottky solar input,D6,SOD-123,,No LCSC — On Semi; source Mouser; alt: SS14 available as C2480
+SMAJ28CA 28V TVS solar (CN3722 VIN),D8,DO-214AC SMA,,No LCSC confirmed — Vishay; verify C2836474 equivalent; same MPN as D14
+SMAJ3.3CA 3.3V surge TVS ch1,D9,DO-214AC SMA,C2836497,LCSC C2836497
+SMAJ3.3CA 3.3V surge TVS ch2,D10,DO-214AC SMA,C2836497,LCSC C2836497; same reel as D9
+SMAJ13A 13V VLOOP TVS,D11,DO-214AC SMA,C8057,LCSC C8057
+PRTR5V0U2X dual TVS ESD (1-Wire),D12,SOT-363,C2687116,LCSC C2687116; same reel as D1
+SMAJ10CA 10V battery terminal TVS,D13,DO-214AC SMA,C2836474,LCSC C2836474; verify 10V standoff variant
+SMAJ28CA 28V TVS solar terminal (J12),D14,DO-214AC SMA,,No LCSC confirmed; same MPN as D8 — consolidate reel
+Green LED 0603 solar indicator DNF,D7,LED 0603,,DNF; omit in production
+Green LED 0603 status,D4,LED 0603,,No LCSC — standard 0603 green LED; hand-solder or source locally
+MF-MSMF110/16X PTC fuse 1A 10V,F2,1206,, No LCSC — Bourns; source Mouser
+BLM18KG601SN1D ferrite bead 600R@100MHz,FB1,0402,C76537,LCSC C76537
+JST PH 2.0mm 2-pin battery connector,J1,THT B2B-PH-K-S,C457925,LCSC C457925; hand-solder THT; verify pin 1=BAT+
+U.FL-R-SMT-1(10) coaxial receptacle,J3,SMD U.FL,,No LCSC — Hirose; source Mouser/Digi-Key; hand-place
+Phoenix MC 1.5/3-G-3.5 3-pos header (ch1),J4,SMD/THT 3.5mm,,No LCSC — Phoenix Contact; hand-solder; order field plugs J4P separately
+Phoenix MC 1.5/3-G-3.5 3-pos header (ch2),J5,SMD/THT 3.5mm,,No LCSC — Phoenix Contact; hand-solder
+Phoenix MC 1.5/3-G-3.5 3-pos header (DS18B20),J6,SMD/THT 3.5mm,,No LCSC — Phoenix Contact; hand-solder
+Phoenix MC 1.5/3-G-3.5 3-pos header (spare),J7,SMD/THT 3.5mm,,No LCSC — Phoenix Contact; hand-solder
+2.54mm 1x4 pin header I2C,J8,THT 2.54mm,,Standard; hand-solder THT
+2.54mm 1x8 pin header GPIO,J9,THT 2.54mm,,Standard; hand-solder THT
+1.27mm 1x6 pin header PROG,J10,SMD 1.27mm,,Standard 1.27mm; hand-solder
+USB4135-GF-A USB-C power connector,J13,SMD USB-C,,No LCSC — GCT; source Mouser/Digi-Key; hand-place recommended
+Phoenix MC 1.5/2-G-3.5 2-pos header (solar),J12,SMD/THT 3.5mm,,No LCSC — Phoenix Contact; hand-solder
+CDRH4D22NP-4R7NC 4.7uH boost inductor,L1,4x4mm SMD,C376098,LCSC C376098; high-current path — hand-place recommended
+CDRH4D22NP-4R7NC 4.7uH buck inductor,L2,2520/3015 SMD,C376098,LCSC C376098; same reel as L1
+BSS123 N-ch MOSFET battery divider enable,Q2,SOT-23,,No LCSC confirmed — standard; alt C2655531
+RG2012N-101-W-T1 100R 0.1% shunt ch1,R2,R_0805,, No LCSC — Susumu precision; source Mouser
+100R 0402 ADC limiter ch1,R3,R_0402,,Standard 0402; LCSC any 100R 0402
+RG2012N-101-W-T1 100R 0.1% shunt ch2,R4,R_0805,,No LCSC — Susumu precision; same reel as R2
+100R 0402 ADC limiter ch2,R5,R_0402,,Standard 0402; LCSC any 100R 0402
+4k7 0402 DS18B20 pull-up,R6,R_0402,,Standard 0402 4.7k
+330k 1% 0402 batt divider high-side,R7,R_0402,,Standard 0402 330k 1%
+100k 1% 0402 batt divider low-side,R8,R_0402,,Standard 0402 100k 1%
+4k7 0402 I2C SDA pull-up,R9,R_0402,,Standard 0402 4.7k
+4k7 0402 I2C SCL pull-up,R10,R_0402,,Standard 0402 4.7k
+10k 0402 AP63205 EN pull-up,R11,R_0402,,Standard 0402 10k
+10k 0402 BOOT pull-up,R12,R_0402,,Standard 0402 10k
+10k 0402 GPIO8 strapping,R13,R_0402,,Standard 0402 10k
+1k0 0402 LED current limit,R14,R_0402,,Standard 0402 1k
+2k0 1% 0402 CN3722 charge current,R19,R_0402,,Standard 0402 2k 1%
+36k 1% 0402 MPPT divider high-side,R20,R_0402,,Standard 0402 36k 1%
+10k 1% 0402 MPPT divider low-side,R21,R_0402,,Standard 0402 10k 1%
+1k0 0402 solar LED series DNF,R22,R_0402,,DNF; omit in production
+1.9M 1% 0402 MT3608B FB high-side,R23,R_0402,,Standard 0402 1.91M 1% (E96)
+100k 1% 0402 MT3608B FB low-side,R24,R_0402,,Standard 0402 100k 1%
+4k7 0402 Q2 gate pull-down,R26,R_0402,,Standard 0402 4.7k
+100R 0402 DS18B20 VCC series,R28,R_0402,,Standard 0402 100R
+33R 0402 DS18B20 1-Wire series DNF,R32,R_0402,,DNF by default; 0402 33R
+10k 0402 D5 gate pull-down,R31,R_0402,,Standard 0402 10k
+604k 1% 0402 CN3722 CV set high-side,R33,R_0402,,Standard 0402 604k 1% (E96)
+100k 1% 0402 CN3722 CV set low-side,R34,R_0402,,Standard 0402 100k 1%
+100k 0402 TP5100 CE pull-up,R36,R_0402,,Standard 0402 100k
+4k7 0402 TP5100 CE bleed,R37,R_0402,,Standard 0402 4.7k
+4k7 0402 TP5100 /CHRG pull-up,R38,R_0402,,Standard 0402 4.7k
+1k2 1% 0402 TP5100 charge current,R35,R_0402,,Standard 0402 1.2k 1%
+5k1 0402 USB CC1 pull-down,R_CC1,R_0402,,Standard 0402 5.1k
+5k1 0402 USB CC2 pull-down,R_CC2,R_0402,,Standard 0402 5.1k
+Reset tactile switch 6x6mm,SW1,SMD 6x6mm,,Standard SMD tactile; hand-solder
+Boot tactile switch 6x6mm,SW2,SMD 6x6mm,,Standard SMD tactile; hand-solder
+10nF X7R 0402 shunt ch1 HF bypass,C_SH1,C_0402,,Standard 0402 10nF X7R
+10nF X7R 0402 shunt ch2 HF bypass,C_SH2,C_0402,,Standard 0402 10nF X7R
+100nF 0402 ADS1115 VDD bypass,C23,C_0402,,Standard 0402 100nF
+1uF 0402 ADS1115 VDD bulk,C24,C_0402,,Standard 0402 1uF
+100nF 0402 4-20mA ch1 filter,C3,C_0402,,Standard 0402 100nF
+10uF 10V 0805 4-20mA ch1 bulk,C4,C_0805,,Standard 0805 10uF 10V
+100nF 0402 4-20mA ch2 filter,C5,C_0402,,Standard 0402 100nF
+10uF 10V 0805 4-20mA ch2 bulk,C6,C_0805,,Standard 0805 10uF 10V
+100nF 0402 DS18B20 VCC bypass,C7,C_0402,,Standard 0402 100nF
+100nF 0402 battery divider filter,C8,C_0402,,Standard 0402 100nF
+100nF 16V 0402 buck VIN bypass,C9,C_0402,,Standard 0402 100nF 16V
+1uF 16V 0402 buck VIN bulk,C10,C_0402,,Standard 0402 1uF 16V
+100nF 0402 buck output bypass,C11,C_0402,,Standard 0402 100nF
+1uF 0402 buck output bulk,C12,C_0402,,Standard 0402 1uF
+100nF 0402 EN/VIN bypass,C13,C_0402,,Standard 0402 100nF
+100nF 0402 module VCC decoupling x4,C14,C_0402,,4 pcs 0402 100nF — order 4 units
+10uF 10V 0805 module VCC bulk,C15,C_0805,,Standard 0805 10uF 10V
+10uF 25V 0805 CN3722 input filter,C17,C_0805,,25V rating required — CN3722 VIN up to 25V
+10uF 16V 0805 CN3722 output filter,C18,C_0805,,16V rating for 8.4V VBAT rail
+10uF 16V 0805 MT3608B VIN bypass,C19,C_0805,,16V rating for 8.4V VBAT
+22uF 16V 1206 VBOOST output filter,C20,C_1206,,1206 size; 16V rated above 12V output
+100nF 16V 0402 MT3608B bootstrap,C_BST,C_0402,,NEW — MT3608B BST pin; LCSC C14663
+10uF 16V 0805 VBOOST output cap,C22,C_0805,,In parallel with C20; 16V rated
+100nF 0402 TVS bypass (D8),C21,C_0402,,Standard 0402 100nF
+10uF 10V 0805 AP63205 output filter,C_BUCK,C_0805,,NEW — AP63205 output; complements C11/C12
+4.7uF 10V 0805 VUSB input filter,C27,C_0805,,Standard 0805 4.7uF 10V
+10uF 10V 0805 U12 VIN bypass,C28,C_0805,,Standard 0805 10uF 10V
+10uF 16V 0805 U12 VBAT output,C29,C_0805,,16V for 8.4V VBAT rail

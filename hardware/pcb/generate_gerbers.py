@@ -391,7 +391,13 @@ COMPONENTS: list[tuple] = [
     ("D4",  "LED_SMD:LED_0603_1608Metric",                 50,   51,   0, "LED_STATUS"),
     ("D5",  "Package_TO_SOT_SMD:SOT-23",                   65,   42,   0, "AO3407"),
     ("D6",  "Diode_SMD:D_SOD-123",                         56,    7,   0, "MBRS140"),
-    ("D8",  "Diode_SMD:D_SMA",                             62,   20,   0, "SMAJ7.0A"),
+    ("D8",  "Diode_SMD:D_SMA",                             62,   20,   0, "SMAJ28CA"),  # 2S: was SMAJ7.0A
+    ("D9",  "Diode_SMD:D_SMA",                             12,    6,   0, "SMAJ3.3CA"),
+    ("D10", "Diode_SMD:D_SMA",                             23,    6,   0, "SMAJ3.3CA"),
+    ("D11", "Diode_SMD:D_SMA",                             74,    6,   0, "SMAJ13A"),   # moved from 78→74 to clear right edge
+    ("D12", "Package_TO_SOT_SMD:SOT-363_SC-70-6",          15,   14,   0, "PRTR5V0U2X"),  # alias of D1 footprint
+    ("D13", "Package_TO_SOT_SMD:SOT-23",                   65,   42,   0, "SMAJ10CA"),  # near D5 position
+    ("D14", "Diode_SMD:D_SMA",                             64,    2,   0, "SMAJ28CA"),
     # Fuse
     ("F1",  "Fuse:Fuse_1206_3216Metric",                    6,   44,   0, "PTC_1A"),
     # Connectors
