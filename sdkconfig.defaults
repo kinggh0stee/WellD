@@ -21,7 +21,7 @@ CONFIG_ESP_BROWNOUT_DET=y
 # public key digest burned into eFuse. Once eFuses are burned this is permanent.
 #
 # Key management:
-#   Generate once:  espsecure.py generate_signing_key --version 2 --scheme ecdsa256 secure_boot_signing_key.pem
+#   Generate once:  espsecure generate-signing-key --version 2 --scheme ecdsa256 secure_boot_signing_key.pem
 #   Back up the PEM file offline (hardware wallet or encrypted USB).
 #   secure_boot_signing_key.pem is gitignored — never commit it.
 #   For CI: store the PEM content as GitHub secret SECURE_BOOT_SIGNING_KEY;

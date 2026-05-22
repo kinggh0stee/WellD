@@ -23,7 +23,7 @@ jobs:
         run: |
           if [ -z "$SECURE_BOOT_SIGNING_KEY" ]; then
             echo "::error::SECURE_BOOT_SIGNING_KEY secret is not set."
-            echo "Generate a key with: espsecure.py generate_signing_key --version 2 --scheme ecdsa256 secure_boot_signing_key.pem"
+            echo "Generate a key with: espsecure generate-signing-key --version 2 --scheme ecdsa256 secure_boot_signing_key.pem"
             echo "Then add the PEM content as a repository secret named SECURE_BOOT_SIGNING_KEY."
             exit 1
           fi
