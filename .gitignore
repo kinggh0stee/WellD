@@ -16,6 +16,7 @@ hardware/pcb/welld_bom.csv
 hardware/pcb/gerbers/
 hardware/pcb/*.bak
 hardware/pcb/*.zip
+hardware/pcb/*.net
 
 # PCBWay manufacturing exports
 hardware/pcb/pcbway_*.csv
