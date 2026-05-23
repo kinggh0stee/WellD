@@ -151,6 +151,7 @@ Agents live in `.claude/agents/`. Spawn them via the Agent tool when a task clea
 - `test-engineer`     → `test/`, runs `zigbee2mqtt/npm test`
 - `docs-writer`       → `README.md`, `docs/`
 - `ci-engineer`       → `.github/workflows/`
+- `senior-reviewer`   → final review gate; reads `hardware/pcb/`, `main/`, `components/`; uses Kimi K2 via opencode MCP; blocks the `/improve` cycle on CRITICAL findings
 
 ## Handoff order for hardware changes
 PCB agent → firmware agent (pin map) → case agent (dimensions) → test agent → docs agent
@@ -177,6 +178,8 @@ Firmware agent → test agent → docs agent
 - PCB changes first → outputs GPIO map + dimensions → case and firmware agents consume those outputs
 - Case-only changes (no PCB change) → case-engineer runs independently
 - Never run PCB and case agents on the same files simultaneously
+
+**`senior-reviewer` runs last** in every `/improve` cycle that touches PCB or firmware. It is a gate, not a contributor — it reads but never writes. If it returns BLOCKED, resolve the CRITICAL items before marking the cycle complete.
 
 ## CI
 
