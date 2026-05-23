@@ -12,6 +12,22 @@ secure_boot_signing_key.pem
 hardware/pcb/.history/
 hardware/pcb/welld_bom.csv
 
+# KiCad export artifacts (generate manually from KiCad)
+hardware/pcb/gerbers/
+hardware/pcb/*.bak
+hardware/pcb/*.zip
+
+# PCBWay manufacturing exports
+hardware/pcb/pcbway_*.csv
+hardware/pcb/pcbway_*.md
+
+# Downloaded KiCad libraries
+hardware/pcb/kicad-libs/
+
+# On-device test build artifacts
+test/*/sdkconfig
+test/sensor/dependencies.lock
+
 # IDE / local tooling
 .vscode/
 .idea/

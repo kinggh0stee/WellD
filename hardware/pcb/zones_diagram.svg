@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="900" height="700" viewBox="0 0 900 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="900" height="700" fill="#f5f5f0"/>
+
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#333">
+    WellD PCB — Component Placement Zones (80 × 55 mm)
+  </text>
+  <text x="450" y="50" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#666">
+    98 Components — 100% PCBWay Automated Assembly (Zero Hand-Soldering)
+  </text>
+
+  <!-- Board outline -->
+  <rect x="80" y="60" width="560" height="385" rx="8" fill="none" stroke="#333" stroke-width="2"/>
+
+  <!-- Mounting holes -->
+  <circle cx="102" cy="82" r="6" fill="none" stroke="#666" stroke-width="1.5"/>
+  <circle cx="618" cy="82" r="6" fill="none" stroke="#666" stroke-width="1.5"/>
+  <circle cx="102" cy="423" r="6" fill="none" stroke="#666" stroke-width="1.5"/>
+  <circle cx="618" cy="423" r="6" fill="none" stroke="#666" stroke-width="1.5"/>
+
+  <!-- === ZONE 1: POWER (LEFT) === -->
+  <rect x="88" y="68" width="175" height="369" rx="6" fill="#FFF3E0" stroke="#FF9800" stroke-width="2" opacity="0.9"/>
+  <text x="175" y="88" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#E65100">POWER (47)</text>
+  
+  <!-- Power sub-zones -->
+  <rect x="95" y="95" width="161" height="50" rx="4" fill="#FFE0B2" stroke="#FF9800" stroke-width="1" opacity="0.7"/>
+  <text x="175" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#E65100">Solar Input + MPPT</text>
+  <text x="175" y="125" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#BF360C">J12 · D14 · D6 · D8 · C17</text>
+  <text x="175" y="138" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#BF360C">U7(CN3722) · C18 · R19-21 · R33-34</text>
+
+  <rect x="95" y="150" width="161" height="50" rx="4" fill="#FFE0B2" stroke="#FF9800" stroke-width="1" opacity="0.7"/>
+  <text x="175" y="165" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#E65100">USB-C + Boost Charger</text>
+  <text x="175" y="180" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#BF360C">J13 · R_CC1·2 · U11 · F2 · C27</text>
+  <text x="175" y="193" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#BF360C">U12(TP5100) · C28·29 · R35-38</text>
+
+  <rect x="95" y="205" width="161" height="42" rx="4" fill="#FFE0B2" stroke="#FF9800" stroke-width="1" opacity="0.7"/>
+  <text x="175" y="220" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#E65100">3.3V Buck Converter</text>
+  <text x="175" y="235" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#BF360C">U1(AP63205) · L2 · C9-12 · C_BUCK · R11</text>
+
+  <rect x="95" y="252" width="161" height="40" rx="4" fill="#FFE0B2" stroke="#FF9800" stroke-width="1" opacity="0.7"/>
+  <text x="175" y="267" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#E65100">Battery + Protection</text>
+  <text x="175" y="282" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#BF360C">J1 · D13 · D5(AO3407) · R31</text>
+
+  <rect x="95" y="297" width="161" height="55" rx="4" fill="#FFE0B2" stroke="#FF9800" stroke-width="1" opacity="0.7"/>
+  <text x="175" y="312" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#E65100">VLOOP 12V Boost</text>
+  <text x="175" y="327" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#BF360C">U8(MT3608B) · L1 · C_BST · C19-22</text>
+  <text x="175" y="342" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#BF360C">R23·24 · D11 · C21</text>
+
+  <!-- === ZONE 2: MCU (CENTER) === -->
+  <rect x="270" y="68" width="195" height="130" rx="6" fill="#E8EAF6" stroke="#3F51B5" stroke-width="2" opacity="0.9"/>
+  <text x="367" y="88" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1A237E">MCU (13)</text>
+  <text x="367" y="105" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#283593">U6 (ESP32-C6-MINI-1U-H4)</text>
+  <text x="367" y="120" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#3949AB">SW1(Reset) · SW2(Boot)</text>
+  <text x="367" y="135" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#3949AB">R12·13·14</text>
+  <text x="367" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#3949AB">C13 · C14a·b·c·d · C15</text>
+  <text x="367" y="165" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#3949AB">D4 (Status LED)</text>
+  
+  <!-- Antenna keepout -->
+  <rect x="275" y="72" width="60" height="120" rx="4" fill="none" stroke="#F44336" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="305" y="138" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#F44336" font-weight="bold">ANT</text>
+  <text x="305" y="152" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#F44336">KEEP</text>
+  <text x="305" y="166" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#F44336">OUT</text>
+
+  <!-- === ZONE 3: ANALOG / SENSORS (RIGHT) === -->
+  <rect x="470" y="68" width="162" height="245" rx="6" fill="#E3F2FD" stroke="#2196F3" stroke-width="2" opacity="0.9"/>
+  <text x="551" y="88" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#0D47A1">ANALOG (30)</text>
+
+  <rect x="477" y="95" width="148" height="55" rx="4" fill="#BBDEFB" stroke="#2196F3" stroke-width="1" opacity="0.7"/>
+  <text x="551" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#0D47A1">ADC + Battery Sense</text>
+  <text x="551" y="125" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#1565C0">U9 (ADS1115) · FB1 · C23·24 · R28</text>
+  <text x="551" y="140" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#1565C0">Q2(BSS123) · R7(330k) · R8(100k) · C8 · R26</text>
+
+  <rect x="477" y="155" width="148" height="45" rx="4" fill="#BBDEFB" stroke="#2196F3" stroke-width="1" opacity="0.7"/>
+  <text x="551" y="170" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#0D47A1">Sensor Connectors</text>
+  <text x="551" y="185" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#1565C0">J4·J5·J6·J7 (Phoenix 3.5mm)</text>
+
+  <rect x="477" y="205" width="148" height="50" rx="4" fill="#BBDEFB" stroke="#2196F3" stroke-width="1" opacity="0.7"/>
+  <text x="551" y="220" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#0D47A1">CH1 Protection + Input</text>
+  <text x="551" y="235" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#1565C0">D1(PRTR5V) · R2(0.1%) · R3 · D9(TVS)</text>
+  <text x="551" y="248" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#1565C0">C3 · C4 · C_SH1</text>
+
+  <rect x="477" y="260" width="148" height="48" rx="4" fill="#BBDEFB" stroke="#2196F3" stroke-width="1" opacity="0.7"/>
+  <text x="551" y="275" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#0D47A1">CH2 + DS18B20</text>
+  <text x="551" y="290" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#1565C0">D12(PRTR5V) · R4(0.1%) · R5 · D10(TVS)</text>
+  <text x="551" y="303" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#1565C0">C5 · C6 · C_SH2 · R6 · C7</text>
+
+  <!-- === ZONE 4: SUPPORT / INTERFACES (BOTTOM CENTER) === -->
+  <rect x="270" y="205" width="195" height="75" rx="6" fill="#F3E5F5" stroke="#9C27B0" stroke-width="2" opacity="0.9"/>
+  <text x="367" y="220" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#4A148C">SUPPORT (8)</text>
+  <text x="367" y="235" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#6A1B9A">J8(I2C) · J9(GPIO) · J10(PROG) · J3(U.FL)</text>
+  <text x="367" y="248" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#6A1B9A">R9·R10 (I2C pull-ups)</text>
+  <text x="367" y="261" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#6A1B9A">SJ2(VLOOP bus) · SJ3(LED en)</text>
+
+  <!-- === CONNECTORS STRIP (BOTTOM EDGE) === -->
+  <rect x="88" y="318" width="544" height="119" rx="6" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2" opacity="0.9"/>
+  <text x="360" y="338" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#1B5E20">CONNECTORS — Board Edge (All THT + SMT Mixed Assembly)</text>
+  <text x="360" y="355" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#2E7D32">J4·J5·J6·J7 (Phoenix 3-pin, 3.5mm) · J12 (Solar 2-pin)</text>
+  <text x="360" y="370" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#2E7D32">J13 (USB-C) · J1 (LiPo JST) · J10 (1.27mm PROG)</text>
+  <text x="360" y="385" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#2E7D32">J8 (I2C) · J9 (GPIO) · J3 (U.FL Antenna — machine-placed)</text>
+  <text x="360" y="405" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#388E3C" font-style="italic">PCBWay wave-solders all THT connectors; zero hand-soldering required</text>
+
+  <!-- Noise separation line -->
+  <line x1="460" y1="68" x2="460" y2="313" stroke="#666" stroke-width="1.5" stroke-dasharray="8,6" opacity="0.6"/>
+  <text x="455" y="62" text-anchor="end" font-family="Arial, sans-serif" font-size="10" fill="#666">← Switching</text>
+  <text x="465" y="62" text-anchor="start" font-family="Arial, sans-serif" font-size="10" fill="#666">Analog →</text>
+
+  <!-- Legend -->
+  <rect x="680" y="80" width="190" height="300" rx="8" fill="#fff" stroke="#999" stroke-width="1"/>
+  <text x="775" y="100" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#333">Zone Legend</text>
+  
+  <rect x="690" y="110" width="16" height="16" rx="3" fill="#FFE0B2" stroke="#FF9800" stroke-width="1.5"/>
+  <text x="715" y="122" font-family="Arial, sans-serif" font-size="11" fill="#333">Power / Charging (47)</text>
+  
+  <rect x="690" y="135" width="16" height="16" rx="3" fill="#E8EAF6" stroke="#3F51B5" stroke-width="1.5"/>
+  <text x="715" y="147" font-family="Arial, sans-serif" font-size="11" fill="#333">MCU / ESP32-C6 (13)</text>
+  
+  <rect x="690" y="160" width="16" height="16" rx="3" fill="#BBDEFB" stroke="#2196F3" stroke-width="1.5"/>
+  <text x="715" y="172" font-family="Arial, sans-serif" font-size="11" fill="#333">Analog / Sensors (30)</text>
+  
+  <rect x="690" y="185" width="16" height="16" rx="3" fill="#F3E5F5" stroke="#9C27B0" stroke-width="1.5"/>
+  <text x="715" y="197" font-family="Arial, sans-serif" font-size="11" fill="#333">Support / UI (8)</text>
+  
+  <rect x="690" y="210" width="16" height="16" rx="3" fill="#E8F5E9" stroke="#4CAF50" stroke-width="1.5"/>
+  <text x="715" y="222" font-family="Arial, sans-serif" font-size="11" fill="#333">Connectors (mixed)</text>
+  
+  <rect x="690" y="235" width="16" height="16" rx="3" fill="none" stroke="#F44336" stroke-width="2" stroke-dasharray="4,3"/>
+  <text x="715" y="247" font-family="Arial, sans-serif" font-size="11" fill="#333">Antenna Keepout</text>
+  
+  <line x1="690" y1="265" x2="706" y2="265" stroke="#666" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="715" y="268" font-family="Arial, sans-serif" font-size="11" fill="#333">Noise Barrier</text>
+
+  <!-- Stats -->
+  <text x="775" y="295" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#666">Total Assembled: 98</text>
+  <text x="775" y="310" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Power: 47 | MCU: 13</text>
+  <text x="775" y="325" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Analog: 30 | Support: 8</text>
+  <text x="775" y="342" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#2E7D32" font-weight="bold">100% PCBWay Auto-Assembly</text>
+
+  <!-- PCBWay Assembly Notes -->
+  <rect x="680" y="360" width="190" height="200" rx="8" fill="#E3F2FD" stroke="#2196F3" stroke-width="1"/>
+  <text x="775" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#0D47A1">PCBWay Assembly</text>
+  <text x="690" y="400" font-family="Arial, sans-serif" font-size="10" fill="#1565C0">✓ SMT: 0402 to SOP-8</text>
+  <text x="690" y="415" font-family="Arial, sans-serif" font-size="10" fill="#1565C0">✓ THT: All connectors</text>
+  <text x="690" y="430" font-family="Arial, sans-serif" font-size="10" fill="#1565C0">✓ Mixed: SMT + THT</text>
+  <text x="690" y="445" font-family="Arial, sans-serif" font-size="10" fill="#1565C0">✓ U.FL: Ceramic nozzle</text>
+  <text x="690" y="460" font-family="Arial, sans-serif" font-size="10" fill="#1565C0">✓ Castellated: ESP32</text>
+  <text x="690" y="475" font-family="Arial, sans-serif" font-size="10" fill="#1565C0">✓ Jumpers: Bridged</text>
+  <text x="690" y="495" font-family="Arial, sans-serif" font-size="9" fill="#0D47A1" font-weight="bold">Excluded from assembly:</text>
+  <text x="690" y="510" font-family="Arial, sans-serif" font-size="9" fill="#1565C0">TP1-15 (test points)</text>
+  <text x="690" y="523" font-family="Arial, sans-serif" font-size="9" fill="#1565C0">D7, R22, R32 (DNF)</text>
+  <text x="690" y="536" font-family="Arial, sans-serif" font-size="9" fill="#1565C0">SJ1, SJ4, SJ5 (open)</text>
+
+  <!-- Component count verification -->
+  <rect x="680" y="570" width="190" height="80" rx="8" fill="#E8F5E9" stroke="#4CAF50" stroke-width="1"/>
+  <text x="775" y="595" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#2E7D32">✓ All 98 Components</text>
+  <text x="775" y="613" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#388E3C">accounted for in zones</text>
+  <text x="775" y="630" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">BOM + CPL verified match</text>
+
+  <!-- Routing hints -->
+  <rect x="680" y="660" width="190" height="30" rx="8" fill="#FFF8E1" stroke="#FFC107" stroke-width="1"/>
+  <text x="775" y="680" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#E65100" font-weight="bold">Verify: pcbway_bom.csv + pcbway_cpl.csv</text>
+
+</svg>
