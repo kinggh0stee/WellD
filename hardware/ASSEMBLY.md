@@ -91,7 +91,7 @@ For any gland hole you don't route a cable through, install an **M16 blanking pl
 | 4–20 mA transducer, 2-wire | 5–7 mm | M16 (4–10 mm range) ✓ |
 | DS18B20 waterproof probe lead | 4–5 mm | M16 ✓ |
 | 5W solar panel cable | 5–6 mm | M16 ✓ |
-| LiPo pigtail (JST-XH) | 3–4 mm + connector | M16 (may need small grommet) |
+| 2S1P LiPo pack cable (XT30) | 4–6 mm + connector | Right wall XT30 gland or pass-through |
 | USB-C cable | 5–8 mm | USB-C slot cutout (no gland) |
 
 ---
@@ -188,26 +188,23 @@ The PCB uses all SMD components. Refer to `hardware/pcb/bom.csv` for values and 
 1. **Paste and reflow (top side):** Apply solder paste to all F.Cu pads, place all SMD components, reflow.
    - If hand-soldering: work smallest to largest — 0402 passives → SOT-23/SOT-23-5/SOT-23-6 ICs → SOP-8/SOIC-8 ICs → ESP32 module.
 2. **Bottom side (if any):** No bottom-side components in this design.
-3. **Through-hole / tall components last:** JST-XH battery connector (J1), tactile switches (SW1, SW2), 2.54 mm headers.
+3. **Through-hole / tall components last:** AMASS XT30PW-F battery connector (J1), tactile switches (SW1, SW2), 2.54 mm headers.
 
 ### Critical assembly notes
 
 | Item | Note |
 |------|------|
-| **U7 (CN3791) PROG pin** | R19 sets solar charge current. Default 2.0 kΩ = 500 mA. Do not omit. |
+| **U7 (CN3722) PROG pin** | R19 sets solar charge current. Default 2.0 kΩ = 500 mA. Do not omit. |
 | **D6 orientation** | Cathode (marked band) toward U7 VIN. Verify ~0.3 V forward drop with multimeter in diode-test mode, probing in the solar→charger direction (red probe at J12, black at U7 VIN). Reverse polarity destroys U7 instantly. |
-| **D8 orientation** | SMAJ7.0A TVS — cathode (band) toward D6 cathode / CN3791 VIN. Clamps solar input below 11.2 V. |
-| **D5 (AO3407) orientation** | Gate to VBAT, source to battery input. Confirm orientation with markings. |
-| **U8 (TPS61023) placement** | Place L1 inductor within 3 mm of U8 SW pin. Keep C19 and C20 close to U8 VIN and VOUT respectively. |
+| **D8 orientation** | SMAJ28CA TVS — cathode (band) toward D6 cathode / CN3722 VIN. Clamps solar input transients. |
+| **D5 (AO3407) orientation** | Source toward J1 BAT+, drain toward VBAT rail. Gate pulled to GND via R31. Confirm orientation with markings. |
+| **U8 (MT3608B) placement** | Place L1 inductor within 3 mm of U8 SW pin. Keep C19 and C20 close to U8 VIN and VOUT respectively. |
 | **U9 (ADS1115) address** | ADDR pin to GND = address 0x48. Do not float ADDR. |
-| **U10 (MAX17048) ALRT** | ALRT is open-drain active-low. Pulled up internally; connects to GPIO14. |
-| **Q1 (BSS123) function** | Gate HIGH (GPIO4) → drain pulls TP4056 CE LOW → USB charging disabled. Verify gate drive level. |
-| **Q1 and Q2 part marking** | Q1 and Q2 are BSS123 (not 2N7002) — check SOT-23 body marking. Incorrect part will cause unreliable gate drive at cold temperature. |
 | **Q2 (BSS123) function** | Gate HIGH (GPIO15) → battery divider R7/R8 active. Always LOW during deep-sleep. |
 | **R28 DS18B20 VCC series** | R28 in DS18B20 VCC line — do not omit. Protects the 3.3V rail from a miswired sensor cable. |
 | **J3 (U.FL) soldering** | Reflow only — do not hand-solder. Flux generously, minimal heat. |
 | **R20/R21 MPPT divider** | Default R20=36 kΩ + R21=10 kΩ sets MPPT to 5.5 V. Change R20 to 30 kΩ for 5 V regulated panel. |
-| **R23/R24 boost feedback** | Sets VBOOST = 0.5×(1 + R23/R24). Default R23=1.1 MΩ, R24=47 kΩ → ≈12.2 V. Verify before powering VLOOP. |
+| **R23/R24 boost feedback** | Sets VBOOST = 0.6×(1 + R23/R24). Default R23=1.9 MΩ, R24=100 kΩ → 12.0 V. Verify before powering VLOOP. |
 | **Module antenna clearance** | No solder bridges, no copper pour within 15 mm of ESP32 antenna zone. |
 | **DNF components** | D2, D3, D7, R17, R18, R22 are "do not fit" in production — omit unless debugging. |
 
@@ -218,16 +215,16 @@ The PCB uses all SMD components. Refer to `hardware/pcb/bom.csv` for values and 
 - [ ] Continuity: VBAT to GND → no short
 - [ ] Continuity: VSOLAR to GND → no short
 - [ ] Check D6 orientation with diode-test mode (forward drop ~0.3 V anode→cathode)
-- [ ] Check D8 orientation (TVS cathode toward CN3791 VIN)
+- [ ] Check D8 orientation (TVS cathode toward CN3722 VIN)
 - [ ] Verify R23/R24 values before enabling VBOOST (U8 EN HIGH)
-- [ ] Confirm Q1 and Q2 are BSS123 (body marking 'B23' or '23'), not 2N7002
+- [ ] Confirm Q2 is BSS123 (body marking 'B23' or '23'), not 2N7002
 - [ ] IPA wash and hot-air dry
 
 ---
 
 ## 7. Flash firmware
 
-**Prerequisites:** ESP-IDF v5.3.5 installed and sourced ([Espressif getting-started guide](https://docs.espressif.com/projects/esp-idf/en/v5.3.5/esp32c6/get-started/)).
+**Prerequisites:** ESP-IDF v6.0.1 installed and sourced ([Espressif getting-started guide](https://docs.espressif.com/projects/esp-idf/en/v6.0.1/esp32c6/get-started/)).
 
 ```bash
 # Clone if not already present
@@ -300,14 +297,15 @@ J12 pin 1 — SOLAR+  →  solar panel positive output
 J12 pin 2 — GND     →  solar panel negative / ground
 ```
 
-- Panel voltage: **5–6.5 V nominal, Voc ≤ 7.5 V**. This is not USB 5V — use a bare panel output, not a regulated USB output that has already limited current.
-- A 5 W / 6 V rated panel (e.g. Voltaic P110 or equivalent) connected directly to J12 is correct.
+- Panel voltage: **5–25 V MPPT operating range, Voc ≤ 28 V** (CN3722 absolute max). Typical matches: 5 W / 6 V panel (Vmp ≈ 5.5 V) or 10 W / 12 V panel (Vmp ≈ 17 V). Adjust R20/R21 MPPT divider for the panel's Vmp (see `pcb/design.md` Solar Charging section).
+- This is not USB 5 V — use a bare panel output, not a regulated USB output.
 - Reverse polarity on J12 will be blocked by D6 but not corrected — verify polarity before first power-on.
 
-### LiPo battery (J1)
+### 2S1P LiPo battery (J1)
 
-- Use a single-cell LiPo, nominal 3.7 V, capacity 500 mAh–3000 mAh.
-- 2-pin JST-XH 2.5 mm connector. Verify polarity against JST marking (+ on left when looking at the PCB from component side).
+- Use a 2S1P 18650 LiPo pack, nominal 7.4 V (6.0 V discharged, 8.4 V full).
+- AMASS XT30PW-F right-angle THT connector (J1, LCSC C601498). Pin 1 = BAT+ (positive), Pin 2 = BAT−. Verify wire colours against the pack's PCM labels before mating.
+- The pack must contain an integrated PCM — there is no discrete cell protection on the PCB.
 - Do **not** connect a battery without first verifying there are no assembly shorts.
 
 ---
@@ -318,7 +316,7 @@ J12 pin 2 — GND     →  solar panel negative / ground
 2. Lower the PCB into the base, aligning the four mounting holes over the standoffs.
 3. Secure with M3 × 6 mm pan-head screws or press-fit brass inserts — 4 × M3 screws, hand-tight.
 4. Connect the U.FL to SMA pigtail SMA end to the bulkhead (tighten SMA nut finger-tight + ¼ turn with 8 mm spanner).
-5. Connect the JST-PH battery connector (J1).
+5. Connect the XT30PW-F battery connector (J1) — pin 1 = BAT+.
 6. Plug sensor connectors into J4–J7 and solar into J12.
 7. Dress internal cables — route along the PCB perimeter, secure with a small cable tie or loop of velcro strap to the nearest standoff.
 
@@ -390,7 +388,7 @@ If `water_level` reads `-1.0` or `null`, check sensor wiring and VLOOP supply.
 5. Disable permit-join once paired.
 
 **Solar charge indicator:**  
-If D7 is populated (optional DNF), it illuminates during active solar charging. The CN3791 DONE pin goes low when the battery reaches 4.2 V — the LED extinguishes.
+If D7 is populated (optional DNF), it illuminates during active solar charging. The CN3722 /CHRG pin goes high (open-drain released) when charging is complete — the LED extinguishes.
 
 ---
 
@@ -398,20 +396,18 @@ If D7 is populated (optional DNF), it illuminates during active solar charging. 
 
 ### Electrical
 - [ ] No assembly shorts — VBAT/3V3/VSOLAR/VBOOST to GND all open
-- [ ] Battery voltage reads > 3.5 V at J1 before connecting
-- [ ] +3V3 rail measures 3.28–3.32 V (TPS7A0533 ±2 %)
+- [ ] Battery voltage reads > 6.0 V at J1 before connecting (2S pack)
+- [ ] +3V3 rail measures 3.28–3.42 V (AP63205 output, per R_FBH/R_FBL selection)
 - [ ] D4 status LED visible during active phase (unless SJ3 cut)
 - [ ] ADS1115 responds on I²C at address 0x48 (scan during startup log)
-- [ ] MAX17048 responds on I²C at address 0x36 (scan during startup log)
 - [ ] VLOOP (VBOOST output) measures 12.0–12.4 V when GPIO5 driven HIGH (measure at J4/J5 VLOOP pin before attaching sensor)
-- [ ] VLOOP drops to < 0.1 V within 5 ms of GPIO5 going LOW (TPS61023 shutdown)
-- [ ] USB charging (TP4056) active when USB-C connected and GPIO4 LOW; disabled when GPIO4 HIGH
-- [ ] Charger interlock (Q1): verify solar charging takes priority — with solar panel attached and GPIO4 HIGH, TP4056 CHRG LED off
+- [ ] VLOOP drops to < 0.1 V within 5 ms of GPIO5 going LOW (MT3608B EN LOW shutdown)
+- [ ] USB charging (TP5100) active when USB-C connected and GPIO4 HIGH; disabled when GPIO4 LOW (R37 hold-off)
 
 ### Firmware
 - [ ] Serial output shows valid `level` reading (not -1.0)
 - [ ] Serial output shows valid `temperature` (not -127)
-- [ ] Serial output shows MAX17048 SoC % (e.g. `battery: 78%`)
+- [ ] Serial output shows battery voltage from ADS1115 AIN2 (e.g. `battery: 78%`)
 - [ ] Sleep duration appears in log: `sleeping 300 s`
 
 ### Zigbee

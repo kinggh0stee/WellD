@@ -78,6 +78,16 @@ menu "WellD Configuration"
             considered stalled and aborted. Prevents a hung download from
             keeping the radio alive indefinitely.
 
+    config WELLD_RTC_LOG_PRINT_ENABLED
+        bool "Print RTC event log on every wakeup"
+        default n
+        help
+            On every wakeup, emit the last 16 RTC events (boot, send,
+            fail, OTA, etc.) to the serial log.  Useful for field
+            diagnosis when the device is retrieved and monitored over USB,
+            but adds up to 17 log lines per wakeup in production.
+            Disable to keep the active-phase serial output minimal.
+
     config WELLD_SELFTEST_ENABLED
         bool "Self-test mode (peripheral health check on boot)"
         default n

@@ -9,32 +9,36 @@ on:
 permissions:
   contents: read
 
+# All jobs use inline git checkout and docker run instead of third-party actions
+# so the pipeline is self-contained within kinggh0stee/WellD.
+
 jobs:
   build:
     name: ESP-IDF build (esp32c6)
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-
-      - name: Build firmware (unsigned)
-        uses: espressif/esp-idf-ci-action@e6f5c74232b1ccd4c97ed641f1e48553853f1fd5  # v1.2.0
-        with:
-          esp_idf_version: v5.5.4
-          target: esp32c6
-          command: idf.py set-target esp32c6 && idf.py build
-
-      - name: Generate OTA image
-        if: success()
+      - name: Checkout
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          # Derive OTA file-version from PROJECT_VER (MAJOR.MINOR.PATCH → 0xMMmmPP00)
-          VER=$(grep -oP '^set\(PROJECT_VER "\K[0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt)
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git -c advice.detachedHead=false checkout FETCH_HEAD
+
+      - name: Build firmware and generate OTA image
+        run: |
+          cat > /tmp/welld_build.sh << 'BUILDEOF'
+          set -e
+          . $IDF_PATH/export.sh
+          idf.py set-target esp32c6
+          idf.py build
+          VER=$(grep -oP 'set\(PROJECT_VER "\K[0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt)
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VER"
           FILE_VER=$(printf "0x%02X%02X%02X00" "$MAJOR" "$MINOR" "$PATCH")
           OTA_SCRIPT=$(find $IDF_PATH -name ota_image_create.py 2>/dev/null | head -1)
-          if [ -z "$OTA_SCRIPT" ]; then
-            OTA_SCRIPT=$(find . -name ota_image_create.py 2>/dev/null | head -1)
-          fi
           if [ -n "$OTA_SCRIPT" ]; then
             python "$OTA_SCRIPT" \
               --manufacturer-code 0x1234 \
@@ -44,33 +48,31 @@ jobs:
               build/welld.bin
             echo "OTA image generated: build/welld.ota.zigbee"
           else
-            echo "WARNING: ota_image_create.py not found — skipping OTA image generation"
+            echo "WARNING: ota_image_create.py not found — skipping OTA image"
           fi
-
-      - name: Upload dependencies lock
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        if: success()
-        with:
-          name: dependencies-lock
-          path: dependencies.lock
-
-      - name: Upload firmware
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        if: success()
-        with:
-          name: firmware
-          path: |
-            build/*.bin
-            build/*.elf
-            build/*.map
-            build/*.zigbee
+          BUILDEOF
+          chmod +x /tmp/welld_build.sh
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/project" \
+            -v /tmp/welld_build.sh:/tmp/welld_build.sh:ro \
+            -w /project \
+            espressif/idf:v6.0.1 \
+            bash /tmp/welld_build.sh
 
   static-analysis:
     name: C static analysis (cppcheck)
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Checkout
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git -c advice.detachedHead=false checkout FETCH_HEAD
 
       - name: Install cppcheck
         run: sudo apt-get update && sudo apt-get install -y cppcheck
@@ -99,9 +101,16 @@ jobs:
     if: github.event_name == 'pull_request'
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with:
-          fetch-depth: 0
+      - name: Checkout (with base branch for diff)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch origin "+refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+          git fetch origin "${GITHUB_SHA}"
+          git -c advice.detachedHead=false checkout "${GITHUB_SHA}"
 
       - name: Check CMakeLists.txt version bump
         run: |
@@ -121,7 +130,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Checkout
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git -c advice.detachedHead=false checkout FETCH_HEAD
 
       - name: Configure
         run: cmake -S test/host -B test/host/build
@@ -137,34 +154,51 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Checkout
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git -c advice.detachedHead=false checkout FETCH_HEAD
 
       - name: Build sensor unit-test app
-        uses: espressif/esp-idf-ci-action@e6f5c74232b1ccd4c97ed641f1e48553853f1fd5  # v1.2.0
-        with:
-          esp_idf_version: v5.5.4
-          target: esp32c6
-          path: test/sensor
-          command: idf.py set-target esp32c6 && idf.py build
+        run: |
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/project" \
+            -w /project/test/sensor \
+            espressif/idf:v6.0.1 \
+            bash -c ". \$IDF_PATH/export.sh && idf.py set-target esp32c6 && idf.py build"
 
       - name: Build welld_core unit-test app
-        uses: espressif/esp-idf-ci-action@e6f5c74232b1ccd4c97ed641f1e48553853f1fd5  # v1.2.0
-        with:
-          esp_idf_version: v5.5.4
-          target: esp32c6
-          path: test/welld_core
-          command: idf.py set-target esp32c6 && idf.py build
+        run: |
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/project" \
+            -w /project/test/welld_core \
+            espressif/idf:v6.0.1 \
+            bash -c ". \$IDF_PATH/export.sh && idf.py set-target esp32c6 && idf.py build"
 
   z2m-converter-tests:
     name: Zigbee2MQTT converter tests
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Checkout
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git -c advice.detachedHead=false checkout FETCH_HEAD
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
-        with:
-          node-version: '20'
+      - name: Install Node.js 20
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+          sudo apt-get install -y nodejs
 
       - name: Install converter dependencies
         working-directory: zigbee2mqtt

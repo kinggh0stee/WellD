@@ -353,10 +353,12 @@ void app_main(void)
         s_store.magic = STORE_MAGIC;
     }
 
-    /* Print any events from previous wakeups so the serial log on this boot
-     * contains a short history (useful when the device is retrieved from the
-     * field and powered over USB for diagnosis). */
+    /* Print events from previous wakeups — useful for field diagnosis when the
+     * device is monitored over USB, but adds up to 17 log lines per production
+     * wakeup.  Gated behind CONFIG_WELLD_RTC_LOG_PRINT_ENABLED (default off). */
+#ifdef CONFIG_WELLD_RTC_LOG_PRINT_ENABLED
     rtc_log_print();
+#endif
 
     /* Initialise the I²C bus (ADS1115 only) and power-control GPIOs.
      * Must be called before any sensor_read_level() or sensor_read_battery_v(). */
@@ -367,10 +369,9 @@ void app_main(void)
     }
     s_profile.t_i2c_init = esp_timer_get_time() - t0;
 
-    /* Read the CN3791 CHRG signal (GPIO6) to determine whether solar charging
+    /* Read the CN3722 CHRG signal (GPIO6) to determine whether solar charging
      * is active. Active-low: LOW means solar charging is in progress.
-     * Reported to Zigbee coordinator via zigbee_send(); no GPIO4 interlock in
-     * the 2S hardware design (TP4056 removed). */
+     * Reported to Zigbee coordinator via zigbee_send(). */
     bool solar_charging = false;
     {
         gpio_config_t in_cfg = {
@@ -480,10 +481,7 @@ void app_main(void)
         break;
     case WELLD_FAIL_RESET:
         write_fail_count(0);
-        rtc_log_event(RTC_EVT_ZB_SENT);
-        store_clear();
-        boot_attempts_clear();
-        break;
+        /* fall through */
     case WELLD_FAIL_NONE:
         rtc_log_event(RTC_EVT_ZB_SENT);
         store_clear();

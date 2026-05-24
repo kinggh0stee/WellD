@@ -1099,6 +1099,8 @@ CONFIG_WELLD_ZIGBEE_BACKOFF_MAX_MS=500
 # default:
 CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC=240
 # default:
+# CONFIG_WELLD_RTC_LOG_PRINT_ENABLED is not set
+# default:
 # CONFIG_WELLD_SELFTEST_ENABLED is not set
 # default:
 CONFIG_WELLD_FACTORY_RESET_GPIO=13
@@ -3732,6 +3734,7 @@ CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS=2000
 # Zigbee
 #
 CONFIG_ZB_ENABLED=y
+CONFIG_ZB_SDK_1xx=y
 # CONFIG_ZB_ZCZR is not set
 CONFIG_ZB_ZED=y
 # CONFIG_ZB_ZGPD is not set
@@ -3739,12 +3742,6 @@ CONFIG_ZB_ZED=y
 CONFIG_ZB_RADIO_NATIVE=y
 # default:
 # CONFIG_ZB_RADIO_SPINEL_UART is not set
-
-#
-# Zigbee Example
-#
-# end of Zigbee Example
-
 # default:
 # CONFIG_ZB_DEBUG_MODE is not set
 # end of Zigbee

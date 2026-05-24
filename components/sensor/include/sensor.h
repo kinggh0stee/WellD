@@ -39,7 +39,6 @@ void sensor_set_offset_cm(int offset_cm);
 void sensor_offset_cache_reset(void);
 
 /* Initialise the shared I2C bus and register ADS1115 (0x48) only.
- * MAX17048 removed in 2S hardware redesign.
  * Also configures VLOOP and BATT_DIV_EN GPIO outputs and drives them LOW.
  * Must be called before any sensor_read_level() or sensor_read_battery_v(). */
 esp_err_t sensor_i2c_init(void);

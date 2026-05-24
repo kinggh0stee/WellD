@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-WellD is an ESP32-C6 battery-powered well-level monitor. Each wakeup it reads a 4–20 mA pressure transducer, a DS18B20 temperature probe, and (optionally) battery voltage, joins a Zigbee HA network as an end device, reports to Zigbee2MQTT, then deep-sleeps. Built with ESP-IDF **v5.5.4** for the RISC-V ESP32-C6.
+WellD is an ESP32-C6 battery-powered well-level monitor. Each wakeup it reads a 4–20 mA pressure transducer, a DS18B20 temperature probe, and (optionally) battery voltage, joins a Zigbee HA network as an end device, reports to Zigbee2MQTT, then deep-sleeps. Built with ESP-IDF **v6.0.1** for the RISC-V ESP32-C6.
 
 ## Commands
 
@@ -117,13 +117,12 @@ All WellD options are under `WellD Configuration` (`main/Kconfig.projbuild`); Kc
 `components/sensor/idf_component.yml` and `components/zigbee/idf_component.yml` use **exact `==` pins**, not `^`:
 
 ```
-espressif/esp-zigbee-lib: "==1.6.8"
-espressif/esp-zboss-lib:  "==1.6.4"
+espressif/esp-zigbee-lib: "==2.0.1"
 espressif/onewire_bus:    "==1.1.1"
-espressif/ds18b20:        "==0.2.0"
+espressif/ds18b20:        "==0.3.1"
 ```
 
-These libraries have rough APIs that have churned across point releases (see commits `13a5338`, `776ce6f`, `11991d8`). Bump them one at a time and run a hardware build; expect to fix API renames.
+`esp-zboss-lib` was removed as a separate dependency in 2.0.1 — zboss is now bundled inside `esp-zigbee-lib`. These libraries have rough APIs that have churned across point releases (see commits `13a5338`, `776ce6f`, `11991d8`). Bump them one at a time and run a hardware build; expect to fix API renames.
 
 ### Failure recovery semantics
 
@@ -183,9 +182,11 @@ Firmware agent → test agent → docs agent
 
 ## CI
 
-`.github/workflows/build.yml` has four jobs:
+`.github/workflows/build.yml` has six jobs:
 
-- **ESP-IDF build (esp32c6)** — runs ESP-IDF v5.5.4 in `espressif/esp-idf-ci-action` (SHA-pinned), builds the firmware, uploads `build/*.bin|elf|map` plus `dependencies.lock`.
+- **ESP-IDF build (esp32c6)** — runs ESP-IDF v6.0.1 in `espressif/esp-idf-ci-action` (SHA-pinned), builds the firmware, also generates the `.zigbee` OTA image, and uploads `build/*.bin|elf|map|zigbee` plus `dependencies.lock`.
+- **C static analysis (cppcheck)** — runs `cppcheck` over all C source files under `components/` and `main/`; fails on any warning, style, performance, or portability finding.
+- **Version bump check** — on pull requests only; fails if any `main/` or `components/` source changed without a matching bump to `PROJECT_VER` in `CMakeLists.txt`.
 - **Host unit tests** — plain `ubuntu-latest`, no Docker, no ESP-IDF. Runs the `test/host/` suite (welld_core + sensor pure helpers) via ctest. Fetches Unity at configure time.
 - **On-device unit tests (build only)** — builds `test/sensor` and `test/welld_core` for esp32c6 to catch compile breaks. The tests themselves need real hardware to execute.
 - **Zigbee2MQTT converter tests** — Node 20, runs `npm test` in `zigbee2mqtt/` against the external converter.

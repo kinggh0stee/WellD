@@ -18,6 +18,9 @@ hardware/pcb/*.bak
 hardware/pcb/*.zip
 hardware/pcb/*.net
 
+# Intermediate build artifact from generate_kicad.py netlist pipeline
+hardware/pcb/welld_netlist.xml
+
 # PCBWay manufacturing exports
 hardware/pcb/pcbway_*.csv
 hardware/pcb/pcbway_*.md
@@ -28,6 +31,17 @@ hardware/pcb/kicad-libs/
 # On-device test build artifacts
 test/*/sdkconfig
 test/sensor/dependencies.lock
+
+# KiCad ERC/DRC report artifacts
+hardware/pcb/*-erc.json
+hardware/pcb/*-drc.json
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Clangd index cache
+.cache/
 
 # IDE / local tooling
 .vscode/

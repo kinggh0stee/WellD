@@ -6,9 +6,9 @@
 |-----------|-------|
 | Module | ESP32-C6-MINI-1U (external antenna, U.FL) |
 | Form factor | 80 × 55 mm, 2-layer, 1 oz Cu |
-| Target enclosure | Custom 3D-printed case (`hardware/case/`) or Hammond 1551K equiv. |
+| Target enclosure | Custom 3D-printed parametric case (`hardware/case/welld_case.scad`) |
 | MCU supply | 3.3 V from AP63205 synchronous buck (22 µA Iq), fed from 2S LiPo |
-| Battery | 2S1P 18650 LiPo — 6.0 V (discharged) to 8.4 V (full); JST PH 2.0 mm 2-pin (J1) |
+| Battery | 2S1P 18650 LiPo — 6.0 V (discharged) to 8.4 V (full); AMASS XT30PW-F right-angle THT (J1, LCSC C601498), Pin 1=BAT+, Pin 2=BAT− |
 | Solar charging | CN3722 2S MPPT solar charger (U7), 5–25 V input, 8.4 V CV target, 500 mA |
 | Solar input | 5–25 V (Vmp 5.5 V target for 6 V panel), ≤ 28 V Voc; J12 screw terminal |
 | USB-C charging | TP5100 boost charger (U12), 5 V USB-C in → 8.4 V / 1 A out; J13 USB-C connector |
@@ -366,7 +366,7 @@ Standoff selection rationale (updated for 2S battery, 6.0–8.4 V range):
 - DO NOT substitute a unidirectional TVS on a bidirectional power rail.
 - LCSC: SMAJ10CA — verify current availability; C2836474 or equivalent DO-214AC.
 
-Place D13 within 5 mm of J1 JST PH 2.0 mm battery connector. Anode/cathode
+Place D13 within 5 mm of J1 AMASS XT30PW-F battery connector. Anode/cathode
 orientation is symmetric for bidirectional TVS — either orientation is correct.
 
 ### Power — Battery Protection (U3, U4: REMOVED)
@@ -388,10 +388,10 @@ ICs are therefore redundant and omitted.
 > bare cells.
 
 The battery connector J1 has been changed from JST XH 2.5 mm (B2B-XH-AM) to
-**JST PH 2.0 mm** (B2B-PH-K-S through-hole, or B2B-PH-SM4-TB SMD) to match the
-Arizer Solo II battery pack's connector. Polarity: pin 1 = BAT+ (positive),
-pin 2 = BAT− (negative). Verify polarity before connecting the pack — JST PH
-connectors are polarised but the wire colours on aftermarket packs may vary.
+**AMASS XT30PW-F right-angle THT** (LCSC C601498) to match the 2S1P 18650 pack
+current capacity. Polarity: pin 1 = BAT+ (positive), pin 2 = BAT− (negative).
+Verify polarity before connecting the pack — XT30 connectors are physically
+keyed (male/female) but verify wire colours against the pack's own PCM labels.
 
 > **Note on C26:** C26 (100 nF, previously added as S-8261AAYFT VCC bypass — listed
 > as "previously missing" in an earlier revision) is removed along with U3.
@@ -1055,7 +1055,7 @@ draw during active phase.
 - **Min via drill:** 0.3 mm (0.6 mm pad)
 - **Connector placement:** screw terminals on the bottom long edge; programming
   header (J10) and USB-C charging connector (J13) on the left short edge; battery
-  connector J1 (JST PH 2.0 mm) on the right short edge; U.FL and status LED on the
+  connector J1 (AMASS XT30PW-F) on the right short edge; U.FL and status LED on the
   top long edge
 - **Antenna keep-out:** 15 mm clear area around the module antenna region on both
   sides; no copper pour in this zone
@@ -1087,7 +1087,7 @@ draw during active phase.
   clamps VLOOP cable transients before they reach U8
 - **D12 1-Wire ESD clamp placement:** within 3 mm of J6 DATA terminal (pin 2);
   SOT-363 footprint; VCC pins to +3V3, GND pins to GND, IO1 to 1WIRE, IO2 no-connect
-- **D13 battery TVS placement:** within 5 mm of J1 JST PH 2.0 mm battery connector;
+- **D13 battery TVS placement:** within 5 mm of J1 AMASS XT30PW-F battery connector;
   DO-214AC SMA footprint; across VBAT_RAW (J1 BAT+ pin) and GND; bidirectional —
   either orientation correct; SMAJ10CA (10 V standoff) replaces former SMAJ5.0CA
 - **D5/R31 reverse-polarity MOSFET placement:** D5 (AO3407 SOT-23) in series on
@@ -1160,7 +1160,7 @@ draw during active phase.
   D10 SMAJ3.3CA DO-214AC (loop ch2 TVS),
   D11 SMAJ13A DO-214AC (VLOOP TVS),
   D12 PRTR5V0U2X SOT-363 (1-Wire ESD),
-  J1 JST PH 2.0 mm B2B-PH-K-S (battery connector),
+  J1 AMASS XT30PW-F right-angle THT LCSC C601498 (battery connector),
   J13 USB4135-GF-A USB-C (USB-C charging input),
   U9 ADS1115IDGST MSOP-10,
   Q2 BSS123 SOT-23 (battery divider gate),

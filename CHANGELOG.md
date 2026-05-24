@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] – 2026-05-18
 
 ### Added
-- Initial release: ESP32-C6 well-level monitor with 4–20 mA pressure transducer, DS18B20 temperature, MAX17048/ADS1115 battery monitoring.
+- Initial release: ESP32-C6 well-level monitor with 4–20 mA pressure transducer, DS18B20 temperature, ADS1115 battery monitoring.
 - Zigbee 3.0 End Device reporting to Zigbee2MQTT.
 - Adaptive sleep based on rate-of-change.
 - OTA upgrade client with dual 1.5 MB app slots.

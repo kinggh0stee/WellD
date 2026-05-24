@@ -8,7 +8,7 @@ Connect USB and open the serial monitor (`idf.py -p /dev/ttyUSB0 monitor`).
 
 ### 1. No serial output at all
 
-- **Check power:** The S-8261AAYFT protection IC cuts out below 2.9 V. Charge the battery first.
+- **Check power:** The 2S1P 18650 pack has integrated PCM that cuts out below the cell minimum voltage. Charge the battery first.
 - **Check USB cable:** Some cables are charge-only (no data lines). Try a different cable.
 - **Check bootloader baud:** ESP32-C6 boots at 115200; ensure your terminal is set correctly.
 - **Brownout reset loop:** If you see `rst:0x1 (POWERON)` repeatedly, the USB port may not supply enough current for the 12 V boost + Zigbee TX spike. Power from a charged battery while keeping USB connected for serial.
@@ -34,18 +34,12 @@ Connect USB and open the serial monitor (`idf.py -p /dev/ttyUSB0 monitor`).
 4. **NVS corruption:** After 5 failures the device erases NVS and rejoins fresh. Look for `erasing NVS to force rejoin` in the log.
 5. **Interference:** The 2.4 GHz band is crowded. Check for Wi-Fi access points on overlapping channels.
 
-### 5. `battery critically low (X.XX V < 3.00 V) — skipping send`
+### 5. `battery critically low (X.XX V < 6.00 V) — skipping send`
 
 - **Battery genuinely flat:** Charge via USB or solar.
-- **Measurement error:** If using the ADS1115 divider fallback, verify the divider ratio in Kconfig matches R12/R13.
-- **MAX17048 absent:** If the fuel gauge was not populated, the firmware falls back to the divider. Check the `battery=(divider)` log line.
+- **Measurement error:** Verify the divider ratio in Kconfig matches R7/R8 (330 kΩ / 100 kΩ, ratio 430).
 
-### 6. `MAX17048 ALRT asserted (GPIO14 LOW)`
-
-- **Low state-of-charge:** The MAX17048 asserts ALRT when SOC drops below its configured threshold (default ~4 %). Charge the battery.
-- **I²C error:** If ALRT clears fail with `device absent`, the MAX17048 may be unpopulated or have a cold solder joint.
-
-### 7. OTA issues
+### 6. OTA issues
 
 - **OTA image rejected:** Ensure `--manufacturer-code 0x1234` and `--image-type 0x0001` match the hardcoded values in `components/zigbee/zigbee.c`. Do not use `0xFFFF` wildcards.
 - **OTA stalled:** Check that the `.zigbee` file is in `/opt/zigbee2mqtt/data/ota/` and that `ota: true` is set in the converter. The stall timeout is `CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC` (default 240 s).
@@ -77,7 +71,6 @@ This is invaluable for diagnosing devices that failed in the field and are later
 | `OTA_START` | OTA download began |
 | `OTA_COMPLETE` | OTA image validated; reboot imminent |
 | `OTA_ABORT` | OTA aborted by stack or stall timeout |
-| `MAX17048_ALRT` | Low-battery alert from fuel gauge |
 
 ## Diagnostic Mode (Bench Testing)
 
@@ -97,12 +90,11 @@ If your measurement is higher:
 
 1. **GPIO leakage:** Ensure VLOOP (GPIO5), BATT_DIV_EN (GPIO15), and CHARGER_CE (GPIO4) are all driven LOW before `esp_deep_sleep()`. The firmware does this automatically in `enter_deep_sleep()`.
 2. **I²C pull-ups:** Internal pull-ups are enabled on SDA/SCL. If external pull-ups are also present, the combined resistance may leak current. Remove one set.
-3. **MAX17048 ALRT pull-up:** R27 (4.7 kΩ) leaks ~0.7 µA; this is expected and accounted for.
-4. **ADS1115 power-down:** The ADS1115 enters power-down after each single-shot conversion. If DRDY is stuck low, the device may not sleep. Check GPIO12.
+3. **ADS1115 power-down:** The ADS1115 enters power-down after each single-shot conversion. If DRDY is stuck low, the device may not sleep. Check GPIO12.
 
 ## Quick Checks Checklist
 
-- [ ] Battery voltage > 3.0 V (measure at BAT+ / BAT− terminals)
+- [ ] Battery voltage > 6.0 V (measure at BAT+ / BAT− terminals — 2S1P pack minimum safe discharge)
 - [ ] Solar charging LED (if populated) is off or on as expected
 - [ ] `idf.py monitor` shows `BOOT` → `SENSOR_OK` → `ZB_SENT` within ~10 s
 - [ ] Zigbee2MQTT logs show `Device 'WellD-v1' joined` on first pairing

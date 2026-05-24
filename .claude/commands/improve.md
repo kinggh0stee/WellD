@@ -55,8 +55,20 @@ Run Track A in full. Firmware changes are handled in Phase 2 of Track A.
 
 ---
 
+## Final Phase — Senior review (all tracks)
+
+After all other phases complete, always spawn `senior-reviewer` as the last step:
+- It diffs `main...HEAD` scoped to `hardware/pcb/`, `main/`, and `components/`
+- If none of those paths changed in this cycle, it self-skips and the cycle completes normally
+- If **CRITICAL** issues are found, **stop immediately** — surface the full report to the user and do not mark the cycle complete
+- Include the full review report in the end-of-cycle summary regardless of verdict
+
+---
+
 ## Rules for all tracks
 - Never run pcb-engineer and case-engineer on the same files simultaneously
 - Always run test-engineer before docs-writer — docs should reflect passing state only
+- Always run senior-reviewer last — after test-engineer and docs-writer, before declaring the cycle complete
 - If any agent reports a failure, stop and surface it to the user before continuing
-- At the end, summarize: what changed, what tests passed, what docs were updated, any open issues flagged
+- If senior-reviewer returns BLOCKED, do not complete the cycle — report the CRITICAL findings to the user
+- At the end, summarize: what changed, what tests passed, what docs were updated, senior-reviewer verdict, any open issues flagged

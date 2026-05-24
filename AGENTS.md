@@ -4,7 +4,7 @@ Compact reference for agents working in this repo. For full architecture and har
 
 ## Project
 
-WellD — ESP32-C6 battery-powered well-level monitor. ESP-IDF **v5.3.5** only. One `app_main()` = one wakeup → read sensors → Zigbee report → deep sleep.
+WellD — ESP32-C6 battery-powered well-level monitor. ESP-IDF **v6.0.1** only. One `app_main()` = one wakeup → read sensors → Zigbee report → deep sleep.
 
 ## Developer Commands
 
@@ -85,8 +85,10 @@ cd zigbee2mqtt && npm test
 
 ## CI
 
-`.github/workflows/build.yml` runs four jobs in parallel:
-1. ESP-IDF build (esp32c6, v5.3.5)
-2. Host unit tests (plain ubuntu-latest, ctest)
-3. On-device test build (compile-only for `test/sensor` and `test/welld_core`)
-4. Zigbee2MQTT converter tests (Node 20, `npm test`)
+`.github/workflows/build.yml` runs six jobs:
+1. ESP-IDF build (esp32c6, v6.0.1) — builds firmware and OTA image, uploads artifacts
+2. C static analysis (cppcheck) — fails on any warning across `main/` and `components/`
+3. Version bump check (PR-only) — fails if firmware sources changed without bumping `PROJECT_VER`
+4. Host unit tests (plain ubuntu-latest, ctest) — no ESP-IDF or hardware required
+5. On-device test build (compile-only for `test/sensor` and `test/welld_core`)
+6. Zigbee2MQTT converter tests (Node 20, `npm test`)

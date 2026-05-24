@@ -50,7 +50,7 @@ The table below shows which GPIO pin corresponds to which measurement channel:
 | 5 | GPIO5 | Spare |
 | 6 | GPIO6 | Spare |
 
-> Throughout this guide the examples use **GPIO0** for the transducer and **GPIO4** for the DS18B20. These are the defaults in the firmware and require no configuration changes.
+> Throughout this guide the examples use **GPIO0** for the transducer and **GPIO4** for the DS18B20. The firmware Kconfig default is **GPIO7** (custom PCB). Dev-board users should add `CONFIG_WELLD_DS18B20_GPIO=4` to their `sdkconfig.defaults.local` to match this guide.
 
 ---
 

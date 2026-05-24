@@ -8,6 +8,9 @@ CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 # ZED = Zigbee End Device (battery-powered, deep-sleeping well monitor).
 CONFIG_ZB_ENABLED=y
 CONFIG_ZB_ZED=y
+# Enable 1.x backward-compat layer in esp-zigbee-lib 2.0.x so that all
+# esp_zb_* APIs that did not change continue to compile and link.
+CONFIG_ZB_SDK_1xx=y
 
 # Watchdog — reboot if a task (e.g. Zigbee stack callback) hangs.
 CONFIG_ESP_TASK_WDT_EN=y

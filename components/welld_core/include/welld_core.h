@@ -52,12 +52,12 @@ float welld_rate_cm_per_hour(float prev_level_m,
  * sleeps (saving battery); fast-changing wells get shorter sleeps (catching
  * transients). The result is clamped to [min_sec, max_sec].
  *
- * Mapping (absolute rate, cm/h → multiplier of default_sec):
- *   < 1   (effectively static)   → 3× default
- *   < 5   (very slow drift)      → 2× default
- *   < 20  (normal)               → 1× default
- *   < 50  (rapid)                → ½× default
- *   ≥ 50  (very rapid)           → ¼× default */
+ * Five-band schedule (absolute rate, cm/h → sleep target):
+ *   < 2   (idle / recovery)      → max_sec
+ *   < 5   (slow drawdown)        → 2× default_sec
+ *   < 10  (active pumping)       → default_sec
+ *   < 20  (heavy pumping)        → ½× default_sec
+ *   ≥ 20  (rapid event / fault)  → min_sec */
 uint32_t welld_adaptive_sleep_sec(float rate_cm_per_hour,
                                   uint32_t default_sec,
                                   uint32_t min_sec,

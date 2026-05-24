@@ -60,3 +60,8 @@
 # CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED=y
 # CONFIG_WELLD_SLEEP_MIN_SEC=60
 # CONFIG_WELLD_SLEEP_MAX_SEC=1800
+
+# ---------- Diagnostics ----------
+# Print the RTC event log on every wakeup (up to 17 extra log lines).
+# Useful for field diagnosis; leave off in production to keep logs minimal.
+# CONFIG_WELLD_RTC_LOG_PRINT_ENABLED=y

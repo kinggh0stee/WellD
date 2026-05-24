@@ -93,6 +93,19 @@ def uid() -> str:
     return str(uuid.uuid4())
 
 
+# Fixed namespace for deterministic UUID generation across regenerations.
+WELLD_NAMESPACE = uuid.UUID("12345678-1234-5678-1234-567812345678")
+
+
+def stable_uid(name: str) -> str:
+    """Return a deterministic UUID5 derived from *name*.
+
+    Using a fixed namespace means the same name always produces the same UUID,
+    so schematic symbols and PCB footprints remain linked across script runs.
+    """
+    return str(uuid.uuid5(WELLD_NAMESPACE, name))
+
+
 def write(filename: str, content: str) -> None:
     path = os.path.join(HERE, filename)
     with open(path, "w", encoding="utf-8") as fh:
@@ -646,23 +659,32 @@ def sch_power_symbol(net: str, x: float, y: float, root_uuid: str = "") -> str:
 
 
 def sch_component(ref: str, value: str, lib_id: str, x: float, y: float,
-                  root_uuid: str = "") -> str:
+                  root_uuid: str = "", sheet_symbol_uuid: str = "",
+                  comp_uuid: str = "") -> str:
     footprint = get_footprint(ref)
     lcsc = LCSC_PARTS.get(ref, "")
     lcsc_prop = (
         f'\n{_p10("LCSC", lcsc, 0, 0, hidden=True)}'
         if lcsc else ""
     )
-    inst = (
-        f'\n    (instances\n'
-        f'      (project "welld"\n'
-        f'        (path "/{root_uuid}"\n'
-        f'          (reference "{ref}")\n'
-        f'          (unit 1)\n'
-        f'        )\n'
-        f'      )\n'
-        f'    )'
-    ) if root_uuid else ""
+    # Build instances block with both root and full hierarchical path
+    if root_uuid and comp_uuid:
+        inst = (
+            f'\n    (instances\n'
+            f'      (project "welld"\n'
+            f'        (path "/{root_uuid}"\n'
+            f'          (reference "{ref}")\n'
+            f'          (unit 1)\n'
+            f'        )\n'
+            f'        (path "/{root_uuid}/{sheet_symbol_uuid}/{comp_uuid}"\n'
+            f'          (reference "{ref}")\n'
+            f'          (unit 1)\n'
+            f'        )\n'
+            f'      )\n'
+            f'    )'
+        )
+    else:
+        inst = ""
     return f"""
   (symbol
     (lib_id "{lib_id}")
@@ -675,7 +697,7 @@ def sch_component(ref: str, value: str, lib_id: str, x: float, y: float,
     (in_pos_files yes)
     (dnp no)
     (fields_autoplaced yes)
-    (uuid "{uid()}")
+    (uuid "{comp_uuid}")
 {_p10("Reference", ref, x, y - 2.0, bold=True)}
 {_p10("Value", value, x, y + 2.0)}
 {_p10("Footprint", footprint, 0, 0, hidden=True)}
@@ -697,7 +719,8 @@ def hierarchical_label(net: str, x: float, y: float, shape: str = "bidirectional
 
 
 def sheet_symbol(name: str, filename: str, x: float, y: float,
-                 width: float, height: float, pins: list[tuple]) -> str:
+                 width: float, height: float, pins: list[tuple],
+                 UUIDS: dict[str, str]) -> str:
     """Generate a KiCad sheet symbol (hierarchical block) on the parent sheet.
 
     pins: list of (pin_name, direction, offset_x, offset_y)
@@ -719,13 +742,14 @@ def sheet_symbol(name: str, filename: str, x: float, y: float,
       (uuid "{uid()}")
     )"""
 
+    sheet_symbol_uuid = UUIDS[f"sheet_symbol_{name}"]
     return f"""  (sheet
     (at {sx:.2f} {sy:.2f})
     (size {width:.2f} {height:.2f})
     (fields_autoplaced yes)
     (stroke (width 0.1524) (type solid) (color 0 0 0 0))
     (fill (color 0 0 0 0.0000))
-    (uuid "{uid()}")
+    (uuid "{sheet_symbol_uuid}")
     (property "Sheet name" "{name}"
       (at {sx:.2f} {sy - 1.27:.2f} 0)
       (do_not_autoplace no)
@@ -1385,8 +1409,11 @@ def make_sch_lib_symbols() -> str:
     return custom + "\n" + "\n".join(stdlib_parts)
 
 
-def make_subsheet_sch(sheet_name: str, sheet_uuid: str, page: str = "A4") -> str:
+def make_subsheet_sch(sheet_name: str, UUIDS: dict[str, str], page: str = "A4") -> str:
     """Generate a sub-sheet .kicad_sch file for one functional block."""
+    sheet_uuid = UUIDS[f"sheet_file_{sheet_name}"]
+    sheet_symbol_uuid = UUIDS[f"sheet_symbol_{sheet_name}"]
+    root_uuid = UUIDS["root"]
     refs = SHEET_ASSIGNMENTS[sheet_name]
     comps = _filter_components(refs)
     
@@ -1397,7 +1424,8 @@ def make_subsheet_sch(sheet_name: str, sheet_uuid: str, page: str = "A4") -> str
     # Build component strings
     comps_str = ""
     for ref, value, lib_id, x, y in remapped:
-        comps_str += sch_component(ref, value, lib_id, x, y, sheet_uuid)
+        comp_uuid = UUIDS[f"component_{ref}"]
+        comps_str += sch_component(ref, value, lib_id, x, y, root_uuid, sheet_symbol_uuid, comp_uuid)
     
     # Power symbols for each sheet — positions on 1.27 mm grid
     power_str = ""
@@ -1509,9 +1537,9 @@ def make_subsheet_sch(sheet_name: str, sheet_uuid: str, page: str = "A4") -> str
     return sch
 
 
-def make_sch() -> str:
+def make_sch(UUIDS: dict[str, str]) -> str:
     """Build the main welld.kicad_sch with 4 hierarchical sheet symbols."""
-    root_uuid = uid()
+    root_uuid = UUIDS["root"]
     
     # Sheet layout — all coordinates on 1.27 mm (50-mil) grid.
     # Power top-left (25.4, 12.7), MCU top-right (177.8, 12.7),
@@ -1578,7 +1606,7 @@ def make_sch() -> str:
 
     sheets_str = ""
     for name, filename, x, y, w, h, pins in SHEETS:
-        sheets_str += sheet_symbol(name, filename, x, y, w, h, pins)
+        sheets_str += sheet_symbol(name, filename, x, y, w, h, pins, UUIDS)
 
     def wire(x1, y1, x2, y2):
         return f"""
@@ -1709,7 +1737,7 @@ PCB_COMPONENTS = [
     # J1 courtyard is X=0-13.6, Y=29-38; avoid with USB-C ICs
     # J13 goes on left edge, body inside board
     ("J13",   "Connector_USB:USB_C_Receptacle_GCT_USB4135-GF-A_6P_TopMnt_Horizontal",
-                                                           5.0,  25.0,    0, "USB-C"),
+                                                           5.0,  25.0,  180, "USB-C"),
     # CC pull-downs — within 3 mm of J13
     ("R_CC1", "Resistor_SMD:R_0402_1005Metric",          13.0,  23.0,    0, "5k1"),
     ("R_CC2", "Resistor_SMD:R_0402_1005Metric",          13.0,  26.0,    0, "5k1"),
@@ -1761,7 +1789,7 @@ PCB_COMPONENTS = [
     # -------------------------------------------------------------------------
     # LOCKED — J1 (XT30PW-F battery connector, left side)
     # -------------------------------------------------------------------------
-    ("J1",    "WellD:XT30PW-F_RightAngle",                2.0,  33.5,  270, "XT30PW-F"),
+    ("J1",    "WellD:XT30PW-F_RightAngle",                5.0,  33.5,  270, "XT30PW-F"),
 
     # -------------------------------------------------------------------------
     # Zone 2 — MCU (center, X=32..66, Y=2..38)
@@ -1848,18 +1876,18 @@ PCB_COMPONENTS = [
                                                           73.0,   6.0,  180, "Solar"),
     # Solar TVS at J12 terminal
     ("D14",   "Diode_SMD:D_SMA",                          65.0,   6.0,    0, "SMAJ28CA"),
-    # 4-20mA channel 1
+    # 4-20mA channel 1 — right edge, clear of SW island
     ("J4",    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
-                                                          73.0,  18.0,  180, "4-20mA_1"),
+                                                           76.0,  10.0,  180, "4-20mA_1"),
     # 4-20mA channel 2
     ("J5",    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
-                                                          73.0,  30.0,  180, "4-20mA_2"),
+                                                           76.0,  22.0,  180, "4-20mA_2"),
     # DS18B20 sensor
     ("J6",    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
-                                                          73.0,  42.0,  180, "DS18B20"),
+                                                           76.0,  34.0,  180, "DS18B20"),
     # Spare sensor
     ("J7",    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
-                                                          73.0,  50.0,  180, "Spare"),
+                                                           76.0,  46.0,  180, "Spare"),
 
     # -------------------------------------------------------------------------
     # Zone 5 — Support / Interfaces (bottom center, X=32..66, Y=38..53)
@@ -1903,7 +1931,7 @@ PCB_COMPONENTS = [
 
     # Test points — scattered along bottom strip Y=50..53, X=2..55
     # (avoid J3 courtyard X=34.24-45.76, and J7 at Y=50)
-    ("TP1",   "TestPoint:TestPoint_Pad_1.0x1.0mm",        3.0,  52.0,    0, "VBAT"),
+    ("TP1",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       10.0,  52.0,    0, "VBAT"),
     ("TP2",   "TestPoint:TestPoint_Pad_1.0x1.0mm",        7.0,  52.0,    0, "VLOOP"),
     ("TP3",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       11.0,  52.0,    0, "+3V3"),
     ("TP4",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       15.0,  52.0,    0, "GND"),
@@ -2125,7 +2153,8 @@ def _build_net_codes() -> dict[str, int]:
 
 def pcb_footprint(ref: str, fp: str, x: float, y: float, rot: float, value: str,
                   net_map: dict | None = None,
-                  net_codes: dict | None = None) -> str:
+                  net_codes: dict | None = None,
+                  UUIDS: dict[str, str] | None = None) -> str:
     """
     Generate a KiCad 10 footprint placement.
 
@@ -2135,6 +2164,21 @@ def pcb_footprint(ref: str, fp: str, x: float, y: float, rot: float, value: str,
     """
     layer = "F.Cu"
     pads_str = ""
+
+    # Determine component UUID and schematic path
+    if UUIDS:
+        comp_uuid = UUIDS.get(f"component_{ref}", uid())
+        root_uuid = UUIDS.get("root", "")
+        # Find which sheet this component belongs to
+        sheet_symbol_uuid = ""
+        for sheet_name, refs in SHEET_ASSIGNMENTS.items():
+            if ref in refs:
+                sheet_symbol_uuid = UUIDS.get(f"sheet_symbol_{sheet_name}", "")
+                break
+        path_str = f'\n    (path "/{root_uuid}/{sheet_symbol_uuid}/{comp_uuid}")' if (root_uuid and sheet_symbol_uuid) else ""
+    else:
+        comp_uuid = uid()
+        path_str = ""
 
     mod_path = _find_kicad_mod(fp)
     if mod_path and net_map is not None and net_codes is not None:
@@ -2160,7 +2204,7 @@ def pcb_footprint(ref: str, fp: str, x: float, y: float, rot: float, value: str,
 
     return f"""
   (footprint "{fp}" (layer "{layer}") (at {x:.3f} {y:.3f} {rot:.1f})
-    (uuid "{uid()}")
+    (uuid "{comp_uuid}")
     (property "Reference" "{ref}" (at 0 -1.5 0) (layer "F.SilkS")
       (uuid "{uid()}")
       (effects (font (size 0.8 0.8) (thickness 0.12)))
@@ -2168,7 +2212,7 @@ def pcb_footprint(ref: str, fp: str, x: float, y: float, rot: float, value: str,
     (property "Value" "{value}" (at 0 1.5 0) (layer "F.Fab")
       (uuid "{uid()}")
       (effects (font (size 0.8 0.8) (thickness 0.12)))
-    ){pads_str}
+    ){path_str}{pads_str}
   )"""
 
 
@@ -2218,9 +2262,9 @@ def pcb_board_outline() -> str:
 
 def pcb_thermal_zone_u7() -> str:
     """
-    GND thermal copper pour for U7 (CN3791, SOIC-8) at PCB position (60, 10).
+    GND thermal copper pour for U7 (CN3722, SOIC-8) at PCB position (60, 10).
     10x10 mm solid GND pour on F.Cu and B.Cu connected via thermal vias.
-    Per design.md: reduces effective theta_JA to 50-60 C/W for CN3791.
+    Per design.md: reduces effective theta_JA to 50-60 C/W for CN3722.
     Zone corners: (55, 5) to (65, 15) centred on U7 at (60, 10).
     Four thermal vias: 0.6mm drill, 1.0mm pad, spaced 2mm inside the zone.
     """
@@ -2338,7 +2382,8 @@ def pcb_u8_gnd_viastitch() -> str:
     return vias_str + silk_label
 
 
-def make_pcb(net_map: dict | None = None, net_codes: dict | None = None) -> str:
+def make_pcb(net_map: dict | None = None, net_codes: dict | None = None,
+             UUIDS: dict[str, str] | None = None) -> str:
     """Build the complete welld.kicad_pcb s-expression string.
 
     When net_map and net_codes are provided (from the kicad-cli netlist pipeline),
@@ -2361,7 +2406,7 @@ def make_pcb(net_map: dict | None = None, net_codes: dict | None = None) -> str:
     footprints = ""
     for ref, fp, x, y, rot, value in PCB_COMPONENTS:
         footprints += pcb_footprint(ref, fp, x + ox, y + oy, rot, value,
-                                    net_map, net_codes)
+                                    net_map, net_codes, UUIDS)
 
     # Thermal copper pours and via stitching
     thermal_u7 = pcb_thermal_zone_u7()
@@ -2576,12 +2621,22 @@ def make_sym_lib_table() -> str:
 def main():
     print("Generating KiCad 10 project files …")
 
+    # ── Build stable UUID registry (deterministic across runs) ────────────
+    UUIDS: dict[str, str] = {}
+    UUIDS["root"] = stable_uid("root")
+    for sheet_name in ["power", "mcu", "sensors", "interfaces"]:
+        UUIDS[f"sheet_symbol_{sheet_name}"] = stable_uid(f"sheet_symbol_{sheet_name}")
+        UUIDS[f"sheet_file_{sheet_name}"] = stable_uid(f"sheet_file_{sheet_name}")
+    for ref, _, _, _, _ in COMPONENTS:
+        UUIDS[f"component_{ref}"] = stable_uid(f"component_{ref}")
+    print(f"  UUID registry: {len(UUIDS)} entries")
+
     print("\n[1/4] welld.kicad_pro")
     write("welld.kicad_pro", make_pro())
 
     print("\n[2/4] Hierarchical schematics")
     # Main sheet
-    write("welld.kicad_sch", make_sch())
+    write("welld.kicad_sch", make_sch(UUIDS))
     sch_path = os.path.join(HERE, "welld.kicad_sch")
     result = subprocess.run(
         ["kicad-cli", "sch", "upgrade", "--force", sch_path],
@@ -2594,9 +2649,8 @@ def main():
     
     # Sub-sheets
     for sheet_name in ["power", "mcu", "sensors", "interfaces"]:
-        sheet_uuid = uid()
         fname = f"{sheet_name}.kicad_sch"
-        write(fname, make_subsheet_sch(sheet_name, sheet_uuid))
+        write(fname, make_subsheet_sch(sheet_name, UUIDS))
         spath = os.path.join(HERE, fname)
         subprocess.run(
             ["kicad-cli", "sch", "upgrade", "--force", spath],
@@ -2619,7 +2673,7 @@ def main():
               + (f"; no schematic entry for: {missing}" if missing else ""))
 
     print("\n[3/4] welld.kicad_pcb")
-    write("welld.kicad_pcb", make_pcb(net_map, net_codes))
+    write("welld.kicad_pcb", make_pcb(net_map, net_codes, UUIDS))
 
     print("\n[4/4] Symbol library")
     write("welld.kicad_sym", make_sym_lib())
