@@ -110,24 +110,53 @@ tab_w       = 8;     // tab Z extent, mm — halved so both tabs stay inside ext
 tab_hole_d  = 5;     // hole through tab for M5 screw or cable tie, mm
 tab_offset  = 4;     // half-gap from shell midpoint to tab centre (Z), mm
 
-// External antenna (SMA female bulkhead on back wall)
-//   U.FL connector J3 is at PCB Y ≈ 53 mm (2 mm from PCB back edge, Y = 55 mm).
-//   The back wall inner face is at enclosure Y = ext_d - wall = 57.5 mm.
-//   Pigtail run: PCB J3 → back-wall bulkhead ≈ 4–5 mm + routing arc → ~100 mm pigtail is ample.
-//   A U.FL-to-SMA pigtail (~100 mm RG178) runs from J3 on the PCB to the bulkhead.
-//   Set ext_antenna = false to omit the hole and use the on-module chip antenna instead.
-ext_antenna      = true;   // include SMA bulkhead hole on back wall
-sma_hole_d       = 6.5;    // SMA panel-mount thread clearance hole, mm
-                            // (SMA thread OD = 6.35 mm = 1/4-36 UNS; 6.5 mm is snug clearance)
-// Horizontal position of the SMA hole on the back wall (from left outer edge).
-// U.FL (J3) is at PCB X ≈ 40 mm, which is enclosure X = wall + 40 = 42.5 mm.
-sma_x           = 42.5;    // mm from case left outer edge
-// Vertical position of the SMA hole — mid-height of the base shell
-// Inlined to avoid forward-reference of ext_h_base (defined further below)
-sma_z           = (wall + floor_h + pcb_t + top_clear) / 2;
+// SMA passthrough cutout — bottom wall (Y=0 face)
+//   J3 (Amphenol 132289 edge-launch SMA) sits on the bottom PCB edge, centred at
+//   X=40 mm from the left board edge → enclosure X = wall + 40 = 42.5 mm.
+//   The SMA barrel protrudes 3.04 mm past the board bottom edge and exits through
+//   the bottom wall of the enclosure.  The rubber-duck antenna screws directly onto
+//   J3 from outside — no panel-mount bulkhead, no pigtail exits the case.
+//   W1 (~50 mm internal pigtail, U.FL on ESP32 module → J3) is routed entirely
+//   inside the enclosure within the top_clear zone.
+//
+//   Hole diameter 10.5 mm provides snug clearance for the Amphenol 132289 boss
+//   (~9.52 mm hex, outer boss ≈ 9.5 mm).  10.5 mm gives ~0.5 mm radial clearance,
+//   sufficient for clean barrel entry while maintaining wall contact for support.
+//
+//   Z centre aligned with PCB mid-thickness (edge-launch pin centreline):
+//     sma_z = pcb_z + pcb_t/2 = 24.5 + 0.8 = 25.3 mm
+//   (Inlined to avoid forward-reference of pcb_z / pcb_t which are derived below.)
+sma_hole_d       = 10.5;   // SMA passthrough clearance hole diameter, mm
+// sma_x and sma_z are derived in the derived-dimensions block below.
 
-// Back-wall solar cable gland X position (moved left to make room for SMA)
-solar_cg_x_frac = 0.25;   // fraction of ext_w; 0.25 × 85 = ~21 mm from left
+// XT30PW-F battery connector cutout — left wall (X=0 face)
+//   AMASS XT30PW-F (LCSC C601498), right-angle THT female.
+//   Board-relative position: X=5.6 mm, Y=33.5 mm from board top edge, rotation=180°.
+//   Mating face points toward the left wall (X=0 in enclosure coords).
+//
+//   Connector body: ~18 mm long (along board X), ~10 mm wide (along board Y),
+//   ~9 mm tall above PCB surface.
+//
+//   Enclosure-coordinate mapping:
+//     Y_enc = wall + (pcb_d - 33.5) = 2.5 + 21.5 = 24.0 mm
+//       (board Y=33.5 from top = 21.5 mm from bottom edge)
+//     Z_enc = pcb_z + pcb_t/2 = 24.5 + 0.8 = 25.3 mm (PCB mid-plane)
+//
+//   Slot: 14 mm (Y) × 12 mm (Z), centred on (Y_enc=24.0, Z_enc=25.3).
+//     Y range: 17.0 – 31.0 mm
+//     Z range: 19.3 – 31.3 mm
+//
+//   Note: the USB-C slot (Y=25–35, Z=24.5–29.5) partially overlaps this cutout in
+//   the region Y=25–31, Z=24.5–29.5.  In OpenSCAD both are boolean subtractions so
+//   they simply produce a merged opening — both connectors remain accessible.
+//   14 mm slot height provides ample margin for the XT30 plug body (~10 mm wide).
+xt30_y_enc   = wall + (pcb_d - 33.5);  // 24.0 mm — connector Y centre in enclosure
+xt30_z_enc   = pcb_z + pcb_t / 2;      // 25.3 mm — PCB mid-plane (same as sma_z)
+xt30_slot_h  = 14;   // slot height along Y axis, mm
+xt30_slot_v  = 12;   // slot height along Z axis, mm
+
+// Back-wall solar cable gland X position (centred; SMA is now on bottom wall, not back wall)
+solar_cg_x_frac = 0.5;    // fraction of ext_w; 0.5 × 85 = 42.5 mm from left (centred)
 
 // ── Concrete lid underside mounting ──────────────────────────────────────────
 //   When concrete_mount = true the lid grows four corner wings, each with an
@@ -184,6 +213,13 @@ pcb_z = wall + floor_h;            // 2.5 + 22 = 24.5 mm from enclosure base
 
 // Z-coordinate of PCB top face
 pcb_top_z = pcb_z + pcb_t;         // 26.1 mm
+
+// SMA passthrough cutout position on the bottom wall (Y=0 face).
+//   X: J3 is at X=40 mm from the left board edge → enclosure X = wall + 40 mm.
+//   Z: edge-launch SMA pin centreline = PCB mid-thickness above the floor zone.
+//      pcb_z + pcb_t/2 = 24.5 + 0.8 = 25.3 mm
+sma_x = wall + 40;          // 42.5 mm from case left outer edge
+sma_z = pcb_z + pcb_t / 2; // 25.3 mm — edge-launch SMA pin centreline
 
 // Z-centre of the USB-C slot on the left wall
 usbc_z_centre = pcb_z + usbc_z_pcb + usbc_h / 2;   // 24.5 + 0 + 2.5 = 27.0 mm
@@ -416,14 +452,49 @@ module base() {
         batt_wire_channels();
 
         // ── Bottom-wall (Y=0 face) cable gland holes ─────────────────────
-        // Three M16 glands evenly spaced across pcb_w, centred on terminal height.
-        // 5× M16 (20.5 mm) in 80 mm is physically impossible (holes overlap).
-        // 3× M16: spacing = 80/3 = 26.7 mm, leaving 6.2 mm wall between holes.
-        cg_spacing = pcb_w / 3;   // ~26.7 mm between centres across the 80 mm span
-        for (i = [0:2]) {
-            cg_cx = wall + cg_spacing * i + cg_spacing / 2;
-            cg_hole(cg_cx, 0, cg_z_bottom, "y");
-        }
+        // Three M16 glands for: 4-20 mA transducer cable, DS18B20 1-wire, solar/spare.
+        // The SMA passthrough cutout occupies X=42.5 mm on this same wall, so gland
+        // positions are shifted left and right to clear it.
+        //
+        // Available X span (enclosure interior): wall=2.5 mm to ext_w-wall=82.5 mm.
+        // SMA centre at X=42.5 mm with 10.5 mm hole → exclusion zone X≈37.25–47.75 mm.
+        // M16 hole radius = 10.25 mm; minimum gland centre distance from SMA edge:
+        //   |cg_cx - sma_x| ≥ (m16_hole/2 + sma_hole_d/2 + 1) = 10.25+5.25+1 = 16.5 mm
+        //   → cg_cx ≤ 26.0 mm  or  cg_cx ≥ 59.0 mm
+        //
+        // Chosen positions (clear of SMA, clear of each other, within wall):
+        //   Gland 0 (left):   X = 15.0 mm  (4-20 mA transducer)
+        //   Gland 1 (centre-left): X = 27.5 mm  (DS18B20 1-wire + GND)
+        //   Gland 2 (right):  X = 70.0 mm  (spare / future sensor)
+        // Centre-to-centre check:
+        //   0↔1: |27.5-15.0|=12.5 mm ≥ m16_hole+1=21.5? NO — use 3-zone split instead.
+        //
+        // With only 80 mm of wall width and m16_hole=20.5 mm diameter, three M16 glands
+        // can fit left-of-SMA and right-of-SMA if we place two on the left side and one
+        // on the right, ensuring ≥1 mm of solid wall between any two holes:
+        //   Min c-to-c between two M16s: 20.5 + 1 = 21.5 mm
+        //   Left zone X=2.5..26.0: can fit ONE gland at X≈14.25 (centre of left zone)
+        //   Right zone X=59.0..82.5: can fit ONE gland at X≈70.75
+        //   A third gland: place on the right at X≈14.25 (left zone, ONLY one fits here)
+        //
+        // Practical solution: two glands left-of-SMA as far left as possible, one right.
+        //   Gland 0: X = wall + m16_hole/2 + 0.5 = 2.5 + 10.25 + 0.5 = 13.25 mm
+        //   Gland 1: X = 13.25 + 21.5 = 34.75 mm — but 34.75 < 37.25 (SMA excl zone edge)
+        //             → this still leaves only 37.25-34.75=2.5 mm gap (10.25+5.25=15.5 vs 8)
+        //             — overlap! Two M16s left-of-SMA require 2×21.5=43 mm; left zone is
+        //             only 23.5 mm wide. Only ONE M16 fits left of the SMA.
+        //
+        // Final layout — one gland each side of SMA plus one gland on the back wall:
+        //   Gland 0 (bottom-wall, left):  X = 20.0 mm  (4-20 mA transducer cable)
+        //   Gland 1 (bottom-wall, right): X = 65.0 mm  (DS18B20 1-wire + GND cable)
+        //   Gland 2 (back-wall): already present as solar cable gland.
+        // Clearance checks (gland radius 10.25 mm, SMA radius 5.25 mm):
+        //   Gland 0 ↔ SMA: |42.5-20.0|=22.5 mm ≥ 10.25+5.25+1=16.5 mm ✓
+        //   Gland 1 ↔ SMA: |65.0-42.5|=22.5 mm ≥ 16.5 mm ✓
+        //   Gland 0 ↔ left wall: 20.0-2.5=17.5 mm from outer edge; ≥10.25 ✓
+        //   Gland 1 ↔ right wall: 82.5-65.0=17.5 mm from outer edge; ≥10.25 ✓
+        cg_hole(20.0, 0, cg_z_bottom, "y");   // 4-20 mA transducer cable
+        cg_hole(65.0, 0, cg_z_bottom, "y");   // DS18B20 1-wire + GND cable
 
         // ── Left-wall: USB-C connector slot (J13, USB4135-GF-A) ─────────────────
         // Slot: 10 mm wide (Y), 5 mm tall (Z), centred on PCB Y-midline.
@@ -431,6 +502,18 @@ module base() {
         // usbc_z_centre is computed in the derived-dimensions block above.
         translate([-eps, ext_d / 2 - usbc_w / 2, usbc_z_centre - usbc_h / 2])
             cube([wall + 2 * eps, usbc_w, usbc_h]);
+
+        // ── Left-wall: XT30PW-F battery connector cutout ────────────────────────
+        // AMASS XT30PW-F (LCSC C601498) right-angle THT female at board-relative
+        // X=5.6 mm, Y=33.5 mm from board top, rotation=180° (mating face → left wall).
+        // Enclosure Y centre: wall + (pcb_d - 33.5) = 24.0 mm
+        // Enclosure Z centre: pcb_z + pcb_t/2 = 25.3 mm (PCB mid-plane)
+        // Slot: 14 mm (Y) × 12 mm (Z) gives ≥2 mm margin around the 10 mm plug body.
+        // See parameter block above for full derivation and USB-C overlap note.
+        translate([-eps,
+                   xt30_y_enc - xt30_slot_h / 2,
+                   xt30_z_enc - xt30_slot_v / 2])
+            cube([wall + 2 * eps, xt30_slot_h, xt30_slot_v]);
 
         // ── Left-wall programming header cable gland ─────────────────────────────
         // Y-offset toward the back wall to avoid merging with the USB-C slot.
@@ -443,19 +526,23 @@ module base() {
             cg_hole(0, prog_cy, prog_cz, "x", prog_gland_d);
         }
 
-        // ── Back-wall (Y=ext_d face): solar cable gland + SMA antenna ────
-        // Solar gland: offset left (quarter-width) to leave room for SMA.
+        // ── Back-wall (Y=ext_d face): solar cable gland ──────────────────
+        // Solar gland: centred in X (SMA is now on the bottom wall, not back wall).
         cg_hole(ext_w * solar_cg_x_frac, ext_d, ext_h_base / 2, "y");
 
-        // SMA female bulkhead hole: centred on J3 (U.FL) X position.
-        // The U.FL-to-SMA RG178 pigtail (~100 mm) runs from J3 on the PCB
-        // to this bulkhead.  An external rubber-duck or whip antenna threads
-        // onto the SMA from outside the enclosure.
-        if (ext_antenna) {
-            translate([sma_x, ext_d, ext_h_base / 2])
-                rotate([90, 0, 0])
-                    cylinder(d = sma_hole_d, h = wall * 4, center = true, $fn = 48);
-        }
+        // ── Bottom-wall (Y=0 face): SMA passthrough cutout ────────────────
+        // J3 (Amphenol 132289 edge-launch SMA) is centred at X=40 mm from the
+        // left board edge.  The SMA barrel protrudes 3.04 mm past the board
+        // bottom edge and exits through this wall.  The rubber-duck antenna
+        // threads directly onto J3 from outside — no bulkhead fitting, no pigtail.
+        //
+        // Hole: 10.5 mm Ø, punched along the Y axis through the full wall (2.5 mm).
+        // Z centre: pcb_z + pcb_t/2 = 25.3 mm (edge-launch pin centreline).
+        // X centre: wall + 40 = 42.5 mm (J3 X position in enclosure coords).
+        //
+        // cg_hole() centres the punch on (cx, cy, cz) and extends ±wall*2 each
+        // side along the chosen axis, so it cleanly penetrates the 2.5 mm wall.
+        cg_hole(sma_x, 0, sma_z, "y", sma_hole_d);
 
         // ── M3 lid screw through-holes in top rim (corner bosses) ─────────
         // These are the clearance holes through the boss top into the insert bore.
@@ -639,13 +726,15 @@ if (SHOW_GASKET) {
 // 4× M3 brass threaded inserts for PCB standoffs (press-fit, 3 mm OD bore)
 // 1× 2S1P 18650 battery pack (Sinowatt GR 3350 mAh from Arizer Solo II,
 //    ~40×70×21 mm, 7.2 V nominal, JST PH 2.0 mm 2-pin connector)
-// 3× M16 cable glands (bottom wall — 4-20 mA transducer, DS18B20 1-wire, GND/power)
+// 2× M16 cable glands (bottom wall — X=20 mm: 4-20 mA transducer cable; X=65 mm: DS18B20 1-wire + GND)
+//    NOTE: third gland moved to back wall (solar) to clear the SMA cutout at X=42.5 mm
 // 1× USB-C slot cutout (left wall — J13 USB4135-GF-A, 5 V charging input; no gland, connector flush)
+// 1× XT30PW-F plug clearance slot (left wall — J1 battery connector, 14×12 mm slot at Y=17–31 mm, Z=19.3–31.3 mm)
 // 1× M16 cable gland (left wall — programming/debug cable; offset toward back wall, Y ≈ 46.5 mm)
 // 1× M16 cable gland (back wall — solar panel cable)
-// 1× SMA female bulkhead connector (back wall, IP67 rated; e.g. Amphenol RF 132289)
-// 1× U.FL to SMA female pigtail, ~100 mm, RG178 (e.g. Taoglas CAB.100.07.0100B)
-// 1× 2.4 GHz omnidirectional SMA antenna (rubber duck, 2 dBi, e.g. Taoglas FXP73)
+// 1× 2.4 GHz rubber-duck SMA antenna (screws directly onto J3 through bottom-wall cutout,
+//    e.g. Taoglas FXP73 or equivalent; no bulkhead fitting required)
+// 1× W1 U.FL-to-SMA internal pigtail, ~50 mm, RG178 (ESP32 U.FL → J3 on PCB, fully internal)
 // 1× TPU 95A gasket (printed from SHOW_GASKET export — replaces silicone sealant bead)
 // For concrete_mount variant additionally:
 // 4× M6×50 stainless anchor bolts (e.g. Hilti HUS3-H 6×50 or Rawlplug R-HPT6)

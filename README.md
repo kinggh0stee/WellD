@@ -64,8 +64,19 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 |----------|------|------------------------|
 | LOOP+ / LOOP− | 4–20 mA transducer, two-wire | D9 / D10 SMAJ3.3CA bidirectional TVS (200 W, DO-214AC); D11 SMAJ13A unidirectional TVS on VLOOP; D1 PRTR5V0U2X rail clamp at ADS1115 inputs |
 | 1W DATA / GND | DS18B20 data + ground | D12 PRTR5V0U2X dual-channel rail clamp (SOT-363) — 0.5 pF added capacitance, well below the 800 pF 1-Wire add limit |
-| BAT+ / BAT−   | 2S1P 18650 pack (6.0–8.4 V, JST PH 2.0 mm) | D13 SMAJ10CA bidirectional TVS (200 W, DO-214AC) at terminal — 10 V standoff above 8.4 V full charge; D5 AO3407 P-ch MOSFET in series on BAT+ for reverse-polarity protection (RDS(on) max 55 mΩ); R31 10 kΩ gate-to-GND pull-down holds D5 in a defined on-state |
+| BAT+ / BAT−   | 2S1P 18650 pack (6.0–8.4 V) via **AMASS XT30PW-F** right-angle THT connector (J1, LCSC C601498; pin 1 = BAT+, pin 2 = BAT−) | D13 SMAJ10CA bidirectional TVS (200 W, DO-214AC) at terminal — 10 V standoff above 8.4 V full charge; D5 AO3407 P-ch MOSFET in series on BAT+ for reverse-polarity protection (RDS(on) max 55 mΩ); R31 10 kΩ gate-to-GND pull-down holds D5 in a defined on-state |
 | SOLAR+/−      | Solar panel, 5–25 V Vmp, ≤ 28 V Voc | D14 SMAJ28CA bidirectional TVS (400 W, DO-214AC) — 28 V standoff compatible with CN3722 wide-range MPPT input |
+
+### RF / antenna
+
+The ESP32-C6-MINI-1U-H4 module exposes a U.FL RF port. A ~50 mm internal pigtail — **Taoglas CAB.100.07.0050B** (U.FL female to SMA male, RG178 coax) — connects the module to **J3**, an **Amphenol 132289** SMD edge-launch SMA connector on the bottom board edge. PCBWay hand-attaches the pigtail after reflow. An external 2.4 GHz SMA antenna (e.g. Taoglas FXP73 rubber-duck, 2 dBi) screws directly onto J3.
+
+### Assembly notes (PCBWay)
+
+- **J4, J5, J6, J7, J12** — Phoenix Contact MC 1.5/x-G-3.5 THT terminal blocks, wave-soldered.
+- **J10** — 1.27 mm pitch THT vertical programming header (6-pin), wave-soldered.
+- **J8, J9** (expansion headers) — **DNF** (do not populate) on all production boards. Footprints are present on the PCB for future use; no components are installed.
+- **J3** pigtail — hand-attached by PCBWay post-reflow; not wave-soldered.
 
 ### 4–20 mA loop
 
@@ -101,7 +112,7 @@ The enclosure is designed in [`hardware/case/welld_case.scad`](hardware/case/wel
 
 ### Prerequisites
 
-- ESP-IDF **v5.5.4** installed and sourced — see the [Espressif getting-started guide](https://docs.espressif.com/projects/esp-idf/en/v5.5.4/esp32c6/get-started/)
+- ESP-IDF **v6.0.1** installed and sourced — see the [Espressif getting-started guide](https://docs.espressif.com/projects/esp-idf/en/v6.0.1/esp32c6/get-started/)
 - Custom PCB (or dev board — see legacy section below)
 
 ### Build and flash
@@ -189,6 +200,7 @@ All options have sensible defaults. Only change what differs from your hardware.
 | `CONFIG_WELLD_DIAGNOSTIC_STAY_AWAKE_SEC` | `60` | Stay-awake window when diagnostic mode is enabled (seconds, 10–300). Depends on `WELLD_DIAGNOSTIC_MODE_ENABLED` |
 | `CONFIG_WELLD_ZIGBEE_BACKOFF_MAX_MS` | `500` | Random delay before Zigbee network steering on each wakeup (0–5000 ms). Jitters start time to avoid simultaneous steering from multiple devices after a power outage |
 | `CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC` | `240` | Maximum wall-clock time an OTA download may take before it is considered stalled and aborted (60–600 s) |
+| `CONFIG_WELLD_RTC_LOG_PRINT_ENABLED` | `n` | Print RTC event log on wakeup — enable when diagnosing a retrieved device over USB; leave off in production |
 
 ---
 
@@ -437,9 +449,11 @@ CI builds these to catch compile breaks but cannot execute them (real hardware n
 
 ### CI
 
-`.github/workflows/build.yml` runs four jobs in parallel:
+`.github/workflows/build.yml` runs six jobs:
 
-- **ESP-IDF build** — v5.5.4, `esp32c6`, uploads `*.bin`, `*.elf`, `*.map`, `dependencies.lock`
+- **ESP-IDF build** — v6.0.1, `esp32c6`, builds firmware and OTA image, uploads `*.bin`, `*.elf`, `*.map`, `*.zigbee`, `dependencies.lock`
+- **C static analysis** — cppcheck over all `main/` and `components/` C sources; fails the build on any finding
+- **Version bump check** — PR-only gate; fails if firmware sources changed without bumping `PROJECT_VER` in `CMakeLists.txt`
 - **Host unit tests** — plain `ubuntu-latest`, ctest, fetches Unity v2.6.0
 - **On-device test build** — compile-only check for `test/sensor` and `test/welld_core`
 - **Z2M converter tests** — Node 20, `npm test` in `zigbee2mqtt/`

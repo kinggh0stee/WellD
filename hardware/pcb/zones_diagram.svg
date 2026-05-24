@@ -47,7 +47,7 @@
 
   <rect x="95" y="252" width="161" height="40" rx="4" fill="#FFE0B2" stroke="#FF9800" stroke-width="1" opacity="0.7"/>
   <text x="175" y="267" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#E65100">Battery + Protection</text>
-  <text x="175" y="282" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#BF360C">J1 · D13 · D5(AO3407) · R31</text>
+  <text x="175" y="282" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#BF360C">J1(XT30PW-F) · D13 · D5(AO3407) · R31</text>
 
   <rect x="95" y="297" width="161" height="55" rx="4" fill="#FFE0B2" stroke="#FF9800" stroke-width="1" opacity="0.7"/>
   <text x="175" y="312" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#E65100">VLOOP 12V Boost</text>
@@ -95,7 +95,7 @@
   <!-- === ZONE 4: SUPPORT / INTERFACES (BOTTOM CENTER) === -->
   <rect x="270" y="205" width="195" height="75" rx="6" fill="#F3E5F5" stroke="#9C27B0" stroke-width="2" opacity="0.9"/>
   <text x="367" y="220" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#4A148C">SUPPORT (8)</text>
-  <text x="367" y="235" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#6A1B9A">J8(I2C) · J9(GPIO) · J10(PROG) · J3(U.FL)</text>
+  <text x="367" y="235" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#6A1B9A">J8(I2C) · J9(GPIO) · J10(PROG) · J3(SMA Amphenol 132289)</text>
   <text x="367" y="248" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#6A1B9A">R9·R10 (I2C pull-ups)</text>
   <text x="367" y="261" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#6A1B9A">SJ2(VLOOP bus) · SJ3(LED en)</text>
 
@@ -103,8 +103,8 @@
   <rect x="88" y="318" width="544" height="119" rx="6" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2" opacity="0.9"/>
   <text x="360" y="338" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#1B5E20">CONNECTORS — Board Edge (All THT + SMT Mixed Assembly)</text>
   <text x="360" y="355" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#2E7D32">J4·J5·J6·J7 (Phoenix 3-pin, 3.5mm) · J12 (Solar 2-pin)</text>
-  <text x="360" y="370" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#2E7D32">J13 (USB-C) · J1 (LiPo JST) · J10 (1.27mm PROG)</text>
-  <text x="360" y="385" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#2E7D32">J8 (I2C) · J9 (GPIO) · J3 (U.FL Antenna — machine-placed)</text>
+  <text x="360" y="370" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#2E7D32">J13 (USB-C) · J1 (LiPo XT30PW-F) · J10 (1.27mm PROG)</text>
+  <text x="360" y="385" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#2E7D32">J8 (I2C) · J9 (GPIO) · J3 (SMA Amphenol 132289 — machine-placed)</text>
   <text x="360" y="405" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#388E3C" font-style="italic">PCBWay wave-solders all THT connectors; zero hand-soldering required</text>
 
   <!-- Noise separation line -->

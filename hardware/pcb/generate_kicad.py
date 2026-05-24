@@ -27,8 +27,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def find_kicad_sym_dir() -> str | None:
-    """Locate KiCad symbol libraries across platforms."""
-    candidates = [
+    """Locate KiCad symbol libraries across platforms.
+
+    Priority:
+      1. System-installed KiCad libraries (fastest, preferred)
+      2. Previously cloned local copy in project dir
+      3. None — caller will clone from GitLab
+    """
+    # 1. System-installed libraries
+    system_candidates = [
         "/usr/share/kicad/symbols",
         "/usr/local/share/kicad/symbols",
         os.path.expanduser("~/.local/share/kicad/8.0/symbols"),
@@ -39,10 +46,45 @@ def find_kicad_sym_dir() -> str | None:
         "C:/Program Files/KiCad/6.0/share/kicad/symbols",
         "/Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols",
     ]
-    for path in candidates:
+    for path in system_candidates:
         if os.path.isdir(path):
             return path
+
+    # 2. Previously cloned local copy
+    local_clone = os.path.join(HERE, "kicad-libs", "symbols")
+    if os.path.isdir(local_clone):
+        return local_clone
+
     return None
+
+
+def clone_kicad_libs() -> str:
+    """Clone KiCad official libraries from GitLab as a last resort."""
+    libs_dir = os.path.join(HERE, "kicad-libs")
+    sym_dir = os.path.join(libs_dir, "symbols")
+
+    if os.path.isdir(sym_dir):
+        print(f"  Using cached KiCad libraries in {sym_dir}")
+        return sym_dir
+
+    print("  No system KiCad libraries found.")
+    print("  Cloning from GitLab: https://gitlab.com/kicad/libraries/kicad-symbols")
+    print("  This may take a minute...")
+
+    result = subprocess.run(
+        ["git", "clone", "--depth", "1",
+         "https://gitlab.com/kicad/libraries/kicad-symbols.git",
+         sym_dir],
+        capture_output=True, text=True
+    )
+
+    if result.returncode != 0:
+        print(f"  WARNING: Failed to clone KiCad libraries: {result.stderr}")
+        print("  Will use fallback inline symbols instead.")
+        return ""
+
+    print(f"  Successfully cloned KiCad libraries to {sym_dir}")
+    return sym_dir
 
 
 def uid() -> str:
@@ -219,7 +261,7 @@ def make_pro() -> str:
 # ── KiCad footprint per reference ────────────────────────────────────────────
 FOOTPRINTS: dict = {
     "U1":    "Package_TO_SOT_SMD:SOT-23-6",
-    "U6":    "welld:ESP32_C6_MINI_1U",
+    "U6":    "PCM_Espressif:ESP32-C6-MINI-1U",
     "U7":    "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
     "U8":    "Package_TO_SOT_SMD:SOT-23-6",
     "U9":    "Package_SO:MSOP-10_3x3mm_P0.5mm",
@@ -237,24 +279,24 @@ FOOTPRINTS: dict = {
     "D12":   "Package_TO_SOT_SMD:SOT-363_SC-70-6",
     "D13":   "Diode_SMD:D_SMA",
     "D14":   "Diode_SMD:D_SMA",
-    "L1":    "Inductor_SMD:L_4x4mm",
-    "L2":    "Inductor_SMD:L_2520_6332Metric",
+    "L1":    "Inductor_SMD:L_Vishay_IFSC-1515AH_4x4x1.8mm",
+    "L2":    "Inductor_SMD:L_Vishay_IFSC-1515AH_4x4x1.8mm",
     "FB1":   "Inductor_SMD:L_0402_1005Metric",
     "F2":    "Fuse:Fuse_1206_3216Metric",
     "Q2":    "Package_TO_SOT_SMD:SOT-23",
-    "J1":    "Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical",
-    "J3":    "Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical",
-    "J4":    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MC-1.5_3pin_3.5mm",
-    "J5":    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MC-1.5_3pin_3.5mm",
-    "J6":    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MC-1.5_3pin_3.5mm",
-    "J7":    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MC-1.5_3pin_3.5mm",
+    "J1":    "WellD:XT30PW-F_RightAngle",
+    "J3":    "Connector_Coaxial:SMA_Amphenol_132289_EdgeMount",
+    "J4":    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
+    "J5":    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
+    "J6":    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
+    "J7":    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
     "J8":    "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
     "J9":    "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical",
     "J10":   "Connector_PinHeader_1.27mm:PinHeader_1x06_P1.27mm_Vertical",
-    "J12":   "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MC-1.5_2pin_3.5mm",
-    "J13":   "welld:USB_C_GCT_USB4135-GF-A",
-    "SW1":   "Button_Switch_SMD:SW_SPST_PTS636",
-    "SW2":   "Button_Switch_SMD:SW_SPST_PTS636",
+    "J12":   "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-2-3.5-H_1x02_P3.50mm_Horizontal",
+    "J13":   "Connector_USB:USB_C_Receptacle_GCT_USB4135-GF-A_6P_TopMnt_Horizontal",
+    "SW1":   "Button_Switch_SMD:SW_Push_1P1T_NO_CK_KSC6xxG",
+    "SW2":   "Button_Switch_SMD:SW_Push_1P1T_NO_CK_KSC6xxG",
     "R2":    "Resistor_SMD:R_0805_2012Metric",
     "R4":    "Resistor_SMD:R_0805_2012Metric",
     **{f"TP{n}": "TestPoint:TestPoint_Pad_1.0x1.0mm"
@@ -277,7 +319,7 @@ def get_footprint(ref: str) -> str:
             return "Capacitor_SMD:C_0805_2012Metric"
         return "Capacitor_SMD:C_0402_1005Metric"
     if ref.startswith("SJ"):
-        return "Jumper:SolderJumper_2_Open"
+        return "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm"
     return ""
 
 
@@ -297,7 +339,7 @@ LCSC_PARTS: dict = {
     "D12":   "C2687116",
     "D13":   "C2836474",
     "FB1":   "C76537",
-    "J1":    "C457925",
+    "J1":    "C601498",
     "L1":    "C376098",
     "L2":    "C376098",
     "C_BST": "C14663",
@@ -305,150 +347,216 @@ LCSC_PARTS: dict = {
 
 COMPONENTS = [
     # ref,      value,               lib_id,                          x,     y
-    # ── Block A: Solar input (top-left) ───────────────────────────────────────
-    ("J12",  "MC 1.5/2-G-3.5",  "Connector:Conn_01x02_Pin",       30,    40),
-    ("D14",  "SMAJ28CA",         "Device:D_TVS",                   70,    40),
-    ("D6",   "MBRS140T3G",       "Device:D_Schottky",             110,    40),
-    ("D8",   "SMAJ28CA",         "Device:D_TVS",                  150,    40),
-    ("C17",  "10uF 25V",         "Device:C",                      190,    40),
-    ("U7",   "CN3722",           "welld:CN3722",                  250,    40),
-    ("C18",  "10uF 16V",         "Device:C",                      310,    40),
-    ("R19",  "2k0 1%",           "Device:R",                       80,    80),
-    ("R20",  "36k 1%",           "Device:R",                      120,    80),
-    ("R21",  "10k 1%",           "Device:R",                      160,    80),
-    ("R33",  "604k 1%",          "Device:R",                      250,    80),
-    ("R34",  "100k 1%",          "Device:R",                      290,    80),
-    ("R22",  "1k DNF",           "Device:R",                      330,    80),
-    ("D7",   "Solar_LED_DNF",    "Device:LED",                     40,    80),
+    # ── Row 1: Power Inputs (y=25-65) ─────────────────────────────────────────
+    # Solar input (left)
+    ("J12",  "Solar",            "Connector:Conn_01x02_Pin",       25,    30),
+    ("D14",  "SMAJ28CA",         "Device:D_TVS",                   25,    55),
+    ("D6",   "MBRS140",          "Device:D_Schottky",              55,    30),
+    ("D8",   "SMAJ28CA",         "Device:D_TVS",                   55,    55),
+    ("C17",  "10uF",             "Device:C",                       85,    30),
+    ("U7",   "CN3722",           "welld:CN3722",                   85,    55),
+    ("C18",  "10uF",             "Device:C",                      115,    30),
+    ("R19",  "2k0",              "Device:R",                       25,    80),
+    ("R20",  "36k",              "Device:R",                       45,    80),
+    ("R21",  "10k",              "Device:R",                       65,    80),
+    ("R33",  "604k",             "Device:R",                       85,    80),
+    ("R34",  "100k",             "Device:R",                      105,    80),
+    ("R22",  "1k DNF",           "Device:R",                      125,    80),
+    ("D7",   "LED",              "Device:LED",                     25,   105),
 
-    # ── Block B: USB-C input (top, next to solar) ────────────────────────────
-    ("J13",  "USB4135-GF-A",     "welld:USB_C_Power",             400,    40),
-    ("R_CC1","5k1",              "Device:R",                      400,    80),
-    ("R_CC2","5k1",              "Device:R",                      440,    80),
-    ("U11",  "USBLC6-2SC6",      "welld:USBLC6_2SC6",             490,    40),
-    ("F2",   "MF-MSMF110/16X",   "Device:Polyfuse",               540,    40),
-    ("C27",  "4.7uF 10V",        "Device:C",                      490,    80),
-    ("U12",  "TP5100",           "welld:TP5100",                  600,    40),
-    ("C28",  "10uF 10V",         "Device:C",                      660,    40),
-    ("C29",  "10uF 16V",         "Device:C",                      660,    80),
-    ("R35",  "1k2 1%",           "Device:R",                      600,    80),
-    ("R36",  "100k",             "Device:R",                      640,    80),
-    ("R37",  "4k7",              "Device:R",                      720,    40),
-    ("R38",  "4k7",              "Device:R",                      720,    80),
+    # USB-C input (center)
+    ("J13",  "USB-C",            "welld:USB_C_Power",             165,    30),
+    ("R_CC1","5k1",              "Device:R",                      165,    55),
+    ("R_CC2","5k1",              "Device:R",                      165,    80),
+    ("U11",  "USBLC6",           "welld:USBLC6_2SC6",             195,    30),
+    ("F2",   "Polyfuse",         "Device:Polyfuse",               195,    55),
+    ("C27",  "4.7uF",            "Device:C",                      195,    80),
+    ("U12",  "TP5100",           "welld:TP5100",                  225,    30),
+    ("C28",  "10uF",             "Device:C",                      225,    55),
+    ("C29",  "10uF",             "Device:C",                      225,    80),
+    ("R35",  "1k2",              "Device:R",                      255,    30),
+    ("R36",  "100k",             "Device:R",                      255,    55),
+    ("R37",  "4k7",              "Device:R",                      255,    80),
+    ("R38",  "4k7",              "Device:R",                      255,   105),
 
-    # ── Block C: Battery + protection (left side, middle) ─────────────────────
-    ("J1",   "B2B-PH-K-S",       "Connector:Conn_01x02_Pin",       30,   150),
-    ("D13",  "SMAJ10CA",         "Device:D_TVS",                   80,   150),
-    ("D5",   "AO3407",           "welld:AO3407",                  140,   150),
-    ("R31",  "10k",              "Device:R",                      140,   190),
+    # Battery + protection (right)
+    ("J1",   "XT30PW-F",         "Connector:Conn_01x02_Pin",      300,    30),
+    ("D13",  "SMAJ10CA",         "Device:D_TVS",                  300,    55),
+    ("D5",   "AO3407",           "welld:AO3407",                  300,    80),
+    ("R31",  "10k",              "Device:R",                      300,   105),
 
-    # ── Block D: 3.3 V buck converter (middle-left) ───────────────────────────
-    ("U1",   "AP63205WU",        "welld:AP63205WU",               250,   150),
-    ("L2",   "4.7uH",            "Device:L",                      310,   150),
-    ("C9",   "100nF 16V",        "Device:C",                      370,   150),
-    ("C10",  "1uF 16V",          "Device:C",                      430,   150),
-    ("C11",  "100nF",            "Device:C",                      370,   190),
-    ("C12",  "1uF",              "Device:C",                      430,   190),
-    ("C_BUCK","10uF 10V",        "Device:C",                      490,   150),
-    ("R11",  "10k",              "Device:R",                      250,   190),
+    # ── Row 2: Main Circuitry (y=125-185) ─────────────────────────────────────
+    # 3.3V Buck (left)
+    ("U1",   "AP63205",          "welld:AP63205WU",                25,   140),
+    ("L2",   "4.7uH",            "Device:L",                       25,   165),
+    ("C9",   "100nF",            "Device:C",                       25,   190),
+    ("C10",  "1uF",              "Device:C",                       50,   140),
+    ("C11",  "100nF",            "Device:C",                       50,   165),
+    ("C12",  "1uF",              "Device:C",                       50,   190),
+    ("C_BUCK","10uF",            "Device:C",                       75,   140),
+    ("R11",  "10k",              "Device:R",                       75,   165),
 
-    # ── Block E: ESP32-C6 module (center) ─────────────────────────────────────
-    ("U6",   "ESP32-C6-MINI-1U-H4","welld:ESP32_C6_MINI_1U",     560,   150),
-    ("R12",  "10k",              "Device:R",                      680,   150),
-    ("R13",  "10k",              "Device:R",                      680,   190),
-    ("SW1",  "RESET",            "Switch:SW_Push",                520,   120),
-    ("SW2",  "BOOT",             "Switch:SW_Push",                520,   210),
-    ("C13",  "100nF",            "Device:C",                      560,   230),
-    ("C14a", "100nF",            "Device:C",                      600,   230),
-    ("C14b", "100nF",            "Device:C",                      640,   230),
-    ("C14c", "100nF",            "Device:C",                      680,   230),
-    ("C14d", "100nF",            "Device:C",                      720,   230),
-    ("C15",  "10uF 10V",         "Device:C",                      750,   190),
+    # ESP32-C6 (center)
+    ("U6",   "ESP32-C6",         "welld:ESP32_C6_MINI_1U",        115,   140),
+    ("SW1",  "RESET",            "Switch:SW_Push",                115,   115),
+    ("SW2",  "BOOT",             "Switch:SW_Push",                140,   115),
+    ("R12",  "10k",              "Device:R",                      115,   190),
+    ("R13",  "10k",              "Device:R",                      140,   190),
+    ("C13",  "100nF",            "Device:C",                      165,   140),
+    ("C14a", "100nF",            "Device:C",                      165,   165),
+    ("C14b", "100nF",            "Device:C",                      165,   190),
+    ("C14c", "100nF",            "Device:C",                      190,   140),
+    ("C14d", "100nF",            "Device:C",                      190,   165),
+    ("C15",  "10uF",             "Device:C",                      190,   190),
 
-    # ── Block F: Sensor interfaces (right side, middle) ───────────────────────
-    ("J4",   "4-20mA_CH1",       "Connector:Conn_01x03_Pin",      820,   150),
-    ("J5",   "4-20mA_CH2",       "Connector:Conn_01x03_Pin",      880,   150),
-    ("J6",   "DS18B20",          "Connector:Conn_01x03_Pin",      940,   150),
-    ("R32",  "33R DNF",          "Device:R",                      980,   150),
-    ("J7",   "Spare",            "Connector:Conn_01x03_Pin",     1040,   150),
-    ("D1",   "PRTR5V0U2X",       "welld:PRTR5V0U2X",              820,   190),
-    ("D12",  "PRTR5V0U2X",       "welld:PRTR5V0U2X",              940,   190),
-    ("R2",   "100R 0.1%",        "Device:R",                      850,   230),
-    ("R3",   "100R",             "Device:R",                      890,   230),
-    ("D9",   "SMAJ3.3CA",        "Device:D_TVS",                  820,   110),
-    ("D10",  "SMAJ3.3CA",        "Device:D_TVS",                  880,   110),
-    ("C3",   "1uF",              "Device:C",                      850,   270),
-    ("C4",   "10uF 10V",         "Device:C",                      890,   270),
-    ("C_SH1","10nF",             "Device:C",                      850,   310),
-    ("R4",   "100R 0.1%",        "Device:R",                      970,   230),
-    ("R5",   "100R",             "Device:R",                     1010,   230),
-    ("C5",   "1uF",              "Device:C",                      970,   270),
-    ("C6",   "10uF 10V",         "Device:C",                     1010,   270),
-    ("C_SH2","10nF",             "Device:C",                      970,   310),
-    ("R6",   "4k7",              "Device:R",                      940,   270),
-    ("C7",   "100nF",            "Device:C",                     1040,   270),
+    # Status LED
+    ("D4",   "Status",           "Device:LED",                    115,   215),
+    ("R14",  "1k",               "Device:R",                      140,   215),
 
-    # ── Block G: Expansion headers (right of ESP32) ──────────────────────────
-    ("J8",   "I2C_4pin",         "Connector:Conn_01x04_Pin",      760,   150),
-    ("J9",   "GPIO_8pin",        "Connector:Conn_01x08_Pin",      760,   200),
-    ("J10",  "PROG_6pin",        "Connector:Conn_01x06_Pin",      760,   260),
-    ("J3",   "U.FL",             "welld:U_FL_Antenna",            760,   310),
-    ("R9",   "4k7",              "Device:R",                      800,   150),
-    ("R10",  "4k7",              "Device:R",                      800,   200),
+    # Sensor interfaces (right)
+    ("J4",   "4-20mA_1",         "Connector:Conn_01x03_Pin",      230,   125),
+    ("J5",   "4-20mA_2",         "Connector:Conn_01x03_Pin",      260,   125),
+    ("J6",   "DS18B20",          "Connector:Conn_01x03_Pin",      290,   125),
+    ("J7",   "Spare",            "Connector:Conn_01x03_Pin",      320,   125),
+    ("R32",  "33R",              "Device:R",                      230,   150),
+    ("D1",   "PRTR5V",           "welld:PRTR5V0U2X",              230,   175),
+    ("D12",  "PRTR5V",           "welld:PRTR5V0U2X",              260,   175),
+    ("R2",   "100R",             "Device:R",                      230,   200),
+    ("R3",   "100R",             "Device:R",                      260,   200),
+    ("D9",   "SMAJ3.3",          "Device:D_TVS",                  290,   150),
+    ("D10",  "SMAJ3.3",          "Device:D_TVS",                  320,   150),
+    ("C3",   "1uF",              "Device:C",                      290,   175),
+    ("C4",   "10uF",             "Device:C",                      320,   175),
+    ("C_SH1","10nF",             "Device:C",                      290,   200),
+    ("R4",   "100R",             "Device:R",                      350,   125),
+    ("R5",   "100R",             "Device:R",                      350,   150),
+    ("C5",   "1uF",              "Device:C",                      350,   175),
+    ("C6",   "10uF",             "Device:C",                      350,   200),
+    ("C_SH2","10nF",             "Device:C",                      380,   125),
+    ("R6",   "4k7",              "Device:R",                      380,   150),
+    ("C7",   "100nF",            "Device:C",                      380,   175),
 
-    # ── Block H: Status LED (below buck) ──────────────────────────────────────
-    ("D4",   "Status_LED",       "Device:LED",                    250,   280),
-    ("R14",  "1k",               "Device:R",                      290,   280),
+    # Expansion headers (far right)
+    ("J8",   "I2C",              "Connector:Conn_01x04_Pin",      230,   230),
+    ("J9",   "GPIO",             "Connector:Conn_01x08_Pin",      260,   230),
+    ("J10",  "PROG",             "Connector:Conn_01x06_Pin",      290,   230),
+    ("J3",   "132289",           "welld:U_FL_Antenna",            320,   230),
+    ("R9",   "4k7",              "Device:R",                      350,   230),
+    ("R10",  "4k7",              "Device:R",                      380,   230),
 
-    # ── Block I: VLOOP 12 V boost (bottom-left) ───────────────────────────────
-    ("U8",   "MT3608B",          "welld:MT3608B",                  40,   350),
-    ("L1",   "4.7uH",            "Device:L",                      100,   350),
-    ("C_BST","100nF 16V",        "Device:C",                       70,   390),
-    ("C22",  "10uF 16V",         "Device:C",                      130,   390),
-    ("R23",  "1.91M 1%",         "Device:R",                      160,   350),
-    ("R24",  "100k 1%",          "Device:R",                      220,   350),
-    ("C19",  "10uF 16V",         "Device:C",                      280,   350),
-    ("C20",  "22uF 16V",         "Device:C",                      340,   350),
-    ("D11",  "SMAJ13A",          "Device:D_TVS",                  400,   350),
-    ("C21",  "100nF",            "Device:C",                      400,   390),
+    # ── Row 3: Support Circuits (y=245-305) ───────────────────────────────────
+    # VLOOP boost (left)
+    ("U8",   "MT3608",           "welld:MT3608B",                  25,   250),
+    ("L1",   "4.7uH",            "Device:L",                       25,   275),
+    ("C_BST","100nF",            "Device:C",                       25,   300),
+    ("C22",  "10uF 25V",         "Device:C",                       50,   250),
+    ("R23",  "1.91M",            "Device:R",                       50,   275),
+    ("R24",  "100k",             "Device:R",                       50,   300),
+    ("C19",  "10uF",             "Device:C",                       75,   250),
+    ("C20",  "22uF 25V",         "Device:C",                       75,   275),
+    ("D11",  "SMAJ13",           "Device:D_TVS",                   75,   300),
+    ("C21",  "100nF",            "Device:C",                      100,   250),
 
-    # ── Block J: Precision ADC (bottom, left of center) ───────────────────────
-    ("FB1",  "BLM18KG601SN1D",   "Device:L",                       40,   450),
-    ("C23",  "100nF",            "Device:C",                       90,   450),
-    ("C24",  "1uF",              "Device:C",                      140,   450),
-    ("U9",   "ADS1115IDGST",     "welld:ADS1115",                 200,   450),
+    # Precision ADC (center-left)
+    ("FB1",  "Ferrite",          "Device:L",                      125,   250),
+    ("C23",  "100nF",            "Device:C",                      125,   275),
+    ("C24",  "1uF",              "Device:C",                      125,   300),
+    ("U9",   "ADS1115",          "welld:ADS1115",                 150,   250),
+    ("R28",  "100R",             "Device:R",                      150,   275),
 
-    # ── Block K: Battery-voltage divider gate (bottom, center) ────────────────
-    ("Q2",   "BSS123",           "Device:Q_NMOS",                 320,   450),
-    ("R7",   "330k 1%",          "Device:R",                      380,   450),
-    ("R8",   "100k 1%",          "Device:R",                      440,   450),
-    ("C8",   "100nF",            "Device:C",                      500,   450),
-    ("R26",  "4k7",              "Device:R",                      560,   450),
-    ("R28",  "100R",             "Device:R",                       90,   500),
+    # Battery divider (center)
+    ("Q2",   "BSS123",           "Device:Q_NMOS",                 190,   250),
+    ("R7",   "330k",             "Device:R",                      190,   275),
+    ("R8",   "100k",             "Device:R",                      190,   300),
+    ("C8",   "100nF",            "Device:C",                      215,   250),
+    ("R26",  "4k7",              "Device:R",                      215,   275),
 
-    # ── Block M: Solder jumpers (bottom, right of center) ─────────────────────
-    ("SJ1",  "VBOOST_EN DNF",    "Jumper:SolderJumper_2_Open",    620,   450),
-    ("SJ2",  "VLOOP_BUS",        "Jumper:SolderJumper_2_Open",    680,   450),
-    ("SJ3",  "LED_DIS",          "Jumper:SolderJumper_2_Open",    740,   450),
-    ("SJ4",  "UART_TX DNF",      "Jumper:SolderJumper_2_Open",    800,   450),
-    ("SJ5",  "UART_RX DNF",      "Jumper:SolderJumper_2_Open",    860,   450),
+    # Solder jumpers (right)
+    ("SJ1",  "VBOOST",           "Jumper:SolderJumper_2_Open",    255,   250),
+    ("SJ2",  "VLOOP",            "Jumper:SolderJumper_2_Open",    255,   275),
+    ("SJ3",  "LED_DIS",          "Jumper:SolderJumper_2_Open",    255,   300),
+    ("SJ4",  "UART_TX",          "Jumper:SolderJumper_2_Open",    280,   250),
+    ("SJ5",  "UART_RX",          "Jumper:SolderJumper_2_Open",    280,   275),
 
-    # ── Block N: Test points (bottom row) ─────────────────────────────────────
-    ("TP1",  "VBAT",             "welld:TestPoint_Pad",           100,   550),
-    ("TP2",  "VLOOP",            "welld:TestPoint_Pad",           160,   550),
-    ("TP3",  "+3V3",             "welld:TestPoint_Pad",           220,   550),
-    ("TP4",  "GND",              "welld:TestPoint_Pad",           280,   550),
-    ("TP5",  "LOOP_TERM_CH1",    "welld:TestPoint_Pad",           340,   550),
-    ("TP6",  "LOOP_TERM_CH2",    "welld:TestPoint_Pad",           400,   550),
-    ("TP7",  "1WIRE",            "welld:TestPoint_Pad",           460,   550),
-    ("TP8",  "I2C_SDA",          "welld:TestPoint_Pad",           520,   550),
-    ("TP9",  "I2C_SCL",          "welld:TestPoint_Pad",           580,   550),
-    ("TP10", "VSOLAR_IN",        "welld:TestPoint_Pad",           640,   550),
-    ("TP11", "VBAT_RAW",         "welld:TestPoint_Pad",           700,   550),
-    ("TP12", "ADS_DRDY",         "welld:TestPoint_Pad",           760,   550),
-    ("TP14", "/CHRG_SOLAR",      "welld:TestPoint_Pad",           820,   550),
-    ("TP15", "/CHRG_USB",        "welld:TestPoint_Pad",           880,   550),
+    # ── Row 4: Test Points (y=330) ────────────────────────────────────────────
+    ("TP1",  "VBAT",             "welld:TestPoint_Pad",            25,   330),
+    ("TP2",  "VLOOP",            "welld:TestPoint_Pad",            50,   330),
+    ("TP3",  "+3V3",             "welld:TestPoint_Pad",            75,   330),
+    ("TP4",  "GND",              "welld:TestPoint_Pad",           100,   330),
+    ("TP5",  "LOOP1",            "welld:TestPoint_Pad",           125,   330),
+    ("TP6",  "LOOP2",            "welld:TestPoint_Pad",           150,   330),
+    ("TP7",  "1WIRE",            "welld:TestPoint_Pad",           175,   330),
+    ("TP8",  "SDA",              "welld:TestPoint_Pad",           200,   330),
+    ("TP9",  "SCL",              "welld:TestPoint_Pad",           225,   330),
+    ("TP10", "VSOLAR",           "welld:TestPoint_Pad",           250,   330),
+    ("TP11", "VBAT_RAW",         "welld:TestPoint_Pad",           275,   330),
+    ("TP12", "ADS_DRDY",         "welld:TestPoint_Pad",           300,   330),
+    ("TP14", "CHRG_SOL",         "welld:TestPoint_Pad",           325,   330),
+    ("TP15", "CHRG_USB",         "welld:TestPoint_Pad",           350,   330),
 ]
+
+
+# ── Hierarchical sheet component assignments ───────────────────────────────
+# Each sheet gets its own .kicad_sch file with a tighter layout.
+
+SHEET_ASSIGNMENTS: dict[str, list[str]] = {
+    "power": [
+        "J12", "D14", "D6", "D8", "C17", "U7", "C18",
+        "R19", "R20", "R21", "R33", "R34", "R22", "D7",
+        "J13", "R_CC1", "R_CC2", "U11", "F2", "C27",
+        "U12", "C28", "C29", "R35", "R36", "R37", "R38",
+        "J1", "D13", "D5", "R31",
+        "U1", "L2", "C9", "C10", "C11", "C12", "C_BUCK", "R11",
+        "U8", "L1", "C_BST", "C22", "R23", "R24", "C19", "C20", "D11", "C21",
+    ],
+    "mcu": [
+        "U6", "SW1", "SW2", "R12", "R13",
+        "C13", "C14a", "C14b", "C14c", "C14d", "C15",
+        "D4", "R14",
+    ],
+    "sensors": [
+        "J4", "J5", "J6", "J7",
+        "R32", "D1", "D12", "R2", "R3",
+        "D9", "D10", "C3", "C4", "C_SH1",
+        "R4", "R5", "C5", "C6", "C_SH2", "R6", "C7",
+        "FB1", "C23", "C24", "U9", "R28",
+        "Q2", "R7", "R8", "C8", "R26",
+    ],
+    "interfaces": [
+        "J8", "J9", "J10", "J3", "R9", "R10",
+        "SJ1", "SJ2", "SJ3", "SJ4", "SJ5",
+        "TP1", "TP2", "TP3", "TP4", "TP5", "TP6", "TP7",
+        "TP8", "TP9", "TP10", "TP11", "TP12", "TP14", "TP15",
+    ],
+}
+
+
+def _filter_components(refs: list[str]) -> list[tuple]:
+    """Return (ref, value, lib_id, x, y) tuples matching the given ref list."""
+    comps = []
+    for ref, value, lib_id, x, y in COMPONENTS:
+        if ref in refs:
+            comps.append((ref, value, lib_id, x, y))
+    return comps
+
+
+def _remap_positions(comps: list[tuple], x0: float, y0: float,
+                     scale: float = 0.5) -> list[tuple]:
+    """Remap component positions to a tighter grid centred on (x0, y0)."""
+    if not comps:
+        return []
+    xs = [c[3] for c in comps]
+    ys = [c[4] for c in comps]
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+    cx = (min_x + max_x) / 2
+    cy = (min_y + max_y) / 2
+    remapped = []
+    for ref, value, lib_id, x, y in comps:
+        nx = x0 + (x - cx) * scale
+        ny = y0 + (y - cy) * scale
+        remapped.append((ref, value, lib_id, nx, ny))
+    return remapped
 
 
 def _p10(name: str, val: str, ax: float, ay: float, hidden: bool = False,
@@ -565,24 +673,88 @@ def sch_component(ref: str, value: str, lib_id: str, x: float, y: float,
   )"""
 
 
-KICAD_SYM_DIR = find_kicad_sym_dir() or "/usr/share/kicad/symbols"
+def hierarchical_label(net: str, x: float, y: float, shape: str = "bidirectional") -> str:
+    """Generate a KiCad hierarchical label for subsheets."""
+    return f"""  (hierarchical_label "{net}"
+    (shape {shape})
+    (at {x:.2f} {y:.2f} 0)
+    (fields_autoplaced yes)
+    (effects (font (size 1.27 1.27)) (justify left))
+    (uuid "{uid()}")
+  )"""
+
+
+def sheet_symbol(name: str, filename: str, x: float, y: float,
+                 width: float, height: float, pins: list[tuple]) -> str:
+    """Generate a KiCad sheet symbol (hierarchical block) on the parent sheet.
+
+    pins: list of (pin_name, direction, offset_x, offset_y)
+        direction: input, output, bidirectional
+        offset is relative to the sheet origin (x, y)
+    """
+    sx, sy = x, y
+    pin_strs = ""
+    for pname, pdir, px, py in pins:
+        pin_strs += f"""
+    (pin "{pname}" {pdir} (at {sx + px:.2f} {sy + py:.2f} 0)
+      (effects (font (size 1.27 1.27)) (justify left))
+      (uuid "{uid()}")
+    )"""
+
+    return f"""  (sheet
+    (at {sx:.2f} {sy:.2f})
+    (size {width:.2f} {height:.2f})
+    (fields_autoplaced yes)
+    (stroke (width 0.1524) (type solid) (color 0 0 0 0))
+    (fill (color 0 0 0 0.0000))
+    (uuid "{uid()}")
+    (property "Sheet name" "{name}"
+      (at {sx:.2f} {sy - 1.27:.2f} 0)
+      (do_not_autoplace no)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheet file" "{filename}"
+      (at {sx:.2f} {sy + height + 1.27:.2f} 0)
+      (do_not_autoplace no)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+{pin_strs}
+  )"""
+
+
+KICAD_SYM_DIR = find_kicad_sym_dir() or clone_kicad_libs() or "/usr/share/kicad/symbols"
 
 def _extract_sym(lib: str, name: str) -> str:
-    """Extract a single top-level symbol block from a .kicad_sym library file.
+    """Extract a single top-level symbol block from a .kicad_sym library file
+    or a .kicad_symdir directory.
 
     Returns the raw s-expression text (unindented) suitable for embedding
     directly inside a (lib_symbols ...) block, or '' if not found.
     """
+    # Try old flat format first: LibraryName.kicad_sym
     path = os.path.join(KICAD_SYM_DIR, f"{lib}.kicad_sym")
-    try:
-        with open(path, encoding="utf-8") as fh:
-            text = fh.read()
-    except OSError:
-        return ""
+    if os.path.isfile(path):
+        try:
+            with open(path, encoding="utf-8") as fh:
+                text = fh.read()
+        except OSError:
+            return ""
+    else:
+        # Try new directory format: LibraryName.kicad_symdir/SymbolName.kicad_sym
+        symdir = os.path.join(KICAD_SYM_DIR, f"{lib}.kicad_symdir")
+        path = os.path.join(symdir, f"{name}.kicad_sym")
+        if os.path.isfile(path):
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    text = fh.read()
+            except OSError:
+                return ""
+        else:
+            return ""
 
     # Match the opening of a top-level symbol with exactly this name.
     # Accept tabs or spaces for indentation.
-    pattern = re.compile(r'(?m)^[ \t]*\(symbol "' + re.escape(name) + r'"\b')
+    pattern = re.compile(r'(?m)^[ \t]*\(symbol "' + re.escape(name) + r'"(?:\s|\))')
     m = pattern.search(text)
     if not m:
         return ""
@@ -1039,9 +1211,9 @@ def make_sch_lib_symbols() -> str:
       (embedded_fonts no)
     )"""
 
-    # ---- U.FL antenna stub -------------------------------------------------
-    ufl = hdr("U_FL_Antenna", "J", 3.81, "U.FL", -3.81,
-              "Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical") + f"""
+    # ---- SMA edge-launch antenna stub (Amphenol 132289) --------------------
+    ufl = hdr("U_FL_Antenna", "J", 3.81, "132289", -3.81,
+              "Connector_Coaxial:SMA_Amphenol_132289_EdgeMount") + f"""
       (symbol "U_FL_Antenna_0_1"
         (rectangle (start -2.54 -2.54) (end 2.54 2.54)
           (stroke (width 0) (type default)) (fill (type background)))
@@ -1195,136 +1367,127 @@ def make_sch_lib_symbols() -> str:
     return custom + "\n" + "\n".join(stdlib_parts)
 
 
-def make_sch() -> str:
-    """Build the complete welld.kicad_sch s-expression string."""
-
-    root_uuid = uid()
-    lib_symbols = make_sch_lib_symbols()
-
-    # Global labels for all key nets
-    nets = [
-        ("VSOLAR_IN",    30,   20, "passive"),
-        ("VSOLAR",      100,   20, "passive"),
-        ("VUSB_IN",     400,   20, "passive"),
-        ("VUSB",        470,   20, "passive"),
-        ("VBAT",         30,  140, "passive"),
-        ("+3V3",        250,  140, "passive"),
-        ("GND",          30,  520, "passive"),
-        ("ADC_CH0",     820,  140, "input"),
-        ("ADC_CH1",     880,  140, "input"),
-        ("ADC_CH2",     940,  140, "input"),
-        ("1WIRE",       980,  140, "input"),
-        ("I2C_SDA",     760,  140, "passive"),
-        ("I2C_SCL",     760,  200, "passive"),
-        ("GPIO13_LED",  250,  270, "passive"),
-        ("UART_TX",     760,  280, "passive"),
-        ("UART_RX",     760,  300, "passive"),
-        ("EN",          520,  110, "input"),
-        ("BOOT",        520,  230, "input"),
-        ("MPPT_REF",     50,   70, "passive"),
-        ("/CHRG_USB",   400,  100, "passive"),
-        ("/DONE_USB",   400,  110, "passive"),
-        ("/CHRG_SOLAR",  30,   70, "passive"),
-        ("/DONE_SOLAR",  30,   80, "passive"),
-        ("VLOOP",        40,  340, "passive"),
-        ("VBOOST_EN",    40,  420, "input"),
-        ("CHRG_USB_DIS",400,  420, "input"),
-        ("SOLAR_DET",   140,  420, "input"),
-        ("BATT_DIV_EN", 320,  420, "input"),
-        ("ADS_DRDY",    200,  420, "input"),
-        ("MAX_ALRT",    320,  520, "input"),
-        ("LOOP_TERM_CH1", 820,  270, "passive"),
-        ("LOOP_TERM_CH2", 880,  270, "passive"),
-        ("+3V3_ADS",     40,  480, "passive"),
-        ("VBAT_RAW",     80,  140, "passive"),
-    ]
-
-    global_labels_str = ""
-    for net, x, y, shape in nets:
-        global_labels_str += sch_global_label(net, x, y, shape)
-
-    # Power symbols (PWR_FLAG at rail entry points)
-    power_flags = [
-        ("+3V3",    250,  130),
-        ("GND",      30,  510),
-        ("VBAT",     80,  130),
-        ("GND",     140,  180),   # GND return for D5 gate pull-down R31
-    ]
-    power_str = ""
-    for net, x, y in power_flags:
-        power_str += sch_power_symbol(net, x, y, root_uuid)
-
-    # All component symbol instances
+def make_subsheet_sch(sheet_name: str, sheet_uuid: str, page: str = "A4") -> str:
+    """Generate a sub-sheet .kicad_sch file for one functional block."""
+    refs = SHEET_ASSIGNMENTS[sheet_name]
+    comps = _filter_components(refs)
+    
+    # Tighter layout: remap to A4 page with 0.5x scale
+    cx, cy = 148.5, 105.0  # A4 landscape centre
+    remapped = _remap_positions(comps, cx, cy, scale=0.6)
+    
+    # Build component strings
     comps_str = ""
-    for ref, value, lib_id, x, y in COMPONENTS:
-        comps_str += sch_component(ref, value, lib_id, x, y, root_uuid)
-
-    # Wire list: key structural wires to visually connect blocks
-    # Format: (wire (pts (xy x1 y1) (xy x2 y2)) ...)
+    for ref, value, lib_id, x, y in remapped:
+        comps_str += sch_component(ref, value, lib_id, x, y, sheet_uuid)
+    
+    # Power symbols for each sheet
+    power_str = ""
+    if sheet_name in ("power", "mcu", "sensors", "interfaces"):
+        power_str += sch_power_symbol("+3V3", 20, 20, sheet_uuid)
+        power_str += sch_power_symbol("GND", 20, 190, sheet_uuid)
+    if sheet_name in ("power", "sensors", "interfaces"):
+        power_str += sch_power_symbol("VBAT", 270, 20, sheet_uuid)
+    
+    # Hierarchical labels (cross-sheet connections)
+    sheet_labels = {
+        "power": [
+            ("VSOLAR_IN", 20, 50, "input"),
+            ("VUSB_IN", 20, 70, "input"),
+            ("VBAT", 270, 80, "output"),
+            ("+3V3", 270, 100, "output"),
+            ("VLOOP", 270, 120, "output"),
+            ("/CHRG_SOLAR", 20, 90, "output"),
+            ("/CHRG_USB", 20, 110, "output"),
+        ],
+        "mcu": [
+            ("+3V3", 20, 50, "input"),
+            ("VBAT", 270, 50, "input"),
+            ("EN", 270, 70, "output"),
+            ("BOOT", 270, 90, "output"),
+            ("GPIO13_LED", 270, 110, "output"),
+            ("UART_TX", 270, 130, "output"),
+            ("UART_RX", 270, 150, "output"),
+            ("I2C_SDA", 270, 170, "bidirectional"),
+            ("I2C_SCL", 270, 190, "bidirectional"),
+            ("1WIRE", 270, 210, "bidirectional"),
+            ("ADS_DRDY", 270, 230, "input"),
+            ("BATT_DIV_EN", 270, 250, "output"),
+            ("VBOOST_EN", 270, 270, "output"),
+        ],
+        "sensors": [
+            ("+3V3", 20, 50, "input"),
+            ("VBAT", 20, 70, "input"),
+            ("VLOOP", 20, 90, "input"),
+            ("ADC_CH0", 270, 50, "output"),
+            ("ADC_CH1", 270, 70, "output"),
+            ("ADC_CH2", 270, 90, "output"),
+            ("1WIRE", 270, 110, "bidirectional"),
+            ("I2C_SDA", 270, 130, "bidirectional"),
+            ("I2C_SCL", 270, 150, "bidirectional"),
+            ("ADS_DRDY", 270, 170, "output"),
+            ("BATT_DIV_EN", 20, 110, "input"),
+            ("VBAT_RAW", 270, 190, "output"),
+        ],
+        "interfaces": [
+            ("+3V3", 20, 50, "input"),
+            ("VBAT", 20, 70, "input"),
+            ("UART_TX", 20, 90, "input"),
+            ("UART_RX", 20, 110, "input"),
+            ("I2C_SDA", 20, 130, "input"),
+            ("I2C_SCL", 20, 150, "input"),
+            ("1WIRE", 20, 170, "input"),
+            ("EN", 20, 190, "input"),
+            ("BOOT", 20, 210, "input"),
+            ("GPIO13_LED", 20, 230, "input"),
+            ("ADS_DRDY", 20, 250, "input"),
+        ],
+    }
+    
+    labels_str = ""
+    for net, x, y, shape in sheet_labels.get(sheet_name, []):
+        labels_str += hierarchical_label(net, x, y, shape)
+    
+    # Local wires (simplified)
     def wire(x1, y1, x2, y2):
         return f"""
   (wire (pts (xy {x1:.2f} {y1:.2f}) (xy {x2:.2f} {y2:.2f}))
     (stroke (width 0) (type default))
     (uuid "{uid()}")
   )"""
-
-    wires = [
-        # Solar path: J12 -> D6 -> VSOLAR label
-        wire(30, 40, 70, 40),
-        wire(90, 40, 100, 40),
-        # USB path: J13 -> F2
-        wire(400, 40, 470, 40),
-        wire(510, 40, 540, 40),
-        # TP5100 output -> VBAT
-        wire(630, 40, 80, 40),
-        # Buck input <- VBAT
-        wire(210, 150, 250, 150),
-        # Buck output -> +3V3
-        wire(310, 150, 330, 150),
-        # ESP32 VCC
-        wire(550, 150, 560, 150),
-        # Batt divider
-        wire(680, 150, 700, 150),
-        # MPPT divider
-        wire(50, 40, 50, 70),
-        # Battery protection chain
-        wire(140, 150, 170, 150),
-        wire(190, 150, 250, 150),
-        # D5 (AO3407) gate -> R31 (10k) -> GND pull-down
-        wire(140, 150, 140, 190),   # gate to R31
-        wire(140, 190, 140, 510),   # R31 to GND
-        # LED path
-        wire(250, 280, 290, 280),
-        # 1-Wire series protection R32 (DNF default): J6 pin 2 -> R32 -> 1WIRE net
-        wire(940, 150, 980, 150),   # J6 to 1WIRE label
-    ]
-
-    wires_str = "".join(wires)
-
-    # No-connect markers on un-used pins (representative set)
-    def noconn(x, y):
-        return f"""
-  (no_connect (at {x:.2f} {y:.2f}) (uuid "{uid()}"))"""
-
-    noconns_str = noconn(760, 310)  # J3 shield
-
+    
+    wires_str = ""
+    # Add a few structural wires per sheet
+    if sheet_name == "power":
+        wires_str += wire(30, 60, 50, 60)  # solar path
+        wires_str += wire(160, 60, 180, 60)  # USB path
+        wires_str += wire(30, 120, 50, 120)  # battery path
+        wires_str += wire(160, 120, 180, 120)  # buck path
+    elif sheet_name == "mcu":
+        wires_str += wire(120, 100, 120, 120)  # ESP32 power
+        wires_str += wire(120, 140, 120, 160)  # decoupling
+    elif sheet_name == "sensors":
+        wires_str += wire(40, 80, 60, 80)  # sensor net
+        wires_str += wire(40, 100, 60, 100)  # sensor net
+    
+    lib_symbols = make_sch_lib_symbols()
+    
     sch = f"""(kicad_sch
   (version 20260306)
   (generator "eeschema")
   (generator_version "10.0")
-  (uuid "{root_uuid}")
-  (paper "A2")
+  (uuid "{sheet_uuid}")
+  (paper "{page}")
   (title_block
-    (title "WellD Well-Level Monitor")
+    (title "WellD – {sheet_name.capitalize()}")
     (date "2026-05-18")
     (company "WellD Project")
-    (comment 1 "ESP32-C6-MINI-1U + AP63205WU + MT3608B + CN3722 + TP5100 + ADS1115")
   )
   (lib_symbols
 {lib_symbols}
   )
 
-{global_labels_str}
+{labels_str}
 
 {power_str}
 
@@ -1332,7 +1495,138 @@ def make_sch() -> str:
 
 {wires_str}
 
-{noconns_str}
+)
+"""
+    return sch
+
+
+def make_sch() -> str:
+    """Build the main welld.kicad_sch with 4 hierarchical sheet symbols."""
+    root_uuid = uid()
+    
+    # Sheet layout on A3 parent page
+    # Power  top-left,  MCU     top-right
+    # Sensors bottom-left, Interfaces bottom-right
+    SHEETS = [
+        ("power",      "power.kicad_sch",      25.4,  25.4,  120, 100, [
+            ("VSOLAR_IN",   "input",  0, 30),
+            ("VUSB_IN",     "input",  0, 50),
+            ("VBAT",        "output", 120, 40),
+            ("+3V3",        "output", 120, 60),
+            ("VLOOP",       "output", 120, 80),
+            ("/CHRG_SOLAR", "output", 0, 70),
+            ("/CHRG_USB",   "output", 0, 90),
+        ]),
+        ("mcu",        "mcu.kicad_sch",        165.1, 25.4,  120, 100, [
+            ("+3V3",        "input",  0, 30),
+            ("VBAT",        "input",  0, 50),
+            ("EN",          "output", 120, 30),
+            ("BOOT",        "output", 120, 45),
+            ("GPIO13_LED",  "output", 120, 60),
+            ("UART_TX",     "output", 120, 75),
+            ("UART_RX",     "output", 120, 90),
+            ("I2C_SDA",     "bidirectional", 120, 105),
+            ("I2C_SCL",     "bidirectional", 120, 120),
+            ("1WIRE",       "bidirectional", 120, 135),
+            ("ADS_DRDY",    "input", 120, 150),
+            ("BATT_DIV_EN", "output", 120, 165),
+            ("VBOOST_EN",   "output", 120, 180),
+        ]),
+        ("sensors",    "sensors.kicad_sch",    25.4,  152.4, 120, 100, [
+            ("+3V3",        "input",  0, 30),
+            ("VBAT",        "input",  0, 50),
+            ("VLOOP",       "input",  0, 70),
+            ("ADC_CH0",     "output", 120, 30),
+            ("ADC_CH1",     "output", 120, 50),
+            ("ADC_CH2",     "output", 120, 70),
+            ("1WIRE",       "bidirectional", 120, 90),
+            ("I2C_SDA",     "bidirectional", 120, 110),
+            ("I2C_SCL",     "bidirectional", 120, 130),
+            ("ADS_DRDY",    "output", 120, 150),
+            ("BATT_DIV_EN", "input",  0, 90),
+            ("VBAT_RAW",    "output", 120, 170),
+        ]),
+        ("interfaces", "interfaces.kicad_sch", 165.1, 152.4, 120, 100, [
+            ("+3V3",        "input",  0, 30),
+            ("VBAT",        "input",  0, 50),
+            ("UART_TX",     "input",  0, 70),
+            ("UART_RX",     "input",  0, 85),
+            ("I2C_SDA",     "input",  0, 100),
+            ("I2C_SCL",     "input",  0, 115),
+            ("1WIRE",       "input",  0, 130),
+            ("EN",          "input",  0, 145),
+            ("BOOT",        "input",  0, 160),
+            ("GPIO13_LED",  "input",  0, 175),
+            ("ADS_DRDY",    "input",  0, 190),
+        ]),
+    ]
+    
+    sheets_str = ""
+    for name, filename, x, y, w, h, pins in SHEETS:
+        sheets_str += sheet_symbol(name, filename, x, y, w, h, pins)
+    
+    # Main sheet wires: connect Power outputs to MCU/Sensors inputs
+    def wire(x1, y1, x2, y2):
+        return f"""
+  (wire (pts (xy {x1:.2f} {y1:.2f}) (xy {x2:.2f} {y2:.2f}))
+    (stroke (width 0) (type default))
+    (uuid "{uid()}")
+  )"""
+    
+    wires = [
+        # +3V3: Power right -> MCU left, Sensors left
+        wire(145.4, 85.4, 165.1, 55.4),
+        wire(145.4, 85.4, 25.4, 182.4),
+        # VBAT: Power right -> MCU left, Sensors left, Interfaces left
+        wire(145.4, 65.4, 165.1, 75.4),
+        wire(145.4, 65.4, 25.4, 202.4),
+        wire(145.4, 65.4, 165.1, 202.4),
+        # VLOOP: Power right -> Sensors left
+        wire(145.4, 105.4, 25.4, 222.4),
+        # UART: MCU right -> Interfaces left
+        wire(285.1, 100.4, 165.1, 227.4),
+        wire(285.1, 115.4, 165.1, 242.4),
+        # I2C: MCU right -> Sensors right, Interfaces left
+        wire(285.1, 130.4, 145.4, 262.4),
+        wire(285.1, 145.4, 145.4, 282.4),
+        wire(285.1, 130.4, 165.1, 257.4),
+        wire(285.1, 145.4, 165.1, 272.4),
+        # 1WIRE: MCU right -> Sensors right, Interfaces left
+        wire(285.1, 160.4, 145.4, 242.4),
+        wire(285.1, 160.4, 165.1, 287.4),
+    ]
+    wires_str = "".join(wires)
+    
+    # Global labels on main sheet for key nets
+    global_labels = [
+        ("VSOLAR_IN", 20, 20, "input"),
+        ("VUSB_IN", 20, 40, "input"),
+        ("GND", 297, 380, "passive"),
+    ]
+    global_labels_str = ""
+    for net, x, y, shape in global_labels:
+        global_labels_str += sch_global_label(net, x, y, shape)
+    
+    sch = f"""(kicad_sch
+  (version 20260306)
+  (generator "eeschema")
+  (generator_version "10.0")
+  (uuid "{root_uuid}")
+  (paper "A3")
+  (title_block
+    (title "WellD Well-Level Monitor")
+    (date "2026-05-18")
+    (company "WellD Project")
+    (comment 1 "Hierarchical schematic – 4 sheets")
+  )
+  (lib_symbols
+  )
+
+{global_labels_str}
+
+{sheets_str}
+
+{wires_str}
 
 )
 """
@@ -1347,6 +1641,11 @@ def make_sch() -> str:
 BOARD_W = 80.0
 BOARD_H = 55.0
 
+# Center the PCB on the A5 landscape page (210x148mm)
+# Board is 80x55mm, so offset = (page - board) / 2
+PCB_X_OFFSET = 65.0
+PCB_Y_OFFSET = 46.5
+
 # Mounting hole positions (mm from lower-left = PCB origin)
 MOUNTING_HOLES = [
     (3.5,  3.5),
@@ -1357,162 +1656,269 @@ MOUNTING_HOLES = [
 
 # PCB component placement: (ref, footprint, x, y, rotation, description)
 # Footprints use standard KiCad 10 library paths.
+# All positions are board-relative (0,0 = top-left of 80x55 mm board).
+# PCB absolute = board-relative + (PCB_X_OFFSET, PCB_Y_OFFSET).
+# Usable area: X=2..78, Y=2..53 (2 mm edge clearance).
+# Keepouts:
+#   J3 courtyard: X=34.24-45.76, Y=40.53-55 (no components)
+#   J1 courtyard: X=0-13.6, Y=29-38 (XT30 plug space)
+#   Antenna keepout: X=0-30, Y=0-20 (no copper-bearing components)
+#   MH exclusion: 4 mm radius around each mounting hole corner
+# J1, J3, R9, R10, MH1-4 positions are LOCKED — do not move.
 PCB_COMPONENTS = [
-    # ICs
-    ("U1",   "Package_TO_SOT_SMD:SC-70-5",                               56,   34,   0, "TPS7A0533"),
-    ("U2",   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",                     10,   41,   0, "TP4056"),
-    ("U3",   "Package_TO_SOT_SMD:SOT-23-6",                              68,   21,   0, "S-8261A"),
-    ("U4",   "Package_TO_SOT_SMD:SOT-23-6",                              68,   14,   0, "FS8205A"),
-    ("U5",   "Package_TO_SOT_SMD:SOT-23-6",                              10,   48,   0, "USBLC6"),
-    ("U6",   "welld:ESP32_C6_MINI_1U",                                   31,   26,   0, "ESP32-C6"),
-    ("U7",   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",                     60,   10,   0, "CN3791"),
 
-    # Diodes
-    ("D1",   "Package_TO_SOT_SMD:SOT-363_SC-70-6",                      15,   14,   0, "PRTR5V0U2X"),
-    ("D9",   "Diode_SMD:D_SMA",                                         12,    6,   0, "SMAJ3.3CA"),  # changed from SMAJ5.0CA
-    ("D10",  "Diode_SMD:D_SMA",                                         23,    6,   0, "SMAJ3.3CA"),  # changed from SMAJ5.0CA
-    ("D11",  "Diode_SMD:D_SMA",                                         78,    6,   0, "SMAJ13A"),
-    ("D2",   "LED_SMD:LED_0603_1608Metric",                              12,   47,   0, "LED_CHRG"),
-    ("D3",   "LED_SMD:LED_0603_1608Metric",                              14,   47,   0, "LED_STBY"),
-    ("D4",   "LED_SMD:LED_0603_1608Metric",                              50,   51,   0, "LED_STATUS"),
-    ("D5",   "Package_TO_SOT_SMD:SOT-23",                                65,   42,   0, "AO3407"),
-    ("D6",   "Diode_SMD:D_SOD-123",                                      56,    7,   0, "MBRS140"),
-    ("R31",  "Resistor_SMD:R_0402_1005Metric",                           65,   44,   0, "10k"),  # D5 gate pull-down
+    # -------------------------------------------------------------------------
+    # Zone 1 — Power (left strip, X=2..31)
+    # -------------------------------------------------------------------------
 
-    # Fuse
-    ("F1",   "Fuse:Fuse_1206_3216Metric",                                 6,   44,   0, "PTC_1A"),
+    # --- Solar sub-group (top-left, Y=2..25) ---
+    # J12 is in Zone 4 (connector strip); solar group clusters around U7
+    # D14: 28V TVS at J12 input terminal (placed near Zone 4 — see Zone 4 entry)
+    # U7 (CN3722 SOIC-8) — MPPT solar charger IC
+    # Note: thermal zone in pcb_thermal_zone_u7() is centred on (60,10) board-rel;
+    # we move U7 here and the zone will be updated in a follow-up pass.
+    ("U7",    "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",      9.0,   8.0,    0, "CN3722"),
+    # Input filter cap across U7 VIN
+    ("C17",   "Capacitor_SMD:C_0805_2012Metric",          16.0,   5.0,    0, "10uF"),
+    # Input protection Schottky (after D14 TVS)
+    ("D6",    "Diode_SMD:D_SOD-123",                      22.0,   5.0,    0, "MBRS140"),
+    # VIN TVS clamp across CN3722 VIN/GND (after D6)
+    ("D8",    "Diode_SMD:D_SMA",                          28.0,   5.0,    0, "SMAJ28CA"),
+    # CN3722 output / VBAT filter cap
+    ("C18",   "Capacitor_SMD:C_0805_2012Metric",          16.0,  13.0,    0, "10uF"),
+    # MPPT divider
+    ("R19",   "Resistor_SMD:R_0402_1005Metric",           22.0,  10.0,    0, "2k0"),
+    ("R20",   "Resistor_SMD:R_0402_1005Metric",           22.0,  14.0,    0, "36k"),
+    ("R21",   "Resistor_SMD:R_0402_1005Metric",           27.0,  10.0,    0, "10k"),
+    # CV divider (new for CN3722)
+    ("R33",   "Resistor_SMD:R_0402_1005Metric",           27.0,  14.0,    0, "604k"),
+    ("R34",   "Resistor_SMD:R_0402_1005Metric",           27.0,  18.0,    0, "100k"),
+    # Solar charge LED + series resistor (DNF in production)
+    ("D7",    "LED_SMD:LED_0603_1608Metric",               9.0,  18.0,    0, "LED"),
+    ("R22",   "Resistor_SMD:R_0402_1005Metric",           14.0,  18.0,    0, "1k DNF"),
 
-    # Connectors
-    ("J1",   "Connector_JST:JST_XH_B2B-XH-AM_1x02_P2.50mm_Horizontal", 74,   40,   0, "LiPo"),
-    ("J2",   "welld:USB_C_9x3.2mm",                                       2,   47,   0, "USB-C"),
-    ("J3",   "Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical",     40,   53,   0, "U.FL"),
-    ("J4",   "Connector_Phoenix_MC:PhoenixContact_MC_1,5_3-G-3,5_1x03_P3.50mm_Horizontal", 12, 2, 0, "4-20mA_1"),
-    ("J5",   "Connector_Phoenix_MC:PhoenixContact_MC_1,5_3-G-3,5_1x03_P3.50mm_Horizontal", 23, 2, 0, "4-20mA_2"),
-    ("J6",   "Connector_Phoenix_MC:PhoenixContact_MC_1,5_3-G-3,5_1x03_P3.50mm_Horizontal", 34, 2, 0, "DS18B20"),
-    ("R32",  "Resistor_SMD:R_0402_1005Metric",                           36,   4,  0, "33R_DNF"),  # 1-Wire series protection (DNF default)
-    ("J7",   "Connector_Phoenix_MC:PhoenixContact_MC_1,5_3-G-3,5_1x03_P3.50mm_Horizontal", 45, 2, 0, "Spare"),
-    ("J8",   "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical", 70, 46,  0, "I2C"),
-    ("J9",   "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical", 70, 32,  0, "GPIO"),
-    ("J10",  "Connector_PinHeader_1.27mm:PinHeader_1x06_P1.27mm_Vertical",  2, 20,  0, "PROG"),
-    ("J12",  "Connector_Phoenix_MC:PhoenixContact_MC_1,5_2-G-3,5_1x02_P3.50mm_Horizontal", 64, 2, 0, "Solar"),
+    # --- USB-C sub-group (mid-left, Y=22..36, clear of J1 courtyard) ---
+    # J1 courtyard is X=0-13.6, Y=29-38; avoid with USB-C ICs
+    # J13 goes on left edge, body inside board
+    ("J13",   "Connector_USB:USB_C_Receptacle_GCT_USB4135-GF-A_6P_TopMnt_Horizontal",
+                                                           5.0,  25.0,    0, "USB-C"),
+    # CC pull-downs — within 3 mm of J13
+    ("R_CC1", "Resistor_SMD:R_0402_1005Metric",          13.0,  23.0,    0, "5k1"),
+    ("R_CC2", "Resistor_SMD:R_0402_1005Metric",          13.0,  26.0,    0, "5k1"),
+    # VBUS ESD clamp
+    ("U11",   "Package_TO_SOT_SMD:SOT-23-6",             19.0,  24.0,    0, "USBLC6"),
+    # PTC fuse in series with VBUS
+    ("F2",    "Fuse:Fuse_1206_3216Metric",                25.0,  24.0,    0, "Polyfuse"),
+    # VUSB filter cap (after F2)
+    ("C27",   "Capacitor_SMD:C_0805_2012Metric",          25.0,  28.0,    0, "4.7uF"),
 
-    # Switches
-    ("SW1",  "Button_Switch_SMD:SW_SPST_TL3305AF160QG",                   5,   35,   0, "RESET"),
-    ("SW2",  "Button_Switch_SMD:SW_SPST_TL3305AF160QG",                   5,   28,   0, "BOOT"),
+    # --- TP5100 USB charger sub-group (Y=39..52, X=14..31) ---
+    # Kept right of battery protection (D13/D5/R31) to avoid J1 courtyard
+    ("U12",   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",     21.0,  43.0,    0, "TP5100"),
+    # U12 VIN bypass — within 2 mm
+    ("C28",   "Capacitor_SMD:C_0805_2012Metric",          28.0,  40.0,    0, "10uF"),
+    # U12 VBAT output bypass — within 3 mm
+    ("C29",   "Capacitor_SMD:C_0805_2012Metric",          28.0,  44.0,    0, "10uF"),
+    # PROG resistor (charge current set)
+    ("R35",   "Resistor_SMD:R_0402_1005Metric",           16.0,  40.0,    0, "1k2"),
+    # CE pull-up
+    ("R36",   "Resistor_SMD:R_0402_1005Metric",           16.0,  44.0,    0, "100k"),
+    # CE bleed to GND (fail-safe disable)
+    ("R37",   "Resistor_SMD:R_0402_1005Metric",           16.0,  48.0,    0, "4k7"),
+    # /CHRG pull-up to 3V3
+    ("R38",   "Resistor_SMD:R_0402_1005Metric",           21.0,  48.0,    0, "4k7"),
 
-    # Resistors
-    ("R1",   "Resistor_SMD:R_0402_1005Metric",   8,   38,   0, "2k0"),
-    ("R2",   "Resistor_SMD:R_0805_2012Metric",   17,   10,  0, "100R_0.1%"),
-    ("R3",   "Resistor_SMD:R_0402_1005Metric",   20,   12,  0, "100R"),
-    ("R4",   "Resistor_SMD:R_0805_2012Metric",   26,   10,  0, "100R_0.1%"),
-    ("R5",   "Resistor_SMD:R_0402_1005Metric",   29,   12,  0, "100R"),
-    ("R6",   "Resistor_SMD:R_0402_1005Metric",   36,   10,  0, "4k7"),
-    ("R7",   "Resistor_SMD:R_0402_1005Metric",   53,   30,  0, "100k"),
-    ("R8",   "Resistor_SMD:R_0402_1005Metric",   53,   32,  0, "100k"),
-    ("R9",   "Resistor_SMD:R_0402_1005Metric",   63,   46,  0, "4k7"),
-    ("R10",  "Resistor_SMD:R_0402_1005Metric",   65,   46,  0, "4k7"),
-    ("R11",  "Resistor_SMD:R_0402_1005Metric",   26,   36,  0, "10k"),
-    ("R12",  "Resistor_SMD:R_0402_1005Metric",   26,   34,  0, "10k"),
-    ("R13",  "Resistor_SMD:R_0402_1005Metric",   26,   32,  0, "10k"),
-    ("R14",  "Resistor_SMD:R_0402_1005Metric",   51,   49,  0, "1k"),
-    ("R15",  "Resistor_SMD:R_0402_1005Metric",    4,   50,  0, "5k1"),
-    ("R16",  "Resistor_SMD:R_0402_1005Metric",    6,   50,  0, "5k1"),
-    ("R17",  "Resistor_SMD:R_0402_1005Metric",   11,   45,  0, "1k_DNF"),
-    ("R18",  "Resistor_SMD:R_0402_1005Metric",   13,   45,  0, "1k_DNF"),
-    ("R19",  "Resistor_SMD:R_0402_1005Metric",   57,   12,  0, "2k0"),
-    ("R20",  "Resistor_SMD:R_0402_1005Metric",   63,    8,  0, "36k"),
-    ("R21",  "Resistor_SMD:R_0402_1005Metric",   63,   10,  0, "10k"),
-    ("R22",  "Resistor_SMD:R_0402_1005Metric",   62,   14,  0, "1k_DNF"),
+    # --- Battery protection (X=2..12, Y=39..52) ---
+    # D13: 10V TVS across battery terminals (J1)
+    ("D13",   "Diode_SMD:D_SMA",                          6.0,  40.0,    0, "SMAJ10CA"),
+    # D5: P-ch MOSFET reverse-polarity protection
+    ("D5",    "Package_TO_SOT_SMD:SOT-23",                6.0,  45.0,    0, "AO3407"),
+    # R31: D5 gate pull-down — within 2 mm of D5
+    ("R31",   "Resistor_SMD:R_0402_1005Metric",           6.0,  49.0,    0, "10k"),
 
-    # Capacitors
-    ("C1",   "Capacitor_SMD:C_0805_2012Metric",   8,   41,  0, "10uF"),
-    ("C2",   "Capacitor_SMD:C_0805_2012Metric",  12,   41,  0, "10uF"),
-    ("C3",    "Capacitor_SMD:C_0402_1005Metric",  20,   14,  0, "1uF"),
-    ("C4",    "Capacitor_SMD:C_0805_2012Metric",  22,   14,  0, "10uF"),
-    ("C_SH1", "Capacitor_SMD:C_0402_1005Metric",  17,   12,  0, "10nF"),  # across R2 shunt ch1
-    ("C5",    "Capacitor_SMD:C_0402_1005Metric",  29,   14,  0, "1uF"),
-    ("C6",    "Capacitor_SMD:C_0805_2012Metric",  31,   14,  0, "10uF"),
-    ("C_SH2", "Capacitor_SMD:C_0402_1005Metric",  26,   12,  0, "10nF"),  # across R4 shunt ch2
-    ("C7",   "Capacitor_SMD:C_0402_1005Metric",  36,   12,  0, "100nF"),
-    ("C8",   "Capacitor_SMD:C_0402_1005Metric",  55,   32,  0, "100nF"),
-    ("C9",   "Capacitor_SMD:C_0402_1005Metric",  54,   35,  0, "100nF"),
-    ("C10",  "Capacitor_SMD:C_0402_1005Metric",  56,   35,  0, "1uF"),
-    ("C11",  "Capacitor_SMD:C_0402_1005Metric",  54,   37,  0, "100nF"),
-    ("C12",  "Capacitor_SMD:C_0402_1005Metric",  56,   37,  0, "1uF"),
-    ("C13",  "Capacitor_SMD:C_0402_1005Metric",  27,   37,  0, "100nF"),
-    ("C14a", "Capacitor_SMD:C_0402_1005Metric",  42,   26,  0, "100nF"),
-    ("C14b", "Capacitor_SMD:C_0402_1005Metric",  44,   24,  0, "100nF"),
-    ("C14c", "Capacitor_SMD:C_0402_1005Metric",  46,   26,  0, "100nF"),
-    ("C14d", "Capacitor_SMD:C_0402_1005Metric",  48,   24,  0, "100nF"),
-    ("C15",  "Capacitor_SMD:C_0805_2012Metric",  44,   26,  0, "10uF"),
-    ("C16",  "Capacitor_SMD:C_0805_2012Metric",   6,   46,  0, "4.7uF"),
-    ("C17",  "Capacitor_SMD:C_0805_2012Metric",  58,    8,  0, "10uF"),
-    ("C18",  "Capacitor_SMD:C_0805_2012Metric",  60,   12,  0, "10uF"),
+    # --- 3.3V Buck converter (X=2..16, Y=34..38, between J1 and TP5100) ---
+    # Placed below USB-C group, above TP5100 group, tight to left edge
+    ("U1",    "Package_TO_SOT_SMD:SOT-23-6",             10.0,  34.0,    0, "AP63205"),
+    ("L2",    "Inductor_SMD:L_Vishay_IFSC-1515AH_4x4x1.8mm", 17.0,  34.0,    0, "4.7uH"),
+    # VIN bypass caps — within 2 mm of U1
+    ("C9",    "Capacitor_SMD:C_0402_1005Metric",          7.0,  36.5,    0, "100nF"),
+    ("C10",   "Capacitor_SMD:C_0402_1005Metric",         10.0,  36.5,    0, "100nF"),
+    # Output bypass caps — on +3V3 side of L2
+    ("C11",   "Capacitor_SMD:C_0402_1005Metric",         20.0,  34.0,    0, "100nF"),
+    ("C12",   "Capacitor_SMD:C_0402_1005Metric",         20.0,  36.5,    0, "1uF"),
+    ("C_BUCK","Capacitor_SMD:C_0805_2012Metric",         25.0,  35.0,    0, "10uF"),
+    # EN pull-up
+    ("R11",   "Resistor_SMD:R_0402_1005Metric",         13.0,  36.5,    0, "10k"),
 
-    # VLOOP 12 V boost
-    ("U8",   "Package_TO_SOT_SMD:SOT-23-5",      73,   20,  0, "TPS61023"),
-    ("L1",   "Inductor_SMD:L_1812_4532Metric",   74,   12,  0, "4.7uH"),
-    ("R23",  "Resistor_SMD:R_0402_1005Metric",   76,   18,  0, "1.1M"),
-    ("R24",  "Resistor_SMD:R_0402_1005Metric",   76,   20,  0, "47k"),
-    ("C19",  "Capacitor_SMD:C_0805_2012Metric",  70,   16,  0, "10uF"),
-    ("C20",  "Capacitor_SMD:C_1206_3216Metric",  77,    8,  0, "22uF"),
-    ("C22",  "Capacitor_SMD:C_0805_2012Metric",  72,    8,  0, "10uF"),
+    # -------------------------------------------------------------------------
+    # LOCKED — J1 (XT30PW-F battery connector, left side)
+    # -------------------------------------------------------------------------
+    ("J1",    "WellD:XT30PW-F_RightAngle",                5.6,  33.5,  180, "XT30PW-F"),
 
-    # Precision ADC + fuel gauge
-    ("FB1",  "Ferrite_Bead_SMD:L_0402_1005Metric", 38, 36,  0, "600R@100MHz"),
-    ("C23",  "Capacitor_SMD:C_0402_1005Metric",  40,   36,  0, "100nF"),
-    ("C24",  "Capacitor_SMD:C_0402_1005Metric",  42,   36,  0, "1uF"),
-    ("U9",   "Package_SO:MSOP-10_3x3mm_P0.5mm",  42,   38,  0, "ADS1115"),
-    ("U10",  "Package_TO_SOT_SMD:SOT-23-6",      68,   42,  0, "MAX17048"),
-    ("R27",  "Resistor_SMD:R_0402_1005Metric",   62,   44,  0, "4k7"),
-    ("R28",  "Resistor_SMD:R_0402_1005Metric",   50,   38,  0, "100R"),
+    # -------------------------------------------------------------------------
+    # Zone 2 — MCU (center, X=32..66, Y=2..38)
+    # Antenna keepout: X<30, Y<20 — U6 module is clear (center ~50,18)
+    # -------------------------------------------------------------------------
+    # U6: ESP32-C6-MINI-1U module (~16x14 mm body)
+    ("U6",    "PCM_Espressif:ESP32-C6-MINI-1U",          50.0,  17.0,    0, "ESP32-C6"),
+    # Module VCC3V3 decoupling — within 3 mm of module pads
+    ("C14a",  "Capacitor_SMD:C_0402_1005Metric",         36.0,   7.0,    0, "100nF"),
+    ("C14b",  "Capacitor_SMD:C_0402_1005Metric",         39.0,   7.0,    0, "100nF"),
+    ("C14c",  "Capacitor_SMD:C_0402_1005Metric",         36.0,  10.0,    0, "100nF"),
+    ("C14d",  "Capacitor_SMD:C_0402_1005Metric",         39.0,  10.0,    0, "100nF"),
+    # Module VCC3V3 bulk
+    ("C15",   "Capacitor_SMD:C_0805_2012Metric",         42.0,   8.0,    0, "10uF"),
+    # Strapping resistors
+    ("R12",   "Resistor_SMD:R_0402_1005Metric",          36.0,  14.0,    0, "10k"),
+    ("R13",   "Resistor_SMD:R_0402_1005Metric",          39.0,  14.0,    0, "10k"),
+    # EN reset cap
+    ("C13",   "Capacitor_SMD:C_0402_1005Metric",         42.0,  14.0,    0, "100nF"),
+    # Buttons — top edge of module, accessible for hand-press
+    ("SW1",   "Button_Switch_SMD:SW_Push_1P1T_NO_CK_KSC6xxG",
+                                                          42.0,   4.0,    0, "RESET"),
+    ("SW2",   "Button_Switch_SMD:SW_Push_1P1T_NO_CK_KSC6xxG",
+                                                          48.0,   4.0,    0, "BOOT"),
+    # Status LED + current limit resistor — right of module
+    ("D4",    "LED_SMD:LED_0603_1608Metric",              62.0,  28.0,    0, "Status"),
+    ("R14",   "Resistor_SMD:R_0402_1005Metric",          58.0,  28.0,    0, "1k"),
 
-    # Charger interlock + divider gate
-    ("Q1",   "Package_TO_SOT_SMD:SOT-23",        14,   43,  0, "BSS123"),
-    ("Q2",   "Package_TO_SOT_SMD:SOT-23",        56,   36,  0, "BSS123"),
-    ("Q3",   "Package_TO_SOT_SMD:SOT-23",        16,   41,  0, "BSS84"),
-    ("R25",  "Resistor_SMD:R_0402_1005Metric",   16,   47,  0, "4k7"),
-    ("R26",  "Resistor_SMD:R_0402_1005Metric",   57,   38,  0, "4k7"),
-    ("R29",  "Resistor_SMD:R_0402_1005Metric",   10,   38,  0, "4k7"),
-    ("R30",  "Resistor_SMD:R_0402_1005Metric",   18,   45,  0, "10k"),
+    # -------------------------------------------------------------------------
+    # Zone 3 — Analog / Sensors (X=56..66, Y=2..38)
+    # ADS1115 kept away from MT3608B boost noise (Zone 5, bottom-center)
+    # -------------------------------------------------------------------------
+    # ADS1115 cluster — U9 MSOP-10 at center ~(62,20)
+    ("U9",    "Package_SO:MSOP-10_3x3mm_P0.5mm",         62.0,  20.0,    0, "ADS1115"),
+    # ADS1115 VDD ferrite bead (in 3V3 supply line to U9)
+    ("FB1",   "Inductor_SMD:L_0402_1005Metric",          57.0,  17.0,    0, "Ferrite"),
+    # ADS1115 VDD bypass caps — on U9 side of FB1, within 1 mm of U9
+    ("C23",   "Capacitor_SMD:C_0402_1005Metric",         57.0,  20.0,    0, "100nF"),
+    ("C24",   "Capacitor_SMD:C_0402_1005Metric",         57.0,  23.0,    0, "1uF"),
+    # ALERT/DRDY series protection
+    ("R28",   "Resistor_SMD:R_0402_1005Metric",          62.0,  25.0,    0, "100R"),
 
-    # Solar TVS + indicator
-    ("D7",   "LED_SMD:LED_0603_1608Metric",      52,    8,  0, "LED_SOLAR"),
-    ("D8",   "Diode_SMD:D_SMA",                  62,   20,  0, "SMAJ7.0A"),
-    ("C21",  "Capacitor_SMD:C_0402_1005Metric",  26,    8,  0, "100nF"),
+    # Battery divider — near U9 AIN2 input
+    ("Q2",    "Package_TO_SOT_SMD:SOT-23",                57.0,   8.0,    0, "BSS123"),
+    ("R7",    "Resistor_SMD:R_0402_1005Metric",           62.0,   6.0,    0, "330k"),
+    ("R8",    "Resistor_SMD:R_0402_1005Metric",           62.0,   9.0,    0, "100k"),
+    ("C8",    "Capacitor_SMD:C_0402_1005Metric",          57.0,  12.0,    0, "100nF"),
+    ("R26",   "Resistor_SMD:R_0402_1005Metric",           62.0,  12.0,    0, "4k7"),
+
+    # 4-20mA ch1 circuit — below U9
+    ("D9",    "Diode_SMD:D_SMA",                          58.0,  30.0,    0, "SMAJ3.3"),
+    ("R2",    "Resistor_SMD:R_0805_2012Metric",           64.0,  33.0,    0, "100R"),
+    ("R3",    "Resistor_SMD:R_0402_1005Metric",           58.0,  33.0,    0, "100R"),
+    ("C3",    "Capacitor_SMD:C_0402_1005Metric",          60.0,  36.0,    0, "1uF"),
+    ("C4",    "Capacitor_SMD:C_0805_2012Metric",          64.0,  36.0,    0, "10uF"),
+    ("C_SH1", "Capacitor_SMD:C_0402_1005Metric",          64.0,  30.0,    0, "10nF"),
+
+    # 4-20mA ch2 circuit — alongside ch1
+    ("D10",   "Diode_SMD:D_SMA",                          58.0,  38.0,    0, "SMAJ3.3"),
+    ("R4",    "Resistor_SMD:R_0805_2012Metric",           64.0,  41.0,    0, "100R"),
+    ("R5",    "Resistor_SMD:R_0402_1005Metric",           58.0,  41.0,    0, "100R"),
+    ("C5",    "Capacitor_SMD:C_0402_1005Metric",          60.0,  44.0,    0, "1uF"),
+    ("C6",    "Capacitor_SMD:C_0805_2012Metric",          64.0,  44.0,    0, "10uF"),
+    ("C_SH2", "Capacitor_SMD:C_0402_1005Metric",          64.0,  38.0,    0, "10nF"),
+
+    # ESD protection — dual PRTR5V, one per channel + DS18B20
+    ("D1",    "Package_TO_SOT_SMD:SOT-363_SC-70-6",       57.0,  27.0,    0, "PRTR5V"),
+    ("D12",   "Package_TO_SOT_SMD:SOT-363_SC-70-6",       57.0,  36.0,    0, "PRTR5V"),
+
+    # DS18B20 pullup + bypass
+    ("C7",    "Capacitor_SMD:C_0402_1005Metric",          57.0,  44.0,    0, "100nF"),
+    ("R6",    "Resistor_SMD:R_0402_1005Metric",           57.0,  47.0,    0, "4k7"),
+
+    # DS18B20 1-Wire series protection resistor (DNF by default)
+    ("R32",   "Resistor_SMD:R_0402_1005Metric",           57.0,  50.0,    0, "33R"),
+
+    # -------------------------------------------------------------------------
+    # Zone 4 — Connectors strip (right edge, X=68..78, rot=180 → wires exit right)
+    # Phoenix PT-1,5/3 body: ~10.5 mm wide, ~8 mm deep
+    # Stacked vertically: J4 Y=6, J5 Y=18, J6 Y=30, J7 Y=42
+    # J12 (2-pos, ~7 mm wide): top-right corner
+    # -------------------------------------------------------------------------
+    ("J12",   "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-2-3.5-H_1x02_P3.50mm_Horizontal",
+                                                          73.0,   6.0,  180, "Solar"),
+    # Solar TVS at J12 terminal
+    ("D14",   "Diode_SMD:D_SMA",                          65.0,   6.0,    0, "SMAJ28CA"),
+    # 4-20mA channel 1
+    ("J4",    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
+                                                          73.0,  18.0,  180, "4-20mA_1"),
+    # 4-20mA channel 2
+    ("J5",    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
+                                                          73.0,  30.0,  180, "4-20mA_2"),
+    # DS18B20 sensor
+    ("J6",    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
+                                                          73.0,  42.0,  180, "DS18B20"),
+    # Spare sensor
+    ("J7",    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
+                                                          73.0,  50.0,  180, "Spare"),
+
+    # -------------------------------------------------------------------------
+    # Zone 5 — Support / Interfaces (bottom center, X=32..66, Y=38..53)
+    # Outside J3 courtyard (X=34.24-45.76, Y=40.53-55) — place VLOOP west of it
+    # -------------------------------------------------------------------------
+    # VLOOP boost cluster — MT3608B (U8) SOT-23-6 + hot-loop: SW→L1→C20/C22
+    # Place at X=33..48, Y=38..52, west of J3 courtyard
+    ("U8",    "Package_TO_SOT_SMD:SOT-23-6",             33.0,  42.0,    0, "MT3608B"),
+    ("L1",    "Inductor_SMD:L_Vishay_IFSC-1515AH_4x4x1.8mm",
+                                                          33.0,  47.0,    0, "4.7uH"),
+    # Bootstrap cap on BST pin (pin 6) — within 1 mm of U8
+    ("C_BST", "Capacitor_SMD:C_0402_1005Metric",         36.0,  39.0,    0, "100nF"),
+    # VOUT output caps (high-ripple; keep short to L1 output)
+    ("C20",   "Capacitor_SMD:C_1206_3216Metric",         33.0,  52.0,    0, "22uF 25V"),
+    ("C22",   "Capacitor_SMD:C_0805_2012Metric",         38.0,  52.0,    0, "10uF 25V"),
+    # Input bypass to U8 VIN — within 2 mm
+    ("C19",   "Capacitor_SMD:C_0805_2012Metric",         38.0,  47.0,    0, "10uF"),
+    # VLOOP TVS (at VOUT terminal, before J4/J5 VLOOP pin)
+    ("D11",   "Diode_SMD:D_SMA",                         38.0,  42.0,    0, "SMAJ13"),
+    # Feedback divider (R23 high-side, R24 low-side)
+    ("R23",   "Resistor_SMD:R_0402_1005Metric",          33.0,  38.0,    0, "1.91M"),
+    ("R24",   "Resistor_SMD:R_0402_1005Metric",          38.0,  38.0,    0, "100k"),
+    # Bypass cap on TVS (D8 area) — absorbs inductive transients
+    ("C21",   "Capacitor_SMD:C_0402_1005Metric",         43.0,  39.0,    0, "100nF"),
+
+    # Programming header — accessible top of bottom strip
+    ("J10",   "Connector_PinHeader_1.27mm:PinHeader_1x06_P1.27mm_Vertical",
+                                                          30.0,  47.0,    0, "PROG"),
 
     # Solder jumpers
-    ("SJ1",  "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",   70, 24, 0, "VBOOST_EN"),
-    ("SJ2",  "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",   18,  6, 0, "VLOOP_BUS"),
-    ("SJ3",  "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",   53, 49, 0, "LED_DIS"),
-    ("SJ4",  "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",    8, 16, 0, "UART_TX"),
-    ("SJ5",  "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",    8, 24, 0, "UART_RX"),
+    ("SJ1",   "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm",
+                                                          48.0,  44.0,    0, "VBOOST"),
+    ("SJ2",   "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm",
+                                                          48.0,  48.0,    0, "VLOOP"),
+    ("SJ3",   "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm",
+                                                          48.0,  52.0,    0, "LED_DIS"),
+    ("SJ4",   "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm",
+                                                          53.0,  44.0,    0, "UART_TX"),
+    ("SJ5",   "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm",
+                                                          53.0,  48.0,    0, "UART_RX"),
 
-    # Missing bypass caps (decoupling review additions)
-    ("C25",  "Capacitor_SMD:C_0402_1005Metric",  69, 42,  0, "100nF"),   # MAX17048 VDD bypass, within 1mm of U10
-    ("C26",  "Capacitor_SMD:C_0402_1005Metric",  68, 19,  0, "100nF"),   # S-8261A VCC bypass, within 1mm of U3
+    # Test points — scattered along bottom strip Y=50..53, X=2..55
+    # (avoid J3 courtyard X=34.24-45.76, and J7 at Y=50)
+    ("TP1",   "TestPoint:TestPoint_Pad_1.0x1.0mm",        3.0,  52.0,    0, "VBAT"),
+    ("TP2",   "TestPoint:TestPoint_Pad_1.0x1.0mm",        7.0,  52.0,    0, "VLOOP"),
+    ("TP3",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       11.0,  52.0,    0, "+3V3"),
+    ("TP4",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       15.0,  52.0,    0, "GND"),
+    ("TP5",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       19.0,  52.0,    0, "LOOP1"),
+    ("TP6",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       23.0,  52.0,    0, "LOOP2"),
+    ("TP7",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       27.0,  52.0,    0, "1WIRE"),
+    ("TP8",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       31.0,  52.0,    0, "SDA"),
+    ("TP9",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       47.0,  52.0,    0, "SCL"),
+    ("TP10",  "TestPoint:TestPoint_Pad_1.0x1.0mm",       51.0,  52.0,    0, "VSOLAR"),
+    ("TP11",  "TestPoint:TestPoint_Pad_1.0x1.0mm",       55.0,  52.0,    0, "VBAT_RAW"),
+    ("TP12",  "TestPoint:TestPoint_Pad_1.0x1.0mm",       59.0,  52.0,    0, "ADS_DRDY"),
+    ("TP14",  "TestPoint:TestPoint_Pad_1.0x1.0mm",       63.0,  52.0,    0, "CHRG_SOL"),
+    ("TP15",  "TestPoint:TestPoint_Pad_1.0x1.0mm",       67.0,  52.0,    0, "CHRG_USB"),
 
-    # Test points TP1-TP14 (DNF — 1.0mm SMD pads)
-    # Power rails row: top edge of board
-    ("TP1",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  56, 50,  0, "VBAT"),
-    ("TP2",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  79, 18,  0, "VLOOP"),
-    ("TP3",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  58, 50,  0, "+3V3"),
-    ("TP4",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  60, 50,  0, "GND"),
-    # Sensor signal taps
-    ("TP5",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  19, 11,  0, "LOOP_TERM_CH1"),
-    ("TP6",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  28, 11,  0, "LOOP_TERM_CH2"),
-    ("TP7",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  36,  8,  0, "1WIRE"),
-    # I2C
-    ("TP8",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  64, 44,  0, "I2C_SDA"),
-    ("TP9",  "TestPoint:TestPoint_Pad_1.0x1.0mm",  66, 44,  0, "I2C_SCL"),
-    # Solar and battery raw terminals
-    ("TP10", "TestPoint:TestPoint_Pad_1.0x1.0mm",  64,  4,  0, "VSOLAR_IN"),
-    ("TP11", "TestPoint:TestPoint_Pad_1.0x1.0mm",  74, 38,  0, "VBAT_RAW"),
-    # Interrupt signals
-    ("TP12", "TestPoint:TestPoint_Pad_1.0x1.0mm",  22, 24,  0, "ADS_DRDY"),
-    ("TP13", "TestPoint:TestPoint_Pad_1.0x1.0mm",  24, 24,  0, "MAX_ALRT"),
-    ("TP14", "TestPoint:TestPoint_Pad_1.0x1.0mm",  64, 14,  0, "/CHRG_SOLAR"),
+    # -------------------------------------------------------------------------
+    # LOCKED — J3, R9, R10 (do not move)
+    # -------------------------------------------------------------------------
+    ("J3",    "Connector_Coaxial:SMA_Amphenol_132289_EdgeMount",
+                                                          40.0,  55.0,  270, "132289"),
+    ("R9",    "Resistor_SMD:R_0402_1005Metric",           44.0,  43.5,    0, "4k7"),  # shifted north to clear J3 courtyard
+    ("R10",   "Resistor_SMD:R_0402_1005Metric",           53.0,  45.0,    0, "4k7"),
 ]
+
 
 # Key nets declared in the PCB netlist
 # Net id 0 = unconnected; named nets start at 1
@@ -1571,13 +1977,13 @@ def pcb_footprint(ref: str, fp: str, x: float, y: float, rot: float, value: str)
     return f"""
   (footprint "{fp}" (layer "{layer}") (at {x:.3f} {y:.3f} {rot:.1f})
     (uuid "{uid()}")
-    (property "Reference" "{ref}" (at 0 -2 0) (layer "F.SilkS")
+    (property "Reference" "{ref}" (at 0 -1.5 0) (layer "F.SilkS")
       (uuid "{uid()}")
-      (effects (font (size 1 1) (thickness 0.15)))
+      (effects (font (size 0.8 0.8) (thickness 0.12)))
     )
-    (property "Value" "{value}" (at 0 2 0) (layer "F.Fab")
+    (property "Value" "{value}" (at 0 1.5 0) (layer "F.Fab")
       (uuid "{uid()}")
-      (effects (font (size 1 1) (thickness 0.15)))
+      (effects (font (size 0.8 0.8) (thickness 0.12)))
     )
   )"""
 
@@ -1587,13 +1993,13 @@ def pcb_mounting_hole(x: float, y: float) -> str:
     return f"""
   (footprint "MountingHole:MountingHole_3.2mm_M3" (layer "F.Cu") (at {x:.3f} {y:.3f} 0)
     (uuid "{uid()}")
-    (property "Reference" "MH" (at 0 -4 0) (layer "F.SilkS")
+    (property "Reference" "MH" (at 0 -3 0) (layer "F.SilkS")
       (uuid "{uid()}")
-      (effects (font (size 1 1) (thickness 0.15)))
+      (effects (font (size 0.8 0.8) (thickness 0.12)))
     )
-    (property "Value" "MountingHole_3.2mm_M3" (at 0 4 0) (layer "F.Fab")
+    (property "Value" "MountingHole_3.2mm_M3" (at 0 3 0) (layer "F.Fab")
       (uuid "{uid()}")
-      (effects (font (size 1 1) (thickness 0.15)))
+      (effects (font (size 0.8 0.8) (thickness 0.12)))
     )
     (pad "" np_thru_hole circle (at 0 0) (size 3.2 3.2) (drill 3.2)
       (layers "*.Cu" "*.Mask")
@@ -1608,12 +2014,13 @@ def pcb_board_outline() -> str:
     Origin lower-left = (0,0); KiCad PCB y increases downward.
     """
     w, h = BOARD_W, BOARD_H
+    ox, oy = PCB_X_OFFSET, PCB_Y_OFFSET
     lines = []
     corners = [
-        ((0, 0),   (w, 0)),
-        ((w, 0),   (w, h)),
-        ((w, h),   (0, h)),
-        ((0, h),   (0, 0)),
+        ((ox, oy),       (ox + w, oy)),
+        ((ox + w, oy),   (ox + w, oy + h)),
+        ((ox + w, oy + h), (ox, oy + h)),
+        ((ox, oy + h),   (ox, oy)),
     ]
     for (x1, y1), (x2, y2) in corners:
         lines.append(
@@ -1633,6 +2040,7 @@ def pcb_thermal_zone_u7() -> str:
     Zone corners: (55, 5) to (65, 15) centred on U7 at (60, 10).
     Four thermal vias: 0.6mm drill, 1.0mm pad, spaced 2mm inside the zone.
     """
+    ox, oy = PCB_X_OFFSET, PCB_Y_OFFSET
     # F.Cu zone (GND, solid fill, no thermal relief on zone connection)
     zone_fcu = f"""
   (zone (net 1) (net_name "GND") (layer "F.Cu") (uuid "{uid()}")
@@ -1642,7 +2050,7 @@ def pcb_thermal_zone_u7() -> str:
     (min_thickness 0.25)
     (fill yes (thermal_gap 0.3) (thermal_bridge_width 0.3))
     (polygon
-      (pts (xy 55.0 5.0) (xy 65.0 5.0) (xy 65.0 15.0) (xy 55.0 15.0))
+      (pts (xy {55.0+ox} {5.0+oy}) (xy {65.0+ox} {5.0+oy}) (xy {65.0+ox} {15.0+oy}) (xy {55.0+ox} {15.0+oy}))
     )
   )"""
 
@@ -1655,14 +2063,14 @@ def pcb_thermal_zone_u7() -> str:
     (min_thickness 0.25)
     (fill yes (thermal_gap 0.3) (thermal_bridge_width 0.3))
     (polygon
-      (pts (xy 55.0 5.0) (xy 65.0 5.0) (xy 65.0 15.0) (xy 55.0 15.0))
+      (pts (xy {55.0+ox} {5.0+oy}) (xy {65.0+ox} {5.0+oy}) (xy {65.0+ox} {15.0+oy}) (xy {55.0+ox} {15.0+oy}))
     )
   )"""
 
     # Four thermal vias connecting F.Cu to B.Cu through U7 body area
     # Placed at 2mm spacing inside the 10x10 zone centred on (60,10)
     # Pattern: (58,8), (62,8), (58,12), (62,12)
-    via_positions = [(58.0, 8.0), (62.0, 8.0), (58.0, 12.0), (62.0, 12.0)]
+    via_positions = [(58.0+ox, 8.0+oy), (62.0+ox, 8.0+oy), (58.0+ox, 12.0+oy), (62.0+ox, 12.0+oy)]
     vias_str = ""
     for vx, vy in via_positions:
         vias_str += f"""
@@ -1674,7 +2082,7 @@ def pcb_thermal_zone_u7() -> str:
 
     # Silkscreen label on F.SilkS identifying the thermal island
     silk_label = f"""
-  (gr_text "GND_THERMAL_U7" (at 60 16.5 0) (layer "F.SilkS")
+  (gr_text "GND_THERMAL_U7" (at {60+ox} {16.5+oy} 0) (layer "F.SilkS")
     (uuid "{uid()}")
     (effects (font (size 0.6 0.6) (thickness 0.1)))
   )"""
@@ -1692,13 +2100,13 @@ def pcb_u8_gnd_viastitch() -> str:
     via-stitch perimeter around the island; no pour under L1.
     Via ring boundary: (68,7) to (80,25), one via every ~2.5mm on perimeter.
     """
+    ox, oy = PCB_X_OFFSET, PCB_Y_OFFSET
     # Perimeter coordinates (rectangular ring, clockwise, corners at each corner
     # plus intermediate points every ~2.5 mm)
-    import math
 
     # Keep ring inside board boundary (board right edge = 80 mm; leave 1mm margin)
-    x0, y0 = 68.0, 7.0
-    x1, y1 = 79.0, 25.0
+    x0, y0 = 68.0 + ox, 7.0 + oy
+    x1, y1 = 79.0 + ox, 25.0 + oy
 
     perimeter_vias = []
     step = 2.5
@@ -1738,7 +2146,7 @@ def pcb_u8_gnd_viastitch() -> str:
 
     # Silkscreen comment on F.SilkS marking the SW node island boundary
     silk_label = f"""
-  (gr_text "SW_ISLAND_U8" (at 74 26.5 0) (layer "F.SilkS")
+  (gr_text "SW_ISLAND_U8" (at {74+ox} {26.5+oy} 0) (layer "F.SilkS")
     (uuid "{uid()}")
     (effects (font (size 0.6 0.6) (thickness 0.1)))
   )"""
@@ -1754,15 +2162,17 @@ def make_pcb() -> str:
     # Board outline
     outline = pcb_board_outline()
 
+    ox, oy = PCB_X_OFFSET, PCB_Y_OFFSET
+
     # Mounting holes
     mholes = ""
     for x, y in MOUNTING_HOLES:
-        mholes += pcb_mounting_hole(x, y)
+        mholes += pcb_mounting_hole(x + ox, y + oy)
 
     # Component footprints
     footprints = ""
     for ref, fp, x, y, rot, value in PCB_COMPONENTS:
-        footprints += pcb_footprint(ref, fp, x, y, rot, value)
+        footprints += pcb_footprint(ref, fp, x + ox, y + oy, rot, value)
 
     # Thermal copper pours and via stitching
     thermal_u7 = pcb_thermal_zone_u7()
@@ -1770,9 +2180,9 @@ def make_pcb() -> str:
 
     # Board title graphic text
     title_text = f"""
-  (gr_text "WellD  ESP32-C6 Well Monitor" (at 40 53.5 0) (layer "F.SilkS")
+  (gr_text "WellD  ESP32-C6 Well Monitor" (at {40 + ox} {53.5 + oy} 0) (layer "F.SilkS")
     (uuid "{uid()}")
-    (effects (font (size 1.0 1.0) (thickness 0.15)))
+    (effects (font (size 0.8 0.8) (thickness 0.12)))
   )"""
 
     pcb = f"""(kicad_pcb (version 20260206) (generator "pcbnew") (generator_version "10.0")
@@ -1782,13 +2192,7 @@ def make_pcb() -> str:
     (legacy_teardrops no)
   )
 
-  (paper "A3")
-
-  (title_block
-    (title "WellD Well-Level Monitor PCB")
-    (date "2026-05-18")
-    (company "WellD Project")
-  )
+  (paper "User" 210 148)
 
   (layers
     (0 "F.Cu" signal)
@@ -1949,6 +2353,19 @@ def make_sym_lib() -> str:
 """
 
 
+def make_fp_lib_table() -> str:
+    """Project-level fp-lib-table.
+    
+    All footprints now use standard KiCad libraries (Connector_USB, Espressif PCM, etc.)
+    No custom footprint libraries needed."""
+    libs = []
+    entries = "\n".join(
+        f'\t(lib (name "{n}") (type "{t}") (uri "{u}") (options "") (descr "{d}"))'
+        for n, t, u, d in libs
+    )
+    return f"(fp_lib_table\n\t(version 7)\n{entries}\n)\n"
+
+
 def make_sym_lib_table() -> str:
     """Project-level sym-lib-table: direct paths bypass the global Table-type wrapper
     that KiCad 10's GUI does not always expand correctly."""
@@ -1971,10 +2388,11 @@ def make_sym_lib_table() -> str:
 def main():
     print("Generating KiCad 10 project files …")
 
-    print("\n[1/3] welld.kicad_pro")
+    print("\n[1/4] welld.kicad_pro")
     write("welld.kicad_pro", make_pro())
 
-    print("\n[2/3] welld.kicad_sch")
+    print("\n[2/4] Hierarchical schematics")
+    # Main sheet
     write("welld.kicad_sch", make_sch())
     sch_path = os.path.join(HERE, "welld.kicad_sch")
     result = subprocess.run(
@@ -1982,14 +2400,26 @@ def main():
         capture_output=True, text=True
     )
     if result.returncode == 0:
-        print("  normalised via kicad-cli sch upgrade")
+        print("  main sheet normalised")
     else:
         print(f"  WARNING: kicad-cli upgrade failed: {result.stderr.strip()}")
+    
+    # Sub-sheets
+    for sheet_name in ["power", "mcu", "sensors", "interfaces"]:
+        sheet_uuid = uid()
+        fname = f"{sheet_name}.kicad_sch"
+        write(fname, make_subsheet_sch(sheet_name, sheet_uuid))
+        spath = os.path.join(HERE, fname)
+        subprocess.run(
+            ["kicad-cli", "sch", "upgrade", "--force", spath],
+            capture_output=True, text=True
+        )
+        print(f"  {fname} generated")
 
-    print("\n[3/3] welld.kicad_pcb")
+    print("\n[3/4] welld.kicad_pcb")
     write("welld.kicad_pcb", make_pcb())
 
-    print("\n[+] welld.kicad_sym  (custom symbol library)")
+    print("\n[4/4] Symbol library")
     write("welld.kicad_sym", make_sym_lib())
     sym_path = os.path.join(HERE, "welld.kicad_sym")
     subprocess.run(["kicad-cli", "sym", "upgrade", "--force", sym_path],
@@ -1997,6 +2427,9 @@ def main():
 
     print("[+] sym-lib-table  (project library paths)")
     write("sym-lib-table", make_sym_lib_table())
+
+    print("[+] fp-lib-table  (project footprint libraries)")
+    write("fp-lib-table", make_fp_lib_table())
 
     print("\nDone.  Files written to:", HERE)
 

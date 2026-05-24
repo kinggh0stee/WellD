@@ -18,28 +18,27 @@ D14,1,Solar input terminal surge TVS (at J12),28V standoff bidirectional 400W,DO
 D2,1,Charge indicator LED (REMOVED),REMOVED,—,—,REMOVED — USB charging path deleted in 2S redesign
 D3,1,Standby indicator LED (REMOVED),REMOVED,—,—,REMOVED — USB charging path deleted in 2S redesign
 D4,1,Status LED,Green 0603,0603,—,Controlled by GPIO13; disconnect with SJ3
-J1,1,2S LiPo battery connector,JST PH 2.0mm 2-pin,THT,B2B-PH-K-S,JST; replaces B2B-XH-AM (JST XH 2.5mm); matches Arizer Solo II Sinowatt 2S1P pack connector; pin 1 = BAT+ (positive) pin 2 = BAT- (negative) — verify polarity before connecting; SMD alternate: B2B-PH-SM4-TB; LCSC C457925
-J3,1,U.FL antenna receptacle,50Ω,SMD,U.FL-R-SMT-1(10),Hirose
-A1,1,SMA female bulkhead (case-mounted),IP67 panel-mount SMA,Panel,132289,Amphenol RF; or equiv. IP67 SMA bulkhead; 6.35mm thread
-A2,1,U.FL to SMA pigtail cable,~100mm RG178 coax,Cable,CAB.100.07.0100B,Taoglas; verify length against case depth (~50mm from J3 to back wall)
-A3,1,2.4GHz omnidirectional SMA antenna,2 dBi rubber-duck SMA,Antenna,FXP73,Taoglas; or any 2.4GHz SMA rubber-duck ≥0dBi
-J4,1,4-20mA sensor 1 header (PCB half),3-pos 3.5mm pitch,SMD/THT,MC 1.5/3-G-3.5,Phoenix Contact; use GND terminal (pos 2) as cable shield connection point
+J1,1,2S LiPo battery connector XT30 female PCB-mount,XT30PW-F right-angle THT,THT,XT30PW-F,AMASS; LCSC C601498; pin 1=BAT+ pin 2=BAT-; right-angle mating face points toward left case wall; PCBWay wave-solders; replacement 2S packs with XT30 male widely available (Tattu, Gens Ace)
+J3,1,SMA edge-launch connector SMD,50Ω EdgeMount,SMD,132289,Amphenol RF; fully SMD edge-launch; placed on bottom board edge centered at X=105mm; RF port protrudes 3.04mm past Edge.Cuts; body 14.47mm inside board; RF path: ESP32-C6 U.FL → W1 internal pigtail → J3; Mouser 523-132289; KiCad footprint Connector_Coaxial:SMA_Amphenol_132289_EdgeMount
+W1,1,U.FL-to-SMA-male pigtail cable ~50mm RG178,50Ω / ~50mm / U.FL female to SMA male,Cable assembly,CAB.100.07.0050B,Taoglas; NOT pick-and-place — PCBWay hand-attaches after reflow; U.FL end snaps onto ESP32-C6-MINI-1U module U.FL port; SMA-male end mates with J3; Mouser search "U.FL SMA 50mm RG178"; alternate Amphenol 095-850-198-100
+A3,1,2.4GHz omnidirectional SMA antenna,2 dBi rubber-duck SMA,Antenna,FXP73,Taoglas; screws directly onto J3 SMA port on board edge; or any 2.4GHz SMA rubber-duck ≥0dBi
+J4,1,4-20mA sensor 1 header (PCB half),3-pos 3.5mm pitch,THT,MC 1.5/3-G-3.5,Phoenix Contact; PCBWay wave-solders; use GND terminal (pos 2) as cable shield connection point
 J4P,1,4-20mA sensor 1 plug (field half),3-pos 3.5mm pitch,Pluggable,MC 1.5/3-ST-3.5,Phoenix Contact; ships separately
-J5,1,4-20mA sensor 2 header (PCB half),3-pos 3.5mm pitch,SMD/THT,MC 1.5/3-G-3.5,Phoenix Contact
+J5,1,4-20mA sensor 2 header (PCB half),3-pos 3.5mm pitch,THT,MC 1.5/3-G-3.5,Phoenix Contact; PCBWay wave-solders
 J5P,1,4-20mA sensor 2 plug (field half),3-pos 3.5mm pitch,Pluggable,MC 1.5/3-ST-3.5,Phoenix Contact
-J6,1,DS18B20 header (PCB half),3-pos 3.5mm pitch,SMD/THT,MC 1.5/3-G-3.5,Phoenix Contact
+J6,1,DS18B20 header (PCB half),3-pos 3.5mm pitch,THT,MC 1.5/3-G-3.5,Phoenix Contact; PCBWay wave-solders
 J6P,1,DS18B20 plug (field half),3-pos 3.5mm pitch,Pluggable,MC 1.5/3-ST-3.5,Phoenix Contact
-J7,1,Spare sensor header (PCB half),3-pos 3.5mm pitch,SMD/THT,MC 1.5/3-G-3.5,Phoenix Contact
+J7,1,Spare sensor header (PCB half),3-pos 3.5mm pitch,THT,MC 1.5/3-G-3.5,Phoenix Contact; PCBWay wave-solders
 J7P,1,Spare sensor plug (field half),3-pos 3.5mm pitch,Pluggable,MC 1.5/3-ST-3.5,Phoenix Contact
-J12,1,Solar panel header (PCB half),2-pos 3.5mm pitch,SMD/THT,MC 1.5/2-G-3.5,Phoenix Contact
+J12,1,Solar panel header (PCB half),2-pos 3.5mm pitch,THT,MC 1.5/2-G-3.5,Phoenix Contact; PCBWay wave-solders
 J12P,1,Solar panel plug (field half),2-pos 3.5mm pitch,Pluggable,MC 1.5/2-ST-3.5,Phoenix Contact
-J8,1,I2C expansion header,4-pin 2.54mm,THT,—,Standard 2.54mm single-row; ADS1115 only on-board (MAX17048 removed)
-J9,1,GPIO expansion header,8-pin 2.54mm,THT,—,Standard 2.54mm single-row
-J10,1,Programming header,6-pin 1.27mm,SMD,—,1.27mm SMD right-angle or vertical
+J8,DNF,I2C expansion header — DO NOT POPULATE,4-pin 2.54mm,THT,—,DNF — ADS1115 I2C is on-board; header reserved for future expansion only
+J9,DNF,GPIO expansion header — DO NOT POPULATE,8-pin 2.54mm,THT,—,DNF — all GPIO signals are internal; header not required for production
+J10,1,Programming header,6-pin 1.27mm,THT,—,1.27mm THT vertical; PCBWay wave-solders; pads accessible for pogo-pin programming jig
 SW1,1,Reset button,6×6mm tactile 4.3mm height,SMD,—,Standard SMD tactile
 SW2,1,Boot button,6×6mm tactile 4.3mm height,SMD,—,Standard SMD tactile
 L1,1,VBOOST shielded power inductor,4.7µH 1.0A 250mΩ,4×4mm SMD,CDRH4D22NP-4R7NC,Bourns; LCSC C376098; VLOOP boost inductor for MT3608B; or equivalent 4.7µH ≥1A shielded SMD
-L2,1,AP63205 buck output inductor,4.7µH 1.0A,2520 or 3015 SMD,CDRH4D22NP-4R7NC,Bourns; same MPN as L1 for consolidation; or any 4.7µH ≥1A shielded SMD 2520 package; place within 5mm of U1 SW pin
+L2,1,AP63205 buck output inductor,4.7µH 1.0A 250mΩ,4×4mm SMD,CDRH4D22NP-4R7NC,Bourns; LCSC C376098; same MPN and footprint as L1; place within 5mm of U1 SW pin
 R2,1,4-20mA shunt ch1 precision,100Ω ±0.1% 0.25W,0805,RG2012N-101-W-T1,Susumu; ADS1115 AIN0 reads voltage across this shunt
 R3,1,ADC series limiter ch1,100Ω,0402,—,Limits current into GPIO0 and ADS1115 AIN0
 R4,1,4-20mA shunt ch2 precision,100Ω ±0.1% 0.25W,0805,RG2012N-101-W-T1,Susumu; ADS1115 AIN1 reads voltage across this shunt
@@ -87,9 +86,9 @@ C15,1,Module VCC3V3 bulk,10µF 10V,0805,—,
 C17,1,CN3722 input filter,10µF 25V,0805,—,Voltage rating upgraded from 10V to 25V; CN3722 VIN up to 25V MPPT operating
 C18,1,CN3722 output / VBAT filter,10µF 16V,0805,—,Voltage rating upgraded from 10V to 16V; VBAT up to 8.4V
 C19,1,MT3608B VBOOST input bypass,10µF 16V,0805,—,Voltage rating upgraded from 10V to 16V; VIN up to 8.4V; place within 2mm of U8 VIN pin
-C20,1,VBOOST output filter,22µF 16V,1206,—,MT3608B VOUT; rated above 12V output; unchanged
+C20,1,VBOOST output filter,22µF 25V X5R,1206,—,MT3608B VOUT 12V; 25V rating gives 2.1× margin; DC-bias derating at 12/25V (~48%) still leaves ≥10µF effective; pair with C22
 C21,1,TVS bypass cap,100nF,0402,—,Bypass cap across D8 (SMAJ28CA TVS clamp at CN3722 VIN); absorbs inductive transients from panel cable
-C22,1,VBOOST output cap,10µF 16V,0805,—,In parallel with C20 to maintain ≥10µF at 12V after X5R DC-bias derating; unchanged
+C22,1,VBOOST output cap,10µF 25V X5R,0805,—,In parallel with C20; 25V rating; at 12V DC-bias effective ~4µF — combined with C20 keeps total output capacitance above MT3608B 10µF minimum for loop stability
 C_BST,1,MT3608B bootstrap cap,100nF 16V,0402,—,NEW — required by MT3608B datasheet; from BST pin (pin 6) to SW node; place within 1mm of U8 BST pin; LCSC C14663 or equivalent
 C_BUCK,1,AP63205 output filter cap,10µF 10V X5R,0805,—,NEW — AP63205 output capacitor; on +3V3 rail after L2; complements C11/C12 bypass
 TP1,1,Test point — VBAT (DNF),1.0mm SMD pad,SMD 1.0mm,—,DNF; net: VBAT rail after D5 reverse-polarity MOSFET; 2S range 6.0–8.4V; TestPoint:TestPoint_Pad_1.0x1.0mm
