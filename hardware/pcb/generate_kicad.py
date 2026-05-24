@@ -18,6 +18,7 @@ import os
 import re
 import subprocess
 import uuid
+import xml.etree.ElementTree as ET
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -540,6 +541,11 @@ def _filter_components(refs: list[str]) -> list[tuple]:
     return comps
 
 
+def _snap(v: float, grid: float = 1.27) -> float:
+    """Snap a value to the nearest grid multiple."""
+    return round(v / grid) * grid
+
+
 def _remap_positions(comps: list[tuple], x0: float, y0: float,
                      scale: float = 0.5) -> list[tuple]:
     """Remap component positions to a tighter grid centred on (x0, y0)."""
@@ -553,8 +559,8 @@ def _remap_positions(comps: list[tuple], x0: float, y0: float,
     cy = (min_y + max_y) / 2
     remapped = []
     for ref, value, lib_id, x, y in comps:
-        nx = x0 + (x - cx) * scale
-        ny = y0 + (y - cy) * scale
+        nx = _snap(x0 + (x - cx) * scale)
+        ny = _snap(y0 + (y - cy) * scale)
         remapped.append((ref, value, lib_id, nx, ny))
     return remapped
 
@@ -599,12 +605,18 @@ def sch_global_label(net: str, x: float, y: float, shape: str = "passive") -> st
   )"""
 
 
+_pwr_seq = 0
+
+
 def sch_power_symbol(net: str, x: float, y: float, root_uuid: str = "") -> str:
+    global _pwr_seq
+    _pwr_seq += 1
+    pwr_ref = f"#PWR{_pwr_seq:03d}"
     inst = (
         f'\n    (instances\n'
         f'      (project "welld"\n'
         f'        (path "/{root_uuid}"\n'
-        f'          (reference "#PWR")\n'
+        f'          (reference "{pwr_ref}")\n'
         f'          (unit 1)\n'
         f'        )\n'
         f'      )\n'
@@ -623,7 +635,7 @@ def sch_power_symbol(net: str, x: float, y: float, root_uuid: str = "") -> str:
     (dnp no)
     (fields_autoplaced yes)
     (uuid "{uid()}")
-{_p10("Reference", "#PWR", 0, 0, hidden=True)}
+{_p10("Reference", pwr_ref, 0, 0, hidden=True)}
 {_p10("Value", net, 0, -3.81)}
 {_p10("Footprint", "", 0, 0, hidden=True)}
 {_p10("Datasheet", "", 0, 0, hidden=True)}
@@ -695,9 +707,15 @@ def sheet_symbol(name: str, filename: str, x: float, y: float,
     sx, sy = x, y
     pin_strs = ""
     for pname, pdir, px, py in pins:
+        # KiCad convention: left-side pins (px==0) use angle=180 so kicad-cli
+        # keeps them at the left border; right-side pins use angle=0.
+        if px == 0:
+            angle, justify = 180, "right"
+        else:
+            angle, justify = 0, "left"
         pin_strs += f"""
-    (pin "{pname}" {pdir} (at {sx + px:.2f} {sy + py:.2f} 0)
-      (effects (font (size 1.27 1.27)) (justify left))
+    (pin "{pname}" {pdir} (at {sx + px:.2f} {sy + py:.2f} {angle})
+      (effects (font (size 1.27 1.27)) (justify {justify}))
       (uuid "{uid()}")
     )"""
 
@@ -1381,66 +1399,69 @@ def make_subsheet_sch(sheet_name: str, sheet_uuid: str, page: str = "A4") -> str
     for ref, value, lib_id, x, y in remapped:
         comps_str += sch_component(ref, value, lib_id, x, y, sheet_uuid)
     
-    # Power symbols for each sheet
+    # Power symbols for each sheet — positions on 1.27 mm grid
     power_str = ""
     if sheet_name in ("power", "mcu", "sensors", "interfaces"):
-        power_str += sch_power_symbol("+3V3", 20, 20, sheet_uuid)
-        power_str += sch_power_symbol("GND", 20, 190, sheet_uuid)
+        power_str += sch_power_symbol("+3V3", 25.4, 25.4, sheet_uuid)
+        power_str += sch_power_symbol("GND", 25.4, 190.5, sheet_uuid)
     if sheet_name in ("power", "sensors", "interfaces"):
-        power_str += sch_power_symbol("VBAT", 270, 20, sheet_uuid)
-    
+        power_str += sch_power_symbol("VBAT", 254.0, 25.4, sheet_uuid)
+
     # Hierarchical labels (cross-sheet connections)
+    # All x/y values are multiples of 1.27 mm so pins land on-grid.
+    # Left-side labels use x=25.4; right-side use x=254.0.
+    # Vertical spacing is 12.7 mm (500 mil).
     sheet_labels = {
         "power": [
-            ("VSOLAR_IN", 20, 50, "input"),
-            ("VUSB_IN", 20, 70, "input"),
-            ("VBAT", 270, 80, "output"),
-            ("+3V3", 270, 100, "output"),
-            ("VLOOP", 270, 120, "output"),
-            ("/CHRG_SOLAR", 20, 90, "output"),
-            ("/CHRG_USB", 20, 110, "output"),
+            ("VSOLAR_IN",   25.4,  50.8, "input"),
+            ("VUSB_IN",     25.4,  63.5, "input"),
+            ("/CHRG_SOLAR", 25.4,  76.2, "output"),
+            ("/CHRG_USB",   25.4,  88.9, "output"),
+            ("VBAT",       254.0,  50.8, "output"),
+            ("+3V3",       254.0,  63.5, "output"),
+            ("VLOOP",      254.0,  76.2, "output"),
         ],
         "mcu": [
-            ("+3V3", 20, 50, "input"),
-            ("VBAT", 270, 50, "input"),
-            ("EN", 270, 70, "output"),
-            ("BOOT", 270, 90, "output"),
-            ("GPIO13_LED", 270, 110, "output"),
-            ("UART_TX", 270, 130, "output"),
-            ("UART_RX", 270, 150, "output"),
-            ("I2C_SDA", 270, 170, "bidirectional"),
-            ("I2C_SCL", 270, 190, "bidirectional"),
-            ("1WIRE", 270, 210, "bidirectional"),
-            ("ADS_DRDY", 270, 230, "input"),
-            ("BATT_DIV_EN", 270, 250, "output"),
-            ("VBOOST_EN", 270, 270, "output"),
+            ("+3V3",       25.4,   50.8, "input"),
+            ("VBAT",      254.0,   50.8, "input"),
+            ("EN",        254.0,   63.5, "output"),
+            ("BOOT",      254.0,   76.2, "output"),
+            ("GPIO13_LED",254.0,   88.9, "output"),
+            ("UART_TX",   254.0,  101.6, "output"),
+            ("UART_RX",   254.0,  114.3, "output"),
+            ("I2C_SDA",   254.0,  127.0, "bidirectional"),
+            ("I2C_SCL",   254.0,  139.7, "bidirectional"),
+            ("1WIRE",     254.0,  152.4, "bidirectional"),
+            ("ADS_DRDY",  254.0,  165.1, "input"),
+            ("BATT_DIV_EN",254.0, 177.8, "output"),
+            ("VBOOST_EN", 254.0,  190.5, "output"),
         ],
         "sensors": [
-            ("+3V3", 20, 50, "input"),
-            ("VBAT", 20, 70, "input"),
-            ("VLOOP", 20, 90, "input"),
-            ("ADC_CH0", 270, 50, "output"),
-            ("ADC_CH1", 270, 70, "output"),
-            ("ADC_CH2", 270, 90, "output"),
-            ("1WIRE", 270, 110, "bidirectional"),
-            ("I2C_SDA", 270, 130, "bidirectional"),
-            ("I2C_SCL", 270, 150, "bidirectional"),
-            ("ADS_DRDY", 270, 170, "output"),
-            ("BATT_DIV_EN", 20, 110, "input"),
-            ("VBAT_RAW", 270, 190, "output"),
+            ("+3V3",       25.4,  50.8, "input"),
+            ("VBAT",       25.4,  63.5, "input"),
+            ("VLOOP",      25.4,  76.2, "input"),
+            ("BATT_DIV_EN",25.4,  88.9, "input"),
+            ("ADC_CH0",   254.0,  50.8, "output"),
+            ("ADC_CH1",   254.0,  63.5, "output"),
+            ("ADC_CH2",   254.0,  76.2, "output"),
+            ("1WIRE",     254.0,  88.9, "bidirectional"),
+            ("I2C_SDA",   254.0, 101.6, "bidirectional"),
+            ("I2C_SCL",   254.0, 114.3, "bidirectional"),
+            ("ADS_DRDY",  254.0, 127.0, "output"),
+            ("VBAT_RAW",  254.0, 139.7, "output"),
         ],
         "interfaces": [
-            ("+3V3", 20, 50, "input"),
-            ("VBAT", 20, 70, "input"),
-            ("UART_TX", 20, 90, "input"),
-            ("UART_RX", 20, 110, "input"),
-            ("I2C_SDA", 20, 130, "input"),
-            ("I2C_SCL", 20, 150, "input"),
-            ("1WIRE", 20, 170, "input"),
-            ("EN", 20, 190, "input"),
-            ("BOOT", 20, 210, "input"),
-            ("GPIO13_LED", 20, 230, "input"),
-            ("ADS_DRDY", 20, 250, "input"),
+            ("+3V3",       25.4,  50.8, "input"),
+            ("VBAT",       25.4,  63.5, "input"),
+            ("UART_TX",    25.4,  76.2, "input"),
+            ("UART_RX",    25.4,  88.9, "input"),
+            ("I2C_SDA",    25.4, 101.6, "bidirectional"),
+            ("I2C_SCL",    25.4, 114.3, "bidirectional"),
+            ("1WIRE",      25.4, 127.0, "input"),
+            ("EN",         25.4, 139.7, "input"),
+            ("BOOT",       25.4, 152.4, "input"),
+            ("GPIO13_LED", 25.4, 165.1, "input"),
+            ("ADS_DRDY",   25.4, 177.8, "input"),
         ],
     }
     
@@ -1457,18 +1478,6 @@ def make_subsheet_sch(sheet_name: str, sheet_uuid: str, page: str = "A4") -> str
   )"""
     
     wires_str = ""
-    # Add a few structural wires per sheet
-    if sheet_name == "power":
-        wires_str += wire(30, 60, 50, 60)  # solar path
-        wires_str += wire(160, 60, 180, 60)  # USB path
-        wires_str += wire(30, 120, 50, 120)  # battery path
-        wires_str += wire(160, 120, 180, 120)  # buck path
-    elif sheet_name == "mcu":
-        wires_str += wire(120, 100, 120, 120)  # ESP32 power
-        wires_str += wire(120, 140, 120, 160)  # decoupling
-    elif sheet_name == "sensors":
-        wires_str += wire(40, 80, 60, 80)  # sensor net
-        wires_str += wire(40, 100, 60, 100)  # sensor net
     
     lib_symbols = make_sch_lib_symbols()
     
@@ -1504,104 +1513,103 @@ def make_sch() -> str:
     """Build the main welld.kicad_sch with 4 hierarchical sheet symbols."""
     root_uuid = uid()
     
-    # Sheet layout on A3 parent page
-    # Power  top-left,  MCU     top-right
-    # Sensors bottom-left, Interfaces bottom-right
+    # Sheet layout — all coordinates on 1.27 mm (50-mil) grid.
+    # Power top-left (25.4, 12.7), MCU top-right (177.8, 12.7),
+    # Sensors bottom-left (25.4, 215.9), Interfaces bottom-right (177.8, 215.9).
+    # Sheet widths 127 mm (100×1.27), heights sized to fit all pins.
+    # Pin offsets are multiples of 12.7 mm (500 mil) so absolute positions
+    # are always on-grid: abs_y = sheet_origin_y + offset_y.
+    #
+    # MCU left-side pins: VBAT first, +3V3 second — matches power right-side order
+    # so a direct horizontal wire connects same-y pins without crossing.
     SHEETS = [
-        ("power",      "power.kicad_sch",      25.4,  25.4,  120, 100, [
-            ("VSOLAR_IN",   "input",  0, 30),
-            ("VUSB_IN",     "input",  0, 50),
-            ("VBAT",        "output", 120, 40),
-            ("+3V3",        "output", 120, 60),
-            ("VLOOP",       "output", 120, 80),
-            ("/CHRG_SOLAR", "output", 0, 70),
-            ("/CHRG_USB",   "output", 0, 90),
+        ("power",      "power.kicad_sch",      25.4,  12.7, 127, 101.6, [
+            ("VSOLAR_IN",   "input",  0,   12.7),   # abs (25.4, 25.4)
+            ("VUSB_IN",     "input",  0,   25.4),   # abs (25.4, 38.1)
+            ("/CHRG_SOLAR", "output", 0,   38.1),   # abs (25.4, 50.8)
+            ("/CHRG_USB",   "output", 0,   50.8),   # abs (25.4, 63.5)
+            ("VBAT",        "output", 127, 12.7),   # abs (152.4, 25.4)
+            ("+3V3",        "output", 127, 25.4),   # abs (152.4, 38.1)
+            ("VLOOP",       "output", 127, 38.1),   # abs (152.4, 50.8)
         ]),
-        ("mcu",        "mcu.kicad_sch",        165.1, 25.4,  120, 100, [
-            ("+3V3",        "input",  0, 30),
-            ("VBAT",        "input",  0, 50),
-            ("EN",          "output", 120, 30),
-            ("BOOT",        "output", 120, 45),
-            ("GPIO13_LED",  "output", 120, 60),
-            ("UART_TX",     "output", 120, 75),
-            ("UART_RX",     "output", 120, 90),
-            ("I2C_SDA",     "bidirectional", 120, 105),
-            ("I2C_SCL",     "bidirectional", 120, 120),
-            ("1WIRE",       "bidirectional", 120, 135),
-            ("ADS_DRDY",    "input", 120, 150),
-            ("BATT_DIV_EN", "output", 120, 165),
-            ("VBOOST_EN",   "output", 120, 180),
+        ("mcu",        "mcu.kicad_sch",       177.8,  12.7, 127, 190.5, [
+            ("VBAT",        "input",         0,   12.7),   # abs (177.8, 25.4) ← matches power VBAT y
+            ("+3V3",        "input",         0,   25.4),   # abs (177.8, 38.1) ← matches power +3V3 y
+            ("EN",          "output",       127,  12.7),   # abs (304.8, 25.4)
+            ("BOOT",        "output",       127,  25.4),   # abs (304.8, 38.1)
+            ("GPIO13_LED",  "output",       127,  38.1),   # abs (304.8, 50.8)
+            ("UART_TX",     "output",       127,  50.8),   # abs (304.8, 63.5)
+            ("UART_RX",     "output",       127,  63.5),   # abs (304.8, 76.2)
+            ("I2C_SDA",     "bidirectional",127,  76.2),   # abs (304.8, 88.9)
+            ("I2C_SCL",     "bidirectional",127,  88.9),   # abs (304.8, 101.6)
+            ("1WIRE",       "bidirectional",127, 101.6),   # abs (304.8, 114.3)
+            ("ADS_DRDY",    "input",        127, 114.3),   # abs (304.8, 127.0)
+            ("BATT_DIV_EN", "output",       127, 127.0),   # abs (304.8, 139.7)
+            ("VBOOST_EN",   "output",       127, 139.7),   # abs (304.8, 152.4)
         ]),
-        ("sensors",    "sensors.kicad_sch",    25.4,  152.4, 120, 100, [
-            ("+3V3",        "input",  0, 30),
-            ("VBAT",        "input",  0, 50),
-            ("VLOOP",       "input",  0, 70),
-            ("ADC_CH0",     "output", 120, 30),
-            ("ADC_CH1",     "output", 120, 50),
-            ("ADC_CH2",     "output", 120, 70),
-            ("1WIRE",       "bidirectional", 120, 90),
-            ("I2C_SDA",     "bidirectional", 120, 110),
-            ("I2C_SCL",     "bidirectional", 120, 130),
-            ("ADS_DRDY",    "output", 120, 150),
-            ("BATT_DIV_EN", "input",  0, 90),
-            ("VBAT_RAW",    "output", 120, 170),
+        ("sensors",    "sensors.kicad_sch",    25.4, 215.9, 127, 190.5, [
+            ("VBAT",        "input",  0,   12.7),   # abs (25.4,  228.6)
+            ("+3V3",        "input",  0,   25.4),   # abs (25.4,  241.3)
+            ("VLOOP",       "input",  0,   38.1),   # abs (25.4,  254.0)
+            ("BATT_DIV_EN", "input",  0,   50.8),   # abs (25.4,  266.7)
+            ("ADC_CH0",     "output", 127, 12.7),   # abs (152.4, 228.6)
+            ("ADC_CH1",     "output", 127, 25.4),   # abs (152.4, 241.3)
+            ("ADC_CH2",     "output", 127, 38.1),   # abs (152.4, 254.0)
+            ("1WIRE",       "bidirectional", 127, 50.8),    # abs (152.4, 266.7)
+            ("I2C_SDA",     "bidirectional", 127, 63.5),    # abs (152.4, 279.4)
+            ("I2C_SCL",     "bidirectional", 127, 76.2),    # abs (152.4, 292.1)
+            ("ADS_DRDY",    "output", 127, 88.9),   # abs (152.4, 304.8)
+            ("VBAT_RAW",    "output", 127, 101.6),  # abs (152.4, 317.5)
         ]),
-        ("interfaces", "interfaces.kicad_sch", 165.1, 152.4, 120, 100, [
-            ("+3V3",        "input",  0, 30),
-            ("VBAT",        "input",  0, 50),
-            ("UART_TX",     "input",  0, 70),
-            ("UART_RX",     "input",  0, 85),
-            ("I2C_SDA",     "input",  0, 100),
-            ("I2C_SCL",     "input",  0, 115),
-            ("1WIRE",       "input",  0, 130),
-            ("EN",          "input",  0, 145),
-            ("BOOT",        "input",  0, 160),
-            ("GPIO13_LED",  "input",  0, 175),
-            ("ADS_DRDY",    "input",  0, 190),
+        ("interfaces", "interfaces.kicad_sch",177.8, 215.9, 127, 190.5, [
+            ("VBAT",        "input",         0,   12.7),   # abs (177.8, 228.6)
+            ("+3V3",        "input",         0,   25.4),   # abs (177.8, 241.3)
+            ("UART_TX",     "input",         0,   38.1),   # abs (177.8, 254.0)
+            ("UART_RX",     "input",         0,   50.8),   # abs (177.8, 266.7)
+            ("I2C_SDA",     "bidirectional", 0,   63.5),   # abs (177.8, 279.4)
+            ("I2C_SCL",     "bidirectional", 0,   76.2),   # abs (177.8, 292.1)
+            ("1WIRE",       "input",         0,   88.9),   # abs (177.8, 304.8)
+            ("EN",          "input",         0,  101.6),   # abs (177.8, 317.5)
+            ("BOOT",        "input",         0,  114.3),   # abs (177.8, 330.2)
+            ("GPIO13_LED",  "input",         0,  127.0),   # abs (177.8, 342.9)
+            ("ADS_DRDY",    "input",         0,  139.7),   # abs (177.8, 355.6)
         ]),
     ]
-    
+
     sheets_str = ""
     for name, filename, x, y, w, h, pins in SHEETS:
         sheets_str += sheet_symbol(name, filename, x, y, w, h, pins)
-    
-    # Main sheet wires: connect Power outputs to MCU/Sensors inputs
+
     def wire(x1, y1, x2, y2):
         return f"""
   (wire (pts (xy {x1:.2f} {y1:.2f}) (xy {x2:.2f} {y2:.2f}))
     (stroke (width 0) (type default))
     (uuid "{uid()}")
   )"""
-    
+
+    # Root-sheet wires: only power nets that have same-y source and sink.
+    # Signal nets (UART, I2C, 1WIRE, …) are left unconnected on the root sheet;
+    # they are powered/connected inside their sub-sheets.
+    #
+    # Absolute pin positions (all on 1.27 mm grid):
+    #   Power VBAT  right: (152.4, 25.4)   MCU VBAT  left: (177.8, 25.4) → same y
+    #   Power +3V3  right: (152.4, 38.1)   MCU +3V3  left: (177.8, 38.1) → same y
+    #   Power VSOLAR_IN left: (25.4, 25.4)
+    #   Power VUSB_IN   left: (25.4, 38.1)
     wires = [
-        # +3V3: Power right -> MCU left, Sensors left
-        wire(145.4, 85.4, 165.1, 55.4),
-        wire(145.4, 85.4, 25.4, 182.4),
-        # VBAT: Power right -> MCU left, Sensors left, Interfaces left
-        wire(145.4, 65.4, 165.1, 75.4),
-        wire(145.4, 65.4, 25.4, 202.4),
-        wire(145.4, 65.4, 165.1, 202.4),
-        # VLOOP: Power right -> Sensors left
-        wire(145.4, 105.4, 25.4, 222.4),
-        # UART: MCU right -> Interfaces left
-        wire(285.1, 100.4, 165.1, 227.4),
-        wire(285.1, 115.4, 165.1, 242.4),
-        # I2C: MCU right -> Sensors right, Interfaces left
-        wire(285.1, 130.4, 145.4, 262.4),
-        wire(285.1, 145.4, 145.4, 282.4),
-        wire(285.1, 130.4, 165.1, 257.4),
-        wire(285.1, 145.4, 165.1, 272.4),
-        # 1WIRE: MCU right -> Sensors right, Interfaces left
-        wire(285.1, 160.4, 145.4, 242.4),
-        wire(285.1, 160.4, 165.1, 287.4),
+        # Global labels → power sheet left input pins
+        wire(12.7,  25.4, 25.4,  25.4),   # VSOLAR_IN
+        wire(12.7,  38.1, 25.4,  38.1),   # VUSB_IN
+        # Power right → MCU left (direct single-segment horizontal)
+        wire(152.4, 25.4, 177.8, 25.4),   # VBAT
+        wire(152.4, 38.1, 177.8, 38.1),   # +3V3
     ]
     wires_str = "".join(wires)
-    
-    # Global labels on main sheet for key nets
+
+    # Global labels placed to the left of the power sheet's input pins
     global_labels = [
-        ("VSOLAR_IN", 20, 20, "input"),
-        ("VUSB_IN", 20, 40, "input"),
-        ("GND", 297, 380, "passive"),
+        ("VSOLAR_IN", 12.7, 25.4, "input"),
+        ("VUSB_IN",   12.7, 38.1, "input"),
     ]
     global_labels_str = ""
     for net, x, y, shape in global_labels:
@@ -1612,7 +1620,7 @@ def make_sch() -> str:
   (generator "eeschema")
   (generator_version "10.0")
   (uuid "{root_uuid}")
-  (paper "A3")
+  (paper "A2")
   (title_block
     (title "WellD Well-Level Monitor")
     (date "2026-05-18")
@@ -1967,13 +1975,189 @@ def pcb_net_declarations() -> str:
     return "\n".join(lines)
 
 
-def pcb_footprint(ref: str, fp: str, x: float, y: float, rot: float, value: str) -> str:
+# ---------------------------------------------------------------------------
+# Netlist-aware pad embedding — eliminates the need for F8 in KiCad.
+#
+# Pipeline:
+#   1. generate_kicad.py writes the schematics.
+#   2. kicad-cli exports a KiCad XML netlist (ref → pin → net name).
+#   3. Each footprint's .kicad_mod is parsed for pad geometry.
+#   4. pcb_footprint() embeds full pads with net assignments in .kicad_pcb.
+#
+# Net codes are derived from the NETS list (index+1) so they match
+# pcb_net_declarations() exactly — no dependency on kicad-cli's numbering.
+# ---------------------------------------------------------------------------
+
+# Footprint library search order (first match wins).
+_FP_SEARCH: list[str] = [
+    os.path.join(HERE, ""),                                          # WellD.pretty lives next to this script
+    "/usr/share/kicad/footprints",                                   # system (Linux KiCad package)
+    os.path.expanduser("~/.local/share/kicad/10.0/footprints"),
+    os.path.expanduser("~/.local/share/kicad/9.0/footprints"),
+    os.path.expanduser("~/.local/share/kicad/8.0/footprints"),
+]
+
+
+def _find_kicad_mod(library_fp: str) -> str | None:
+    """Resolve 'Library:Name' to the .kicad_mod file path, or None."""
+    lib, name = library_fp.split(":", 1)
+    for base in _FP_SEARCH:
+        path = os.path.join(base, f"{lib}.pretty", f"{name}.kicad_mod")
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def _parse_sexp(text: str) -> list:
     """
-    Generate a minimal KiCad 10 footprint placement s-expression.
-    We don't embed full pad geometry (that lives in the footprint library);
-    we just emit the placed instance with reference/value text.
+    Minimal KiCad s-expression parser → nested Python lists.
+    Unquoted tokens and quoted strings are both returned as str.
+    """
+    stack: list[list] = [[]]
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        if c in " \t\n\r":
+            i += 1
+        elif c == "(":
+            stack.append([])
+            i += 1
+        elif c == ")":
+            node = stack.pop()
+            stack[-1].append(node)
+            i += 1
+        elif c == '"':
+            j = i + 1
+            while j < n and text[j] != '"':
+                if text[j] == '\\':
+                    j += 1
+                j += 1
+            stack[-1].append(text[i + 1:j])
+            i = j + 1
+        else:
+            j = i
+            while j < n and text[j] not in " \t\n\r()":
+                j += 1
+            stack[-1].append(text[i:j])
+            i = j
+    return stack[0][0] if stack[0] else []
+
+
+def _sx(node: list, key: str) -> list | None:
+    """First direct child list whose first element equals key."""
+    return next((c for c in node if isinstance(c, list) and c and c[0] == key), None)
+
+
+def _sx_all(node: list, key: str) -> list[list]:
+    """All direct child lists whose first element equals key."""
+    return [c for c in node if isinstance(c, list) and c and c[0] == key]
+
+
+def _parse_pads(mod_path: str) -> list[dict]:
+    """
+    Parse a .kicad_mod file and return pad dicts:
+      num, type, shape, at=(x,y,rot°), size=(w,h), drill, layers=[str,…]
+    Mechanical pads (np_thru_hole) carry num="" and are included so
+    the DRC courtyard check passes; they get no net assignment.
+    """
+    with open(mod_path) as f:
+        fp = _parse_sexp(f.read())
+    pads = []
+    for p in _sx_all(fp, "pad"):
+        if len(p) < 4:
+            continue
+        at_n  = _sx(p, "at")
+        sz_n  = _sx(p, "size")
+        dr_n  = _sx(p, "drill")
+        ly_n  = _sx(p, "layers")
+        if not (at_n and sz_n and ly_n):
+            continue
+        pads.append({
+            "num":    str(p[1]),
+            "type":   str(p[2]),
+            "shape":  str(p[3]),
+            "at":     (float(at_n[1]), float(at_n[2]),
+                       float(at_n[3]) if len(at_n) > 3 else 0.0),
+            "size":   (float(sz_n[1]), float(sz_n[2])),
+            "drill":  float(dr_n[1]) if dr_n else None,
+            "layers": [x for x in ly_n[1:] if isinstance(x, str)],
+        })
+    return pads
+
+
+def _export_netlist(sch_path: str, out_path: str) -> bool:
+    """Run kicad-cli to export KiCad XML netlist from a schematic. Returns True on success."""
+    r = subprocess.run(
+        ["kicad-cli", "sch", "export", "netlist",
+         "--format", "kicadxml", "-o", out_path, sch_path],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        print(f"  WARNING: kicad-cli netlist failed:\n{r.stderr.strip()}")
+        return False
+    return True
+
+
+def _parse_netlist(net_path: str) -> dict[str, dict[str, str]]:
+    """
+    Parse KiCad XML netlist.
+    Returns net_map = {ref: {pin_num_str: net_name_str}}.
+    Net codes are NOT read from here; we derive them from NETS instead.
+    """
+    tree = ET.parse(net_path)
+    root = tree.getroot()
+    net_map: dict[str, dict[str, str]] = {}
+    for comp in root.findall(".//comp"):
+        ref = comp.get("ref", "")
+        net_map[ref] = {}
+        for pin in comp.findall(".//pin"):
+            num = pin.get("num", "")
+            el  = pin.find("net")
+            if el is not None:
+                net_map[ref][num] = el.get("name", "")
+    return net_map
+
+
+# Net-name → code lookup derived from NETS (index+1 matches pcb_net_declarations).
+def _build_net_codes() -> dict[str, int]:
+    return {name: i + 1 for i, name in enumerate(NETS)}
+
+
+def pcb_footprint(ref: str, fp: str, x: float, y: float, rot: float, value: str,
+                  net_map: dict | None = None,
+                  net_codes: dict | None = None) -> str:
+    """
+    Generate a KiCad 10 footprint placement.
+
+    When net_map and net_codes are supplied, the .kicad_mod is parsed and
+    full pad geometry + net assignments are embedded — no F8 needed.
+    Falls back to reference/value-only placement if library or netlist is absent.
     """
     layer = "F.Cu"
+    pads_str = ""
+
+    mod_path = _find_kicad_mod(fp)
+    if mod_path and net_map is not None and net_codes is not None:
+        comp_nets = net_map.get(ref, {})
+        for pad in _parse_pads(mod_path):
+            pnum     = pad["num"]
+            net_name = comp_nets.get(pnum, "")
+            net_code = net_codes.get(net_name, 0)
+
+            ax, ay, ar = pad["at"]
+            sw, sh     = pad["size"]
+
+            at_str     = f"{ax} {ay}" + (f" {ar}" if ar else "")
+            drill_str  = f" (drill {pad['drill']})" if pad["drill"] else ""
+            layers_str = " ".join(f'"{l}"' for l in pad["layers"])
+            net_str    = f'\n      (net {net_code} "{net_name}")' if net_name else ""
+
+            pads_str += f"""
+    (pad "{pnum}" {pad['type']} {pad['shape']} (at {at_str}) (size {sw} {sh}){drill_str}
+      (layers {layers_str}){net_str}
+      (uuid "{uid()}")
+    )"""
+
     return f"""
   (footprint "{fp}" (layer "{layer}") (at {x:.3f} {y:.3f} {rot:.1f})
     (uuid "{uid()}")
@@ -1984,7 +2168,7 @@ def pcb_footprint(ref: str, fp: str, x: float, y: float, rot: float, value: str)
     (property "Value" "{value}" (at 0 1.5 0) (layer "F.Fab")
       (uuid "{uid()}")
       (effects (font (size 0.8 0.8) (thickness 0.12)))
-    )
+    ){pads_str}
   )"""
 
 
@@ -2154,9 +2338,13 @@ def pcb_u8_gnd_viastitch() -> str:
     return vias_str + silk_label
 
 
-def make_pcb() -> str:
-    """Build the complete welld.kicad_pcb s-expression string."""
+def make_pcb(net_map: dict | None = None, net_codes: dict | None = None) -> str:
+    """Build the complete welld.kicad_pcb s-expression string.
 
+    When net_map and net_codes are provided (from the kicad-cli netlist pipeline),
+    each footprint is emitted with full pad geometry and net assignments so the
+    board opens in KiCad without requiring F8.
+    """
     net_decls = pcb_net_declarations()
 
     # Board outline
@@ -2169,10 +2357,11 @@ def make_pcb() -> str:
     for x, y in MOUNTING_HOLES:
         mholes += pcb_mounting_hole(x + ox, y + oy)
 
-    # Component footprints
+    # Component footprints — embed pads+nets when netlist is available
     footprints = ""
     for ref, fp, x, y, rot, value in PCB_COMPONENTS:
-        footprints += pcb_footprint(ref, fp, x + ox, y + oy, rot, value)
+        footprints += pcb_footprint(ref, fp, x + ox, y + oy, rot, value,
+                                    net_map, net_codes)
 
     # Thermal copper pours and via stitching
     thermal_u7 = pcb_thermal_zone_u7()
@@ -2415,8 +2604,22 @@ def main():
         )
         print(f"  {fname} generated")
 
+    # Export netlist from the freshly-written schematic so that make_pcb()
+    # can embed full pad geometry + net assignments.  Falls back gracefully
+    # if kicad-cli is not on PATH (produces placement-only PCB, F8 still works).
+    print("\n[2.5] Exporting netlist for pad-net embedding")
+    sch_path = os.path.join(HERE, "welld.kicad_sch")
+    net_xml  = os.path.join(HERE, "welld_netlist.xml")
+    net_map, net_codes = None, None
+    if _export_netlist(sch_path, net_xml):
+        net_map   = _parse_netlist(net_xml)
+        net_codes = _build_net_codes()
+        missing   = [ref for ref, _, *_ in PCB_COMPONENTS if ref not in net_map]
+        print(f"  netlist: {len(net_map)} refs, {len(net_codes)} nets"
+              + (f"; no schematic entry for: {missing}" if missing else ""))
+
     print("\n[3/4] welld.kicad_pcb")
-    write("welld.kicad_pcb", make_pcb())
+    write("welld.kicad_pcb", make_pcb(net_map, net_codes))
 
     print("\n[4/4] Symbol library")
     write("welld.kicad_sym", make_sym_lib())
