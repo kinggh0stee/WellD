@@ -2354,11 +2354,10 @@ def make_sym_lib() -> str:
 
 
 def make_fp_lib_table() -> str:
-    """Project-level fp-lib-table.
-    
-    All footprints now use standard KiCad libraries (Connector_USB, Espressif PCM, etc.)
-    No custom footprint libraries needed."""
-    libs = []
+    """Project-level fp-lib-table."""
+    libs = [
+        ("WellD", "KiCad", "${KIPRJMOD}/WellD.pretty", "WellD custom footprints"),
+    ]
     entries = "\n".join(
         f'\t(lib (name "{n}") (type "{t}") (uri "{u}") (options "") (descr "{d}"))'
         for n, t, u, d in libs
