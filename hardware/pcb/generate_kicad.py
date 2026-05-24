@@ -1661,7 +1661,7 @@ MOUNTING_HOLES = [
 # Usable area: X=2..78, Y=2..53 (2 mm edge clearance).
 # Keepouts:
 #   J3 courtyard: X=34.24-45.76, Y=40.53-55 (no components)
-#   J1 courtyard: X=0-13.6, Y=29-38 (XT30 plug space)
+#   J1 courtyard: X=-1.2-13.5, Y=26.6-40.4 (XT30 body at 270°; pins at board x=12)
 #   Antenna keepout: X=0-30, Y=0-20 (no copper-bearing components)
 #   MH exclusion: 4 mm radius around each mounting hole corner
 # J1, J3, R9, R10, MH1-4 positions are LOCKED — do not move.
@@ -1753,7 +1753,7 @@ PCB_COMPONENTS = [
     # -------------------------------------------------------------------------
     # LOCKED — J1 (XT30PW-F battery connector, left side)
     # -------------------------------------------------------------------------
-    ("J1",    "WellD:XT30PW-F_RightAngle",                5.6,  33.5,  180, "XT30PW-F"),
+    ("J1",    "WellD:XT30PW-F_RightAngle",                2.0,  33.5,  270, "XT30PW-F"),
 
     # -------------------------------------------------------------------------
     # Zone 2 — MCU (center, X=32..66, Y=2..38)

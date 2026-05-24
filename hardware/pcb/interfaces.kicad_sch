@@ -2,7 +2,7 @@
 	(version 20260306)
 	(generator "eeschema")
 	(generator_version "10.0")
-	(uuid "c9ba0bd8-57f8-4ab2-bbdd-32be150690a4")
+	(uuid "f7e3a4e0-0868-47fb-b78b-afc42bc91bad")
 	(paper "A4")
 	(title_block
 		(title "WellD – Interfaces")
@@ -6198,83 +6198,6 @@
 			(embedded_fonts no)
 		)
 	)
-	(hierarchical_label "GPIO13_LED"
-		(shape input)
-		(at 20 230 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "137f84cb-6d6d-49bd-bb15-52e03cb4089f")
-	)
-	(hierarchical_label "BOOT"
-		(shape input)
-		(at 20 210 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "308de3d1-54ef-4a79-86da-c568587cfca0")
-	)
-	(hierarchical_label "VBAT"
-		(shape input)
-		(at 20 70 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "78de972e-437f-40da-8f42-ff9b1c01bc70")
-	)
-	(hierarchical_label "ADS_DRDY"
-		(shape input)
-		(at 20 250 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "7e57b6e8-6db2-4b49-ba2b-5281a782054c")
-	)
-	(hierarchical_label "UART_TX"
-		(shape input)
-		(at 20 90 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "9c9ac953-334a-4969-b718-cf4dd3fea95e")
-	)
-	(hierarchical_label "EN"
-		(shape input)
-		(at 20 190 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "a15fc57a-a5ba-4c6c-b3ef-c08ca246afd7")
-	)
-	(hierarchical_label "1WIRE"
-		(shape input)
-		(at 20 170 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "d25edb62-f028-4589-acad-301f3e7da06f")
-	)
 	(hierarchical_label "+3V3"
 		(shape input)
 		(at 20 50 0)
@@ -6284,7 +6207,18 @@
 			)
 			(justify left)
 		)
-		(uuid "d5ff3a46-ae98-4d7c-bfd8-c119362ea5b3")
+		(uuid "1c6151ba-3228-4a50-bec6-1cc1ed27d0f9")
+	)
+	(hierarchical_label "GPIO13_LED"
+		(shape input)
+		(at 20 230 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "29cb2e8b-6e8c-46cc-94ae-ab9493cea499")
 	)
 	(hierarchical_label "I2C_SCL"
 		(shape input)
@@ -6295,18 +6229,73 @@
 			)
 			(justify left)
 		)
-		(uuid "d895ef70-655f-4741-af42-82306488b0ae")
+		(uuid "514e099a-6e07-484e-83a5-d284af88ca7d")
 	)
-	(hierarchical_label "UART_RX"
+	(hierarchical_label "BOOT"
 		(shape input)
-		(at 20 110 0)
+		(at 20 210 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify left)
 		)
-		(uuid "e0a5777f-9a3a-4767-8012-b5c68ac4a889")
+		(uuid "53f092b9-1c08-47d0-abcd-be19d4b7761a")
+	)
+	(hierarchical_label "EN"
+		(shape input)
+		(at 20 190 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "6febd78b-d28c-4c22-b513-5b43f9a297e6")
+	)
+	(hierarchical_label "UART_TX"
+		(shape input)
+		(at 20 90 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "79e3a3d4-c6b6-48f3-a3f7-c80b026a7ab4")
+	)
+	(hierarchical_label "1WIRE"
+		(shape input)
+		(at 20 170 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "83507f56-4431-44c9-bff7-93b768f50119")
+	)
+	(hierarchical_label "ADS_DRDY"
+		(shape input)
+		(at 20 250 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "9ae2867b-7b3c-4294-b9e3-e952f2af6db6")
+	)
+	(hierarchical_label "VBAT"
+		(shape input)
+		(at 20 70 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "d87502fc-5ec8-4432-a8ef-121bc3dc6c06")
 	)
 	(hierarchical_label "I2C_SDA"
 		(shape input)
@@ -6317,657 +6306,18 @@
 			)
 			(justify left)
 		)
-		(uuid "ff6cfa10-f68f-418a-8edf-d174c96adb1b")
+		(uuid "e7d5a588-275b-4612-9c34-2e94292c8311")
 	)
-	(symbol
-		(lib_id "welld:U_FL_Antenna")
-		(at 219 75 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "093d2170-785c-4b2d-ac13-1c95b004406a")
-		(property "Reference" "J3"
-			(at 219 73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
+	(hierarchical_label "UART_RX"
+		(shape input)
+		(at 20 110 0)
+		(effects
+			(font
+				(size 1.27 1.27)
 			)
+			(justify left)
 		)
-		(property "Value" "132289"
-			(at 219 77 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "Connector_Coaxial:SMA_Amphenol_132289_EdgeMount"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "039d55a5-3e8e-4e93-93b8-3271d69eb827")
-		)
-		(pin "2"
-			(uuid "5b66dcac-45e7-4eeb-8202-c411cf9c8626")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "J3")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+3V3")
-		(at 20 20 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board no)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "212e215a-493b-48ef-88e3-8e04658518f4")
-		(property "Reference" "#PWR"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 0 -3.81 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 20 20 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "14423ad3-56f4-4448-9fb3-62d14efad189")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "#PWR")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:Conn_01x08_Pin")
-		(at 183 75 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "286b0d35-0021-4f07-b183-f01f176fc60a")
-		(property "Reference" "J9"
-			(at 183 73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "GPIO"
-			(at 183 77 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "c41604fb-095f-4913-a53b-6fa92206e410")
-		)
-		(pin "2"
-			(uuid "a1618c92-1d4a-4a79-917f-a2a5dc05dbef")
-		)
-		(pin "3"
-			(uuid "ebf8843b-29a8-4920-a605-a02ccc36c9f1")
-		)
-		(pin "4"
-			(uuid "0894eada-9bbf-4ed3-9a6f-6d3992ade4d5")
-		)
-		(pin "5"
-			(uuid "cc4f3c67-e33b-4ace-9922-ce90c2aa77f9")
-		)
-		(pin "6"
-			(uuid "7f951db8-692e-455a-86be-eaf4c237f025")
-		)
-		(pin "7"
-			(uuid "b4e64a3a-f827-484d-ad0a-3cf57e13f890")
-		)
-		(pin "8"
-			(uuid "37ca5963-a72b-4340-838d-541d5bdde42d")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "J9")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "welld:TestPoint_Pad")
-		(at 207 135 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "325c4039-2c29-477b-ad0f-d00c481956e4")
-		(property "Reference" "TP12"
-			(at 207 133 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "ADS_DRDY"
-			(at 207 137 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "3e3b87d7-be82-4612-b205-595a7fe004ba")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "TP12")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "welld:TestPoint_Pad")
-		(at 222 135 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "328602a3-bf3c-48c7-a401-5b5d2095035c")
-		(property "Reference" "TP14"
-			(at 222 133 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "CHRG_SOL"
-			(at 222 137 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "cb5ef100-6553-4ea0-8c55-a462eca05f9d")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "TP14")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "welld:TestPoint_Pad")
-		(at 117 135 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "4aa49389-f7a3-49b7-bbec-ba9c06491b52")
-		(property "Reference" "TP6"
-			(at 117 133 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "LOOP2"
-			(at 117 137 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "b729abd3-9f8c-4ac7-b625-88ffac404e48")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "TP6")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "welld:TestPoint_Pad")
-		(at 132 135 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "50cfdc65-706a-46d4-bda4-0f741ced54ed")
-		(property "Reference" "TP7"
-			(at 132 133 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "1WIRE"
-			(at 132 137 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "6b5b416c-d88b-426a-a37f-0214448a7ca0")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "TP7")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Jumper:SolderJumper_2_Open")
-		(at 180 117 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "57bd0f71-f736-4d98-9315-0ff78f06093a")
-		(property "Reference" "SJ3"
-			(at 180 115 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "LED_DIS"
-			(at 180 119 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "fc072c13-9018-4f5c-a065-9a0556733423")
-		)
-		(pin "2"
-			(uuid "349c88fa-80f9-4a0c-9076-7d750d09194d")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "SJ3")
-					(unit 1)
-				)
-			)
-		)
+		(uuid "fc5606f2-b526-437b-b402-72a868a820f7")
 	)
 	(symbol
 		(lib_id "welld:TestPoint_Pad")
@@ -6980,7 +6330,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "5884d8ec-d2a2-48ac-b508-01fa54aa8ae0")
+		(uuid "0df5bf74-af5f-4494-8241-dd4083f8472b")
 		(property "Reference" "TP3"
 			(at 72 133 0)
 			(show_name no)
@@ -7036,11 +6386,11 @@
 			)
 		)
 		(pin "1"
-			(uuid "8c9f8750-750f-49e0-bb42-c72bcebf7d1f")
+			(uuid "4dd8126c-2609-4f6f-bea9-da216c2fec2e")
 		)
 		(instances
 			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
 					(reference "TP3")
 					(unit 1)
 				)
@@ -7048,8 +6398,8 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:R")
-		(at 255 75 0)
+		(lib_id "Connector:Conn_01x08_Pin")
+		(at 183 75 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -7058,9 +6408,9 @@
 		(in_pos_files yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "5aff5e66-3dad-4b4c-935e-2a84623280b0")
-		(property "Reference" "R10"
-			(at 255 73 0)
+		(uuid "0fac025f-6d49-4b83-a3e2-2ac23c0b882f")
+		(property "Reference" "J9"
+			(at 183 73 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7070,8 +6420,8 @@
 				)
 			)
 		)
-		(property "Value" "4k7"
-			(at 255 77 0)
+		(property "Value" "GPIO"
+			(at 183 77 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7080,7 +6430,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -7114,1213 +6464,33 @@
 			)
 		)
 		(pin "1"
-			(uuid "163c536f-3793-409c-94e3-55459a48eb5e")
+			(uuid "6f77ce19-ddb7-4080-9a4e-fd71cb557871")
 		)
 		(pin "2"
-			(uuid "c2cde21d-b0d3-4a4f-886d-026919853109")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "R10")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "welld:TestPoint_Pad")
-		(at 162 135 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "607711ee-b575-4c2e-8677-91bb8ddd8d8d")
-		(property "Reference" "TP9"
-			(at 162 133 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "SCL"
-			(at 162 137 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "f9f313cf-2171-4bd5-9858-8ace6bddebda")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "TP9")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Jumper:SolderJumper_2_Open")
-		(at 195 87 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "6d618242-0e14-4ab7-880a-fdb39c484f07")
-		(property "Reference" "SJ4"
-			(at 195 85 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "UART_TX"
-			(at 195 89 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "7d831f2c-3b1b-4b93-bf9a-f5ed7cac0edc")
-		)
-		(pin "2"
-			(uuid "bf276c95-53a5-4563-a4b2-70c50807dbce")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "SJ4")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "welld:TestPoint_Pad")
-		(at 237 135 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "76eea5a3-f0ef-45f8-b60e-52f0ec91d315")
-		(property "Reference" "TP15"
-			(at 237 133 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "CHRG_USB"
-			(at 237 137 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "29b70c92-7307-4578-868e-c5f15b83362c")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "TP15")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "welld:TestPoint_Pad")
-		(at 192 135 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "7b8ac6f3-4760-44d5-90a1-2bcd0eb116f1")
-		(property "Reference" "TP11"
-			(at 192 133 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "VBAT_RAW"
-			(at 192 137 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "07291ad0-8744-4122-abcc-536f4089bbdf")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "TP11")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:Conn_01x06_Pin")
-		(at 201 75 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "7e285f5f-7c4a-4c23-9b28-bd4fb8b832de")
-		(property "Reference" "J10"
-			(at 201 73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "PROG"
-			(at 201 77 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "Connector_PinHeader_1.27mm:PinHeader_1x06_P1.27mm_Vertical"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "bf9fb7b8-7fcf-4832-9b70-fd7d94939e68")
-		)
-		(pin "2"
-			(uuid "8d5a868c-ff1f-4f52-ba28-3b0f42e8858d")
+			(uuid "2d9272dc-7002-4923-ac0d-a5666c85a1b3")
 		)
 		(pin "3"
-			(uuid "bd335282-d94f-474b-8120-245e64fa3ece")
+			(uuid "1b7fb6e8-305d-4ad8-bca4-7c79c3c34ff8")
 		)
 		(pin "4"
-			(uuid "593be6f5-5025-4290-8bdc-32cd0843fb11")
+			(uuid "0569a48c-3254-40be-8b09-ddac51c513f6")
 		)
 		(pin "5"
-			(uuid "bade6a11-dd41-4014-a181-6fc9ed68dfa6")
+			(uuid "144823cb-bafb-40d3-8883-cad0940080dd")
 		)
 		(pin "6"
-			(uuid "29cffc92-b8c2-4630-b198-a84d6c4cbbcc")
+			(uuid "63819fc7-90f5-4a15-9f87-6f0c629d8327")
+		)
+		(pin "7"
+			(uuid "9e7d26fe-4456-4be0-a2ad-c4bb5e8c6928")
+		)
+		(pin "8"
+			(uuid "07b4be36-5673-46eb-9ea8-fda0edc0bdc7")
 		)
 		(instances
 			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "J10")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "welld:TestPoint_Pad")
-		(at 57 135 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "821eb54f-d7f3-4404-bb7c-7f9534ceef07")
-		(property "Reference" "TP2"
-			(at 57 133 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "VLOOP"
-			(at 57 137 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "84b0ab64-1b1a-449a-a055-5eabf5c2f718")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "TP2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "welld:TestPoint_Pad")
-		(at 102 135 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "97d7caf8-e880-4781-88c5-24222da60afe")
-		(property "Reference" "TP5"
-			(at 102 133 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "LOOP1"
-			(at 102 137 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "8751d715-90a7-4d1f-93a2-cae470f8edc4")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "TP5")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "welld:TestPoint_Pad")
-		(at 87 135 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "9f6e3ead-5f1e-42ea-87b6-9ac38bad5f79")
-		(property "Reference" "TP4"
-			(at 87 133 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 87 137 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "cc3b9b1e-cf99-4a43-8ad9-1c1d06210e4a")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "TP4")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "welld:TestPoint_Pad")
-		(at 42 135 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "b4d6eba5-14ba-4ca3-b55d-9d25bd2fdae0")
-		(property "Reference" "TP1"
-			(at 42 133 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "VBAT"
-			(at 42 137 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "63d21a97-3cf4-4560-9862-c3b8ad1e5a90")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "TP1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "welld:TestPoint_Pad")
-		(at 177 135 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "bbf2adb7-4282-4658-8cf1-fc0a28d6f9dc")
-		(property "Reference" "TP10"
-			(at 177 133 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "VSOLAR"
-			(at 177 137 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "54c80cc8-23eb-4595-98a7-920add7a6ea5")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "TP10")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:VBAT")
-		(at 270 20 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board no)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "ca241ff6-b7d8-4150-bd16-8e0c38644149")
-		(property "Reference" "#PWR"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Value" "VBAT"
-			(at 0 -3.81 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 270 20 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "bcc7830b-ba94-4aaa-a5f9-6bda9816ff00")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "#PWR")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:Conn_01x04_Pin")
-		(at 165 75 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "d280f578-84c4-4336-8ea4-8a634b2dd12a")
-		(property "Reference" "J8"
-			(at 165 73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "I2C"
-			(at 165 77 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "5d2d6546-d4ac-4190-ab30-66c2bdb7b84b")
-		)
-		(pin "2"
-			(uuid "6154044d-cf89-44e8-ada5-0b185722e6da")
-		)
-		(pin "3"
-			(uuid "51613384-2f45-444a-80d9-f346bf8c248a")
-		)
-		(pin "4"
-			(uuid "4099980f-5994-4eec-9ccb-5b8c1ecc2409")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "J8")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Jumper:SolderJumper_2_Open")
-		(at 180 87 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "dcf09f99-39aa-4e8d-8822-43396d7ff2ec")
-		(property "Reference" "SJ1"
-			(at 180 85 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "VBOOST"
-			(at 180 89 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "95932148-b18b-45c4-9a0f-24774422b610")
-		)
-		(pin "2"
-			(uuid "c905278f-ed5b-423f-a2ab-12b085d50e5a")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "SJ1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 20 190 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board no)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "e241583d-40fb-40ee-aa38-2663c48493bf")
-		(property "Reference" "#PWR"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 0 -3.81 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 20 190 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "ffdc77e0-8bc1-4edc-ac52-685bdae25a84")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "#PWR")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "welld:TestPoint_Pad")
-		(at 147 135 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "e6c5a7c9-794b-4664-b057-93b883da5281")
-		(property "Reference" "TP8"
-			(at 147 133 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "SDA"
-			(at 147 137 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "9f3e6d81-53fd-45b1-acaf-f957f82ad9e4")
-		)
-		(instances
-			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
-					(reference "TP8")
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "J9")
 					(unit 1)
 				)
 			)
@@ -8337,7 +6507,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "e7e80931-0bd3-40a2-be9b-b83730fe0f06")
+		(uuid "1242cfa0-915b-480d-86fa-27a46639c264")
 		(property "Reference" "SJ5"
 			(at 195 100 0)
 			(show_name no)
@@ -8393,15 +6563,404 @@
 			)
 		)
 		(pin "1"
-			(uuid "b6163d60-271b-44f4-8572-b20892ab12bb")
+			(uuid "2ccea8e7-5c8e-42e4-9b26-ef2f74c9d88e")
 		)
 		(pin "2"
-			(uuid "a47c6b8e-b52f-4228-ae48-c0645a9e44c7")
+			(uuid "e71b6893-d34f-4457-8348-f89b703b39c2")
 		)
 		(instances
 			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
 					(reference "SJ5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:TestPoint_Pad")
+		(at 207 135 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "1d34e4bc-2deb-4e1e-8ce6-7efd48949681")
+		(property "Reference" "TP12"
+			(at 207 133 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "ADS_DRDY"
+			(at 207 137 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "1ba75cfa-e85b-435c-ae51-9edf702fba68")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "TP12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3V3")
+		(at 20 20 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "21e785cf-a0c0-4a63-a689-6f008087f963")
+		(property "Reference" "#PWR"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 0 -3.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 20 20 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "cbf689a3-d7bd-474a-8835-e8fdf1c507e6")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "#PWR")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:TestPoint_Pad")
+		(at 147 135 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "3050ae07-27c5-4e6b-9f29-1b3a93b1cc3f")
+		(property "Reference" "TP8"
+			(at 147 133 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "SDA"
+			(at 147 137 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "1cb4adc0-e163-4a27-84fa-a2845394e9b5")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "TP8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:TestPoint_Pad")
+		(at 222 135 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "32bbba9e-8a0a-44ee-95eb-54bde5409864")
+		(property "Reference" "TP14"
+			(at 222 133 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "CHRG_SOL"
+			(at 222 137 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "9bd17f53-d7d3-45b6-9a0d-431c15175e26")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "TP14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:TestPoint_Pad")
+		(at 162 135 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "34c83d7e-9118-4be7-b24d-e307dd8b62f0")
+		(property "Reference" "TP9"
+			(at 162 133 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "SCL"
+			(at 162 137 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "32c4c151-3505-4160-9a18-8fc3e9038e4d")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "TP9")
 					(unit 1)
 				)
 			)
@@ -8418,7 +6977,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "f2d9f7de-215e-4ed4-943d-862a272eaa64")
+		(uuid "44ffadb0-82fe-4da2-840e-5399f2537793")
 		(property "Reference" "SJ2"
 			(at 180 100 0)
 			(show_name no)
@@ -8474,15 +7033,252 @@
 			)
 		)
 		(pin "1"
-			(uuid "fde3ecfd-30fc-4162-9c95-d8bb7bc0848b")
+			(uuid "34082115-9c40-4c9e-a452-4f79fb8b70df")
 		)
 		(pin "2"
-			(uuid "99d03517-36f4-4683-ac8f-579238f496a3")
+			(uuid "f624861a-5353-4bcf-bab9-6469ddae612c")
 		)
 		(instances
 			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
 					(reference "SJ2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:U_FL_Antenna")
+		(at 219 75 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "526412cf-5af4-439d-b3c5-41e99e9df153")
+		(property "Reference" "J3"
+			(at 219 73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "132289"
+			(at 219 77 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Connector_Coaxial:SMA_Amphenol_132289_EdgeMount"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "5e4c1af8-0022-403c-be2f-93cd27a43979")
+		)
+		(pin "2"
+			(uuid "3c574fb5-4f9c-4012-bd95-2fcb66f447e6")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "J3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:TestPoint_Pad")
+		(at 132 135 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "65f00dc8-ca6c-4a4f-a686-afb7e925441f")
+		(property "Reference" "TP7"
+			(at 132 133 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "1WIRE"
+			(at 132 137 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "1a361b91-7fe8-4ced-8607-c840ebad42d0")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "TP7")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:TestPoint_Pad")
+		(at 102 135 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "76253257-a456-432c-8a44-5b09caa440ae")
+		(property "Reference" "TP5"
+			(at 102 133 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "LOOP1"
+			(at 102 137 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "6cfffa0f-579b-477a-b847-81b0d67ad1c1")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "TP5")
 					(unit 1)
 				)
 			)
@@ -8499,7 +7295,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "fe9da7e1-1a37-47a4-9d9b-8ef6095afad9")
+		(uuid "782cb097-3a47-4879-be98-27344e39b254")
 		(property "Reference" "R9"
 			(at 237 73 0)
 			(show_name no)
@@ -8555,15 +7351,1219 @@
 			)
 		)
 		(pin "1"
-			(uuid "b9ce8577-314b-4a51-b822-490f0dce5607")
+			(uuid "f5a513a2-07e9-4259-b272-f7fb86ec80ba")
 		)
 		(pin "2"
-			(uuid "bd693c78-7c9e-4e03-9961-c6158de42af3")
+			(uuid "e51acad8-4f85-43e9-82eb-61c063e2941a")
 		)
 		(instances
 			(project ""
-				(path "/c9ba0bd8-57f8-4ab2-bbdd-32be150690a4"
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
 					(reference "R9")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:TestPoint_Pad")
+		(at 117 135 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "913310ed-6e9e-4eec-8100-c4c417b24705")
+		(property "Reference" "TP6"
+			(at 117 133 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "LOOP2"
+			(at 117 137 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "cc66059e-bce2-4b94-a702-6e7f549f2510")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "TP6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:TestPoint_Pad")
+		(at 87 135 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a5399f31-9e5c-4887-8933-704ae1e99fe4")
+		(property "Reference" "TP4"
+			(at 87 133 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 87 137 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "6bf53196-f44e-4a5f-8611-aa2006ee7ff8")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "TP4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Jumper:SolderJumper_2_Open")
+		(at 180 87 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a5ee4442-d7fd-443a-85d1-9bec064a746d")
+		(property "Reference" "SJ1"
+			(at 180 85 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "VBOOST"
+			(at 180 89 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "9f889d3c-30e8-4109-b4e2-9de7db148105")
+		)
+		(pin "1"
+			(uuid "67ae77bf-f51e-4e95-a69c-3c1e7b50610c")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "SJ1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Jumper:SolderJumper_2_Open")
+		(at 180 117 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b5e3462b-f32e-4d44-88bd-f1f3c6a3653d")
+		(property "Reference" "SJ3"
+			(at 180 115 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "LED_DIS"
+			(at 180 119 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "6367b6cc-76c5-405e-8513-0b891a14b81f")
+		)
+		(pin "2"
+			(uuid "6e1f7b97-a8dd-469f-9bb4-c867421d491f")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "SJ3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 255 75 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b716dab9-4d16-4025-88fd-b469c3d59fee")
+		(property "Reference" "R10"
+			(at 255 73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "4k7"
+			(at 255 77 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "2fd8aa48-e81b-4420-ba12-2a2031c99bcb")
+		)
+		(pin "2"
+			(uuid "3f1929b6-8f40-4f0b-84c3-b824fe76c3a5")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "R10")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:TestPoint_Pad")
+		(at 192 135 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "bc2c8ed2-0c63-402a-97f2-f874d3b33290")
+		(property "Reference" "TP11"
+			(at 192 133 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "VBAT_RAW"
+			(at 192 137 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "33f80b19-fd15-4e5d-a82a-d8fc70bf1e89")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "TP11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 20 190 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "be82a5e3-45a8-48f4-a3a1-37d704166551")
+		(property "Reference" "#PWR"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 0 -3.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 20 190 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "51f89901-130a-43bf-95c3-3b6ca965dc30")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "#PWR")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:TestPoint_Pad")
+		(at 42 135 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "cafce3fc-7133-4a20-838c-23c59d6bcde1")
+		(property "Reference" "TP1"
+			(at 42 133 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "VBAT"
+			(at 42 137 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "1c401572-b77d-472f-8278-c48d188cb0f0")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "TP1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Jumper:SolderJumper_2_Open")
+		(at 195 87 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "ce875a34-31df-48a8-bcf2-37fa98334551")
+		(property "Reference" "SJ4"
+			(at 195 85 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "UART_TX"
+			(at 195 89 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "10b5a620-7848-445d-bde8-1c6b7411a20c")
+		)
+		(pin "2"
+			(uuid "7a720322-f73d-41d8-8907-b7e86298946b")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "SJ4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:Conn_01x06_Pin")
+		(at 201 75 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "cf3197ca-550d-4fe9-81d6-6dc344c6e198")
+		(property "Reference" "J10"
+			(at 201 73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "PROG"
+			(at 201 77 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_1.27mm:PinHeader_1x06_P1.27mm_Vertical"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "4"
+			(uuid "4d642a6a-d160-4935-b7bb-10039095ec65")
+		)
+		(pin "5"
+			(uuid "ae05fdb4-9205-4149-b885-2f6403545c1b")
+		)
+		(pin "6"
+			(uuid "7cfa393c-5605-4ac7-a36c-4bd06946c0c0")
+		)
+		(pin "1"
+			(uuid "79cc9b1b-d0c4-4f3b-af1c-23524eabb15e")
+		)
+		(pin "2"
+			(uuid "db1d2be7-834c-411f-8354-62bb4a2ab955")
+		)
+		(pin "3"
+			(uuid "03129117-db18-4c64-9089-77fbf502651b")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "J10")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:TestPoint_Pad")
+		(at 237 135 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "d056c5b6-135b-4060-a86e-fef673519693")
+		(property "Reference" "TP15"
+			(at 237 133 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "CHRG_USB"
+			(at 237 137 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "f0c2ce86-89e4-400a-b7ac-ebc7d49b4fc0")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "TP15")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:Conn_01x04_Pin")
+		(at 165 75 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "d298acb2-49b6-4c61-aa3b-30fb368c2ae9")
+		(property "Reference" "J8"
+			(at 165 73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "I2C"
+			(at 165 77 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "3"
+			(uuid "9f532fd2-2f90-4f68-b758-3abc64e98594")
+		)
+		(pin "4"
+			(uuid "0facad37-6caf-4379-aae7-63cd71610b31")
+		)
+		(pin "1"
+			(uuid "fee8d629-5b10-4a1c-9b13-90aa71350773")
+		)
+		(pin "2"
+			(uuid "34106406-f1e6-4893-8c2a-7d5e45e2808f")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "J8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:TestPoint_Pad")
+		(at 177 135 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "e3cf7e47-1909-4196-8116-d7fe46c90f09")
+		(property "Reference" "TP10"
+			(at 177 133 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "VSOLAR"
+			(at 177 137 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "e7284ca7-36fd-4393-a291-714a1d79b8f7")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "TP10")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:VBAT")
+		(at 270 20 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f3c91737-82a8-4589-ad8c-3e4652da7fa9")
+		(property "Reference" "#PWR"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Value" "VBAT"
+			(at 0 -3.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 270 20 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "b6cca0c1-d796-4825-97e3-cd4b306fd4e1")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "#PWR")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:TestPoint_Pad")
+		(at 57 135 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "fa18a46d-eab4-4fab-a203-79c3b92d941b")
+		(property "Reference" "TP2"
+			(at 57 133 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "VLOOP"
+			(at 57 137 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "c327c687-dd0d-4048-954f-238d4d93385b")
+		)
+		(instances
+			(project ""
+				(path "/f7e3a4e0-0868-47fb-b78b-afc42bc91bad"
+					(reference "TP2")
 					(unit 1)
 				)
 			)
