@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
-set(PROJECT_VER "1.0.0")
+set(PROJECT_VER "1.0.1")
 
-# WellD is built and tested against ESP-IDF v5.3.5. Newer/older versions
-# may compile but the managed-component pins (esp-zigbee-lib 1.6.8,
-# esp-zboss-lib 1.6.4) were chosen against this IDF release.
-set(WELLD_REQUIRED_IDF_VERSION "5.3.5")
+# WellD is built and tested against ESP-IDF v6.0.1. Newer/older versions
+# may compile but the managed-component pins (esp-zigbee-lib 2.0.1,
+# onewire_bus 1.1.1, ds18b20 0.3.1) were chosen against this IDF release.
+set(WELLD_REQUIRED_IDF_VERSION "6.0.1")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(welld)

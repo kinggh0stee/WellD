@@ -186,7 +186,7 @@ static void i2c_bus_recover(void)
 }
 
 /* Initialise the shared I2C bus and register ADS1115 (0x48) only.
- * MAX17048 removed in 2S hardware redesign — ADS1115 is the only I2C device.
+ * ADS1115 is the only I2C device.
  * Also configures VLOOP and BATT_DIV_EN GPIO outputs and drives them LOW.
  * Must be called before any sensor_read_level() or sensor_read_battery_v(). */
 esp_err_t sensor_i2c_init(void) {
@@ -315,12 +315,14 @@ static int ads1115_read_mv(int ch) {
 
     /* Drain any stale DRDY token left from a previous conversion so we block
      * on the edge that belongs to *this* conversion, not a prior one.
-     * Disable the interrupt around drain+start to prevent an ISR from firing
-     * in the gap and giving the semaphore before the new conversion begins. */
+     * Sequence: disable IRQ → drain → write config (starts conversion) →
+     * re-enable IRQ.  This ensures the interrupt is armed only after the
+     * conversion has actually started; re-enabling before the I2C write
+     * completes would open a race window where a noise edge could give the
+     * semaphore before our conversion result is ready. */
     if (s_ads_drdy_sem) {
         gpio_intr_disable(CONFIG_WELLD_ADS1115_DRDY_GPIO);
         xSemaphoreTake(s_ads_drdy_sem, 0);
-        gpio_intr_enable(CONFIG_WELLD_ADS1115_DRDY_GPIO);
     }
 
     uint8_t mux = (ch == 2) ? ADS1115_MUX_AIN2 : ADS1115_MUX_AIN0;
@@ -329,7 +331,22 @@ static int ads1115_read_mv(int ch) {
         ADS1115_OS_START | mux | ADS1115_PGA_2V048 | ADS1115_MODE_SINGLE | ADS1115_DR_860SPS,
         ADS1115_COMP_QUE_ONE   /* assert DRDY after 1 conversion */
     };
-    if (i2c_master_transmit(s_ads_dev, buf, 3, 50) != ESP_OK) return INT_MIN;
+    if (i2c_master_transmit(s_ads_dev, buf, 3, 50) != ESP_OK) {
+        if (s_ads_drdy_sem) gpio_intr_enable(CONFIG_WELLD_ADS1115_DRDY_GPIO);
+        return INT_MIN;
+    }
+
+    /* Re-enable after the conversion is started so the ISR only fires for
+     * this conversion's DRDY edge. */
+    if (s_ads_drdy_sem) {
+        gpio_intr_enable(CONFIG_WELLD_ADS1115_DRDY_GPIO);
+        /* If the edge arrived while interrupts were masked, the ISR never
+         * fired. Check the pin level now; give the semaphore if already
+         * asserted. Binary semaphore ignores a redundant give. */
+        if (gpio_get_level(CONFIG_WELLD_ADS1115_DRDY_GPIO) == 0) {
+            xSemaphoreGive(s_ads_drdy_sem);
+        }
+    }
 
     if (ads1115_wait_conversion_done() != ESP_OK) {
         ESP_LOGW(TAG, "ADS1115 conversion timeout");
@@ -368,11 +385,20 @@ void sensor_set_offset_cm(int offset_cm)
 {
     if (offset_cm < -600) offset_cm = -600;
     if (offset_cm >  600) offset_cm =  600;
+    /* Skip the NVS write if the value is already cached at this setting.
+     * The cache is valid (not INT32_MIN) when sensor_get_offset_cm() has
+     * been called at least once this wakeup, which is always the case when
+     * sensor_set_offset_cm() is invoked from main.c after an NVS wipe. */
+    if (s_offset_cm != INT32_MIN && s_offset_cm == offset_cm) return;
     s_offset_cm = offset_cm;
     nvs_handle_t h;
     if (nvs_open(WELLD_NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK) {
-        nvs_set_i32(h, WELLD_NVS_KEY_OFFSET, (int32_t)offset_cm);
-        nvs_commit(h);
+        esp_err_t _err = nvs_set_i32(h, WELLD_NVS_KEY_OFFSET, (int32_t)offset_cm);
+        if (_err != ESP_OK)
+            ESP_LOGW(TAG, "offset write: %s", esp_err_to_name(_err));
+        _err = nvs_commit(h);
+        if (_err != ESP_OK)
+            ESP_LOGW(TAG, "offset commit: %s", esp_err_to_name(_err));
         nvs_close(h);
     }
 }
@@ -384,17 +410,18 @@ void sensor_offset_cache_reset(void)
 
 /* Read the water level in metres, applying the NVS-stored offset and
  * optional temperature compensation.
- * Gates the TPS61023 12V boost (VLOOP GPIO) for the duration of the read.
+ * Gates the MT3608B 12V boost (VLOOP GPIO) for the duration of the read.
  * Uses ADS1115 AIN0 to measure the shunt voltage across the 4-20 mA loop.
  * Returns -1.0 if the transducer loop current indicates an open circuit.
  * Returns -2.0 if a short-circuit is detected (>21 mA). */
 float sensor_read_level(void)
 {
-    /* Gate VLOOP HIGH to enable the TPS61023 boost converter.
-     * TPS61023 datasheet specifies a 1-2 ms soft-start; 2 ms gives a 2× margin
-     * and cuts the previous 5 ms delay roughly in half. */
+    /* Gate VLOOP HIGH to enable the MT3608B boost converter.
+     * MT3608B datasheet specifies < 5 ms soft-start; hold for 5 ms to
+     * guarantee the output rail is stable before the ADC reads the shunt.
+     * Constraint from CLAUDE.md: GPIO5 must be HIGH ≥ 5 ms before any read. */
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 1);
-    vTaskDelay(pdMS_TO_TICKS(2));   /* 2 ms soft-start margin (TPS61023 typ 1-2 ms) */
+    vTaskDelay(pdMS_TO_TICKS(5));   /* 5 ms soft-start margin (MT3608B typ < 5 ms) */
 
     int volt_mv;
 #if CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED
@@ -561,7 +588,7 @@ float sensor_read_temperature(void)
 }
 
 /* Read battery voltage via the gated resistor divider on ADS1115 AIN2.
- * MAX17048 removed in 2S hardware redesign — divider is the only path.
+ * Divider is the only voltage measurement path.
  * R7/R8 = 330 kΩ / 100 kΩ (ratio 4.3). Gate BATT_DIV_EN (GPIO15) for
  * 1 ms before reading, then drive LOW to prevent quiescent divider drain.
  * Returns -1.0 if ADS1115 read fails. */
