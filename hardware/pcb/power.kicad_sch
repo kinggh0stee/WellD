@@ -8210,7 +8210,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_XH_B2B-XH-AM_1x02_P2.50mm_Horizontal"
+		(property "Footprint" "WellD:XT30PW-F_RightAngle"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -10236,7 +10236,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Inductor_SMD:L_2512_6332Metric"
+		(property "Footprint" "Inductor_SMD:L_Vishay_IFSC-1515AH_4x4x1.8mm"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
