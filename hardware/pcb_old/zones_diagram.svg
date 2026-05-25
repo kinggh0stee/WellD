@@ -11,7 +11,7 @@
 
   <!-- Title -->
   <text x="450" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#333">
-    WellD PCB — Component Placement Zones (80 × 55 mm)
+    WellD PCB — Component Placement Zones (100 × 55 mm)
   </text>
   <text x="450" y="50" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#666">
     98 Components — 100% PCBWay Automated Assembly (Zero Hand-Soldering)

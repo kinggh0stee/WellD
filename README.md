@@ -14,7 +14,7 @@ Battery-powered well-level monitor for the ESP32-C6. Each wakeup it reads a 4–
 
 ## Hardware — Custom PCB
 
-The current design is a purpose-built **80 × 55 mm** custom PCB. Design files, BOM, and assembly guide live in [`hardware/`](hardware/).
+The current design is a purpose-built **100 × 55 mm** custom PCB. Design files, BOM, and assembly guide live in [`hardware/`](hardware/).
 
 ### Key ICs
 
@@ -28,7 +28,7 @@ The current design is a purpose-built **80 × 55 mm** custom PCB. Design files, 
 
 ### Test points (production / field debug)
 
-All 14 test point pads are 1.0 mm SMD, **DNF** (do not fit) — bare copper pads suitable for ICT fixture probes or a hook wire. No component is installed in production.
+All 13 test point pads are 1.0 mm SMD, **DNF** (do not fit) — bare copper pads suitable for ICT fixture probes or a hook wire. No component is installed in production. Test points are placed scattered near their associated circuits rather than grouped in a single row, matching the 100 × 55 mm layout on a 1.0 mm grid.
 
 | Ref | Net | Ref | Net |
 |-----|-----|-----|-----|
@@ -37,7 +37,7 @@ All 14 test point pads are 1.0 mm SMD, **DNF** (do not fit) — bare copper pads
 | TP3 | +3V3 | TP10 | VSOLAR_IN |
 | TP4 | GND | TP11 | VBAT_RAW (2S, before D5 reverse-polarity MOSFET) |
 | TP5 | LOOP+ (LOOP_TERM_CH1) | TP12 | ADS1115 DRDY |
-| TP6 | LOOP- (LOOP_TERM_CH2) | | |
+| TP6 | LOOP- (LOOP_TERM_CH2) | TP15 | /CHRG_USB (TP5100 charge-status, with R38 pull-up) |
 | TP7 | 1WIRE | | |
 
 ### Thermal improvements
@@ -55,6 +55,7 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 | 4  | Output | TP5100 USB charger CE — HIGH enables USB-C charging |
 | 6  | Input  | CN3722 /CHRG — solar-charging-active detect (active-low: LOW = charging) |
 | 7  | 1-Wire | DS18B20 data |
+| 13 | Output | Status LED (D4; disconnect via SJ3) |
 | 15 | Output | Battery-divider enable gate (`BATT_DIV_EN`) |
 | 14 | —      | Spare |
 
@@ -69,9 +70,15 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 
 ### RF / antenna
 
-The ESP32-C6-MINI-1U-H4 module exposes a U.FL RF port. A ~50 mm internal pigtail — **Taoglas CAB.100.07.0050B** (U.FL female to SMA male, RG178 coax) — connects the module to **J3**, an **Amphenol 132289** SMD edge-launch SMA connector on the bottom board edge. PCBWay hand-attaches the pigtail after reflow. An external 2.4 GHz SMA antenna (e.g. Taoglas FXP73 rubber-duck, 2 dBi) screws directly onto J3.
+The ESP32-C6-MINI-1U-H4 module exposes a U.FL RF port. A ~50 mm internal pigtail — **Taoglas CAB.100.07.0050B** (U.FL female to SMA male, RG178 coax) — connects the module to **J3**, an **Amphenol 132289** SMD edge-launch SMA connector on the top board edge. PCBWay hand-attaches the pigtail after reflow. An external 2.4 GHz SMA antenna (e.g. Taoglas FXP73 rubber-duck, 2 dBi) screws directly onto J3.
 
 ### Assembly notes (PCBWay)
+
+Connector placement on the 100 × 55 mm board:
+
+- **Bottom edge (left to right):** J12 (solar, 2-pos), J4 (loop ch1, 3-pos), J5 (loop ch2, 3-pos), J6 (DS18B20, 3-pos), J7 (spare sensor, 3-pos), J10 (programming header, 6-pin 1.27 mm pitch)
+- **Left edge:** J1 (XT30PW-F battery connector, right-angle THT) and J13 (USB-C charging input, SMD)
+- **Top edge:** J3 (Amphenol 132289 SMA edge-launch)
 
 - **J4, J5, J6, J7, J12** — Phoenix Contact MC 1.5/x-G-3.5 THT terminal blocks, wave-soldered.
 - **J10** — 1.27 mm pitch THT vertical programming header (6-pin), wave-soldered.
@@ -104,7 +111,9 @@ R31 (10 kΩ, 0402) connects D5's gate to GND. R31 holds Vgs = −Vbat so the MOS
 
 ### Enclosure
 
-The enclosure is designed in [`hardware/case/welld_case.scad`](hardware/case/welld_case.scad). The battery bay is sized for the Sinowatt GR 3350 mAh 2S1P 18650 rectangular pack (41 × 71 × 22 mm) with corner locating posts and hook-and-loop strap slots through the side walls. A USB-C slot on the left short wall accommodates the J13 charging connector (TP5100 USB-C charging input).
+The enclosure is designed in [`hardware/case/welld_case.scad`](hardware/case/welld_case.scad). External footprint is **105 × 60 mm** (2.5 mm wall on each side of the 100 × 55 mm PCB). The battery bay is sized for the Sinowatt GR 3350 mAh 2S1P 18650 rectangular pack (41 × 71 × 22 mm) with corner locating posts and hook-and-loop strap slots through the side walls. A USB-C slot on the left short wall accommodates the J13 charging connector (TP5100 USB-C charging input).
+
+For concrete underside mounting, the lid grows four corner wings with M6 anchor-bolt clearance holes. The bolt pattern centre-to-centre span is **127 × 82 mm** (X × Y). Use the `drill_template()` module to print a 1:1 paper/card drill guide before installing anchor bolts.
 
 ---
 

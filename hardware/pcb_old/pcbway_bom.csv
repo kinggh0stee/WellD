@@ -1,0 +1,100 @@
+Ref,Qty,Description,Value/Rating,Package,MPN,Notes
+U1,1,3.3V synchronous buck converter 22µA Iq,3.3V 2A 22µA Iq,SOT-23-6,AP63205WU,Diodes Inc; LCSC C2862534; replaces TPS7A0533 LDO (max 5.5V in — incompatible with 2S); VIN 3.8–32V; FB Vref 0.6V; R_FBH/R_FBL set 3.3V output; always-on (EN tied to VIN)
+U6,1,ESP32-C6-MINI-1U module,ESP32-C6 with U.FL antenna,Module,ESP32-C6-MINI-1U-H4,Espressif; specify -H4 for 4MB flash
+U7,1,2S MPPT solar charger,5–25V in / 8.4V out / 500mA,SOP-8,CN3722,LCSC C2690716 or equivalent; replaces CN3791 (1S only); supports 2–4S Li-ion; MPPT Vref 1.205V (same formula as CN3791); R33/R34 set 8.4V CV target; R19 sets charge current; /CHRG open-drain → GPIO6
+U8,1,12V synchronous boost converter,VBAT→12V / 4A switch / 1µA Iq,SOT-23-6,MT3608B,LCSC C84005; replaces TPS61023 (max Vin 5.5V — incompatible with 2S); Vin 2–24V; Vref 0.6V; R23=1.9MΩ R24=100kΩ → VOUT=12.0V; EN driven by GPIO5; requires C_BST 100nF on BST pin (pin 6); switching freq ~1.2MHz
+U9,1,16-bit 4-channel I2C ADC,16-bit / 860SPS / addr 0x48,MSOP-10,ADS1115IDGST,Texas Instruments; LCSC C37593; precision depth/battery measurement; only I2C device remaining (MAX17048 removed)
+D1,1,Dual-channel TVS ESD protection,3.3V/5V logic lines,SOT-363,PRTR5V0U2X,NXP; ESD/EFT clamp at ADC tap (after R2/R3); one device covers both channels
+D5,1,Reverse-polarity P-ch MOSFET (series BAT+ rail),P-ch 20V 3A Vgs(th) max −1.5V RDS(on) max 55mΩ,SOT-23,AO3407,Alpha & Omega Semiconductor; LCSC C31417; source→J1 BAT+ drain→VBAT rail gate→GND via R31; at 2S Vgs=−6.0V to −8.4V — well within ±12V abs max and deeply saturated above Vgs(th) max; RDS(on)≤55mΩ; body diode blocks reverse polarity
+D6,1,Schottky diode solar input protection,1A 40V Schottky,SOD-123,MBRS140T3G,On Semi; prevents panel backfeed; D6 40V rating is adequate for CN3722 wide-range input
+D8,1,Solar input TVS clamp (at CN3722 VIN),28V standoff bidirectional 400W,DO-214AC (SMA),SMAJ28CA,Vishay or equivalent; replaces SMAJ7.0A (7V standoff incompatible with CN3722 25V MPPT range); placed across CN3722 VIN/GND after D6; same MPN as D14 — consolidate on one reel; LCSC verify availability
+D9,1,Loop ch1 terminal surge TVS,3.3V standoff bidirectional 200W,DO-214AC (SMA),SMAJ3.3CA,Vishay; IEC 61000-4-5 surge protection at J4 SIG terminal before R2; standoff 3.3V above normal 2.0V loop max — will not conduct in normal operation; LCSC C2836497
+D10,1,Loop ch2 terminal surge TVS,3.3V standoff bidirectional 200W,DO-214AC (SMA),SMAJ3.3CA,Vishay; IEC 61000-4-5 surge protection at J5 SIG terminal before R4; same rationale as D9; LCSC C2836497
+D11,1,VLOOP terminal surge TVS,13V standoff unidirectional 400W,DO-214AC (SMA),SMAJ13A,Vishay; clamps cable transients on VLOOP terminal before they reach MT3608B; between U8 VOUT and J4/J5 VLOOP pin; LCSC C8057
+D12,1,DS18B20 1-Wire DATA ESD rail clamp,3.3V/5V dual-channel rail clamp 0.5pF,SOT-363,PRTR5V0U2X,NXP; IO1 to 1WIRE DATA (J6 pin 2); IO2 no-connect; VCC to +3V3; GND to GND; same part as D1; LCSC C2687116
+D13,1,Battery terminal ESD/transient TVS,10V standoff bidirectional 200W,DO-214AC (SMA),SMAJ10CA,Vishay; replaces SMAJ5.0CA (5V standoff would conduct at all 2S voltages — completely wrong); 10V standoff > 8.4V full charge so TVS does not conduct in normal operation; bidirectional required (both charge and discharge current); placed across J1 BAT+ and BAT-; LCSC C2836474 or verify equivalent
+D14,1,Solar input terminal surge TVS (at J12),28V standoff bidirectional 400W,DO-214AC (SMA),SMAJ28CA,Vishay; replaces SMAJ7.0A; first-stage absorber for cable-coupled ESD before D6 and CN3722; standoff 28V > 25V max MPPT operating voltage; same MPN as D8 — consolidate on one reel
+D4,1,Status LED,Green 0603,0603,—,Controlled by GPIO13; disconnect with SJ3
+J1,1,2S LiPo battery connector XT30 female PCB-mount,XT30PW-F right-angle THT,THT,XT30PW-F,AMASS; LCSC C601498 or equivalent; pin 1=BAT+ pin 2=BAT-; right-angle so battery plug faces left wall; PCBWay wave-solders; replacement 2S packs with XT30 male widely available (Tattu, Gens Ace)
+J3,1,SMA edge-launch connector SMD,50Ω EdgeMount,SMD,132289,Amphenol RF; fully SMD (no THT); mounts on bottom board edge; RF port protrudes 3.04mm past edge; body 14.47mm into board; Mouser 523-132289; KiCad footprint Connector_Coaxial:SMA_Amphenol_132289_EdgeMount
+W1,1,U.FL-to-SMA-male pigtail cable ~50mm RG178,50Ω / ~50mm / U.FL female to SMA male,Cable assembly,CAB.100.07.0050B,Taoglas CAB.100.07.0050B or equivalent RG178 U.FL(f)-to-SMA(m) 50mm; NOT pick-and-place — PCBWay hand-attaches after reflow; U.FL end snaps onto ESP32-C6-MINI-1U module U.FL port; SMA-male end mates with J3 signal pad/net RF_ANT; Mouser search "U.FL SMA 50mm RG178" or Taoglas direct; alternate: Amphenol 095-850-198-100 or TE 2118651-1
+J4,1,4-20mA sensor 1 header (PCB half),3-pos 3.5mm pitch,THT,MC 1.5/3-G-3.5,Phoenix Contact; PCBWay wave-solders; use GND terminal (pos 2) as cable shield connection point
+J5,1,4-20mA sensor 2 header (PCB half),3-pos 3.5mm pitch,THT,MC 1.5/3-G-3.5,Phoenix Contact; PCBWay wave-solders
+J6,1,DS18B20 header (PCB half),3-pos 3.5mm pitch,THT,MC 1.5/3-G-3.5,Phoenix Contact; PCBWay wave-solders
+J7,1,Spare sensor header (PCB half),3-pos 3.5mm pitch,THT,MC 1.5/3-G-3.5,Phoenix Contact; PCBWay wave-solders
+J12,1,Solar panel header (PCB half),2-pos 3.5mm pitch,THT,MC 1.5/2-G-3.5,Phoenix Contact; PCBWay wave-solders
+J8,DNF,I2C expansion header — DO NOT POPULATE,4-pin 2.54mm,THT,—,DNF — ADS1115 I2C is on-board; header reserved for future expansion only
+J9,DNF,GPIO expansion header — DO NOT POPULATE,8-pin 2.54mm,THT,—,DNF — all GPIO signals are internal; header not required for production
+J10,1,Programming header,6-pin 1.27mm,THT,—,1.27mm THT vertical; PCBWay wave-solders; pads accessible for pogo-pin programming jig
+SW1,1,Reset button,6×6mm tactile 4.3mm height,SMD,—,Standard SMD tactile
+SW2,1,Boot button,6×6mm tactile 4.3mm height,SMD,—,Standard SMD tactile
+L1,1,VBOOST shielded power inductor,4.7µH 1.0A 250mΩ,4×4mm SMD,CDRH4D22NP-4R7NC,Bourns; LCSC C376098; VLOOP boost inductor for MT3608B; or equivalent 4.7µH ≥1A shielded SMD
+L2,1,AP63205 buck output inductor,4.7µH 1.0A 250mΩ,4×4mm SMD,CDRH4D22NP-4R7NC,Bourns; LCSC C376098; same MPN and footprint as L1; consolidate on one reel; place within 5mm of U1 SW pin
+R2,1,4-20mA shunt ch1 precision,100Ω ±0.1% 0.25W,0805,RG2012N-101-W-T1,Susumu; ADS1115 AIN0 reads voltage across this shunt
+R3,1,ADC series limiter ch1,100Ω,0402,—,Limits current into GPIO0 and ADS1115 AIN0
+R4,1,4-20mA shunt ch2 precision,100Ω ±0.1% 0.25W,0805,RG2012N-101-W-T1,Susumu; ADS1115 AIN1 reads voltage across this shunt
+R5,1,ADC series limiter ch2,100Ω,0402,—,Limits current into GPIO2 and ADS1115 AIN1
+R6,1,DS18B20 pull-up,4.7kΩ,0402,—,
+R7,1,Battery divider high-side,330kΩ 1%,0402,—,Changed from 100kΩ; scales 2S battery (6.0–8.4V) to ≤2.0V for ADS1115 ±2.048V PGA; ratio=(330+100)/100=4.3; BATT_DIVIDER_RATIO=430
+R8,1,Battery divider low-side,100kΩ 1%,0402,—,In series with Q2 to GND; Q2 gates off during sleep to eliminate divider leakage; unchanged value
+R9,1,I2C SDA pull-up,4.7kΩ,0402,—,GPIO10 SDA; ADS1115 only (MAX17048 removed)
+R10,1,I2C SCL pull-up,4.7kΩ,0402,—,GPIO11 SCL; ADS1115 only (MAX17048 removed)
+R11,1,EN pull-up / always-on,10kΩ,0402,—,Ties AP63205 EN to VIN (VBAT) for always-on; can omit and short EN to VIN directly
+R12,1,GPIO9 BOOT pull-up,10kΩ,0402,—,
+R13,1,GPIO8 strapping pull-up,10kΩ,0402,—,
+R14,1,Status LED current limit,1.0kΩ,0402,—,
+R19,1,CN3722 charge current set,2.0kΩ 1%,0402,—,Sets solar charge current to ~500mA (same formula as CN3791); raise to 3.3kΩ for ~300mA
+R20,1,MPPT divider high-side,36kΩ 1%,0402,—,Sets MPPT to 5.5V (6V panel Vmp); unchanged from CN3791 design; change for different panel Vmp
+R21,1,MPPT divider low-side,10kΩ 1%,0402,—,See R20 notes; unchanged
+R23,1,MT3608B VBOOST feedback high-side,1.9MΩ 1%,0402,—,Changed from 1.1MΩ (was TPS61023 with Vref=0.5V); MT3608B Vref=0.6V; VOUT=0.6×(1+R23/R24)=0.6×(1+19)=12.0V; E96 standard value 1.91MΩ or 1.87MΩ acceptable
+R24,1,MT3608B VBOOST feedback low-side,100kΩ 1%,0402,—,Changed from 47kΩ; see R23 notes
+R26,1,Q2 gate pull-down,4.7kΩ,0402,—,Holds battery divider off when GPIO15 is floating/reset
+R28,1,DS18B20 VCC series protection,100Ω,0402,—,In VCC line to J6 pin 1; prevents 3V3 rail short on probe misconnection
+R31,1,D5 gate pull-down (reverse-polarity MOSFET),10kΩ,0402,—,Connects D5 (AO3407) gate to GND; holds gate at 0V so Vgs=−Vbat keeps MOSFET fully on; at 2S: Vgs=−6.0 to −8.4V — deeply saturated; place within 2mm of D5 gate pin
+R33,1,CN3722 CV voltage set high-side,604kΩ E96 1%,0402,—,NEW — not in previous design (CN3791 had fixed 4.2V CV); with R34=100kΩ: Vchg=1.205×(604+100)/100=8.48V≈8.4V (2S CV target); verify against CN3722 datasheet
+R34,1,CN3722 CV voltage set low-side,100kΩ 1%,0402,—,NEW — see R33 notes; connects FB pin to GND via this resistor
+Q2,1,N-ch MOSFET battery divider enable,100V 170mA SOT-23,SOT-23,BSS123,N-ch MOSFET 100V 170mA Vgs(th) max 1.5V SOT-23; gate=GPIO15; enables divider only during measurement
+C_SH1,1,Shunt ch1 HF bypass,10nF X7R 25V,0402,—,Placed directly across R2 (100Ω shunt); suppresses HF pickup on loop cable before it reaches ADS1115 AIN0; place within 1mm of R2 pads
+C_SH2,1,Shunt ch2 HF bypass,10nF X7R 25V,0402,—,Placed directly across R4 (100Ω shunt); same function as C_SH1 for ch2; place within 1mm of R4 pads
+C23,1,ADS1115 VDD bypass,100nF,0402,—,Local bypass on U9 VDD pin; on U9 side of FB1 within 1mm of U9; per ADS1115 datasheet
+C24,1,ADS1115 VDD bulk,1µF,0402,—,Bulk bypass on U9 VDD; on U9 side of FB1 within 1mm of U9
+FB1,1,ADS1115 supply ferrite bead,600Ω@100MHz 500mA,0402,BLM18KG601SN1D,Murata; in series with +3V3 to U9 VDD; isolates ADC supply from MT3608B switching noise and 2.4GHz radio; LCSC C76537
+C3,1,4-20mA ADC ch1 filter cap,1µF X5R,0402,—,Forms 1.6 kHz RC filter with R3
+C4,1,4-20mA ADC ch1 bulk cap,10µF 10V,0805,—,
+C5,1,4-20mA ADC ch2 filter cap,1µF X5R,0402,—,Forms 1.6 kHz RC filter with R5
+C6,1,4-20mA ADC ch2 bulk cap,10µF 10V,0805,—,
+C7,1,DS18B20 VCC bypass,100nF,0402,—,
+C8,1,Battery divider filter,100nF,0402,—,Across R8; settles within 1ms after Q2 enables divider
+C9,1,Buck VIN bypass,100nF 16V,0402,—,AP63205 VIN bypass; voltage rating upgraded to 16V (was 10V — insufficient for 8.4V VBAT with margin)
+C10,1,Buck VIN bulk,1µF 16V,0402,—,AP63205 VIN bulk; voltage rating upgraded to 16V
+C11,1,Buck output bypass,100nF,0402,—,+3V3 output bypass; on output side of L2
+C12,1,Buck output bulk,1µF,0402,—,+3V3 output bulk; on output side of L2
+C13,1,EN reset cap,100nF,0402,—,Bypass on EN/VIN node; can also serve as startup timing cap
+C14a,1,Module VCC3V3 decoupling,100nF,0402,—,Place within 2mm of module pads
+C14b,1,Module VCC3V3 decoupling,100nF,0402,—,Place within 2mm of module pads
+C14c,1,Module VCC3V3 decoupling,100nF,0402,—,Place within 2mm of module pads
+C14d,1,Module VCC3V3 decoupling,100nF,0402,—,Place within 2mm of module pads
+C15,1,Module VCC3V3 bulk,10µF 10V,0805,—,
+C17,1,CN3722 input filter,10µF 25V,0805,—,Voltage rating upgraded from 10V to 25V; CN3722 VIN up to 25V MPPT operating
+C18,1,CN3722 output / VBAT filter,10µF 16V,0805,—,Voltage rating upgraded from 10V to 16V; VBAT up to 8.4V
+C19,1,MT3608B VBOOST input bypass,10µF 16V,0805,—,Voltage rating upgraded from 10V to 16V; VIN up to 8.4V; place within 2mm of U8 VIN pin
+C20,1,VBOOST output filter,22µF 25V X5R,1206,—,MT3608B VOUT 12V; 25V rating; X5R 1206; e.g. Murata GRM32ER61E226KE15L or Samsung CL32A226KAJNNNE
+C21,1,TVS bypass cap,100nF,0402,—,Bypass cap across D8 (SMAJ28CA TVS clamp at CN3722 VIN); absorbs inductive transients from panel cable
+C22,1,VBOOST output cap,10µF 25V X5R,0805,—,In parallel with C20; 25V rating; X5R 0805; e.g. Murata GRM21BR61E106KE15L or Samsung CL21A106KOQNNNE
+C_BST,1,MT3608B bootstrap cap,100nF 16V,0402,—,NEW — required by MT3608B datasheet; from BST pin (pin 6) to SW node; place within 1mm of U8 BST pin; LCSC C14663 or equivalent
+C_BUCK,1,AP63205 output filter cap,10µF 10V X5R,0805,—,NEW — AP63205 output capacitor; on +3V3 rail after L2; complements C11/C12 bypass
+SJ2,1,VLOOP bus jumper,2-pad solder jumper,—,—,Normally closed; cuts ch1/ch2 VLOOP sharing
+SJ3,1,Status LED disconnect,2-pad solder jumper,—,—,Normally closed; cut to save active-phase draw
+J13,1,USB-C power-only input connector,USB-C 2.0 16-pin SMD,SMD,USB4135-GF-A,GCT; power-only; D+/D− no-connect; CC1/CC2 to GND via R_CC1/R_CC2 (5.1 kΩ); VBUS to F2 PTC fuse; left short PCB edge (same position as former J2); LCSC verify or Mouser/Digi-Key
+U11,1,USB VBUS ESD protection,VBUS + D+/D− TVS clamp,SOT-23-6,USBLC6-2SC6,STMicroelectronics; reintroduced from former U5 (removed in 2S redesign); placed between J13 VBUS and F2; LCSC C7519
+U12,1,2S Li-ion USB-C boost charger,4.5–7V in / 8.4V out / 1A,SOP-8,TP5100,LCSC C841540 or equivalent; Icharge=1200/Rprog_kΩ mA; CE active-HIGH enable; /CHRG open-drain active-LOW; hardcoded 8.4V CV output (2S); no external CV divider needed; SOP-8 θJA≈150°C/W
+F2,1,USB input PTC resettable fuse,1A hold 2A trip 10V,1206,MF-MSMF110/16X,Bourns or equivalent; in series with J13 VBUS to VUSB net; protects against sustained overcurrent on USB cable
+R_CC1,1,USB CC1 pull-down (5.1 kΩ),5.1 kΩ 5%,0402,—,CC1 pin of J13 to GND; presents device as USB sink for 5V/2A; place within 3mm of J13
+R_CC2,1,USB CC2 pull-down (5.1 kΩ),5.1 kΩ 5%,0402,—,CC2 pin of J13 to GND; same function as R_CC1; place within 3mm of J13
+R35,1,TP5100 charge current set,1.2 kΩ 1%,0402,—,PROG pin to GND; sets Icharge=1000mA; place within 3mm of U12 PROG pin
+R36,1,TP5100 CE pull-up,100 kΩ,0402,—,CE pin of U12 to VUSB; with R37 forms a pull-up/bleed network; GPIO4 overrides to drive HIGH (enable) or LOW (disable)
+R37,1,TP5100 CE bleed resistor,4.7 kΩ,0402,—,CE pin of U12 to GND; holds CE LOW (charger disabled) when GPIO4 floats at reset/boot and during deep-sleep (fail-safe off); place near U12 CE pin
+R38,1,TP5100 /CHRG pull-up,4.7 kΩ,0402,—,/CHRG pin of U12 to +3V3; pull-up for open-drain output; routes to TP15 only (no GPIO)
+C27,1,VUSB input filter cap,4.7 µF 10V X5R,0805,—,On VUSB net after F2; input filtering for U12 VIN rail
+C28,1,U12 VIN bypass,10 µF 10V X5R,0805,—,On VUSB net at U12 VIN pin; place within 2mm of U12 VIN
+C29,1,U12 VBAT output bypass,10 µF 16V X5R,0805,—,On VBAT rail at U12 VBAT pin; place within 3mm of U12 VBAT; voltage rating 16V for 8.4V rail with margin

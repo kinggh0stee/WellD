@@ -180,6 +180,18 @@ Firmware agent → test agent → docs agent
 
 **`senior-reviewer` runs last** in every `/improve` cycle that touches PCB or firmware. It is a gate, not a contributor — it reads but never writes. If it returns BLOCKED, resolve the CRITICAL items before marking the cycle complete.
 
+## Electrical correctness gate (hardware changes)
+
+**Before any PCB layout work begins after a schematic change**, perform this checklist inline or via the senior-reviewer:
+
+1. **IC companion passives** — every active IC must have all required passive components present in the schematic: feedback dividers (buck/boost), bootstrap caps, decoupling caps, pull-ups on open-drain pins, PG/EN resistors per datasheet.
+2. **Net connectivity** — verify `hardware/pcb/schematic_connections.md` reflects any new or changed nets. If wires are missing from a schematic sheet, this document is the authoritative reference.
+3. **Voltage ratings** — all component ratings must cover the operating range with ≥20% margin: VBAT 6.0–8.4V, VLOOP 12V, VUSB 5V, +3V3.
+4. **CV/CC setpoints** — verify charger output voltage is ≤8.40V for 2S Li-ion (CN3722 CV = 8.31V via R33=590kΩ).
+5. **Open-drain pull-ups** — any open-drain signal (ADS_DRDY, I²C) must have an external pull-up resistor; do not rely on internal weak pull-ups alone.
+
+**Why this gate exists**: the Python-generated schematics (pre-2026-05-25) had correct component symbols but zero wire connections and missing critical passives (R_FBH/R_FBL for the AP63205WU feedback divider, R_DRDY for ADS1115 DRDY). These were not caught until the senior reviewer ran on 2026-05-25 (BLOCKED, 4 CRITICAL). The gate prevents tape-out with a schematic that has symbols but no electrical correctness verification.
+
 ## CI
 
 `.github/workflows/build.yml` has six jobs:

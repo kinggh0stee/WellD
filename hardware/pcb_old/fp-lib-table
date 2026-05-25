@@ -1,0 +1,4 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "WellD") (type "KiCad") (uri "${KIPRJMOD}/WellD.pretty") (options "") (descr "WellD custom footprints"))
+)

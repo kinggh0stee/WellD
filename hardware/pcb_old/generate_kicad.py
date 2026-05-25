@@ -275,7 +275,7 @@ def make_pro() -> str:
 # ── KiCad footprint per reference ────────────────────────────────────────────
 FOOTPRINTS: dict = {
     "U1":    "Package_TO_SOT_SMD:SOT-23-6",
-    "U6":    "PCM_Espressif:ESP32-C6-MINI-1U",
+    "U6":    "Espressif:ESP32-C6-MINI-1U",   # U.FL variant — matches BOM (MINI-1U-H4)
     "U7":    "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
     "U8":    "Package_TO_SOT_SMD:SOT-23-6",
     "U9":    "Package_SO:MSOP-10_3x3mm_P0.5mm",
@@ -317,14 +317,14 @@ FOOTPRINTS: dict = {
        for n in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15]},
 }
 
-_C_0805 = {"C4","C6","C15","C17","C18","C19","C22","C27","C28","C29","C_BUCK"}
+_C_0805 = {"C4","C6","C15","C17","C18","C19","C22","C27","C28","C29","C16"}
 _C_1206 = {"C20"}
 
 
 def get_footprint(ref: str) -> str:
     if ref in FOOTPRINTS:
         return FOOTPRINTS[ref]
-    if ref.startswith("R") or ref == "R_CC1" or ref == "R_CC2":
+    if ref.startswith("R") or ref == "R50" or ref == "R51":
         return "Resistor_SMD:R_0402_1005Metric"
     if ref.startswith("C") or ref.startswith("C_"):
         if ref in _C_1206:
@@ -356,7 +356,7 @@ LCSC_PARTS: dict = {
     "J1":    "C601498",
     "L1":    "C376098",
     "L2":    "C376098",
-    "C_BST": "C14663",
+    "C25": "C14663",
 }
 
 COMPONENTS = [
@@ -380,8 +380,8 @@ COMPONENTS = [
 
     # USB-C input (center)
     ("J13",  "USB-C",            "welld:USB_C_Power",             165,    30),
-    ("R_CC1","5k1",              "Device:R",                      165,    55),
-    ("R_CC2","5k1",              "Device:R",                      165,    80),
+    ("R50","5k1",              "Device:R",                      165,    55),
+    ("R51","5k1",              "Device:R",                      165,    80),
     ("U11",  "USBLC6",           "welld:USBLC6_2SC6",             195,    30),
     ("F2",   "Polyfuse",         "Device:Polyfuse",               195,    55),
     ("C27",  "4.7uF",            "Device:C",                      195,    80),
@@ -407,7 +407,7 @@ COMPONENTS = [
     ("C10",  "1uF",              "Device:C",                       50,   140),
     ("C11",  "100nF",            "Device:C",                       50,   165),
     ("C12",  "1uF",              "Device:C",                       50,   190),
-    ("C_BUCK","10uF",            "Device:C",                       75,   140),
+    ("C16","10uF",            "Device:C",                       75,   140),
     ("R11",  "10k",              "Device:R",                       75,   165),
 
     # ESP32-C6 (center)
@@ -417,10 +417,10 @@ COMPONENTS = [
     ("R12",  "10k",              "Device:R",                      115,   190),
     ("R13",  "10k",              "Device:R",                      140,   190),
     ("C13",  "100nF",            "Device:C",                      165,   140),
-    ("C14a", "100nF",            "Device:C",                      165,   165),
-    ("C14b", "100nF",            "Device:C",                      165,   190),
-    ("C14c", "100nF",            "Device:C",                      190,   140),
-    ("C14d", "100nF",            "Device:C",                      190,   165),
+    ("C30", "100nF",            "Device:C",                      165,   165),
+    ("C31", "100nF",            "Device:C",                      165,   190),
+    ("C32", "100nF",            "Device:C",                      190,   140),
+    ("C33", "100nF",            "Device:C",                      190,   165),
     ("C15",  "10uF",             "Device:C",                      190,   190),
 
     # Status LED
@@ -441,12 +441,12 @@ COMPONENTS = [
     ("D10",  "SMAJ3.3",          "Device:D_TVS",                  320,   150),
     ("C3",   "1uF",              "Device:C",                      290,   175),
     ("C4",   "10uF",             "Device:C",                      320,   175),
-    ("C_SH1","10nF",             "Device:C",                      290,   200),
+    ("C34","10nF",             "Device:C",                      290,   200),
     ("R4",   "100R",             "Device:R",                      350,   125),
     ("R5",   "100R",             "Device:R",                      350,   150),
     ("C5",   "1uF",              "Device:C",                      350,   175),
     ("C6",   "10uF",             "Device:C",                      350,   200),
-    ("C_SH2","10nF",             "Device:C",                      380,   125),
+    ("C35","10nF",             "Device:C",                      380,   125),
     ("R6",   "4k7",              "Device:R",                      380,   150),
     ("C7",   "100nF",            "Device:C",                      380,   175),
 
@@ -462,7 +462,7 @@ COMPONENTS = [
     # VLOOP boost (left)
     ("U8",   "MT3608",           "welld:MT3608B",                  25,   250),
     ("L1",   "4.7uH",            "Device:L",                       25,   275),
-    ("C_BST","100nF",            "Device:C",                       25,   300),
+    ("C25","100nF",            "Device:C",                       25,   300),
     ("C22",  "10uF 25V",         "Device:C",                       50,   250),
     ("R23",  "1.91M",            "Device:R",                       50,   275),
     ("R24",  "100k",             "Device:R",                       50,   300),
@@ -517,22 +517,22 @@ SHEET_ASSIGNMENTS: dict[str, list[str]] = {
     "power": [
         "J12", "D14", "D6", "D8", "C17", "U7", "C18",
         "R19", "R20", "R21", "R33", "R34", "R22", "D7",
-        "J13", "R_CC1", "R_CC2", "U11", "F2", "C27",
+        "J13", "R50", "R51", "U11", "F2", "C27",
         "U12", "C28", "C29", "R35", "R36", "R37", "R38",
         "J1", "D13", "D5", "R31",
-        "U1", "L2", "C9", "C10", "C11", "C12", "C_BUCK", "R11",
-        "U8", "L1", "C_BST", "C22", "R23", "R24", "C19", "C20", "D11", "C21",
+        "U1", "L2", "C9", "C10", "C11", "C12", "C16", "R11",
+        "U8", "L1", "C25", "C22", "R23", "R24", "C19", "C20", "D11", "C21",
     ],
     "mcu": [
         "U6", "SW1", "SW2", "R12", "R13",
-        "C13", "C14a", "C14b", "C14c", "C14d", "C15",
+        "C13", "C30", "C31", "C32", "C33", "C15",
         "D4", "R14",
     ],
     "sensors": [
         "J4", "J5", "J6", "J7",
         "R32", "D1", "D12", "R2", "R3",
-        "D9", "D10", "C3", "C4", "C_SH1",
-        "R4", "R5", "C5", "C6", "C_SH2", "R6", "C7",
+        "D9", "D10", "C3", "C4", "C34",
+        "R4", "R5", "C5", "C6", "C35", "R6", "C7",
         "FB1", "C23", "C24", "U9", "R28",
         "Q2", "R7", "R8", "C8", "R26",
     ],
@@ -1674,7 +1674,7 @@ def make_sch(UUIDS: dict[str, str]) -> str:
 # ===========================================================================
 
 # Board dimensions (mm)
-BOARD_W = 80.0
+BOARD_W = 100.0
 BOARD_H = 55.0
 
 # Center the PCB on the A5 landscape page (210x148mm)
@@ -1685,275 +1685,228 @@ PCB_Y_OFFSET = 46.5
 # Mounting hole positions (mm from lower-left = PCB origin)
 MOUNTING_HOLES = [
     (3.5,  3.5),
-    (76.5, 3.5),
+    (96.5, 3.5),
     (3.5,  51.5),
-    (76.5, 51.5),
+    (96.5, 51.5),
 ]
 
 # PCB component placement: (ref, footprint, x, y, rotation, description)
 # Footprints use standard KiCad 10 library paths.
-# All positions are board-relative (0,0 = top-left of 80x55 mm board).
+# All positions are board-relative (0,0 = top-left of 100x55 mm board).
 # PCB absolute = board-relative + (PCB_X_OFFSET, PCB_Y_OFFSET).
-# Usable area: X=2..78, Y=2..53 (2 mm edge clearance).
+# Usable area: X=2..98, Y=2..53 (2 mm edge clearance).
+# Grid: 1.0 mm for all components.
 # Keepouts:
-#   J3 courtyard: X=34.24-45.76, Y=40.53-55 (no components)
-#   J1 courtyard: X=-1.2-13.5, Y=26.6-40.4 (XT30 body at 270°; pins at board x=12)
+#   J3 courtyard: X=44.24-55.76, Y=0-14.47 (top edge; no components below antenna keepout)
+#   J1 courtyard: X=-1.2-13.5, Y=40.5-51.5 (XT30 body at 270; pins at board x=12)
 #   Antenna keepout: X=0-30, Y=0-20 (no copper-bearing components)
 #   MH exclusion: 4 mm radius around each mounting hole corner
-# J1, J3, R9, R10, MH1-4 positions are LOCKED — do not move.
+# J1, J3, MH1-4 positions are LOCKED — do not move.
 PCB_COMPONENTS = [
 
     # -------------------------------------------------------------------------
-    # Zone 1 — Power (left strip, X=2..31)
+    # Zone 1 — Power (left strip, X=2..30)
     # -------------------------------------------------------------------------
 
-    # --- Solar sub-group (top-left, Y=2..25) ---
-    # J12 is in Zone 4 (connector strip); solar group clusters around U7
-    # D14: 28V TVS at J12 input terminal (placed near Zone 4 — see Zone 4 entry)
-    # U7 (CN3722 SOIC-8) — MPPT solar charger IC
-    # Note: thermal zone in pcb_thermal_zone_u7() is centred on (60,10) board-rel;
-    # we move U7 here and the zone will be updated in a follow-up pass.
-    ("U7",    "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",      9.0,   8.0,    0, "CN3722"),
-    # Input filter cap across U7 VIN
-    ("C17",   "Capacitor_SMD:C_0805_2012Metric",          16.0,   5.0,    0, "10uF"),
-    # Input protection Schottky (after D14 TVS)
-    ("D6",    "Diode_SMD:D_SOD-123",                      22.0,   5.0,    0, "MBRS140"),
-    # VIN TVS clamp across CN3722 VIN/GND (after D6)
-    ("D8",    "Diode_SMD:D_SMA",                          28.0,   5.0,    0, "SMAJ28CA"),
-    # CN3722 output / VBAT filter cap
-    ("C18",   "Capacitor_SMD:C_0805_2012Metric",          16.0,  13.0,    0, "10uF"),
-    # MPPT divider
-    ("R19",   "Resistor_SMD:R_0402_1005Metric",           22.0,  10.0,    0, "2k0"),
-    ("R20",   "Resistor_SMD:R_0402_1005Metric",           22.0,  14.0,    0, "36k"),
-    ("R21",   "Resistor_SMD:R_0402_1005Metric",           27.0,  10.0,    0, "10k"),
-    # CV divider (new for CN3722)
-    ("R33",   "Resistor_SMD:R_0402_1005Metric",           27.0,  14.0,    0, "604k"),
-    ("R34",   "Resistor_SMD:R_0402_1005Metric",           27.0,  18.0,    0, "100k"),
-    # Solar charge LED + series resistor (DNF in production)
-    ("D7",    "LED_SMD:LED_0603_1608Metric",               9.0,  18.0,    0, "LED"),
-    ("R22",   "Resistor_SMD:R_0402_1005Metric",           14.0,  18.0,    0, "1k DNF"),
+    # --- Solar sub-group (top-left, Y=2..20) ---
+    ("U7",    "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",      10.0,   8.0,    0, "CN3722"),
+    ("C17",   "Capacitor_SMD:C_0805_2012Metric",          18.0,   6.0,    0, "10uF"),
+    ("D6",    "Diode_SMD:D_SOD-123",                      24.0,   6.0,    0, "MBRS140"),
+    ("D8",    "Diode_SMD:D_SMA",                          24.0,  10.0,    0, "SMAJ28CA"),
+    ("C18",   "Capacitor_SMD:C_0805_2012Metric",          18.0,  12.0,    0, "10uF"),
+    ("R19",   "Resistor_SMD:R_0402_1005Metric",           10.0,  14.0,    0, "2k0"),
+    ("R20",   "Resistor_SMD:R_0402_1005Metric",           14.0,  14.0,    0, "36k"),
+    ("R21",   "Resistor_SMD:R_0402_1005Metric",           18.0,  14.0,    0, "10k"),
+    ("R33",   "Resistor_SMD:R_0402_1005Metric",           22.0,  14.0,    0, "604k"),
+    ("R34",   "Resistor_SMD:R_0402_1005Metric",           22.0,  18.0,    0, "100k"),
+    ("D7",    "LED_SMD:LED_0603_1608Metric",               6.0,  10.0,    0, "LED"),
+    ("R22",   "Resistor_SMD:R_0402_1005Metric",            6.0,  14.0,    0, "1k DNF"),
 
-    # --- USB-C sub-group (mid-left, Y=22..36, clear of J1 courtyard) ---
-    # J1 courtyard is X=0-13.6, Y=29-38; avoid with USB-C ICs
-    # J13 goes on left edge, body inside board
+    # --- USB-C sub-group (mid-left, Y=22..34) ---
     ("J13",   "Connector_USB:USB_C_Receptacle_GCT_USB4135-GF-A_6P_TopMnt_Horizontal",
-                                                           5.0,  25.0,  180, "USB-C"),
-    # CC pull-downs — within 3 mm of J13
-    ("R_CC1", "Resistor_SMD:R_0402_1005Metric",          13.0,  23.0,    0, "5k1"),
-    ("R_CC2", "Resistor_SMD:R_0402_1005Metric",          13.0,  26.0,    0, "5k1"),
-    # VBUS ESD clamp
-    ("U11",   "Package_TO_SOT_SMD:SOT-23-6",             19.0,  24.0,    0, "USBLC6"),
-    # PTC fuse in series with VBUS
-    ("F2",    "Fuse:Fuse_1206_3216Metric",                25.0,  24.0,    0, "Polyfuse"),
-    # VUSB filter cap (after F2)
-    ("C27",   "Capacitor_SMD:C_0805_2012Metric",          25.0,  28.0,    0, "4.7uF"),
+                                                            4.0,  26.0,  180, "USB-C"),
+    ("R50",   "Resistor_SMD:R_0402_1005Metric",           14.0,  24.0,    0, "5k1"),
+    ("R51",   "Resistor_SMD:R_0402_1005Metric",           14.0,  28.0,    0, "5k1"),
+    ("U11",   "Package_TO_SOT_SMD:SOT-23-6",              20.0,  24.0,    0, "USBLC6"),
+    ("F2",    "Fuse:Fuse_1206_3216Metric",                26.0,  24.0,    0, "Polyfuse"),
+    ("C27",   "Capacitor_SMD:C_0805_2012Metric",          26.0,  20.0,    0, "4.7uF"),
 
-    # --- TP5100 USB charger sub-group (Y=39..52, X=14..31) ---
-    # Kept right of battery protection (D13/D5/R31) to avoid J1 courtyard
-    ("U12",   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",     21.0,  43.0,    0, "TP5100"),
-    # U12 VIN bypass — within 2 mm
-    ("C28",   "Capacitor_SMD:C_0805_2012Metric",          28.0,  40.0,    0, "10uF"),
-    # U12 VBAT output bypass — within 3 mm
-    ("C29",   "Capacitor_SMD:C_0805_2012Metric",          28.0,  44.0,    0, "10uF"),
-    # PROG resistor (charge current set)
-    ("R35",   "Resistor_SMD:R_0402_1005Metric",           16.0,  40.0,    0, "1k2"),
-    # CE pull-up
-    ("R36",   "Resistor_SMD:R_0402_1005Metric",           16.0,  44.0,    0, "100k"),
-    # CE bleed to GND (fail-safe disable)
-    ("R37",   "Resistor_SMD:R_0402_1005Metric",           16.0,  48.0,    0, "4k7"),
-    # /CHRG pull-up to 3V3
-    ("R38",   "Resistor_SMD:R_0402_1005Metric",           21.0,  48.0,    0, "4k7"),
+    # --- TP5100 USB charger sub-group (Y=36..50) ---
+    ("U12",   "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",      20.0,  40.0,    0, "TP5100"),
+    ("C28",   "Capacitor_SMD:C_0805_2012Metric",          28.0,  38.0,    0, "10uF"),
+    ("C29",   "Capacitor_SMD:C_0805_2012Metric",          28.0,  42.0,    0, "10uF"),
+    ("R35",   "Resistor_SMD:R_0402_1005Metric",           14.0,  34.0,    0, "1k2"),
+    ("R36",   "Resistor_SMD:R_0402_1005Metric",           14.0,  36.0,    0, "100k"),
+    ("R37",   "Resistor_SMD:R_0402_1005Metric",           14.0,  38.0,    0, "4k7"),
+    ("R38",   "Resistor_SMD:R_0402_1005Metric",           22.0,  36.0,    0, "4k7"),
 
-    # --- Battery protection (X=2..12, Y=39..52) ---
-    # D13: 10V TVS across battery terminals (J1)
-    ("D13",   "Diode_SMD:D_SMA",                          6.0,  40.0,    0, "SMAJ10CA"),
-    # D5: P-ch MOSFET reverse-polarity protection
-    ("D5",    "Package_TO_SOT_SMD:SOT-23",                6.0,  45.0,    0, "AO3407"),
-    # R31: D5 gate pull-down — within 2 mm of D5
-    ("R31",   "Resistor_SMD:R_0402_1005Metric",           6.0,  49.0,    0, "10k"),
+    # --- Battery protection (X=2..12, Y=36..50) ---
+    ("D13",   "Diode_SMD:D_SMA",                          8.0,  38.0,    0, "SMAJ10CA"),
+    ("D5",    "Package_TO_SOT_SMD:SOT-23",                4.0,  34.0,    0, "AO3407"),
+    ("R31",   "Resistor_SMD:R_0402_1005Metric",           4.0,  38.0,    0, "10k"),
 
-    # --- 3.3V Buck converter (X=2..16, Y=34..38, between J1 and TP5100) ---
-    # Placed below USB-C group, above TP5100 group, tight to left edge
-    ("U1",    "Package_TO_SOT_SMD:SOT-23-6",             10.0,  34.0,    0, "AP63205"),
-    ("L2",    "Inductor_SMD:L_Vishay_IFSC-1515AH_4x4x1.8mm", 17.0,  34.0,    0, "4.7uH"),
-    # VIN bypass caps — within 2 mm of U1
-    ("C9",    "Capacitor_SMD:C_0402_1005Metric",          7.0,  36.5,    0, "100nF"),
-    ("C10",   "Capacitor_SMD:C_0402_1005Metric",         10.0,  36.5,    0, "100nF"),
-    # Output bypass caps — on +3V3 side of L2
-    ("C11",   "Capacitor_SMD:C_0402_1005Metric",         20.0,  34.0,    0, "100nF"),
-    ("C12",   "Capacitor_SMD:C_0402_1005Metric",         20.0,  36.5,    0, "1uF"),
-    ("C_BUCK","Capacitor_SMD:C_0805_2012Metric",         25.0,  35.0,    0, "10uF"),
-    # EN pull-up
-    ("R11",   "Resistor_SMD:R_0402_1005Metric",         13.0,  36.5,    0, "10k"),
+    # --- 3.3V Buck converter (X=12..28, Y=28..34) ---
+    ("U1",    "Package_TO_SOT_SMD:SOT-23-6",              14.0,  30.0,    0, "AP63205"),
+    ("L2",    "Inductor_SMD:L_Vishay_IFSC-1515AH_4x4x1.8mm", 22.0,  30.0,    0, "4.7uH"),
+    ("C9",    "Capacitor_SMD:C_0402_1005Metric",          10.0,  32.0,    0, "100nF"),
+    ("C10",   "Capacitor_SMD:C_0402_1005Metric",          14.0,  32.0,    0, "100nF"),
+    ("C11",   "Capacitor_SMD:C_0402_1005Metric",          22.0,  32.0,    0, "100nF"),
+    ("C12",   "Capacitor_SMD:C_0402_1005Metric",          26.0,  32.0,    0, "1uF"),
+    ("C16",   "Capacitor_SMD:C_0805_2012Metric",          26.0,  28.0,    0, "10uF"),
+    ("R11",   "Resistor_SMD:R_0402_1005Metric",           18.0,  32.0,    0, "10k"),
 
     # -------------------------------------------------------------------------
     # LOCKED — J1 (XT30PW-F battery connector, left side)
     # -------------------------------------------------------------------------
-    ("J1",    "WellD:XT30PW-F_RightAngle",                5.0,  33.5,  270, "XT30PW-F"),
+    ("J1",    "WellD:XT30PW-F_RightAngle",                4.0,  46.0,  270, "XT30PW-F"),
 
     # -------------------------------------------------------------------------
     # Zone 2 — MCU (center, X=32..66, Y=2..38)
-    # Antenna keepout: X<30, Y<20 — U6 module is clear (center ~50,18)
+    # Antenna keepout: X<30, Y<20 — U6 module is clear (center ~48,16)
     # -------------------------------------------------------------------------
-    # U6: ESP32-C6-MINI-1U module (~16x14 mm body)
-    ("U6",    "PCM_Espressif:ESP32-C6-MINI-1U",          50.0,  17.0,    0, "ESP32-C6"),
-    # Module VCC3V3 decoupling — within 3 mm of module pads
-    ("C14a",  "Capacitor_SMD:C_0402_1005Metric",         36.0,   7.0,    0, "100nF"),
-    ("C14b",  "Capacitor_SMD:C_0402_1005Metric",         39.0,   7.0,    0, "100nF"),
-    ("C14c",  "Capacitor_SMD:C_0402_1005Metric",         36.0,  10.0,    0, "100nF"),
-    ("C14d",  "Capacitor_SMD:C_0402_1005Metric",         39.0,  10.0,    0, "100nF"),
-    # Module VCC3V3 bulk
-    ("C15",   "Capacitor_SMD:C_0805_2012Metric",         42.0,   8.0,    0, "10uF"),
-    # Strapping resistors
-    ("R12",   "Resistor_SMD:R_0402_1005Metric",          36.0,  14.0,    0, "10k"),
-    ("R13",   "Resistor_SMD:R_0402_1005Metric",          39.0,  14.0,    0, "10k"),
-    # EN reset cap
-    ("C13",   "Capacitor_SMD:C_0402_1005Metric",         42.0,  14.0,    0, "100nF"),
-    # Buttons — top edge of module, accessible for hand-press
+    ("U6",    "Espressif:ESP32-C6-MINI-1U",               48.0,  16.0,    0, "ESP32-C6"),
+    ("C30",   "Capacitor_SMD:C_0402_1005Metric",          38.0,   6.0,    0, "100nF"),
+    ("C31",   "Capacitor_SMD:C_0402_1005Metric",          42.0,   6.0,    0, "100nF"),
+    ("C32",   "Capacitor_SMD:C_0402_1005Metric",          38.0,  10.0,    0, "100nF"),
+    ("C33",   "Capacitor_SMD:C_0402_1005Metric",          42.0,  10.0,    0, "100nF"),
+    ("C15",   "Capacitor_SMD:C_0805_2012Metric",          46.0,   6.0,    0, "10uF"),
+    ("R12",   "Resistor_SMD:R_0402_1005Metric",           38.0,  14.0,    0, "10k"),
+    ("R13",   "Resistor_SMD:R_0402_1005Metric",           42.0,  14.0,    0, "10k"),
+    ("C13",   "Capacitor_SMD:C_0402_1005Metric",          46.0,  14.0,    0, "100nF"),
     ("SW1",   "Button_Switch_SMD:SW_Push_1P1T_NO_CK_KSC6xxG",
-                                                          42.0,   4.0,    0, "RESET"),
+                                                            40.0,   4.0,    0, "RESET"),
     ("SW2",   "Button_Switch_SMD:SW_Push_1P1T_NO_CK_KSC6xxG",
-                                                          48.0,   4.0,    0, "BOOT"),
-    # Status LED + current limit resistor — right of module
-    ("D4",    "LED_SMD:LED_0603_1608Metric",              62.0,  28.0,    0, "Status"),
-    ("R14",   "Resistor_SMD:R_0402_1005Metric",          58.0,  28.0,    0, "1k"),
+                                                            48.0,   4.0,    0, "BOOT"),
+    ("D4",    "LED_SMD:LED_0603_1608Metric",              58.0,  26.0,    0, "Status"),
+    ("R14",   "Resistor_SMD:R_0402_1005Metric",           54.0,  26.0,    0, "1k"),
 
     # -------------------------------------------------------------------------
-    # Zone 3 — Analog / Sensors (X=56..66, Y=2..38)
-    # ADS1115 kept away from MT3608B boost noise (Zone 5, bottom-center)
+    # Zone 3 — Analog / Sensors (X=68..98, Y=2..38)
     # -------------------------------------------------------------------------
-    # ADS1115 cluster — U9 MSOP-10 at center ~(62,20)
-    ("U9",    "Package_SO:MSOP-10_3x3mm_P0.5mm",         62.0,  20.0,    0, "ADS1115"),
-    # ADS1115 VDD ferrite bead (in 3V3 supply line to U9)
-    ("FB1",   "Inductor_SMD:L_0402_1005Metric",          57.0,  17.0,    0, "Ferrite"),
-    # ADS1115 VDD bypass caps — on U9 side of FB1, within 1 mm of U9
-    ("C23",   "Capacitor_SMD:C_0402_1005Metric",         57.0,  20.0,    0, "100nF"),
-    ("C24",   "Capacitor_SMD:C_0402_1005Metric",         57.0,  23.0,    0, "1uF"),
-    # ALERT/DRDY series protection
-    ("R28",   "Resistor_SMD:R_0402_1005Metric",          62.0,  25.0,    0, "100R"),
+    ("U9",    "Package_SO:MSOP-10_3x3mm_P0.5mm",          76.0,  14.0,    0, "ADS1115"),
+    ("FB1",   "Inductor_SMD:L_0402_1005Metric",           70.0,  10.0,    0, "Ferrite"),
+    ("C23",   "Capacitor_SMD:C_0402_1005Metric",          70.0,  14.0,    0, "100nF"),
+    ("C24",   "Capacitor_SMD:C_0402_1005Metric",          70.0,  18.0,    0, "1uF"),
+    ("R28",   "Resistor_SMD:R_0402_1005Metric",           76.0,  20.0,    0, "100R"),
 
-    # Battery divider — near U9 AIN2 input
-    ("Q2",    "Package_TO_SOT_SMD:SOT-23",                57.0,   8.0,    0, "BSS123"),
-    ("R7",    "Resistor_SMD:R_0402_1005Metric",           62.0,   6.0,    0, "330k"),
-    ("R8",    "Resistor_SMD:R_0402_1005Metric",           62.0,   9.0,    0, "100k"),
-    ("C8",    "Capacitor_SMD:C_0402_1005Metric",          57.0,  12.0,    0, "100nF"),
-    ("R26",   "Resistor_SMD:R_0402_1005Metric",           62.0,  12.0,    0, "4k7"),
+    # Battery divider
+    ("Q2",    "Package_TO_SOT_SMD:SOT-23",                70.0,   6.0,    0, "BSS123"),
+    ("R7",    "Resistor_SMD:R_0402_1005Metric",           76.0,   4.0,    0, "330k"),
+    ("R8",    "Resistor_SMD:R_0402_1005Metric",           76.0,   8.0,    0, "100k"),
+    ("C8",    "Capacitor_SMD:C_0402_1005Metric",          74.0,  10.0,    0, "100nF"),
+    ("R26",   "Resistor_SMD:R_0402_1005Metric",           76.0,  10.0,    0, "4k7"),
 
-    # 4-20mA ch1 circuit — below U9
-    ("D9",    "Diode_SMD:D_SMA",                          58.0,  30.0,    0, "SMAJ3.3"),
-    ("R2",    "Resistor_SMD:R_0805_2012Metric",           64.0,  33.0,    0, "100R"),
-    ("R3",    "Resistor_SMD:R_0402_1005Metric",           58.0,  33.0,    0, "100R"),
-    ("C3",    "Capacitor_SMD:C_0402_1005Metric",          60.0,  36.0,    0, "1uF"),
-    ("C4",    "Capacitor_SMD:C_0805_2012Metric",          64.0,  36.0,    0, "10uF"),
-    ("C_SH1", "Capacitor_SMD:C_0402_1005Metric",          64.0,  30.0,    0, "10nF"),
+    # 4-20mA ch1 circuit
+    ("D9",    "Diode_SMD:D_SMA",                          72.0,  28.0,    0, "SMAJ3.3"),
+    ("R2",    "Resistor_SMD:R_0805_2012Metric",           78.0,  32.0,    0, "100R"),
+    ("R3",    "Resistor_SMD:R_0402_1005Metric",           72.0,  32.0,    0, "100R"),
+    ("C3",    "Capacitor_SMD:C_0402_1005Metric",          74.0,  36.0,    0, "1uF"),
+    ("C4",    "Capacitor_SMD:C_0805_2012Metric",          78.0,  36.0,    0, "10uF"),
+    ("C34",   "Capacitor_SMD:C_0402_1005Metric",          78.0,  28.0,    0, "10nF"),
 
-    # 4-20mA ch2 circuit — alongside ch1
-    ("D10",   "Diode_SMD:D_SMA",                          58.0,  38.0,    0, "SMAJ3.3"),
-    ("R4",    "Resistor_SMD:R_0805_2012Metric",           64.0,  41.0,    0, "100R"),
-    ("R5",    "Resistor_SMD:R_0402_1005Metric",           58.0,  41.0,    0, "100R"),
-    ("C5",    "Capacitor_SMD:C_0402_1005Metric",          60.0,  44.0,    0, "1uF"),
-    ("C6",    "Capacitor_SMD:C_0805_2012Metric",          64.0,  44.0,    0, "10uF"),
-    ("C_SH2", "Capacitor_SMD:C_0402_1005Metric",          64.0,  38.0,    0, "10nF"),
+    # 4-20mA ch2 circuit
+    ("D10",   "Diode_SMD:D_SMA",                          86.0,  28.0,    0, "SMAJ3.3"),
+    ("R4",    "Resistor_SMD:R_0805_2012Metric",           92.0,  32.0,    0, "100R"),
+    ("R5",    "Resistor_SMD:R_0402_1005Metric",           86.0,  32.0,    0, "100R"),
+    ("C5",    "Capacitor_SMD:C_0402_1005Metric",          88.0,  36.0,    0, "1uF"),
+    ("C6",    "Capacitor_SMD:C_0805_2012Metric",          92.0,  36.0,    0, "10uF"),
+    ("C35",   "Capacitor_SMD:C_0402_1005Metric",          92.0,  28.0,    0, "10nF"),
 
-    # ESD protection — dual PRTR5V, one per channel + DS18B20
-    ("D1",    "Package_TO_SOT_SMD:SOT-363_SC-70-6",       57.0,  27.0,    0, "PRTR5V"),
-    ("D12",   "Package_TO_SOT_SMD:SOT-363_SC-70-6",       57.0,  36.0,    0, "PRTR5V"),
+    # ESD protection
+    ("D1",    "Package_TO_SOT_SMD:SOT-363_SC-70-6",       68.0,  26.0,    0, "PRTR5V"),
+    ("D12",   "Package_TO_SOT_SMD:SOT-363_SC-70-6",       82.0,  34.0,    0, "PRTR5V"),
 
     # DS18B20 pullup + bypass
-    ("C7",    "Capacitor_SMD:C_0402_1005Metric",          57.0,  44.0,    0, "100nF"),
-    ("R6",    "Resistor_SMD:R_0402_1005Metric",           57.0,  47.0,    0, "4k7"),
-
-    # DS18B20 1-Wire series protection resistor (DNF by default)
-    ("R32",   "Resistor_SMD:R_0402_1005Metric",           57.0,  50.0,    0, "33R"),
+    ("C7",    "Capacitor_SMD:C_0402_1005Metric",          82.0,  36.0,    0, "100nF"),
+    ("R6",    "Resistor_SMD:R_0402_1005Metric",           82.0,  32.0,    0, "4k7"),
+    ("R32",   "Resistor_SMD:R_0402_1005Metric",           88.0,  32.0,    0, "33R"),
 
     # -------------------------------------------------------------------------
-    # Zone 4 — Connectors strip (right edge, X=68..78, rot=180 → wires exit right)
-    # Phoenix PT-1,5/3 body: ~10.5 mm wide, ~8 mm deep
-    # Stacked vertically: J4 Y=6, J5 Y=18, J6 Y=30, J7 Y=42
-    # J12 (2-pos, ~7 mm wide): top-right corner
+    # Zone 4 — Connectors strip (bottom edge, X=20..97, Y=40..53)
+    # Phoenix PT-1,5/3 body: ~14.3 mm wide, ~7.8 mm deep (3-pos); 10.5 mm wide (2-pos)
+    # J12 starts at X=20 to clear J1 XT30 body (right edge ~X=14) with ≥6 mm margin.
+    # J4..J7 uniformly at 16 mm pitch; J10 prog header at X=94.
+    # D14 (solar TVS) placed at (17, 42): above connector body zone, 3 mm clear of J1.
     # -------------------------------------------------------------------------
     ("J12",   "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-2-3.5-H_1x02_P3.50mm_Horizontal",
-                                                          73.0,   6.0,  180, "Solar"),
-    # Solar TVS at J12 terminal
-    ("D14",   "Diode_SMD:D_SMA",                          65.0,   6.0,    0, "SMAJ28CA"),
-    # 4-20mA channel 1 — right edge, clear of SW island
+                                                            20.0,  46.0,    0, "Solar"),
+    ("D14",   "Diode_SMD:D_SMA",                          17.0,  42.0,    0, "SMAJ28CA"),
     ("J4",    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
-                                                           76.0,  10.0,  180, "4-20mA_1"),
-    # 4-20mA channel 2
+                                                            34.0,  46.0,    0, "4-20mA_1"),
     ("J5",    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
-                                                           76.0,  22.0,  180, "4-20mA_2"),
-    # DS18B20 sensor
+                                                            50.0,  46.0,    0, "4-20mA_2"),
     ("J6",    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
-                                                           76.0,  34.0,  180, "DS18B20"),
-    # Spare sensor
+                                                            66.0,  46.0,    0, "DS18B20"),
     ("J7",    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-1,5-3-3.5-H_1x03_P3.50mm_Horizontal",
-                                                           76.0,  46.0,  180, "Spare"),
-
-    # -------------------------------------------------------------------------
-    # Zone 5 — Support / Interfaces (bottom center, X=32..66, Y=38..53)
-    # Outside J3 courtyard (X=34.24-45.76, Y=40.53-55) — place VLOOP west of it
-    # -------------------------------------------------------------------------
-    # VLOOP boost cluster — MT3608B (U8) SOT-23-6 + hot-loop: SW→L1→C20/C22
-    # Place at X=33..48, Y=38..52, west of J3 courtyard
-    ("U8",    "Package_TO_SOT_SMD:SOT-23-6",             33.0,  42.0,    0, "MT3608B"),
-    ("L1",    "Inductor_SMD:L_Vishay_IFSC-1515AH_4x4x1.8mm",
-                                                          33.0,  47.0,    0, "4.7uH"),
-    # Bootstrap cap on BST pin (pin 6) — within 1 mm of U8
-    ("C_BST", "Capacitor_SMD:C_0402_1005Metric",         36.0,  39.0,    0, "100nF"),
-    # VOUT output caps (high-ripple; keep short to L1 output)
-    ("C20",   "Capacitor_SMD:C_1206_3216Metric",         33.0,  52.0,    0, "22uF 25V"),
-    ("C22",   "Capacitor_SMD:C_0805_2012Metric",         38.0,  52.0,    0, "10uF 25V"),
-    # Input bypass to U8 VIN — within 2 mm
-    ("C19",   "Capacitor_SMD:C_0805_2012Metric",         38.0,  47.0,    0, "10uF"),
-    # VLOOP TVS (at VOUT terminal, before J4/J5 VLOOP pin)
-    ("D11",   "Diode_SMD:D_SMA",                         38.0,  42.0,    0, "SMAJ13"),
-    # Feedback divider (R23 high-side, R24 low-side)
-    ("R23",   "Resistor_SMD:R_0402_1005Metric",          33.0,  38.0,    0, "1.91M"),
-    ("R24",   "Resistor_SMD:R_0402_1005Metric",          38.0,  38.0,    0, "100k"),
-    # Bypass cap on TVS (D8 area) — absorbs inductive transients
-    ("C21",   "Capacitor_SMD:C_0402_1005Metric",         43.0,  39.0,    0, "100nF"),
-
-    # Programming header — accessible top of bottom strip
+                                                            82.0,  46.0,    0, "Spare"),
     ("J10",   "Connector_PinHeader_1.27mm:PinHeader_1x06_P1.27mm_Vertical",
-                                                          30.0,  47.0,    0, "PROG"),
+                                                            94.0,  46.0,    0, "PROG"),
+
+    # -------------------------------------------------------------------------
+    # Zone 5 — Support / Interfaces (center, X=30..50, Y=24..36)
+    # VLOOP boost cluster — moved above connector-body zone (body top ≈ Y=43)
+    # -------------------------------------------------------------------------
+    # VLOOP boost cluster
+    ("U8",    "Package_TO_SOT_SMD:SOT-23-6",              34.0,  34.0,    0, "MT3608B"),
+    ("L1",    "Inductor_SMD:L_Vishay_IFSC-1515AH_4x4x1.8mm",
+                                                            34.0,  26.0,    0, "4.7uH"),
+    ("C25",   "Capacitor_SMD:C_0402_1005Metric",          38.0,  30.0,    0, "100nF"),
+    ("C20",   "Capacitor_SMD:C_1206_3216Metric",          40.0,  34.0,    0, "22uF 25V"),
+    ("C22",   "Capacitor_SMD:C_0805_2012Metric",          44.0,  34.0,    0, "10uF 25V"),
+    ("C19",   "Capacitor_SMD:C_0805_2012Metric",          38.0,  28.0,    0, "10uF"),
+    ("D11",   "Diode_SMD:D_SMA",                          44.0,  30.0,    0, "SMAJ13"),
+    ("R23",   "Resistor_SMD:R_0402_1005Metric",           34.0,  30.0,    0, "1.91M"),
+    ("R24",   "Resistor_SMD:R_0402_1005Metric",           40.0,  30.0,    0, "100k"),
+    ("C21",   "Capacitor_SMD:C_0402_1005Metric",          46.0,  32.0,    0, "100nF"),
 
     # Solder jumpers
     ("SJ1",   "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm",
-                                                          48.0,  44.0,    0, "VBOOST"),
+                                                            58.0,  38.0,    0, "VBOOST"),
     ("SJ2",   "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm",
-                                                          48.0,  48.0,    0, "VLOOP"),
+                                                            62.0,  38.0,    0, "VLOOP"),
     ("SJ3",   "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm",
-                                                          48.0,  52.0,    0, "LED_DIS"),
+                                                            66.0,  38.0,    0, "LED_DIS"),
     ("SJ4",   "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm",
-                                                          53.0,  44.0,    0, "UART_TX"),
+                                                            58.0,  34.0,    0, "UART_TX"),
     ("SJ5",   "Jumper:SolderJumper-2_P1.3mm_Open_Pad1.0x1.5mm",
-                                                          53.0,  48.0,    0, "UART_RX"),
+                                                            62.0,  34.0,    0, "UART_RX"),
 
-    # Test points — scattered along bottom strip Y=50..53, X=2..55
-    # (avoid J3 courtyard X=34.24-45.76, and J7 at Y=50)
-    ("TP1",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       10.0,  52.0,    0, "VBAT"),
-    ("TP2",   "TestPoint:TestPoint_Pad_1.0x1.0mm",        7.0,  52.0,    0, "VLOOP"),
-    ("TP3",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       11.0,  52.0,    0, "+3V3"),
-    ("TP4",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       15.0,  52.0,    0, "GND"),
-    ("TP5",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       19.0,  52.0,    0, "LOOP1"),
-    ("TP6",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       23.0,  52.0,    0, "LOOP2"),
-    ("TP7",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       27.0,  52.0,    0, "1WIRE"),
-    ("TP8",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       31.0,  52.0,    0, "SDA"),
-    ("TP9",   "TestPoint:TestPoint_Pad_1.0x1.0mm",       47.0,  52.0,    0, "SCL"),
-    ("TP10",  "TestPoint:TestPoint_Pad_1.0x1.0mm",       51.0,  52.0,    0, "VSOLAR"),
-    ("TP11",  "TestPoint:TestPoint_Pad_1.0x1.0mm",       55.0,  52.0,    0, "VBAT_RAW"),
-    ("TP12",  "TestPoint:TestPoint_Pad_1.0x1.0mm",       59.0,  52.0,    0, "ADS_DRDY"),
-    ("TP14",  "TestPoint:TestPoint_Pad_1.0x1.0mm",       63.0,  52.0,    0, "CHRG_SOL"),
-    ("TP15",  "TestPoint:TestPoint_Pad_1.0x1.0mm",       67.0,  52.0,    0, "CHRG_USB"),
+    # I2C pullups
+    ("R9",    "Resistor_SMD:R_0402_1005Metric",           54.0,  36.0,    0, "4k7"),
+    ("R10",   "Resistor_SMD:R_0402_1005Metric",           54.0,  32.0,    0, "4k7"),
+
+    # DNF expansion headers — parked off-board
+    ("J8",    "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+                                                            200.0, 200.0,   0, "I2C"),
+    ("J9",    "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical",
+                                                            200.0, 210.0,   0, "GPIO"),
 
     # -------------------------------------------------------------------------
-    # LOCKED — J3, R9, R10 (do not move)
+    # Test Points — scattered near their circuits (1.0 mm grid)
+    # -------------------------------------------------------------------------
+    ("TP1",   "TestPoint:TestPoint_Pad_1.0x1.0mm",        16.0,  26.0,    0, "VBAT"),
+    ("TP2",   "TestPoint:TestPoint_Pad_1.0x1.0mm",        30.0,  24.0,    0, "VLOOP"),
+    ("TP3",   "TestPoint:TestPoint_Pad_1.0x1.0mm",        20.0,  26.0,    0, "+3V3"),
+    ("TP4",   "TestPoint:TestPoint_Pad_1.0x1.0mm",        24.0,  26.0,    0, "GND"),
+    ("TP5",   "TestPoint:TestPoint_Pad_1.0x1.0mm",        84.0,  32.0,    0, "LOOP1"),
+    ("TP6",   "TestPoint:TestPoint_Pad_1.0x1.0mm",        96.0,  32.0,    0, "LOOP2"),
+    ("TP7",   "TestPoint:TestPoint_Pad_1.0x1.0mm",        72.0,  50.0,    0, "1WIRE"),
+    ("TP8",   "TestPoint:TestPoint_Pad_1.0x1.0mm",        54.0,  20.0,    0, "SDA"),
+    ("TP9",   "TestPoint:TestPoint_Pad_1.0x1.0mm",        58.0,  20.0,    0, "SCL"),
+    ("TP10",  "TestPoint:TestPoint_Pad_1.0x1.0mm",        22.0,  50.0,    0, "VSOLAR"),
+    ("TP11",  "TestPoint:TestPoint_Pad_1.0x1.0mm",         6.0,  50.0,    0, "VBAT_RAW"),
+    ("TP12",  "TestPoint:TestPoint_Pad_1.0x1.0mm",        56.0,  18.0,    0, "ADS_DRDY"),
+    ("TP14",  "TestPoint:TestPoint_Pad_1.0x1.0mm",         8.0,  20.0,    0, "CHRG_SOL"),
+    ("TP15",  "TestPoint:TestPoint_Pad_1.0x1.0mm",        36.0,  50.0,    0, "CHRG_USB"),
+
+    # -------------------------------------------------------------------------
+    # LOCKED — J3 (SMA edge-launch, top edge, centered at X=50)
+    # rot=90 so the RF port faces upward through the top edge (Y=0).
     # -------------------------------------------------------------------------
     ("J3",    "Connector_Coaxial:SMA_Amphenol_132289_EdgeMount",
-                                                          40.0,  55.0,  270, "132289"),
-    ("R9",    "Resistor_SMD:R_0402_1005Metric",           44.0,  43.5,    0, "4k7"),  # shifted north to clear J3 courtyard
-    ("R10",   "Resistor_SMD:R_0402_1005Metric",           53.0,  45.0,    0, "4k7"),
+                                                            50.0,   0.0,   90, "132289"),
 ]
+
 
 
 # Key nets declared in the PCB netlist
@@ -2021,6 +1974,8 @@ _FP_SEARCH: list[str] = [
     os.path.join(HERE, ""),                                          # WellD.pretty lives next to this script
     "/usr/share/kicad/footprints",                                   # system (Linux KiCad package)
     os.path.expanduser("~/.local/share/kicad/10.0/footprints"),
+    # Espressif official library — provides Espressif:ESP32-C6-MINI-1U etc.
+    os.path.expanduser("~/.local/share/kicad/10.0/3rdparty/footprints/com_github_espressif_kicad-libraries"),
     os.path.expanduser("~/.local/share/kicad/9.0/footprints"),
     os.path.expanduser("~/.local/share/kicad/8.0/footprints"),
 ]
@@ -2151,6 +2106,65 @@ def _build_net_codes() -> dict[str, int]:
     return {name: i + 1 for i, name in enumerate(NETS)}
 
 
+def _extract_fp_geometry(mod_path: str) -> str:
+    """Read a .kicad_mod file and return all geometry except the footprint header and pads.
+
+    Returns the raw s-expression text for fp_line, fp_rect, fp_circle, fp_arc, fp_poly,
+    fp_text, model, and other non-pad elements so the 3D view and silkscreen render properly.
+    """
+    try:
+        with open(mod_path) as f:
+            text = f.read()
+    except OSError:
+        return ""
+
+    # Find the opening (footprint ... ) and skip past it to the content
+    m = re.search(r'\(footprint\s+"[^"]+"', text)
+    if not m:
+        return ""
+
+    # Walk from the end of the header to find the matching close paren,
+    # skipping any nested parens.
+    depth = 1
+    i = m.end()
+    while i < len(text) and depth > 0:
+        if text[i] == '(':
+            depth += 1
+        elif text[i] == ')':
+            depth -= 1
+        i += 1
+
+    # text[m.start():i] is the full footprint block.
+    # We want everything between the header line and the final ')'.
+    block = text[m.start():i]
+    lines = block.splitlines()
+
+    # Skip the first line (header) and the last line (closing paren).
+    # Also skip any (pad ...) blocks since we generate those with nets.
+    geometry_lines = []
+    skip_depth = 0
+    for line in lines[1:-1]:
+        stripped = line.strip()
+        if stripped.startswith("(pad "):
+            skip_depth = 1
+            continue
+        # Skip ALL embedded properties from .kicad_mod - PCB uses different format
+        if stripped.startswith("(property "):
+            skip_depth = 1
+            continue
+        if skip_depth > 0:
+            # Count parens to know when we exit the pad/property block
+            skip_depth += stripped.count('(')
+            skip_depth -= stripped.count(')')
+            continue
+        # Skip version/generator tags that go in the header
+        if stripped.startswith("(version ") or stripped.startswith("(generator "):
+            continue
+        geometry_lines.append(line)
+
+    return "\n".join(geometry_lines)
+
+
 def pcb_footprint(ref: str, fp: str, x: float, y: float, rot: float, value: str,
                   net_map: dict | None = None,
                   net_codes: dict | None = None,
@@ -2164,6 +2178,7 @@ def pcb_footprint(ref: str, fp: str, x: float, y: float, rot: float, value: str,
     """
     layer = "F.Cu"
     pads_str = ""
+    geometry_str = ""
 
     # Determine component UUID and schematic path
     if UUIDS:
@@ -2175,13 +2190,17 @@ def pcb_footprint(ref: str, fp: str, x: float, y: float, rot: float, value: str,
             if ref in refs:
                 sheet_symbol_uuid = UUIDS.get(f"sheet_symbol_{sheet_name}", "")
                 break
-        path_str = f'\n    (path "/{root_uuid}/{sheet_symbol_uuid}/{comp_uuid}")' if (root_uuid and sheet_symbol_uuid) else ""
+        path_str = f'\n    (path "/{sheet_symbol_uuid}/{comp_uuid}")' if sheet_symbol_uuid else ""
     else:
         comp_uuid = uid()
         path_str = ""
 
     mod_path = _find_kicad_mod(fp)
     if mod_path and net_map is not None and net_codes is not None:
+        # Extract full geometry (outlines, 3D models, silkscreen, etc.)
+        geometry_str = _extract_fp_geometry(mod_path)
+
+        # Generate pads with net assignments
         comp_nets = net_map.get(ref, {})
         for pad in _parse_pads(mod_path):
             pnum     = pad["num"]
@@ -2212,7 +2231,8 @@ def pcb_footprint(ref: str, fp: str, x: float, y: float, rot: float, value: str,
     (property "Value" "{value}" (at 0 1.5 0) (layer "F.Fab")
       (uuid "{uid()}")
       (effects (font (size 0.8 0.8) (thickness 0.12)))
-    ){path_str}{pads_str}
+    ){path_str}
+{geometry_str}{pads_str}
   )"""
 
 
@@ -2262,10 +2282,10 @@ def pcb_board_outline() -> str:
 
 def pcb_thermal_zone_u7() -> str:
     """
-    GND thermal copper pour for U7 (CN3722, SOIC-8) at PCB position (60, 10).
+    GND thermal copper pour for U7 (CN3722, SOIC-8) at PCB position (10, 8).
     10x10 mm solid GND pour on F.Cu and B.Cu connected via thermal vias.
     Per design.md: reduces effective theta_JA to 50-60 C/W for CN3722.
-    Zone corners: (55, 5) to (65, 15) centred on U7 at (60, 10).
+    Zone corners: (5, 3) to (15, 13) centred on U7 at (10, 8).
     Four thermal vias: 0.6mm drill, 1.0mm pad, spaced 2mm inside the zone.
     """
     ox, oy = PCB_X_OFFSET, PCB_Y_OFFSET
@@ -2278,7 +2298,7 @@ def pcb_thermal_zone_u7() -> str:
     (min_thickness 0.25)
     (fill yes (thermal_gap 0.3) (thermal_bridge_width 0.3))
     (polygon
-      (pts (xy {55.0+ox} {5.0+oy}) (xy {65.0+ox} {5.0+oy}) (xy {65.0+ox} {15.0+oy}) (xy {55.0+ox} {15.0+oy}))
+      (pts (xy {5.0+ox} {3.0+oy}) (xy {15.0+ox} {3.0+oy}) (xy {15.0+ox} {13.0+oy}) (xy {5.0+ox} {13.0+oy}))
     )
   )"""
 
@@ -2291,14 +2311,14 @@ def pcb_thermal_zone_u7() -> str:
     (min_thickness 0.25)
     (fill yes (thermal_gap 0.3) (thermal_bridge_width 0.3))
     (polygon
-      (pts (xy {55.0+ox} {5.0+oy}) (xy {65.0+ox} {5.0+oy}) (xy {65.0+ox} {15.0+oy}) (xy {55.0+ox} {15.0+oy}))
+      (pts (xy {5.0+ox} {3.0+oy}) (xy {15.0+ox} {3.0+oy}) (xy {15.0+ox} {13.0+oy}) (xy {5.0+ox} {13.0+oy}))
     )
   )"""
 
     # Four thermal vias connecting F.Cu to B.Cu through U7 body area
-    # Placed at 2mm spacing inside the 10x10 zone centred on (60,10)
-    # Pattern: (58,8), (62,8), (58,12), (62,12)
-    via_positions = [(58.0+ox, 8.0+oy), (62.0+ox, 8.0+oy), (58.0+ox, 12.0+oy), (62.0+ox, 12.0+oy)]
+    # Placed at 2mm spacing inside the 10x10 zone centred on (10, 8)
+    # Pattern: (8, 6), (12, 6), (8, 10), (12, 10)
+    via_positions = [(8.0+ox, 6.0+oy), (12.0+ox, 6.0+oy), (8.0+ox, 10.0+oy), (12.0+ox, 10.0+oy)]
     vias_str = ""
     for vx, vy in via_positions:
         vias_str += f"""
@@ -2310,7 +2330,7 @@ def pcb_thermal_zone_u7() -> str:
 
     # Silkscreen label on F.SilkS identifying the thermal island
     silk_label = f"""
-  (gr_text "GND_THERMAL_U7" (at {60+ox} {16.5+oy} 0) (layer "F.SilkS")
+  (gr_text "GND_THERMAL_U7" (at {10+ox} {14.5+oy} 0) (layer "F.SilkS")
     (uuid "{uid()}")
     (effects (font (size 0.6 0.6) (thickness 0.1)))
   )"""
@@ -2318,23 +2338,47 @@ def pcb_thermal_zone_u7() -> str:
     return zone_fcu + zone_bcu + vias_str + silk_label
 
 
+def pcb_gnd_copper_pour() -> str:
+    """Full-board GND flood fill on B.Cu. Fills against all GND-net pads with
+    0.3 mm clearance; 0.2 mm min trace width; thermal spokes on SMD pads."""
+    ox, oy = PCB_X_OFFSET, PCB_Y_OFFSET
+    x0 = ox - 0.5
+    y0 = oy - 0.5
+    x1 = ox + 100.5
+    y1 = oy + 55.5
+    return f"""
+  (zone (net 1) (net_name "GND") (layer "B.Cu") (uuid "{uid()}")
+    (hatch edge 0.508)
+    (connect_pads thru_hole_only (clearance 0.3))
+    (min_thickness 0.2)
+    (filled_areas_thickness no)
+    (fill yes (thermal_gap 0.5) (thermal_bridge_width 0.5))
+    (polygon
+      (pts
+        (xy {x0:.3f} {y0:.3f}) (xy {x1:.3f} {y0:.3f})
+        (xy {x1:.3f} {y1:.3f}) (xy {x0:.3f} {y1:.3f})
+      )
+    )
+  )"""
+
+
 def pcb_u8_gnd_viastitch() -> str:
     """
-    GND via-stitch perimeter around U8 (TPS61023, SOT-23-5) at (73,20) and
-    L1 (inductor, at 74,12).  Perimeter ring of vias at ~2mm spacing outside
+    GND via-stitch perimeter around U8 (MT3608B, SOT-23-6) at (34,40) and
+    L1 (inductor, at 34,48).  Perimeter ring of vias at ~2mm spacing outside
     the U8/L1 cluster to provide a low-inductance GND return path for the SW
     node's return current.  No solid copper pour under L1 — only the via ring.
     Per design.md: keep hot-loop trace (SW->L1->C20/C22) short and wide;
     via-stitch perimeter around the island; no pour under L1.
-    Via ring boundary: (68,7) to (80,25), one via every ~2.5mm on perimeter.
+    Via ring boundary: (29,34) to (42,54), one via every ~2.5mm on perimeter.
     """
     ox, oy = PCB_X_OFFSET, PCB_Y_OFFSET
     # Perimeter coordinates (rectangular ring, clockwise, corners at each corner
     # plus intermediate points every ~2.5 mm)
 
-    # Keep ring inside board boundary (board right edge = 80 mm; leave 1mm margin)
-    x0, y0 = 68.0 + ox, 7.0 + oy
-    x1, y1 = 79.0 + ox, 25.0 + oy
+    # Keep ring inside board boundary; encloses U8(34,34)+L1(34,26)+D11(44,30) cluster
+    x0, y0 = 28.0 + ox, 22.0 + oy
+    x1, y1 = 48.0 + ox, 38.0 + oy
 
     perimeter_vias = []
     step = 2.5
@@ -2372,14 +2416,7 @@ def pcb_u8_gnd_viastitch() -> str:
     (uuid "{uid()}")
   )"""
 
-    # Silkscreen comment on F.SilkS marking the SW node island boundary
-    silk_label = f"""
-  (gr_text "SW_ISLAND_U8" (at {74+ox} {26.5+oy} 0) (layer "F.SilkS")
-    (uuid "{uid()}")
-    (effects (font (size 0.6 0.6) (thickness 0.1)))
-  )"""
-
-    return vias_str + silk_label
+    return vias_str
 
 
 def make_pcb(net_map: dict | None = None, net_codes: dict | None = None,
@@ -2408,9 +2445,10 @@ def make_pcb(net_map: dict | None = None, net_codes: dict | None = None,
         footprints += pcb_footprint(ref, fp, x + ox, y + oy, rot, value,
                                     net_map, net_codes, UUIDS)
 
-    # Thermal copper pours and via stitching
+    # Copper pours, thermal zones, and via stitching
     thermal_u7 = pcb_thermal_zone_u7()
     u8_viastitch = pcb_u8_gnd_viastitch()
+    gnd_pour = pcb_gnd_copper_pour()
 
     # Board title graphic text
     title_text = f"""
@@ -2515,6 +2553,8 @@ def make_pcb(net_map: dict | None = None, net_codes: dict | None = None,
 {thermal_u7}
 
 {u8_viastitch}
+
+{gnd_pour}
 
 )
 """
