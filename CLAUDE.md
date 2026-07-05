@@ -108,14 +108,14 @@ All in `main/main.c`, each guarded by its own magic constant:
 ### Zigbee endpoints
 
 - EP 1 — Analog Input (water level, metres). Also hosts the Basic cluster and the OTA Upgrade client.
-- EP 2 — Analog Input (battery volts). Only registered when `CONFIG_WELLD_BATT_ADC_CHANNEL >= 0` (compile-time gate; default is `-1`).
+- EP 2 — Analog Input (battery volts). Only registered when `CONFIG_WELLD_BATT_REPORT_ENABLED` (default on). The battery is always measured internally for the low-battery guard regardless.
 - EP 3 — Temperature Measurement (0x0402, int16 × 0.01 °C). `0x8000` is the ZCL "invalid" sentinel.
 - EP 4 — Analog Input (level rate of change, cm/h, signed). Always registered (the descriptor has to be stable across wakeups), but **only reported when the rate is finite** — `isnan(rate)` means there is no prior valid reading and the EP4 report frame is skipped.
 - EP 5 — Analog Input (consecutive Zigbee failure counter). Always reported.
-- EP 6 — Analog Input (link quality / LQI 0–255). Always reported.
+- EP 6 — Analog Input (device-side LQI 0–255). Always reported. Exposed as `device_lqi` in the converter — Z2M's own `linkquality` key comes from the coordinator and was shadowing it.
 - EP 7 — Analog Input (solar charging state, 0/1). Always reported.
 
-When the store-and-forward buffer is non-empty, previously-failed readings are burst-reported before the current one. Reports are unsolicited `zcl_report_attr_cmd_req` to short address `0x0000` (the coordinator). The Z2M external converter (`zigbee2mqtt/welld.js`, logic in `zigbee2mqtt/lib/welld_convert.js`) translates EP IDs to `water_level` / `battery_voltage` / `battery` / `temperature` / `water_level_rate` / `zb_fails` / `linkquality` / `solar_charging` keys and computes battery % from the `battery_full_mv` / `battery_empty_mv` device options.
+When the store-and-forward buffer is non-empty, previously-failed readings are burst-reported before the current one. Reports are unsolicited `zcl_report_attr_cmd_req` to short address `0x0000` (the coordinator). The Z2M external converter (`zigbee2mqtt/welld.js`, logic in `zigbee2mqtt/lib/welld_convert.js`) translates EP IDs to `water_level` / `battery_voltage` / `battery` / `temperature` / `water_level_rate` / `zb_fails` / `device_lqi` / `solar_charging` keys and computes battery % from the `battery_full_mv` / `battery_empty_mv` device options.
 
 ### OTA — the version pipeline
 

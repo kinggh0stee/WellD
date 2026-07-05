@@ -167,7 +167,7 @@ All options have sensible defaults. Only change what differs from your hardware.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `CONFIG_WELLD_BATT_ADC_CHANNEL` | `-1` | ADS1115 channel for battery voltage. `-1` (default) disables battery monitoring and Zigbee EP2 entirely; set to `2` for the custom PCB (AIN2 via the R7/R8 divider) |
+| `CONFIG_WELLD_BATT_REPORT_ENABLED` | `y` | Report battery voltage over Zigbee (EP2, Analog Input). The battery is always measured internally via ADS1115 AIN2 (R7/R8 divider) for the low-battery guard; disabling this only removes the Zigbee endpoint |
 | `CONFIG_WELLD_BATT_DIVIDER_RATIO` | `430` | Divider ratio × 100 — matches 330 kΩ / 100 kΩ divider (R7/R8) scaled for 2S: (330+100)/100 = 4.30 |
 | `CONFIG_WELLD_BATT_FULL_MV` | `8400` | Voltage (mV) reported as 100 % by the Z2M converter (2S full charge) |
 | `CONFIG_WELLD_BATT_EMPTY_MV` | `6000` | Voltage (mV) at or below which the device skips the Zigbee send and all NVS writes to protect flash (2S minimum safe discharge) |
@@ -255,7 +255,7 @@ The device publishes to `zigbee2mqtt/<friendly_name>` on each wakeup:
   "battery_voltage": 7.41,
   "battery": 59,
   "zb_fails": 0,
-  "linkquality": 156,
+  "device_lqi": 156,
   "solar_charging": false
 }
 ```
@@ -266,6 +266,7 @@ The device publishes to `zigbee2mqtt/<friendly_name>` on each wakeup:
 - `battery_voltage` comes from the ADS1115 AIN2 voltage divider (R7 330 kΩ / R8 100 kΩ, switched high-side by Q5 under GPIO15 control).
 - `battery` is a percentage derived from `battery_voltage` using the device options `battery_full_mv` / `battery_empty_mv`. Options are coerced to numbers (YAML strings like `"8400"` are accepted) and fall back to the defaults 8400 / 6000 mV for anything missing or non-numeric. If the thresholds are misconfigured (`battery_full_mv <= battery_empty_mv`), the voltage is still published but the percentage is omitted.
 - `zb_fails` counts consecutive Zigbee send failures since the last success (0 = healthy; the device auto-rejoins at 5).
+- `device_lqi` is the link quality measured on the device side (EP6, 0–255). It is distinct from Zigbee2MQTT's own `linkquality` field, which comes from the coordinator side of the link.
 - `solar_charging` is a **boolean** (binary expose): `true` = the CN3722 MPPT charger is actively charging, `false` = not charging.
 - When previous sends failed, the buffered readings (up to 8, RTC store-and-forward) are burst-reported oldest-first before the current reading, so the coordinator receives the full history in order.
 - The converter rejects malformed reports: any non-numeric or non-finite `presentValue` is dropped instead of being published.
@@ -282,7 +283,7 @@ The Z2M–Home Assistant integration auto-creates these entities:
 | `sensor.<name>_battery_voltage` | V |
 | `sensor.<name>_battery` | % (omitted when `battery_full_mv <= battery_empty_mv`) |
 | `sensor.<name>_zb_fails` | count, 0–255 |
-| `sensor.<name>_linkquality` | LQI, 0–255 |
+| `sensor.<name>_device_lqi` | device-side LQI, 0–255 |
 | `binary_sensor.<name>_solar_charging` | on / off |
 
 ---
@@ -486,4 +487,4 @@ CI builds these to catch compile breaks but cannot execute them (real hardware n
 
 ## Legacy: dev board wiring
 
-If building from an off-the-shelf ESP32-C6 dev board instead of the custom PCB, wire the pressure transducer shunt directly to an ADC1 pin and power the loop externally. The ADS1115 and MT3608B boost are not available on a bare dev board — configure `CONFIG_WELLD_SENSOR_ADC_CHANNEL` to the ESP ADC channel used and leave `CONFIG_WELLD_BATT_ADC_CHANNEL` at its default of `-1` (battery monitoring disabled). The power-control GPIO options (`VLOOP`, `BATT_DIV_EN`) are still compiled in but can be left disconnected if the solar charger is absent.
+If building from an off-the-shelf ESP32-C6 dev board instead of the custom PCB, wire the pressure transducer shunt directly to an ADC1 pin and power the loop externally. The ADS1115 and MT3608B boost are not available on a bare dev board — configure `CONFIG_WELLD_SENSOR_ADC_CHANNEL` to the ESP ADC channel used and set `CONFIG_WELLD_BATT_REPORT_ENABLED=n` (no battery divider on a bare dev board, so EP2 would only report read errors). The power-control GPIO options (`VLOOP`, `BATT_DIV_EN`) are still compiled in but can be left disconnected if the solar charger is absent.

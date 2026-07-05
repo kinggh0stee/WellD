@@ -290,9 +290,10 @@ CONFIG_WELLD_SENSOR_MAX_DEPTH_CM=600    # change to match your transducer range
 # DS18B20
 CONFIG_WELLD_DS18B20_GPIO=4
 
-# Battery (LiPo with 2:1 divider on GPIO1)
-# Remove or comment out the next line to disable battery monitoring
-CONFIG_WELLD_BATT_ADC_CHANNEL=1
+# Battery (LiPo with 2:1 divider on ADS1115 AIN2)
+# Set to n to drop the Zigbee battery endpoint (EP2); the battery is still
+# measured internally for the low-battery guard.
+CONFIG_WELLD_BATT_REPORT_ENABLED=y
 CONFIG_WELLD_BATT_DIVIDER_RATIO=200     # (100+100)/100 × 100 = 200
 CONFIG_WELLD_BATT_FULL_MV=4200          # LiPo full charge in millivolts
 CONFIG_WELLD_BATT_EMPTY_MV=3000         # LiPo cutoff in millivolts
@@ -326,4 +327,4 @@ E (sensor): no DS18B20 found on GPIO 4
 Temperature will be missing from the report. Check the 4.7 kΩ pull-up resistor and that the data wire goes to GPIO4.
 
 **Battery voltage missing:**
-If you enabled battery monitoring but see no battery line, check that `CONFIG_WELLD_BATT_ADC_CHANNEL` matches the GPIO you actually wired (remember: the channel number, not the GPIO number directly — see the pin map table at the top of this guide).
+If you see no battery line, check the divider wiring to ADS1115 AIN2 and the BATT_DIV_EN gate (GPIO15) — the firmware always reads the battery on AIN2. If the line is present on serial but missing from MQTT, verify `CONFIG_WELLD_BATT_REPORT_ENABLED` has not been set to `n`.

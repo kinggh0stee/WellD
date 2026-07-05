@@ -11,9 +11,10 @@
 # Persisted in NVS; can also be updated at runtime via sensor_set_offset_cm().
 # CONFIG_WELLD_SENSOR_OFFSET_CM=0
 
-# Battery monitoring — set the ADC channel wired to your divider,
-# or leave BATT_ADC_CHANNEL=-1 to disable.
-# CONFIG_WELLD_BATT_ADC_CHANNEL=-1
+# Battery reporting — Zigbee EP2 (battery volts), on by default. Set to n to
+# drop the endpoint; the battery is still measured internally for the
+# low-battery guard either way.
+# CONFIG_WELLD_BATT_REPORT_ENABLED=y
 # CONFIG_WELLD_BATT_DIVIDER_RATIO=430  # R7/R8 = 330 kΩ / 100 kΩ (2S1P 18650)
 
 # Battery percentage thresholds — these set the defaults shown in the Z2M

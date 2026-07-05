@@ -34,13 +34,15 @@ menu "WellD Sensor"
             'welld/offset_cm' are clamped to the range -600 to +600 cm at
             runtime.
 
-    config WELLD_BATT_ADC_CHANNEL
-        int "ADC1 channel for battery voltage (set to -1 to disable)"
-        default -1
-        range -1 6
+    config WELLD_BATT_REPORT_ENABLED
+        bool "Report battery voltage over Zigbee (EP2)"
+        default y
         help
-            ADC1 channel wired to the battery via a resistor divider.
-            Set to -1 to disable battery monitoring.
+            Registers Zigbee endpoint 2 (Analog Input, battery volts) and
+            reports the battery voltage to the coordinator on every wakeup.
+            The battery is always measured internally via the ADS1115 AIN2
+            gated resistor divider for the low-battery guard, regardless of
+            this option — disabling it only removes the Zigbee endpoint.
 
     config WELLD_BATT_DIVIDER_RATIO
         int "Battery divider ratio * 100 (e.g. 430 = 4.3:1 divider)"

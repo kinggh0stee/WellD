@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RTC event-log write index no longer wraps at 256 events (which made the log print as empty/short once per wrap).
 
 ### Changed
+- Battery voltage is now reported over Zigbee (EP2) by default: the stale `CONFIG_WELLD_BATT_ADC_CHANNEL` int option (default `-1`, which silently disabled EP2 while the battery was still measured internally) is replaced by `CONFIG_WELLD_BATT_REPORT_ENABLED` (bool, default `y`).
+- Z2M converter: the device-side LQI (EP6) is now exposed as `device_lqi` instead of `linkquality`, which Zigbee2MQTT's own coordinator-side key was shadowing.
 - VLOOP (MT3608B EN) settling wait before a 4–20 mA read raised from 5 ms to 10 ms — the 12 V output caps now charge through the Q3 load-disconnect P-FET (PCB review 2026-07).
 
 ### Added

@@ -272,7 +272,7 @@ static void send_reports(void)
             report.cmd_ctrl.src_ep = EP_LEVEL;
             ezb_zcl_report_attr_cmd_req(&report);
         }
-#if CONFIG_WELLD_BATT_ADC_CHANNEL >= 0
+#if CONFIG_WELLD_BATT_REPORT_ENABLED
         /* Same compile-time gate as the EP_BATTERY endpoint registration:
            without it the burst would report on an unregistered endpoint. */
         float burst_batt = s_store_battery_v[i];
@@ -317,9 +317,9 @@ static void send_reports(void)
     report.payload.attr_id = EZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID;
     ezb_zcl_report_attr_cmd_req(&report);
 
-#if CONFIG_WELLD_BATT_ADC_CHANNEL >= 0
+#if CONFIG_WELLD_BATT_REPORT_ENABLED
     /* Battery voltage — Analog Input cluster, endpoint 2.
-       Skip report if ADC returned -1 (disabled or read error). */
+       Skip report if ADC returned -1 (read error). */
     if (welld_zb_should_report_battery(s_battery_v)) {
         ezb_zcl_set_attr_value(EP_BATTERY,
             EZB_ZCL_CLUSTER_ID_ANALOG_INPUT, EZB_ZCL_CLUSTER_SERVER,
@@ -580,7 +580,7 @@ static void zb_task(void *pvParameters)
     ezb_af_endpoint_add_cluster_desc(level_ep, ota_desc);
     ezb_af_device_add_endpoint_desc(dev_desc, level_ep);
 
-#if CONFIG_WELLD_BATT_ADC_CHANNEL >= 0
+#if CONFIG_WELLD_BATT_REPORT_ENABLED
     /* Endpoint 2 — battery voltage (Analog Input).
      * The Z2M converter converts this to a percentage using configurable
      * full/empty voltage thresholds, avoiding hard-coding chemistry in fw. */
