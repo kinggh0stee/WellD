@@ -4,7 +4,9 @@
 **Assembler:** PCBWay PCBA  
 **Sourcing key:** ✅ LCSC (direct PCBWay) · ⚠️ PCBWay global sourcing · 📦 Customer-supply to PCBWay
 
-> **2026-07-05 electrical review:** several parts changed (U1, D8/D14, C8, C17, LED GPIO) and new components were added (D15, Q3–Q5, R15/R16/R25/R27/R29, C36, TP13). See `schematic_connections.md` → "Design changes" and "Datasheet verification blockers" before ordering. **The TP5100 USB charge path is non-functional as designed (buck charger cannot make 8.4 V from 5 V USB) — do not order U12 until the charger architecture is resolved.**
+> **2026-07-05 electrical review:** several parts changed (U1, D8/D14, C8, C17, LED GPIO) and new components were added (D15, Q3–Q5, R15/R16/R25/R27/R29, C36, TP13). See `schematic_connections.md` → "Design changes" and "Datasheet verification blockers" before ordering.
+>
+> **2026-07-05 component-selection review** (`component_selection_review.md`): the non-functional TP5100 USB charge path is **replaced by an Injoinic IP2326 5 V→2S synchronous boost charger** (U12; +L3, R35 repurposed as ISET, R36/R37 deleted, F2 uprated to 2 A hold). Do not order the USB-charger section until verification blocker #2 (IP2326 datasheet items) is resolved — the mid-cell/balance-pin question could still reopen the choice.
 
 ---
 
@@ -19,23 +21,27 @@
 
 ---
 
-## Power — USB-C Charging (TP5100 path)
+## Power — USB-C Charging (IP2326 boost path — replaced TP5100, 2026-07-05)
+
+> TP5100 (step-down charger) could not make 8.4 V from 5 V USB. Replaced with the Injoinic **IP2326** synchronous 5 V→2S **boost** charger. Every ⚠️ item below must be checked against the IP2326 datasheet before schematic capture — see verification blocker #2 in `schematic_connections.md`, especially the **mid-cell/balance pin vs 2-pin XT30 pack** question, which could reopen this selection.
 
 | Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC | Notes |
 |-----|-------|---------|-------------------|-----|------|-------|
-| J13 | USB-C 2.0 power-only | 16-pin SMD | `Connector_USB:USB_C_Receptacle_GCT_USB4135` ⚠️ or use GCT KiCad file | USB4135-GF-A | — ⚠️ | GCT publishes KiCad footprint; check PCBWay global sourcing |
+| J13 | USB-C 2.0 power-only | 16-pin SMD | `Connector_USB:USB_C_Receptacle_GCT_USB4135` ⚠️ or use GCT KiCad file | USB4135-GF-A | — ⚠️ | GCT publishes KiCad footprint; check PCBWay global sourcing. LCSC-stocked alternate (footprint-check first): HRO TYPE-C-31-M-12 class |
 | U11 | USBLC6-2SC6 ESD | SOT-23-6 | `Package_TO_SOT_SMD:SOT-23-6` | USBLC6-2SC6 | C7519 ✅ | VBUS + D+/D− clamp |
-| F2 | 1A hold PTC fuse | 1206 | `Fuse:Fuse_1206_3216Metric` | MF-MSMF110/16X | — ⚠️ | Series with J13 VBUS |
-| U12 | TP5100 2S charger | SOP-8 (⚠️ verify — likely QFN-16) | `Package_SO:SOIC-8_3.9x4.9mm_P1.27mm` ❌ | TP5100 | C841540 | ⚠️ **CRITICAL: TP5100 is a step-DOWN charger — it cannot charge 2S (8.4V) from 5V USB. Replace (e.g. IP2326-class 5V→2S boost charger) or add a 5V→12V pre-boost. Do not order as-is.** |
-| R35 | 1.2kΩ 1% | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | TP5100 PROG: sets 1A charge current |
-| R36 | 100kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | CE pull-up to VUSB (dominated by R37 — electrically ineffective, candidate DNP) |
-| R37 | 4.7kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | CE pull-down to GND (fail-safe off) |
-| R38 | 4.7kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | TP5100 /CHRG pull-up to +3V3 (routes to TP15 only) |
+| F2 | **2A hold PTC fuse** | 1206 | `Fuse:Fuse_1206_3216Metric` | MF-MSMF200/16X ⚠️ verify suffix | — ⚠️ | Series with J13 VBUS. **Uprated from 1.1 A hold**: boost charger input ≈1.9 A at 1 A charge (8.4 V × 1 A / 5 V / 0.9) |
+| U12 | **IP2326 2S boost charger** | ESOP-8 | `Package_SO:SOIC-8-1EP_3.9x4.9mm_P1.27mm_EP2.29x3mm` ⚠️ verify EP size | IP2326 | — ⚠️ look up (Injoinic, LCSC-native brand) | 5 V VBUS → 8.4 V CC/CV sync boost, ~1 A charge target, input-power-adaptive throttling. Auto-runs on VBUS (no CE ⚠️ verify). Keep the 8×8 mm GND pour from Group G (~0.9 W at 1 A charge) |
+| **L3** | **2.2µH ≥3A Isat** ⚠️ value per datasheet | 5×5mm SMD | `Inductor_SMD:L_Bourns-SRN6045TA` ⚠️ or create 5.0×5.0mm | — | — ⚠️ | **NEW** — IP2326 boost power inductor |
+| R35 | **ISET — value TBD** ⚠️ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | Was TP5100 PROG 1.2 kΩ. Re-derive from IP2326 datasheet for ~1 A charge current |
+| ~~R36~~ | — | — | — | — | — | **DELETED 2026-07-05** — TP5100 CE pull-up; IP2326 has no CE (⚠️ verify) |
+| ~~R37~~ | — | — | — | — | — | **DELETED 2026-07-05** — TP5100 CE pull-down; **GPIO4 freed** (coordinate with firmware). Restore only if IP2326 proves to have an EN pin |
+| R38 | 4.7kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | /CHRG_USB pull-up to +3V3 (routes to TP15 only). ⚠️ Reassign to IP2326 charge-status/LED pin — verify pin, polarity, open-drain |
+| RT1 | **NTC strap — TBD** ⚠️ | — | — | — | — | **NEW placeholder** — IP2326 NTC pin network per datasheet. Strongly prefer a real 10 k NTC at the pack for cold-charge (<0 °C) cutoff over a disable strap — see `component_selection_review.md` O-1 |
 | R50 | 5.1kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | J13 CC1 → GND (was "R_CC1") |
 | R51 | 5.1kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | J13 CC2 → GND (was "R_CC2") |
 | C27 | 4.7µF 10V X5R | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | VUSB input filter after F2 |
-| C28 | 10µF 10V X5R | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | U12 VIN bypass |
-| C29 | 10µF 16V X5R | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | U12 VBAT bypass |
+| C28 | 10µF 10V X5R | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | U12 VIN bypass (⚠️ confirm value vs IP2326 app note) |
+| C29 | 10µF 16V X5R | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | U12 BAT-side bypass (⚠️ confirm value vs IP2326 app note) |
 
 ---
 
@@ -243,7 +249,7 @@ All test points use: `TestPoint:TestPoint_Pad_1.0x1.0mm`
 | TP12 | ADS_DRDY | GPIO12 interrupt line |
 | TP13 | FACTORY_RESET | **NEW** — GPIO13; short to GND at power-on for NVS erase + rejoin |
 | TP14 | /CHRG_SOLAR | Solar charge status (present in interfaces sheet, was missing here) |
-| TP15 | /CHRG_USB | TP5100 charge status |
+| TP15 | /CHRG_USB | IP2326 charge status (⚠️ verify status pin) |
 
 ---
 
@@ -267,3 +273,5 @@ All test points use: `TestPoint:TestPoint_Pad_1.0x1.0mm`
 | XT30PW-F right-angle | In `WellD.pretty/` already | Verify pad dimensions against AMASS datasheet |
 | USB4135-GF-A (J13) | Not in standard lib | Download from GCT website (they provide KiCad files) |
 | CDRH4D22 inductors (L1, L2) | May need verification | Check `Inductor_SMD:L_4.0x4.0mm_H2.6mm` exists; if not, use KiCad footprint editor to create 4.0×4.0mm SMD pad |
+| L3 (IP2326 boost inductor) | Part not final | Pick footprint once the IP2326 datasheet fixes the inductor value/size (5×5mm class assumed) |
+| IP2326 (U12) | ESOP-8, EP size unverified | Confirm exposed-pad dimensions against Injoinic datasheet before trusting the generic SOIC-8-1EP footprint |
