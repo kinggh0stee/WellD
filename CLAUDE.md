@@ -143,7 +143,7 @@ The partition table (`partitions.csv`) defines dual 1.5 MB OTA slots (`ota_0` / 
 
 - `sdkconfig.defaults` — **committed**, contains only settings that must hold regardless of local config (flash size, Zigbee role, watchdog, brownout, secure boot).
 - `sdkconfig.defaults.local` — **gitignored**, user-specific overrides (`.example` template at repo root).
-- `sdkconfig` — **committed and regenerated** by `menuconfig`. CI uploads its build-time copy as the `dependencies-lock` artifact for diffing. Updates land via PRs (the auto-commit CI step was removed in commit `174a595`).
+- `sdkconfig` — **committed and regenerated** by `menuconfig` (CI regenerates its own copy from `sdkconfig.defaults` via `set-target`). Updates land via PRs (the auto-commit CI step was removed in commit `174a595`).
 - `dependencies.lock` — managed component pins, committed.
 
 WellD Kconfig options are split across three menus: `main/Kconfig.projbuild` (`WellD Configuration` — sleep, diagnostics, OTA stall, factory reset), `components/sensor/Kconfig` (`WellD Sensor` — GPIOs, ADS1115, calibration, battery thresholds, temperature compensation), and `components/zigbee/Kconfig` (`WellD Zigbee` — channel mask, send delay). Kconfig `range` clauses defend against bad values from `sdkconfig.defaults.local`.
@@ -243,7 +243,7 @@ Firmware agent → test agent → docs agent
 
 `.github/workflows/build.yml` has six jobs. No third-party actions are used — every job does an inline git checkout, and ESP-IDF jobs run inside `docker run espressif/idf:v6.0.1`:
 
-- **ESP-IDF build (esp32c6)** — builds the firmware, derives the OTA file version from `PROJECT_VER`, packs the `.zigbee` OTA image via `ota_image_create.py`, and uploads `build/*.bin|elf|map|zigbee` plus `dependencies.lock`.
+- **ESP-IDF build (esp32c6)** — builds the firmware, derives the OTA file version from `PROJECT_VER`, packs the `.zigbee` OTA image via `ota_image_create.py`, and guards against `CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y` leaking into the CI sdkconfig (build outputs are not uploaded as artifacts — that would need `actions/upload-artifact`, which the no-third-party-actions policy excludes).
 - **C static analysis (cppcheck)** — runs `cppcheck` over all C source files under `components/` and `main/`; fails on any warning, style, performance, or portability finding.
 - **Version bump check** — on pull requests only; fails if any `main/` or `components/` source changed without a matching bump to `PROJECT_VER` in `CMakeLists.txt`.
 - **Host unit tests** — plain `ubuntu-latest`, no Docker, no ESP-IDF. Runs the `test/host/` suite (welld_core + sensor pure helpers) via ctest. Fetches Unity at configure time.

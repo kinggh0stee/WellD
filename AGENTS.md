@@ -86,7 +86,7 @@ cd zigbee2mqtt && npm test
 ## CI
 
 `.github/workflows/build.yml` runs six jobs:
-1. ESP-IDF build (esp32c6, v6.0.1) — builds firmware and OTA image, uploads artifacts
+1. ESP-IDF build (esp32c6, v6.0.1) — builds firmware and OTA image (no artifact uploads — no third-party actions policy)
 2. C static analysis (cppcheck) — fails on any warning across `main/` and `components/`
 3. Version bump check (PR-only) — fails if firmware sources changed without bumping `PROJECT_VER`
 4. Host unit tests (plain ubuntu-latest, ctest) — no ESP-IDF or hardware required

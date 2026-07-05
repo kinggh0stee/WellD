@@ -34,6 +34,17 @@ jobs:
           set -e
           . $IDF_PATH/export.sh
           idf.py set-target esp32c6
+          # Guard: CI builds must be unsigned. CONFIG_SECURE_BOOT=y makes the
+          # Kconfig default of SECURE_BOOT_BUILD_SIGNED_BINARIES flip to "y",
+          # which fails the build on the gitignored signing key with a cryptic
+          # error. sdkconfig.defaults pins it to "n"; fail loudly if a local
+          # defaults leak (or a stale committed sdkconfig) re-enables it.
+          # set-target above regenerated sdkconfig from the defaults files,
+          # so this checks the effective build configuration.
+          if grep -q '^CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y' sdkconfig; then
+            echo "::error::Effective sdkconfig enables CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES. CI builds are intentionally unsigned (the signing key is gitignored). Keep CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=n in sdkconfig.defaults; enable signing only in sdkconfig.defaults.local on the machine holding secure_boot_signing_key.pem."
+            exit 1
+          fi
           idf.py build
           VER=$(grep -oP 'set\(PROJECT_VER "\K[0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt)
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VER"
