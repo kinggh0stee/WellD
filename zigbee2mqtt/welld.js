@@ -37,9 +37,9 @@ const definition = {
         numeric('zb_fails', ea.STATE)
             .withValueMin(0).withValueMax(255)
             .withDescription('Consecutive Zigbee send failures since last success. 0 = healthy. Warnings at 3+, auto-rejoin at 5.'),
-        numeric('linkquality', ea.STATE)
+        numeric('device_lqi', ea.STATE)
             .withValueMin(0).withValueMax(255)
-            .withDescription('Zigbee link quality indicator (LQI), 0-255. Higher is better.'),
+            .withDescription('Device-side Zigbee link quality (LQI), 0-255, as measured by the device itself. Distinct from the built-in linkquality, which is the coordinator-side radio LQI. Higher is better.'),
         binary('solar_charging', ea.STATE, true, false)
             .withDescription('Solar charging active. true = charging, false = not charging.'),
     ],

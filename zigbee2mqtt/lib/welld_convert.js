@@ -63,7 +63,11 @@ function convertFails(presentValue) {
     return Math.min(255, Math.max(0, Math.floor(value)));
 }
 
-/* Endpoint 6: Link Quality (LQI), 0–255 integer. */
+/* Endpoint 6: device-side Link Quality (LQI), 0–255 integer — the device's
+   own view of its link, reported as an AnalogInput attribute. Published as
+   `device_lqi`, NOT `linkquality`: Zigbee2MQTT overwrites `linkquality` on
+   every message with the coordinator-side radio LQI, so publishing under
+   that key would be permanently shadowed. */
 function convertLqi(presentValue) {
     const value = finitePresentValue(presentValue);
     if (value === undefined) return undefined;
@@ -103,7 +107,7 @@ function convertAnalogInput(msg) {
     if (ep === 6) {
         const lqi = convertLqi(msg.data.presentValue);
         if (lqi === undefined) return undefined;
-        return {linkquality: lqi};
+        return {device_lqi: lqi};
     }
     if (ep === 7) {
         const solar = convertSolar(msg.data.presentValue);
