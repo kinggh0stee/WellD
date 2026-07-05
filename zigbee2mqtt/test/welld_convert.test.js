@@ -69,9 +69,32 @@ test('battery defaults match the firmware Kconfig defaults', () => {
     assert.equal(DEFAULT_BATTERY_EMPTY_MV, 6000);
 });
 
-test('convertBattery returns undefined when full and empty thresholds are equal', () => {
-    /* Prevents division by zero when a user misconfigures equal thresholds. */
-    assert.equal(convertBattery(3.6, {battery_full_mv: 3600, battery_empty_mv: 3600}), undefined);
+test('equal thresholds: voltage still reported, percentage omitted (no division by zero)', () => {
+    /* The voltage reading is valid even when the % is incomputable. */
+    assert.deepEqual(convertBattery(7.2, {battery_full_mv: 7200, battery_empty_mv: 7200}),
+        {battery_voltage: 7.2});
+});
+
+test('inverted thresholds (full < empty): voltage still reported, percentage omitted', () => {
+    assert.deepEqual(convertBattery(7.2, {battery_full_mv: 6000, battery_empty_mv: 8400}),
+        {battery_voltage: 7.2});
+});
+
+test('battery options arriving as strings (YAML config) are coerced', () => {
+    const out = convertBattery(7.25, {battery_full_mv: '8000', battery_empty_mv: '6500'});
+    assert.equal(out.battery, 50);
+});
+
+test('non-finite battery options fall back to defaults instead of publishing NaN', () => {
+    const out = convertBattery(7.2, {battery_full_mv: NaN, battery_empty_mv: 'garbage'});
+    assert.equal(out.battery, 50);
+    assert.ok(Number.isFinite(out.battery));
+});
+
+test('a single provided battery option combines with the other default', () => {
+    /* full 8000 (custom), empty 6000 (default) → 7.0 V = 50 % */
+    const out = convertBattery(7.0, {battery_full_mv: 8000});
+    assert.equal(out.battery, 50);
 });
 
 test('convertBattery returns undefined for null/NaN/Infinity', () => {
@@ -242,6 +265,8 @@ test('convertSolar returns boolean', () => {
     assert.equal(convertSolar(1.0), true);
     assert.equal(convertSolar(0.0), false);
     assert.equal(convertSolar(0.5), true);
+    assert.equal(convertSolar(0.4), false);
+    assert.equal(convertSolar(-1.0), false);
 });
 
 test('endpoint 7 dispatches to solar charging', () => {
@@ -250,4 +275,94 @@ test('endpoint 7 dispatches to solar charging', () => {
         data: {presentValue: 1.0},
     });
     assert.deepEqual(result, {solar_charging: true});
+});
+
+test('endpoint 7 with zero reports solar_charging false', () => {
+    const result = convertAnalogInput({
+        endpoint: {ID: 7},
+        data: {presentValue: 0.0},
+    });
+    assert.deepEqual(result, {solar_charging: false});
+});
+
+/* Malformed message shapes — must never throw ----------------------------- */
+
+test('non-numeric presentValue types are rejected without throwing', () => {
+    /* The global isFinite() coerces ("2.5", true, "" all pass it); a naive
+       implementation then throws in .toFixed(). Guard against regressions. */
+    for (const bad of ['2.5', '', true, false, {}, [], [1]]) {
+        assert.equal(convertLevel(bad), undefined);
+        assert.equal(convertBattery(bad), undefined);
+        assert.equal(convertRate(bad), undefined);
+        assert.equal(convertFails(bad), undefined);
+        assert.equal(convertLqi(bad), undefined);
+        assert.equal(convertSolar(bad), undefined);
+    }
+});
+
+test('convertAnalogInput tolerates malformed message shapes', () => {
+    assert.equal(convertAnalogInput(undefined), undefined);
+    assert.equal(convertAnalogInput(null), undefined);
+    assert.equal(convertAnalogInput({}), undefined);
+    assert.equal(convertAnalogInput({data: null}), undefined);
+    assert.equal(convertAnalogInput({endpoint: {ID: 1}}), undefined);
+    /* presentValue present but endpoint missing / malformed */
+    assert.equal(convertAnalogInput({data: {presentValue: 1.0}}), undefined);
+    assert.equal(convertAnalogInput({endpoint: {}, data: {presentValue: 1.0}}), undefined);
+    assert.equal(convertAnalogInput({endpoint: null, data: {presentValue: 1.0}}), undefined);
+});
+
+test('convertAnalogInput rejects string presentValue without throwing', () => {
+    assert.equal(convertAnalogInput({endpoint: {ID: 1}, data: {presentValue: '2.5'}}), undefined);
+    assert.equal(convertAnalogInput({endpoint: {ID: 2}, data: {presentValue: '7.2'}}), undefined);
+});
+
+test('endpoint ID as string does not dispatch (strict endpoint matching)', () => {
+    const result = convertAnalogInput({
+        endpoint: {ID: '1'},
+        data: {presentValue: 2.5},
+    });
+    assert.equal(result, undefined);
+});
+
+/* Store-and-forward burst -------------------------------------------------- */
+
+test('store-and-forward burst: sequential EP1 reports convert independently', () => {
+    /* After a send failure the firmware burst-reports up to 8 buffered
+       readings, oldest first, as separate attribute reports on the same EP.
+       Each report must convert on its own, including a -1 open-loop reading
+       buffered mid-outage. */
+    const burst = [3.10, 3.05, -1.0, 2.95];
+    const results = burst.map((presentValue) => convertAnalogInput({
+        endpoint: {ID: 1},
+        data: {presentValue},
+    }));
+    assert.deepEqual(results, [
+        {water_level: 3.1},
+        {water_level: 3.05},
+        {water_level: null},
+        {water_level: 2.95},
+    ]);
+});
+
+test('store-and-forward burst: mixed-endpoint reports stay isolated', () => {
+    /* A full wakeup report is one frame per EP; converting them in sequence
+       must not leak state between endpoints. */
+    const frames = [
+        {endpoint: {ID: 1}, data: {presentValue: 2.5}},
+        {endpoint: {ID: 2}, data: {presentValue: 7.2}},
+        {endpoint: {ID: 4}, data: {presentValue: -3.2}},
+        {endpoint: {ID: 5}, data: {presentValue: 1.0}},
+        {endpoint: {ID: 6}, data: {presentValue: 180.0}},
+        {endpoint: {ID: 7}, data: {presentValue: 0.0}},
+    ];
+    const results = frames.map(convertAnalogInput);
+    assert.deepEqual(results, [
+        {water_level: 2.5},
+        {battery_voltage: 7.2, battery: 50},
+        {water_level_rate: -3.2},
+        {zb_fails: 1},
+        {linkquality: 180},
+        {solar_charging: false},
+    ]);
 });

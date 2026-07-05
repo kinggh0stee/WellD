@@ -1,6 +1,26 @@
 # WellD Schematic — Net Connectivity Reference
 
-The schematic files contain component symbol placements but **no wire connections**. This document is the authoritative wiring reference. Use it alongside the schematic editor to draw all nets manually, or run `kicad_wire_script.py` in the KiCad scripting console (see `kicad_guide_eli5.md`).
+The schematic files contain component symbol placements but **no wire connections**. This document is the authoritative wiring reference. Use it alongside the schematic editor to draw all nets manually (see `kicad_guide_eli5.md`).
+
+**Convention:** connections below are given by **pin name** (as printed on the symbol), not pin number. Several custom symbols have unverified pin *numbers* — see [Symbol pin-number verification](#symbol-pin-number-verification) before assigning footprints.
+
+---
+
+## Design changes — 2026-07-05 electrical review
+
+| # | Change | Reason |
+|---|--------|--------|
+| 1 | **U1 changed AP63205WU → AP63203WU** (fixed 3.3 V); R_FBH/R_FBL marked **DNP** | AP63205 is the **5 V fixed** variant of the Diodes AP6320x family; AP63203 is the 3.3 V fixed variant. The previously specified divider math (0.6 V ref) matches no part in this family (adjustable AP63200 uses a 0.8 V reference). Any of the previous combinations would have put 4.4–8 V on the 3V3 rail and destroyed the ESP32. **Verify against the Diodes datasheet before ordering** (see verification blockers). |
+| 2 | **MT3608B topology corrected** (boost: VBAT→L1→SW, not SW→L1→VOUT) and **D15 rectifier + Q3/Q4 load-disconnect added** | The MT3608 family is an async boost: the inductor goes from VIN to SW and an external Schottky (D15) carries SW→VLOOP. Without a disconnect switch, VBAT−0.4 V leaks through L1+D15 to the loop terminals permanently, powering the transmitter during deep sleep and killing the battery. |
+| 3 | **Status LED moved GPIO13 → GPIO14** (net renamed `GPIO14_LED`) | Firmware uses GPIO13 as the factory-reset strap (hold LOW at boot → NVS erase). A green LED + 1 kΩ to GND holds the pin below V_IH at boot → factory reset on **every** boot. GPIO14 was spare. TP13 added as the factory-reset pad. |
+| 4 | **Battery divider switched to high-side disconnect** (Q5 P-FET added, Q2 becomes its gate driver); **C8 100 nF → 1 nF** | With the old low-side Q2, the mid node was pulled to VBAT through R7 when disabled, biasing ADS1115 AIN2 above VDD via its ESD diode (~14 µA continuous sleep drain — defeating the purpose of the switch). C8 at 100 nF gave τ ≈ 7.7 ms, far too slow for the firmware's ≥1 ms enable window; 1 nF settles in <1 ms. |
+| 5 | **R25 pull-up added on /CHRG_SOLAR** | Gate rule: open-drain outputs need external pull-ups; GPIO6 previously relied on the ESP32 internal ~45 kΩ pull-up only. |
+| 6 | **R27 pull-down added on VBOOST_EN** | GPIO5 is isolated (floats) in deep sleep; a floating MT3608B EN (and Q4 gate) could randomly enable the 12 V boost while asleep. |
+| 7 | **R15 + C36 added on ESP32 EN** | ESP32-C6-MINI-1U requires an external RC on EN (10 kΩ to 3V3, 1 µF to GND) for a clean power-on reset; only SW1 was present. |
+| 8 | **D8/D14 changed SMAJ28CA → SMAJ24CA; C17 uprated to 35 V** | SMAJ28CA standoff equals the CN3722 28 V abs max — zero clamp margin (senior review warning #5). Consequence: max permitted panel Voc is now **24 V** (12 V-nominal panels, Voc ≈ 21–22 V, still fine). C17 at 25 V had no margin over a 24 V standoff rail. |
+| 9 | **C25 deleted from power.kicad_sch** (duplicate of C_BST); **C16 assigned as U1 VIN bulk 10 µF** | Resolves senior review warnings #8 and #9; the AP6320x datasheet input cap is 10 µF, previously only 100 nF + 1 µF were fitted. |
+| 10 | Refdes reconciliation: `R_CC1/R_CC2` → **R50/R51**, `C14a–C14d` → **C13, C30–C33**, `C_SH1/C_SH2` → **C34/C35**; **R38 is the TP5100 /CHRG pull-up** (the solar /CHRG pull-up is new R25); TP1=VBAT, TP3=+3V3, TP4=GND | Docs referred to symbols that do not exist in the schematics under those names. |
+| 11 | **TP5100 USB charge path flagged NON-FUNCTIONAL as designed** | TP5100 is a switching **step-down** (buck) 2S/1S charger. It cannot charge an 8.4 V pack from 5 V USB — VIN must exceed the pack voltage. See [verification blockers](#datasheet-verification-blockers). Wiring below is retained for reference but do not tape out with this section unresolved. |
 
 ---
 
@@ -9,36 +29,42 @@ The schematic files contain component symbol placements but **no wire connection
 | Net name | Voltage | Description |
 |----------|---------|-------------|
 | GND | 0V | Ground plane |
-| +3V3 | 3.31V | Main logic rail (AP63205WU output) |
+| +3V3 | 3.3V | Main logic rail (U1 buck output) |
 | VBAT | 6.0–8.4V | 2S Li-ion battery (raw, after D5 load-switch) |
-| VBAT_RAW | 6.0–8.4V | Battery positive before D5 (connects J1 BAT+, D5 drain, D13 anode) |
+| VBAT_RAW | 6.0–8.4V | Battery positive before D5 (J1 BAT+, D13, D5 drain) |
 | VUSB | 5V | USB-C VBUS after F2 polyfuse |
-| VUSB_IN | 5V | USB-C VBUS raw (J13 VBUS pins) |
-| VSOLAR | Open-circuit PV | Solar panel after D6 diode |
-| VSOLAR_IN | Open-circuit PV | Solar panel raw (J12 terminal, before D14/D6) |
-| VLOOP | 12V ±5% | Boost output (MT3608B, loop power) |
-| +3V3_ADS | 3.3V filtered | ADS1115 VDD (after FB1 ferrite bead, isolated from digital) |
-| MPPT_REF | ~1.25V | CN3722 MPPT voltage reference divider mid-point |
-| ADS_DRDY | signal | ADS1115 ALERT/DRDY open-drain → GPIO12 |
-| ADS_SDA | signal | I²C SDA → GPIO10 |
-| ADS_SCL | signal | I²C SCL → GPIO11 |
-| ADC_CH0 | 0–2.048V | ADS1115 AIN0 (CH1 4-20mA after protection chain) |
-| ADC_CH1 | 0–2.048V | ADS1115 AIN1 (CH2 4-20mA after protection chain) |
-| ADC_CH2 | 0–2.048V | ADS1115 AIN2 (battery voltage divider output) |
-| 1WIRE | signal | DS18B20 one-wire bus → GPIO7 |
-| LOOP_TERM_CH1 | signal | CH1 4-20mA input from J4 |
-| LOOP_TERM_CH2 | signal | CH2 4-20mA input from J5 |
-| /CHRG_SOLAR | signal | CN3722 /CHRG status (active-low) → GPIO6 |
-| /CHRG_USB | signal | TP5100 /CHRG open-drain status |
-| CHRG_USB_DIS | signal | TP5100 CE enable (HIGH = charge enabled via VUSB pull-up) |
-| BATT_DIV_EN | signal | Q2 gate = GPIO15; HIGH enables battery divider read |
-| VBOOST_EN | signal | MT3608B EN pin = GPIO5; HIGH enables 12V boost |
-| SOLAR_DET | signal | CN3722 /DONE or solar detect |
-| GPIO13_LED | signal | Status LED (GPIO13) |
-| UART_TX | signal | Debug UART TX (GPIO16 or via header) |
-| UART_RX | signal | Debug UART RX |
-| EN | signal | ESP32-C6 EN (reset) |
-| BOOT | signal | ESP32-C6 BOOT/GPIO9 (low = download mode) |
+| VUSB_IN | 5V | USB-C VBUS raw (J13 VBUS pins, before F2) |
+| VSOLAR | ≤24V (Voc) | Solar input after D6 diode = CN3722 VIN node |
+| VSOLAR_IN | ≤24V (Voc) | Solar panel raw (J12 terminal, before D6) |
+| VLOOP | 12V ±5% | Boost output (MT3608B + D15), loop power |
+| VLOOP_SW | switching | MT3608B SW node (L1 / D15 anode / C_BST) |
+| VLOOP_L | 6.0–8.4V gated | Q3 drain → L1 input (boost disconnect branch) |
+| +3V3_ADS | 3.3V filtered | ADS1115 VDD (after FB1 ferrite bead) |
+| AP_FB | 3.3V (sense) | U1 FB/VOUT sense pin tie to +3V3 (fixed-output part) |
+| MT_FB | 0.6V | MT3608B feedback divider mid-point (R23/R24) |
+| MPPT_REF | 1.205V | CN3722 MPPT pin divider mid-point (R20/R21) |
+| CN_FB | 1.205V | CN3722 CV feedback divider mid-point (R33/R34) |
+| ADS_DRDY | signal | ADS1115 ALERT/RDY open-drain → GPIO12 (R_DRDY pull-up) |
+| I2C_SDA | signal | I²C SDA → GPIO10 (R9 pull-up) |
+| I2C_SCL | signal | I²C SCL → GPIO11 (R10 pull-up) |
+| ADC_CH0 | 0–2.0V | ADS1115 AIN0 (CH1 4-20mA after protection chain) |
+| ADC_CH1 | 0–2.0V | ADS1115 AIN1 (CH2 4-20mA after protection chain) |
+| ADC_CH2 | 0–1.95V | ADS1115 AIN2 (battery divider mid-point) |
+| VBAT_SW | 6.0–8.4V gated | Q5 drain → R7 top (battery divider, gated) |
+| Q3_GATE / Q5_GATE | analog | P-FET gate nodes (level-shifted from GPIO5 / GPIO15) |
+| 1WIRE | signal | DS18B20 data → GPIO7 (R6 pull-up) |
+| LOOP_TERM_CH1/2 | signal | 4-20mA SIG inputs from J4/J5 |
+| SHUNT_IN_1/2, SHUNT_OUT_1/2 | analog | Shunt chain intermediate nets (see ADC_CH0/1) |
+| /CHRG_SOLAR | signal | CN3722 /CHRG (open-drain, active-low) → GPIO6, R25 pull-up |
+| /CHRG_USB | signal | TP5100 /CHRG (open-drain) → R38 pull-up → TP15 only |
+| USB_CE | signal | TP5100 CE ← GPIO4 (HIGH = charge enabled); R37 pull-down |
+| BATT_DIV_EN | signal | GPIO15 → Q2 gate (HIGH enables battery divider via Q5) |
+| VBOOST_EN | signal | GPIO5 → MT3608B EN + Q4 gate (HIGH = 12V loop on); R27 pull-down |
+| GPIO14_LED | signal | Status LED (GPIO14 → R14 → D4 → SJ3 → GND) |
+| FACTORY_RESET | signal | GPIO13 → TP13 pad (hold LOW at boot = NVS erase) |
+| UART_TX / UART_RX | signal | Debug UART GPIO16/GPIO17 → SJ4/SJ5 → J10 |
+| EN | signal | ESP32-C6 EN (R15 pull-up, C36, SW1, J10) |
+| BOOT | signal | ESP32-C6 GPIO9 (R12 pull-up, SW2, J10) |
 
 ---
 
@@ -48,295 +74,413 @@ The schematic files contain component symbol placements but **no wire connection
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U1 AP63205WU | GND (pin 2) | Buck converter GND |
-| U7 CN3722 | GND (pin 4) | Solar charger GND |
-| U8 MT3608B | GND (pin 2) | Boost converter GND |
-| U9 ADS1115 | GND (pin 1) | ADC GND |
-| U6 ESP32-C6-MINI-1U | GND (multiple) | Module GND |
-| U11 USBLC6-2SC6 | GND | USB ESD clamp GND |
-| U12 TP5100 | GND (exposed pad) | USB charger thermal/GND pad |
-| R_FBL | pin 2 | AP63205WU feedback divider low-side |
-| C9, C10 | pin 2 | AP63205WU VIN decoupling |
-| C11, C12 | pin 2 | +3V3 output decoupling near L2 |
-| C16 | pin 2 | +3V3 (verify = C_BUCK or remove) |
-| C17, C18 | pin 2 | CN3722 VIN/VBAT decoupling |
+| U1 AP63203WU | GND | Buck GND |
+| U7 CN3722 | GND | Solar charger GND |
+| U8 MT3608B | GND | Boost GND |
+| U9 ADS1115 | GND **and ADDR** | ADDR→GND sets I²C address 0x48 |
+| U6 ESP32-C6-MINI-1U | GND (all) | Module GND + thermal pad |
+| U11 USBLC6-2SC6 | GND | USB ESD clamp |
+| U12 TP5100 | GND (+ exposed pad) | |
+| D1, D12 PRTR5V0U2X | GND | Rail clamps |
+| R_FBL | pin 2 | **DNP** (only fitted with adjustable AP63200 option) |
+| R24 | pin 2 | MT3608B FB divider low side |
+| R21 | pin 2 | MPPT divider low side |
+| R34 | pin 2 | CN3722 CV divider low side |
+| R35 | pin 2 | TP5100 PROG resistor |
+| R37 | pin 2 | TP5100 CE pull-down (charger off by default) |
+| R26 | pin 2 | Q2 gate pull-down |
+| R27 | pin 2 | VBOOST_EN pull-down |
+| R31 | pin 2 | D5 gate pull-down (turns load switch ON) |
+| R8 | pin 2 | Battery divider low side (direct to GND — Q2 no longer in this leg) |
+| R50, R51 | pin 2 | USB-C CC pull-downs |
+| C8 | pin 2 | 1 nF across R8 |
+| C9, C10, C16 | pin 2 | U1 VIN decoupling |
+| C11, C12, C_BUCK | pin 2 | +3V3 output decoupling |
+| C17, C21 | pin 2 | CN3722 VIN filters |
+| C18 | pin 2 | CN3722 VBAT cap |
 | C19 | pin 2 | MT3608B VIN bypass |
-| C20, C22 | pin 2 | MT3608B VOUT decoupling |
-| C_BUCK | pin 2 | AP63205WU primary output filter |
-| C23, C24 | pin 2 | ADS1115 VDD decoupling (on +3V3_ADS side of FB1) |
-| C14a–C14d | pin 2 | ESP32-C6 VCC3V3 decoupling |
-| C15 | pin 2 | ESP32-C6 VCC3V3 bulk |
-| C27, C28 | pin 2 | TP5100 VIN bypass |
-| C29 | pin 2 | TP5100 VBAT bypass |
-| R3, R5 | pin 2 (shunt low-side) | 4-20mA shunt return |
-| R7, R8 | pin 2 (divider) | VBAT voltage divider GND side |
-| D1, D9, D10 | cathode groups | TVS clamps |
-| D6 | anode | Solar backfeed Schottky |
-| D8 SMAJ28CA | one end | Solar TVS at CN3722 VIN |
-| D13 SMAJ10CA | one end | Battery TVS at J1 |
-| F1, F2 | — | Polyfuses (no direct GND pin) |
-| J3 SMA | ground ring | Antenna connector GND |
-| TP1, TP3, TP4 (GND TPs) | — | Near buck output |
+| C20, C22 | pin 2 | VLOOP output caps |
+| C23, C24 | pin 2 | ADS1115 VDD decoupling (+3V3_ADS side) |
+| C13, C30–C33 | pin 2 | ESP32-C6 VCC3V3 decoupling (5 × 100 nF) |
+| C15 | pin 2 | ESP32-C6 bulk |
+| C36 | pin 2 | ESP32 EN reset-delay cap |
+| C27, C28 | pin 2 | VUSB filters |
+| C29 | pin 2 | TP5100 BAT bypass |
+| C3–C6, C34, C35 | pin 2 | 4-20mA filter/bypass caps |
+| C7 | pin 2 | J6 VCC bypass |
+| R2, R4 | pin 2 (shunt low side) | 4-20mA shunt return |
+| D9, D10, D11, D13, D14, D8 | one terminal | TVS clamps (bidirectional except D11 = unidirectional, cathode to VLOOP) |
+| Q2 | S | BSS123 source |
+| SW1 | pin 2 | Reset to GND |
+| SW2 | pin 2 | Boot to GND |
+| D4 | cathode via SJ3 | Status LED return |
+| J1 | BAT− | Battery return |
+| J4, J5 | pin 3 | Loop GND return |
+| J6 | pin 3 | DS18B20 GND |
+| J7 | pin 3 | Spare GND |
+| J8 | GND pin | I²C header |
+| J9 | GND pin | GPIO header |
+| J10 | GND pin | Programming header |
+| J12 | SOLAR− | Solar return |
+| J13 | GND (A1/B1 etc.) | USB-C shield/GND |
+| J3 | ground ring | SMA GND |
+| TP4 | pad | GND test point |
 
 ### +3V3
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U1 AP63205WU | SW (pin 4) via L2 | Buck output (SW→L2→+3V3) |
-| L2 | pin 2 (output) | Buck output inductor |
-| R_FBH | pin 1 (top) | Feedback high-side; pin 2 connects to FB |
-| C_BUCK | pin 1 | Primary output filter cap (10µF 0805) — ADD THIS |
-| C11, C12 | pin 1 | Output rail decoupling near L2 |
-| C16 | pin 1 | If C16 = C_BUCK; otherwise resolve |
-| FB1 | pin 1 (input) | Ferrite bead feeding +3V3_ADS |
-| R9 | pin 1 | I²C SDA pull-up |
-| R10 | pin 1 | I²C SCL pull-up |
-| R_DRDY | pin 1 | ADS1115 DRDY pull-up — ADD THIS |
-| R38 | pin 1 | /CHRG_SOLAR pull-up |
-| R37 | connects to VUSB | CE pull-up (R37 goes to VUSB not +3V3 — see note) |
-| U6 ESP32-C6-MINI-1U | VCC3V3 (multiple) | Module supply |
-| C14a–C14d | pin 1 | Module decoupling |
-| C15 | pin 1 | Module bulk cap |
-| TP1 | pad | +3V3 test point |
+| U1 AP63203WU | FB/VOUT sense pin | **Fixed-output part: tie the FB pin directly to the +3V3 output rail** (no divider). If the adjustable AP63200WU option is chosen instead, wire +3V3→R_FBH→FB and FB→R_FBL→GND with R_FBH=390k / R_FBL=124k (VFB=0.8 V → 3.32 V) and fit both resistors. |
+| L2 | pin 2 | Buck output inductor (SW→L2→+3V3) |
+| C_BUCK, C11, C12 | pin 1 | Output caps at L2 |
+| FB1 | pin 1 | Ferrite feed to +3V3_ADS |
+| R9, R10 | pin 1 | I²C pull-ups |
+| R_DRDY | pin 1 | ADS_DRDY pull-up |
+| R25 | pin 1 | /CHRG_SOLAR pull-up |
+| R38 | pin 1 | /CHRG_USB pull-up (to TP15) |
+| R6 | pin 1 | 1-Wire pull-up |
+| R28 | pin 1 | Feed to J6 VCC (100 Ω series) |
+| R12, R13 | pin 1 | BOOT / GPIO8 strapping pull-ups |
+| R15 | pin 1 | ESP32 EN pull-up |
+| R22 | pin 1 | Solar-charge LED feed (DNF) |
+| U6 ESP32-C6-MINI-1U | 3V3 (all) | Module supply |
+| C13, C30–C33, C15 | pin 1 | Module decoupling/bulk |
+| J7 | pin 1 | Spare sensor supply |
+| J8, J9, J10 | 3V3 pin | Headers |
+| D1 PRTR5V0U2X | VCC | ADC clamp rail |
+| D12 PRTR5V0U2X | VCC | 1-Wire clamp rail |
+| TP3 | pad | +3V3 test point |
 
-> **R37 note**: R37 pulls the TP5100 CE pin to VUSB (5V), not +3V3. GPIO4 asserts CE LOW to disable charging; the 5V pull-up auto-enables when VUSB present. See Warning #12 in senior_review_2026-05-25.md.
+> **CE pull-up note:** R36 (100 kΩ) pulls TP5100 CE toward **VUSB (5 V)**, but R37 (4.7 kΩ to GND) dominates, so CE idles LOW (~0.22 V, charger off) until GPIO4 drives it HIGH. R36 is electrically ineffective as fitted — candidate DNP. Firmware semantics unchanged: **GPIO4 HIGH enables charging; R37 holds it off during reset/deep sleep.**
 
 ### +3V3_ADS
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| FB1 | pin 2 (output) | Ferrite bead isolates ADS supply from digital noise |
-| U9 ADS1115 | VDD (pin 4) | ADS1115 supply |
-| C23 | pin 1 | 100nF decoupling (on ADS side of FB1) |
-| C24 | pin 1 | 1µF decoupling (on ADS side of FB1) |
+| FB1 | pin 2 | Ferrite output |
+| U9 ADS1115 | VDD | |
+| C23 (100nF), C24 (1µF) | pin 1 | On U9 side of FB1, within 1 mm of VDD |
 
 ### VBAT
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| D5 AO3407 | source | Load-switch output (switches VBAT from battery) |
-| U1 AP63205WU | VIN (pin 1) | Buck input |
-| U7 CN3722 | VBAT (pin 3) | Charger output |
-| U8 MT3608B | VIN (pin 1) | Boost input |
-| C9, C10 | pin 1 | AP63205WU VIN decoupling |
-| C17 | pin 1 (also CN3722 VIN net) | Filter cap |
+| D5 AO3407 | S (source) | Load-switch output |
+| U1 | VIN | Buck input |
+| U7 CN3722 | VBAT (both pins if present) | Charger output |
+| U8 MT3608B | IN | Boost controller supply (stays connected; <1 µA when EN low) |
+| Q3 AO3407 | S (source) | Boost inductor disconnect switch input |
+| Q5 AO3407 | S (source) | Battery divider disconnect switch input |
+| R29 | pin 1 | Q3 gate pull-up |
+| R16 | pin 1 | Q5 gate pull-up |
+| R11 | pin 1 | U1 EN pull-up (always-on buck); pin 2 → U1 EN |
+| R33 | pin 1 | CN3722 CV divider high side |
+| C9, C10, C16 | pin 1 | U1 VIN decoupling (100n / 1µ / 10µ) |
 | C18 | pin 1 | CN3722 VBAT cap |
 | C19 | pin 1 | MT3608B VIN bypass |
-| TP11 | pad | VBAT test point after D5 |
-| R7 | pin 1 (divider top) | VBAT→R7→VBAT_DIV_MID→R8→GND divider |
+| U12 TP5100 | BAT (both pins) | Charger output; C29 pin 1 here |
+| TP1 | pad | VBAT test point (after D5) |
+| J9 | VBAT pin (optional) | — only if the header carries VBAT; otherwise omit |
 
 ### VBAT_RAW
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| J1 XT30 | BAT+ | Battery positive input |
-| D13 SMAJ10CA | anode | Battery TVS protection |
-| D5 AO3407 | drain | Load-switch input |
-| R31 | pin 2 (to gate?) | R31 in D5/R31 protection group — see placement_constraints.md Group H |
+| J1 XT30 | BAT+ (pin 1) | Battery positive input |
+| D13 SMAJ10CA | terminal 1 | Battery TVS (other terminal GND) |
+| D5 AO3407 | D (drain) | Load-switch input (body diode conducts drain→source at first connect, then channel enhances: gate held at GND by R31, Vgs = −VBAT) |
+| D5 AO3407 | G (gate) | → R31 pin 1 (R31 pin 2 → GND) |
+| TP11 | pad | Before D5 |
 
-### VLOOP
+### VLOOP (12 V boost — corrected topology)
 
-| Component | Pin | Note |
-|-----------|-----|------|
-| U8 MT3608B | VOUT (pin 5) via L1 | Boost output |
-| L1 | pin 2 (output) | Boost output inductor |
-| C20 | pin 1 | VOUT decoupling |
-| C22 | pin 1 | VOUT parallel cap |
-| J4 | LOOP+ (pin 1) | CH1 4-20mA loop power |
-| J5 | LOOP+ (pin 1) | CH2 4-20mA loop power |
-| TP2 | pad | VLOOP test point |
-
-### VSOLAR / VSOLAR_IN
-
-| Component | Pin | Note |
-|-----------|-----|------|
-| J12 | SOLAR+ | Solar terminal input |
-| D14 | anode | First TVS clamp (J12→D14→D6) |
-| D14 | cathode | Connects to D6 anode and D8 |
-| D6 | cathode | VSOLAR (solar after Schottky, goes to U7 VIN) |
-| D8 SMAJ28CA | anode | Second-stage TVS at CN3722 VIN |
-| U7 CN3722 | VIN (pin 1) | Solar charger input |
-| C17 | pin 1 | CN3722 VIN filter |
-| C21 | pin 1 | CN3722 VIN second filter |
-| TP10 | pad | Solar input test point |
-
-### VUSB / VUSB_IN
-
-| Component | Pin | Note |
-|-----------|-----|------|
-| J13 USB-C | VBUS pins | USB-C VBUS input |
-| U11 USBLC6-2SC6 | VBUS pin | USB ESD protection |
-| F2 | pin 1 | Polyfuse input |
-| F2 | pin 2 | VUSB output (to U12 VIN and R37) |
-| C27 | pin 1 | VUSB input filter after F2 |
-| U12 TP5100 | VIN | USB charger input |
-| R37 | pin 1 | CE pull-up (other end to U12 CE pin) |
-
-### AP63205WU Feedback Net (FB)
-
-| Component | Pin | Note |
-|-----------|-----|------|
-| U1 AP63205WU | FB (pin 3) | Feedback input; sets VOUT |
-| R_FBH | pin 2 (bottom) | High-side top at +3V3, bottom at FB |
-| R_FBL | pin 1 (top) | Low-side top at FB, bottom at GND |
-
-> This net has no name yet. Name it `AP_FB` in KiCad. VOUT = 0.6 × (1 + 560k/124k) = 3.31V.
-
-### MT3608B Bootstrap (BST→SW)
-
-| Component | Pin | Note |
-|-----------|-----|------|
-| U8 MT3608B | BST (pin 6) | Bootstrap supply input |
-| C_BST | pin 1 | 100nF cap; other end to SW node |
-| U8 MT3608B | SW (pin 3) | Switching node |
-| C_BST | pin 2 | SW side of bootstrap cap |
-| L1 | pin 1 | Also connects to SW node |
-
-### ADS_DRDY
-
-| Component | Pin | Note |
-|-----------|-----|------|
-| U9 ADS1115 | ALERT/DRDY (pin 7) | Open-drain output |
-| R_DRDY | pin 2 (bottom) | Pull-up; pin 1 connects to +3V3 |
-| U6 ESP32-C6-MINI-1U | GPIO12 | Interrupt input |
-| TP12 | pad | DRDY test point |
-
-### ADS_SDA / ADS_SCL
-
-| Component | Pin | Note |
-|-----------|-----|------|
-| U9 ADS1115 | SDA (pin 6) | I²C data |
-| U6 ESP32-C6 | GPIO10 | SDA |
-| R9 | pin 2 (bottom) | Pull-up (top to +3V3) |
-| J8 | SDA pin | I²C header |
-| TP8 | pad | SDA test point |
-| U9 ADS1115 | SCL (pin 5) | I²C clock |
-| U6 ESP32-C6 | GPIO11 | SCL |
-| R10 | pin 2 (bottom) | Pull-up (top to +3V3) |
-| J8 | SCL pin | I²C header |
-| TP9 | pad | SCL test point |
-
-### ADC_CH0, ADC_CH1 (4-20mA inputs)
-
-CH1 signal path: J4 SIG → D9 (TVS) → R2 (100Ω shunt) → TP5 → R3 → D1 → C3 (bypass) → C4 (bypass) → U9 AIN0
+Current path: `VBAT → Q3 (P-FET switch) → L1 → SW node → D15 (Schottky) → VLOOP`
 
 | Component | Pin | Net segment | Note |
 |-----------|-----|-------------|------|
-| J4 | SIG (pin 2) | LOOP_TERM_CH1 | CH1 current input |
-| D9 SMAJ3.3CA | anode | LOOP_TERM_CH1 | First protection TVS |
-| D9 | cathode | shunt_in_1 | After TVS |
-| R2 | pin 1 | shunt_in_1 | Shunt top |
-| R2 | pin 2 | shunt_out_1 | Shunt bottom (AIN0 side) |
-| R3 | pin 1 | shunt_out_1 | Series protection |
-| R3 | pin 2 | ADC_CH0 | To ADS1115 |
-| C3 | pin 1 | ADC_CH0 | Bypass cap |
-| C4 | pin 1 | ADC_CH0 | Bypass cap |
-| D1 PRTR5V0U2X | one channel | ADC_CH0 | Rail clamp protection |
-| U9 ADS1115 | AIN0 (pin 8) | ADC_CH0 | ADC input |
-| TP5 | pad | Between R2 and R3 | Test point |
-
-CH2 is identical: J5 → D10 → R4 → R5 → D1 channel 2 → C5/C6 → U9 AIN1
-
-### ADC_CH2 (Battery voltage divider)
-
-| Component | Pin | Note |
-|-----------|-----|------|
-| R7 | pin 1 | Top — connects to VBAT (8.4V max) |
-| R7 | pin 2 | Mid — connects to R8 pin 1 |
-| R8 | pin 2 | Bottom — connects to GND |
-| R7/R8 mid | — | Divider output (named ADC_CH2) |
-| C_SH | pin 1 | Filter cap across divider (if present) |
-| Q2 | drain | Q2 gate-controlled switch in divider enable path |
-| U9 ADS1115 | AIN2 (pin 10) | ADC input |
-| U6 ESP32-C6 | GPIO15 (BATT_DIV_EN) | Enables Q2 before read |
-
-### 1WIRE
-
-| Component | Pin | Note |
-|-----------|-----|------|
-| J6 | DATA (pin 2) | DS18B20 data line |
-| D12 PRTR5V0U2X | data channel | ESD protection |
-| R6 | pin 2 | Pull-up (pin 1 to +3V3) |
-| R32 | pin 1 | 33Ω series resistor (populate — see warning #15) |
-| R32 | pin 2 | After series R, to GPIO7 |
-| U6 ESP32-C6 | GPIO7 | 1-Wire GPIO |
-| TP7 | pad | On GPIO7 side of D12 |
-
-### /CHRG_SOLAR
-
-| Component | Pin | Note |
-|-----------|-----|------|
-| U7 CN3722 | /CHRG (pin 5) | Open-drain active-low charging indicator |
-| R38 | pin 2 | Pull-up to +3V3 |
-| U6 ESP32-C6 | GPIO6 | Firmware reads LOW = charging |
-
-### CHRG_USB_DIS / CE
-
-| Component | Pin | Note |
-|-----------|-----|------|
-| R37 | pin 2 | Pull-up to VUSB (5V) |
-| U12 TP5100 | CE (enable pin) | HIGH = charge enabled |
-| U6 ESP32-C6 | GPIO4 | LOW asserted by firmware disables charging |
+| Q3 AO3407 | S | VBAT | Disconnect switch |
+| Q3 AO3407 | D | VLOOP_L | To inductor |
+| Q3 AO3407 | G | Q3_GATE | R29 (100k) to VBAT; Q4 drain pulls low to turn on |
+| Q4 BSS123 | D | Q3_GATE | Level shifter |
+| Q4 BSS123 | G | VBOOST_EN | With R27 pull-down |
+| Q4 BSS123 | S | GND | |
+| L1 | pin 1 | VLOOP_L | Inductor input |
+| L1 | pin 2 | VLOOP_SW | Switch node |
+| U8 MT3608B | SW | VLOOP_SW | Internal low-side switch |
+| C_BST | pin 1 / pin 2 | BST ↔ VLOOP_SW | 100 nF; **verify BST pin exists** — classic MT3608 pin 6 is NC (harmless if fitted to an NC pin) |
+| D15 SS34 | anode | VLOOP_SW | Boost rectifier |
+| D15 SS34 | cathode | VLOOP | |
+| C20 (22µF 25V), C22 (10µF 25V) | pin 1 | VLOOP | Output filter |
+| R23 (1.91M) | pin 1 | VLOOP | FB divider high side; pin 2 → MT_FB |
+| R24 (100k) | pin 1 | MT_FB | pin 2 → GND. VOUT = 0.6 × (1 + 1910/100) = 12.06 V |
+| U8 MT3608B | FB | MT_FB | |
+| D11 SMAJ13A | cathode | VLOOP | Unidirectional TVS, anode → GND |
+| J4 | LOOP+ (pin 1) | VLOOP | CH1 loop power |
+| SJ2 | A/B | VLOOP ↔ J5 LOOP+ | Bridged by default; open to isolate CH2 |
+| J5 | LOOP+ (pin 1) | via SJ2 | CH2 loop power |
+| TP2 | pad | VLOOP | Test point |
 
 ### VBOOST_EN
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U8 MT3608B | EN (pin 4) | Enable; HIGH = boost active |
-| U6 ESP32-C6 | GPIO5 | Firmware drives HIGH to power loop |
+| U6 ESP32-C6 | GPIO5 | Drives HIGH ≥5 ms before a loop read (recommend 10 ms now that C20/C22 charge through Q3) |
+| U8 MT3608B | EN | HIGH = boost active |
+| Q4 BSS123 | G | Enables Q3 simultaneously |
+| R27 (100k) | pin 1 | Pull-down to GND — holds boost + Q3 off while GPIO5 is isolated in deep sleep |
+| SJ1 | A/B | Open by default; bridging ties EN permanently to VBAT for bench debug (jumper from EN to VBAT side) |
+
+### VSOLAR / VSOLAR_IN
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| J12 | SOLAR+ | Panel input (max Voc **24 V** with SMAJ24CA) |
+| D14 SMAJ24CA | terminal 1 | First TVS at terminal (other terminal GND) |
+| D6 MBRS140 | anode | VSOLAR_IN — backfeed block |
+| D6 MBRS140 | cathode | VSOLAR (CN3722 VIN node) |
+| D8 SMAJ24CA | terminal 1 | Second-stage TVS at CN3722 VIN (other terminal GND) |
+| U7 CN3722 | VIN (both pins if present) | |
+| C17 (10µF **35V**), C21 (100nF 50V) | pin 1 | VIN filters |
+| R20 | pin 1 | MPPT divider high side (senses CN3722 VIN) |
+| TP10 | pad | VSOLAR_IN test point at J12 |
 
 ### MPPT_REF
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U7 CN3722 | MPPT (pin 6) | Voltage reference input |
-| R19 | pin 2 | Divider mid-point (R19 top to VSOLAR, R20 bottom to GND) |
-| R20 | pin 1 | MPPT divider low-side |
+| U7 CN3722 | MPPT | Regulates panel to VMPPT when divider mid = 1.205 V |
+| R20 (36k) | pin 2 | High side from VSOLAR; V_MPPT = 1.205 × (36+10)/10 ≈ 5.54 V |
+| R21 (10k) | pin 1 | Low side to GND |
 
-### CN3722 CV Setpoint (PROG)
-
-| Component | Pin | Note |
-|-----------|-----|------|
-| U7 CN3722 | PROG (pin 7) | CV voltage set |
-| R33 | pin 2 | 590kΩ (was 604kΩ) — sets Vchg = 8.31V |
-| R34 | pin 2 | Sets charge termination (parallel with R33 per CN3722 app note?) |
-| R21 | pin 2 | Possible CC current set resistor |
-
-> Verify exact PROG pin connections against CN3722 datasheet Fig.8. R33=590kΩ sets Vchg=8.31V. R34=100kΩ may set another parameter.
-
-### TP5100 USB Charge Current (PROG)
+### CN3722 CV feedback (CN_FB)
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U12 TP5100 | PROG (pin 5) | Charge current set |
-| R35 | pin 1 | PROG → GND; current = 1200/R35 [mA] |
+| U7 CN3722 | FB (CV sense) | Regulates VBAT so that mid = 1.205 V |
+| R33 (590k) | pin 2 | High side from VBAT → Vchg = 1.205 × (1 + 590/100) = **8.31 V** ✓ (≤8.40 V for 2S) |
+| R34 (100k) | pin 1 | Low side to GND |
 
-### USB-C CC Resistors
+> **R19 (2.0 kΩ)** sets the 500 mA charge current per the original design ("CN3722 PROG pin"). The current 8-pin symbol has a `VPROG` pin — wire R19 from VPROG to GND. **Verify against the CN3722 datasheet**: Consonance chargers in this family normally set current with a CSP/CSN sense resistor, and the package is likely SSOP-10, not SOP-8. Blocking item — see verification blockers.
 
-| Component | Pin | Note |
-|-----------|-----|------|
-| J13 | CC1 | USB-C CC1 |
-| R_CC1 | pin 1 | 5.1kΩ CC1 pull-down to GND |
-| J13 | CC2 | USB-C CC2 |
-| R_CC2 | pin 1 | 5.1kΩ CC2 pull-down to GND |
-
-### GPIO13_LED
+### /CHRG_SOLAR
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U6 ESP32-C6 | GPIO13 | LED drive |
-| R (LED series) | pin 1 | Current limit |
-| LED | anode | Status LED |
+| U7 CN3722 | /CHRG | Open-drain, LOW = charging |
+| R25 (4.7k) | pin 2 | Pull-up to +3V3 (**new** — was internal-pull-up only) |
+| U6 ESP32-C6 | GPIO6 | Input; firmware reads LOW = charging |
+| D7 LED | cathode | Solar-charge indicator (green): +3V3 → R22 (1k, **DNF**) → D7 anode; D7 cathode → /CHRG_SOLAR. Lights while charging. DNF by default to save power. |
+| TP14 | pad | CHRG_SOL test point |
+
+### VUSB / VUSB_IN / USB-C
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| J13 USB-C | VBUS (A4/B4/A9/B9) | VUSB_IN |
+| U11 USBLC6-2SC6 | VBUS | ESD clamp on VUSB_IN |
+| U11 | IO1/IO2 pairs | To J13 D+/D− stubs (power-only port; D± go nowhere else) |
+| F2 polyfuse | pin 1 / pin 2 | VUSB_IN → VUSB |
+| C27 (4.7µF) | pin 1 | VUSB after F2 |
+| U12 TP5100 | VCC/VIN | VUSB; C28 (10µF) pin 1 at pin |
+| R36 (100k) | pin 1 | VUSB → CE (see CE note; candidate DNP) |
+| J13 | CC1 → R50 (5.1k) → GND; CC2 → R51 (5.1k) → GND | Sink advertising 5 V |
+
+### USB_CE (TP5100 charge enable)
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| U12 TP5100 | CE | HIGH = charge enabled |
+| U6 ESP32-C6 | GPIO4 | Drives HIGH while awake to charge |
+| R37 (4.7k) | pin 1 | CE → GND: fail-safe off at reset/boot/deep-sleep |
+| R36 (100k) | pin 2 | CE ← VUSB (dominated by R37; candidate DNP) |
+
+### /CHRG_USB
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| U12 TP5100 | /CHRG | Open-drain status |
+| R38 (4.7k) | pin 2 | Pull-up to +3V3 |
+| TP15 | pad | Hardware-only test point (no GPIO) |
+
+### TP5100 PROG
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| U12 TP5100 | PROG | R35 (1.2k) to GND → I = 1200/1.2k ≈ 1 A |
+
+> ⚠️ **CRITICAL — do not tape out as-is:** TP5100 is a step-down charger; from 5 V USB it cannot reach the 8.4 V 2S CV point. Replace with a 5 V→2S boost charger (e.g. Injoinic IP2326-class) or insert a 5 V→12 V pre-boost ahead of TP5100 VIN. Also verify package (likely QFN-16, not SOP-8) and the 2S-select (CX) strap. See verification blockers.
+
+### AP63203WU buck (U1)
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| U1 | VIN | VBAT; C9/C10/C16 at pin |
+| U1 | EN | R11 (10k) to VBAT — always on |
+| U1 | SW | → L2 pin 1 |
+| L2 | pin 2 | +3V3 rail (C_BUCK/C11/C12 here) |
+| U1 | FB | **Tie directly to +3V3** (fixed 3.3 V part). R_FBH/R_FBL are DNP. |
+| U1 | BST | Left as symbol pin; original design leaves it unconnected (bootstrap integrated per AP6320x family). **Verify against datasheet** — if an external 100 nF BST–SW cap is required, add one. |
+
+### ADS_DRDY
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| U9 ADS1115 | ALERT (pin 2) | Open-drain conversion-ready |
+| R_DRDY (4.7k) | pin 2 | Pull-up to +3V3 |
+| U6 ESP32-C6 | GPIO12 | Falling-edge interrupt |
+| TP12 | pad | Test point |
+
+### I2C_SDA / I2C_SCL
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| U9 ADS1115 | SDA (pin 9) / SCL (pin 10) | True TI MSOP-10 numbering: ADDR=1, ALERT=2, GND=3, AIN0=4, AIN1=5, AIN2=6, AIN3=7, VDD=8, SDA=9, SCL=10 |
+| U6 ESP32-C6 | GPIO10 (SDA) / GPIO11 (SCL) | |
+| R9 / R10 (4.7k) | pin 2 | Pull-ups to +3V3 |
+| J8 | SDA/SCL pins | I²C header (DNF): 3V3 / GND / SDA / SCL |
+| TP8 / TP9 | pads | Test points |
+
+### ADC_CH0 / ADC_CH1 (4-20 mA inputs)
+
+CH1 path: `J4 SIG → D9 clamp → R2 shunt (‖ C34) → R3 → ADC_CH0 (C3, C4, D1 ch.1) → U9 AIN0`
+
+| Component | Pin | Net segment | Note |
+|-----------|-----|-------------|------|
+| J4 | SIG (pin 2) | LOOP_TERM_CH1 | Loop return from transmitter |
+| D9 SMAJ3.3CA | terminal 1 | LOOP_TERM_CH1 | Clamp to GND |
+| R2 (100Ω 0.1%) | pin 1 | LOOP_TERM_CH1 | Shunt top; **pin 2 → GND** (loop current returns through R2) |
+| C34 (10nF) | pins 1–2 | across R2 | HF bypass, within 1 mm |
+| R3 (100Ω) | pin 1 | LOOP_TERM_CH1 (shunt top) | Series limiter |
+| R3 | pin 2 | ADC_CH0 | |
+| C3 (1µF), C4 (10µF) | pin 1 | ADC_CH0 | RC filter / bulk |
+| D1 PRTR5V0U2X | IO1 | ADC_CH0 | Clamp to +3V3/GND |
+| U9 ADS1115 | AIN0 | ADC_CH0 | 20 mA × 100 Ω = 2.0 V max, PGA ±2.048 V |
+| TP5 | pad | LOOP_TERM_CH1 | At shunt top |
+
+CH2 identical: `J5 SIG → D10 → R4 (‖ C35) → R5 → ADC_CH1 (C5, C6, D1 IO2) → U9 AIN1`, TP6 at shunt top.
+
+### ADC_CH2 (battery divider — corrected high-side gating)
+
+Path: `VBAT → Q5 (P-FET) → R7 (330k) → mid (ADC_CH2) → R8 (100k) → GND`
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| Q5 AO3407 | S | VBAT |
+| Q5 AO3407 | D | VBAT_SW → R7 pin 1 |
+| Q5 AO3407 | G | Q5_GATE: R16 (100k) to VBAT; Q2 drain pulls low to enable |
+| Q2 BSS123 | D | Q5_GATE |
+| Q2 BSS123 | G | BATT_DIV_EN (GPIO15), R26 (4.7k) pull-down |
+| Q2 BSS123 | S | GND |
+| R7 | pin 2 | ADC_CH2 (mid) |
+| R8 | pin 1 / pin 2 | mid / GND |
+| C8 (**1 nF**) | pins 1–2 | across R8 — τ ≈ 77 µs, settles well inside the 1 ms firmware enable window |
+| U9 ADS1115 | AIN2 | 8.4 V × 100/430 = 1.95 V max |
+
+> With Q5 off, the divider is fully dead: AIN2 rests at 0 V through R8 and there is no sneak path into the ADS1115 ESD diodes (the old low-side switch leaked ~14 µA into AIN2 during sleep).
+
+### 1WIRE
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| J6 | DATA (pin 2) | DS18B20 data |
+| D12 PRTR5V0U2X | IO1 | Clamp at terminal (IO2 = NC) |
+| R6 (4.7k) | pin 2 | Pull-up to +3V3 |
+| R32 (33Ω, **populate**) | pin 1 / pin 2 | Terminal side / GPIO side series resistor |
+| U6 ESP32-C6 | GPIO7 | 1-Wire master |
+| TP7 | pad | GPIO7 side of R32 |
+| J6 VCC (pin 1) | ← R28 (100Ω) ← +3V3 | C7 (100nF) at J6 pin 1. External power mode only |
+
+### EN (ESP32 reset)
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| U6 ESP32-C6 | EN | |
+| R15 (10k, **new**) | pin 2 | Pull-up to +3V3 |
+| C36 (1µF, **new**) | pin 1 | To GND — 10 ms power-on delay |
+| SW1 | pin 1 | Push to GND = reset |
+| J10 | EN pin | Programming header |
+
+### BOOT
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| U6 ESP32-C6 | GPIO9 | Strapping (LOW = download mode) |
+| R12 (10k) | pin 2 | Pull-up to +3V3 |
+| SW2 | pin 1 | Push to GND |
+| J10 | GPIO9 pin | |
+
+GPIO8 strapping: R13 (10k) pull-up to +3V3, no other connection.
+
+### GPIO14_LED (status LED — moved off GPIO13)
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| U6 ESP32-C6 | **GPIO14** | LED drive (was GPIO13 — conflicted with factory-reset strap) |
+| R14 (1k) | pin 1 / pin 2 | GPIO14 / D4 anode |
+| D4 green | cathode | → SJ3 → GND (SJ3 bridged; open to save current) |
+
+### FACTORY_RESET
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| U6 ESP32-C6 | GPIO13 | Internal pull-up at boot; hold LOW ≥ boot = NVS erase + rejoin |
+| TP13 (**new**) | pad | Field-accessible pad — short to TP4/GND while powering on |
+
+### UART_TX / UART_RX
+
+| Component | Pin | Note |
+|-----------|-----|------|
+| U6 ESP32-C6 | GPIO16 (TX) / GPIO17 (RX) | UART0 default pins |
+| SJ4 / SJ5 | A→B | In series to J10 (bridged by default — see resolution table on jumper variant) |
+| J10 | TX/RX pins | Programming header: TX / RX / GND / 3V3 / GPIO9 / EN |
+
+### J7 spare sensor / J9 GPIO header
+
+- J7: pin 1 = +3V3, pin 2 = GPIO3 (spare ADC), pin 3 = GND.
+- J9 (8-pin, DNF): +3V3, GND, GPIO0, GPIO1, GPIO2, GPIO3, GPIO20, GPIO21.
+
+### RF
+
+`U6 U.FL pad → W1 pigtail (hand-fitted) → J3 SMA`. J3 RF pin has no PCB trace; GND ring to plane.
 
 ---
 
 ## Power-On Sequence Reference
 
-1. Battery connects → VBAT_RAW present → D5 auto-on (or R31/firmware-controlled) → VBAT available
-2. AP63205WU starts → +3V3 rail up (R_FBH/R_FBL set to 3.31V) → ESP32 boots
-3. Firmware: GPIO5 HIGH → MT3608B enables → VLOOP = 12V → 4-20mA transducer powered
-4. Firmware: GPIO15 HIGH → Q2 on → battery divider active → ADS1115 reads AIN2
-5. Firmware: GPIO15 LOW, GPIO5 LOW → everything off before deep sleep
+1. Battery connects → VBAT_RAW → D5 body diode conducts, then channel enhances (gate at GND via R31) → VBAT.
+2. U1 (fixed 3.3 V) starts (EN via R11) → +3V3 → C36/R15 delay → ESP32 boots.
+3. Boost and both chargers idle: R27 holds MT3608B EN + Q4 low; R37 holds TP5100 CE low; CN3722 charges autonomously whenever panel power is present.
+4. Firmware: GPIO5 HIGH → U8 EN + Q4 → Q3 closes → VLOOP = 12 V (allow ≥5 ms, recommend 10 ms for C20/C22 charge through Q3) → loop read → GPIO5 LOW.
+5. Firmware: GPIO15 HIGH → Q2 → Q5 closes → divider live (settles < 1 ms with C8 = 1 nF) → AIN2 read → GPIO15 LOW.
+6. Deep sleep: all control GPIOs driven LOW then isolated; R27/R26/R37/R31 define every switch state passively. No DC path from VBAT except U1, R11, and IC quiescents.
+
+---
+
+## Symbol pin-number verification
+
+Wiring above uses **pin names**. Before assigning footprints / generating a netlist, verify these symbol pin **numbers** against datasheets — several are known or suspected wrong:
+
+| Symbol | Status |
+|--------|--------|
+| welld:ADS1115 | ✅ matches TI MSOP-10 (ADDR=1 … SCL=10) |
+| welld:AO3407 | ✅ G=1, S=2, D=3 (SOT-23) |
+| welld:AP63205WU (used for U1) | ⚠️ numbering EN=1, GND=2, FB=3, VIN=4, SW=5, BST=6 — **verify against Diodes TSOT-26 datasheet**; also rename to AP63203WU |
+| welld:MT3608B | ❌ suspect — classic MT3608 SOT-23-6 is SW=1, GND=2, FB=3, EN=4, IN=5, NC=6. Symbol has IN=1, SW=5, BST=6. Fix numbering (or the footprint mapping) before layout |
+| welld:USBLC6_2SC6 | ❌ suspect — real part: IO1=1, GND=2, IO2=3, IO2'=4, VBUS=5, IO1'=6. Symbol has VBUS=1, GND=4 |
+| welld:TP5100 | ❌ 8-pin symbol; real TP5100 is likely QFN-16 with CX (cell-count) pin — resolve with the charger-architecture fix |
+| welld:CN3722 | ⚠️ 8-pin symbol; part is likely SSOP-10 (with /DONE pin). Verify pinout + package |
+| welld:PRTR5V0U2X | ⚠️ 6-pin symbol / SOT-363 footprint; real PRTR5V0U2X is SOT-143B (4 pins: I/O1, I/O2, VCC, GND) |
+| welld:ESP32_C6_MINI_1U | ⚠️ custom numbering — replace with the official Espressif KiCad symbol/footprint before layout |
+
+---
+
+## Datasheet verification blockers (resolve before tape-out)
+
+1. **U1 identity**: confirm AP63203WU = 3.3 V fixed / AP63205WU = 5 V fixed / AP63200WU = adjustable (VFB 0.8 V), and whether the BST pin needs an external cap. Pick AP63203WU (preferred, R_FBH/R_FBL stay DNP) or AP63200WU (fit R_FBH=390k, R_FBL=124k).
+2. **U12 TP5100**: step-down charger cannot charge 2S from 5 V. Choose replacement (IP2326-class 5 V→2S boost charger) or add pre-boost; then fix symbol/package/CX strap.
+3. **U8 MT3608B**: confirm pinout, whether pin 6 is BST or NC (C_BST fitted either way — harmless on NC), and switch-current/sync-rectifier details. D15 + Q3/Q4 disconnect are required regardless unless the chosen part has true load disconnect.
+4. **U7 CN3722**: confirm package (SSOP-10?), current-set mechanism (VPROG resistor vs CSP/CSN sense resistor), /DONE pin, and MPPT/FB pin numbering.
+5. **ESP32-C6-MINI-1U**: replace custom symbol with the Espressif library part.
 
 ---
 
@@ -344,9 +488,16 @@ CH2 is identical: J5 → D10 → R4 → R5 → D1 channel 2 → C5/C6 → U9 AIN
 
 | Symbol | Issue | Action in KiCad |
 |--------|-------|-----------------|
-| C25 (100nF, at 66.04,185.42 in power.kicad_sch) | Documented as removed but present in schematic | Either wire it as C_BST (BST→SW) and delete new C_BST symbol, or delete C25 |
-| C16 (10µF, at 96.52,90.17 in power.kicad_sch) | No BOM row — may be C_BUCK | If it is C_BUCK: rename to C_BUCK and delete new C_BUCK symbol; otherwise delete |
-| R_FBH / R_FBL | Added as symbols with no wires | Wire: +3V3 → R_FBH pin1 → R_FBH pin2 → (FB net) → R_FBL pin1 → R_FBL pin2 → GND |
-| R_DRDY | Added as symbol with no wires | Wire: +3V3 → R_DRDY pin1 → R_DRDY pin2 → ADS_DRDY net |
-| C_BST | Added as symbol with no wires | Wire: U8 BST(pin6) → C_BST pin1 → C_BST pin2 → U8 SW(pin3) node |
-| C_BUCK | Added as symbol with no wires | Wire: +3V3 → C_BUCK pin1 → C_BUCK pin2 → GND; place after L2 output |
+| R_FBH / R_FBL | Marked DNP in schematic (fixed-3.3 V U1 needs no divider) | Leave DNP for AP63203WU; if AP63200WU chosen, set values 390k/124k and clear DNP |
+| Q3, Q4, R29, D15 | VLOOP disconnect + rectifier — **not yet placed as symbols** | Add to power sheet per the VLOOP section above (Q3=AO3407, Q4=BSS123, R29=100k 0402, D15=SS34 SMA) |
+| R25, R27 | New pull-up/pull-down — **not yet placed** | Add to power sheet (R25 4.7k 0402, R27 100k 0402) |
+| Q5, R16 | Battery divider high-side switch — **not yet placed** | Add to sensors sheet (Q5=AO3407, R16=100k 0402); rewire Q2 as its gate driver per ADC_CH2 section |
+| R15, C36 | ESP32 EN RC — **not yet placed** | Add to mcu sheet (10k 0402, 1µF 0402) |
+| TP13 | Factory-reset pad — **not yet placed** | Add to interfaces sheet (TestPoint_Pad, net GPIO13) |
+| C8 | Value change 100nF → 1nF | Edit value in sensors sheet |
+| D8, D14 | SMAJ28CA → SMAJ24CA | Edit values in power sheet |
+| C17 | 25 V → 35 V rating (footprint 0805 → 1206) | Edit value/footprint in power sheet |
+| SJ2/SJ3 (and new SJ4/SJ5) | All five SJ symbols use the *Open* variant; SJ2/SJ3/SJ4/SJ5 should default **bridged** | Swap symbol/footprint variant |
+| U6 | Custom symbol | Replace with Espressif official symbol + footprint |
+| C25 | ~~Duplicate of C_BST~~ | ✅ Deleted 2026-07-05 |
+| C16 | ~~Unidentified~~ | ✅ Assigned: U1 VIN bulk 10 µF 16 V 0805 |

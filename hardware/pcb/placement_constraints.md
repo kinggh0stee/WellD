@@ -23,21 +23,24 @@ These components must land on a specific board edge:
 ## Must-Be-Near Groups (hard rules from datasheets)
 
 ### Group A — MT3608B boost hot loop
-`U8 → L1 → C20/C22` must form a tight triangle.
-- L1 within **3mm** of U8 SW pin (pin 3)
-- C20 and C22 within **3mm** of U8 VOUT
-- C_BST (100nF) within **1mm** of U8 BST pin (pin 6) to SW node
-- C19 within **2mm** of U8 VIN pin
+`Q3 → L1 → U8 SW → D15 → C20/C22` — the SW→D15→C20/C22 loop must be tight.
+- L1 within **3mm** of U8 SW pin
+- D15 (SS34 rectifier) within **3mm** of U8 SW pin; C20/C22 within **3mm** of D15 cathode
+- C_BST (100nF) within **1mm** of U8 BST pin to SW node (fit even if pin 6 proves to be NC)
+- C19 within **2mm** of U8 IN pin
+- Q3/Q4/R29 (VLOOP disconnect) upstream of L1 — not timing-critical, keep within ~10mm
+- R27 (VBOOST_EN pull-down) anywhere on the GPIO5 net
 - **No copper pour under L1 on either layer** — switching node EMI
 - Keep the SW→L1→VOUT hot trace under **10mm**, min **0.5mm wide**
 - Surround this island with a GND via-stitch perimeter
 
-### Group B — AP63205 buck
+### Group B — AP63203 buck
 `U1 → L2 → C_BUCK`
 - L2 within **5mm** of U1 SW pin
 - C_BUCK (10µF 0805) on the output side of L2, within **3mm**
-- C9/C10 on U1 VIN side, within **2mm**
+- C9/C10/C16 on U1 VIN side, within **2mm** (C16 = 10µF bulk)
 - C11/C12 on +3V3 output rail, near L2 output
+- R_FBH/R_FBL are DNP (fixed-output U1); keep the pads near U1 FB in case the adjustable variant is fitted
 
 ### Group C — ADS1115 analog island
 `U9, FB1, C23, C24, R9, R10, R_DRDY`
@@ -55,22 +58,23 @@ These components must land on a specific board edge:
 - U7 and U8 must be **≥8mm apart**
 
 ### Group E — 4-20mA shunt and protection chain (CH1)
-`J4 → D9 → R2 → C_SH1 → R3 → D1 → C3/C4 → U9 AIN0`
+`J4 → D9 → R2 → C34 → R3 → D1 → C3/C4 → U9 AIN0`
 - D9 within **3mm** of J4 SIG terminal
-- C_SH1 within **1mm** of R2 pads (across the shunt)
-- TP5 (test point) between R2 and R3
-- Same grouping for CH2: `J5 → D10 → R4 → C_SH2 → R5 → D1 CH2 → C5/C6 → U9 AIN1`
+- C34 within **1mm** of R2 pads (across the shunt)
+- TP5 (test point) at the R2/R3 shunt-top node
+- Same grouping for CH2: `J5 → D10 → R4 → C35 → R5 → D1 CH2 → C5/C6 → U9 AIN1`
 
 ### Group F — ESP32-C6 module decoupling
-`U6, C14a–C14d, C15`
-- All four 100nF caps (C14a–C14d) within **2mm** of the module VCC3V3 pads
+`U6, C13, C30–C33, C15, R15, C36`
+- All five 100nF caps (C13, C30–C33) within **2mm** of the module VCC3V3 pads
 - C15 (10µF bulk) within **5mm** of module
+- R15/C36 (EN reset RC) within **5mm** of the module EN pad, C36 ground via short
 - Keep a **15mm no-copper keep-out** zone around the module's on-chip antenna area (the far end from the U.FL pad) on both layers
 
-### Group G — TP5100 USB charger cluster
-`J13, U11, F2, U12, C27, C28, C29, R35, R36, R37, R38, R_CC1, R_CC2`
+### Group G — TP5100 USB charger cluster (⚠️ architecture unresolved — see BOM)
+`J13, U11, F2, U12, C27, C28, C29, R35, R36, R37, R38, R50, R51`
 - U12 near J13; keep VIN trace (F2 → U12 VIN) under **10mm**
-- R_CC1 and R_CC2 within **3mm** of J13 CC1/CC2 pins
+- R50 and R51 within **3mm** of J13 CC1/CC2 pins
 - C28 within **2mm** of U12 VIN pin
 - C29 within **3mm** of U12 VBAT pin
 - R35 within **3mm** of U12 PROG pin
@@ -82,6 +86,11 @@ These components must land on a specific board edge:
 - D13 (SMAJ10CA) within **5mm** of J1 BAT+ pin
 - D5 and R31 between D13 and VBAT rail — R31 within **2mm** of D5 gate
 
+### Group K — Battery divider (gated)
+`Q5, R16, Q2, R26, R7, R8, C8`
+- Whole group near U9's analog island; the ADC_CH2 trace (R7/R8 mid → U9 AIN2) short and away from L1/L2
+- C8 (1nF) directly across R8
+
 ### Group I — DS18B20 interface
 `J6, D12, R6, R28, R32`
 - D12 within **3mm** of J6 DATA terminal (pin 2)
@@ -90,9 +99,9 @@ These components must land on a specific board edge:
 
 ### Group J — Solar input protection
 `J12, D14, D6, D8, C17, C21`
-- D14 within **3mm** of J12 SOLAR+ pin (first TVS at the terminal)
+- D14 (SMAJ24CA) within **3mm** of J12 SOLAR+ pin (first TVS at the terminal)
 - D6 between D14 and U7 VIN (Schottky backfeed block)
-- D8 within **5mm** of C17 (second-stage TVS at CN3722 VIN)
+- D8 (SMAJ24CA) within **5mm** of C17 (second-stage TVS at CN3722 VIN)
 - C21 within **3mm** of D8
 
 ---
@@ -133,7 +142,7 @@ W1 is a hand-attached cable — it is NOT pick-and-place. PCBWay installs it man
 
 ## Test Point Placement Notes
 
-- TP1/TP3/TP4: group near U1 AP63205 buck output
+- TP1/TP3/TP4: near U1 buck (TP1=VBAT at U1 VIN side, TP3=+3V3 at output, TP4=GND)
 - TP2: near C20/C22 on VLOOP rail
 - TP5/TP6: within 3mm of R2/R4 (on the R3/R5 side of the shunt)
 - TP7: near J6 DATA, on the GPIO7 side of D12
@@ -141,4 +150,6 @@ W1 is a hand-attached cable — it is NOT pick-and-place. PCBWay installs it man
 - TP10: near J12 solar input terminal
 - TP11: near J1 BAT+ terminal (before D5)
 - TP12: near U6 GPIO12 area
+- TP13 (FACTORY_RESET): board edge or otherwise reachable with the lid off — field-recovery pad, pair visually with TP4 (GND)
+- TP14: near U7 /CHRG pin
 - TP15: near U12 /CHRG pin

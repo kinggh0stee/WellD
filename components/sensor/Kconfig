@@ -61,9 +61,9 @@ menu "WellD Sensor"
         range 3000 12000
         help
             Voltage read at 100 % state of charge. 8400 = 2S1P 18650 (2 × 4.2 V).
-            Used by the Z2M converter; also used by the firmware as the
-            threshold below which Zigbee sends and NVS writes are skipped
-            to protect a nearly-dead cell from brown-out during TX.
+            Used by the Z2M converter to compute the battery percentage.
+            (The low-battery send/NVS-skip guard uses WELLD_BATT_EMPTY_MV,
+            not this option.)
 
     config WELLD_BATT_EMPTY_MV
         int "Battery empty voltage (mV)"
@@ -117,9 +117,11 @@ menu "WellD Sensor"
         default 5
         help
             Drive HIGH before any 4-20 mA transducer read; hold HIGH for
-            at least 5 ms to guarantee the MT3608B output rail is stable
-            (datasheet soft-start < 5 ms typical);
-            drive LOW immediately after. Max ON time 100 ms per wake cycle.
+            at least 10 ms to guarantee the 12 V rail is stable — the boost
+            output caps (C20/C22) charge through the Q3 load-disconnect
+            P-FET, so the rail settles slower than the bare MT3608B
+            soft-start (< 5 ms typical). Drive LOW immediately after.
+            Max ON time 100 ms per wake cycle.
 
     config WELLD_BATT_DIV_EN_GPIO
         int "Battery divider enable GPIO (Q2 gate)"
@@ -145,11 +147,11 @@ menu "WellD Sensor"
             Timeout fallback of 10 ms protects against a missing edge.
 
     config WELLD_SOLAR_DETECT_GPIO
-        int "Solar charging detect GPIO (CN3791 CHRG)"
+        int "Solar charging detect GPIO (CN3722 /CHRG)"
         range 0 21
         default 6
         help
-            Input. Active-low: LOW means the CN3791 MPPT charger is actively
+            Input. Active-low: LOW means the CN3722 MPPT charger is actively
             charging. HIGH means no solar charging. Reported to the Zigbee
             coordinator as part of the status payload.
 

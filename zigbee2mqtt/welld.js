@@ -1,5 +1,5 @@
 const fz = require('zigbee-herdsman-converters/converters/fromZigbee');
-const {numeric, access: ea} = require('zigbee-herdsman-converters/lib/exposes');
+const {numeric, binary, access: ea} = require('zigbee-herdsman-converters/lib/exposes');
 const {convertAnalogInput} = require('./lib/welld_convert');
 
 const definition = {
@@ -35,13 +35,12 @@ const definition = {
             .withUnit('cm/h')
             .withDescription('Water level rate of change. Positive = rising (recovering), negative = falling (draw-down). Only reported once two valid readings are in.'),
         numeric('zb_fails', ea.STATE)
-            .withUnit('')
+            .withValueMin(0).withValueMax(255)
             .withDescription('Consecutive Zigbee send failures since last success. 0 = healthy. Warnings at 3+, auto-rejoin at 5.'),
         numeric('linkquality', ea.STATE)
-            .withUnit('')
+            .withValueMin(0).withValueMax(255)
             .withDescription('Zigbee link quality indicator (LQI), 0-255. Higher is better.'),
-        numeric('solar_charging', ea.STATE)
-            .withUnit('')
+        binary('solar_charging', ea.STATE, true, false)
             .withDescription('Solar charging active. true = charging, false = not charging.'),
     ],
     options: [

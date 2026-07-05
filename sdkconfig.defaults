@@ -38,6 +38,9 @@ CONFIG_SECURE_BOOT=y
 CONFIG_SECURE_SIGNED_APPS_ECDSA_V2_SCHEME=y
 # BUILD_SIGNED_BINARIES is intentionally off in shared defaults — CI builds
 # unsigned; enable in sdkconfig.defaults.local on the machine that holds the key.
+# It must be set to "n" explicitly: with CONFIG_SECURE_BOOT=y the Kconfig
+# default is y, which makes the build require the gitignored signing key.
+CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=n
 # CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y
 # CONFIG_SECURE_BOOT_SIGNING_KEY="secure_boot_signing_key.pem"
 

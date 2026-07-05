@@ -6231,7 +6231,7 @@
 		)
 		(uuid "11761dd3-4a32-4ebb-a55b-b17ba592bef0")
 	)
-	(hierarchical_label "GPIO13_LED"
+	(hierarchical_label "GPIO14_LED"
 		(shape output)
 		(at 254 88.9 0)
 		(effects

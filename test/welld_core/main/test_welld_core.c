@@ -50,6 +50,21 @@ static void test_post_send_failure_increments(void)
     TEST_ASSERT_EQUAL_INT(WELLD_FAIL_INCREMENT, welld_post_send_action(4, false));
 }
 
+static void test_post_send_success_at_wipe_threshold(void)
+{
+    /* A send that succeeds with the counter already at/above the wipe
+     * threshold still resets — success always clears the counter. */
+    TEST_ASSERT_EQUAL_INT(WELLD_FAIL_RESET, welld_post_send_action(5, true));
+    TEST_ASSERT_EQUAL_INT(WELLD_FAIL_RESET, welld_post_send_action(1000, true));
+}
+
+static void test_post_send_failure_ignores_count(void)
+{
+    /* Failure increments no matter how large the counter already is. */
+    TEST_ASSERT_EQUAL_INT(WELLD_FAIL_INCREMENT, welld_post_send_action(5, false));
+    TEST_ASSERT_EQUAL_INT(WELLD_FAIL_INCREMENT, welld_post_send_action(0xFFFFFFFFu, false));
+}
+
 /* welld_zb_encode_temp ----------------------------------------------------- */
 
 static void test_encode_temp_positive(void)
@@ -195,6 +210,40 @@ static void test_rate_accumulated_elapsed(void)
         welld_rate_cm_per_hour(2.0f, 2.5f, 1500));
 }
 
+static void test_rate_nan_after_history_invalidation(void)
+{
+    /* Low-battery invalidation contract (main.c): the low-battery path sets
+     * s_history.valid = false and zeroes elapsed_since_last_valid_sec. On the
+     * first valid reading after recovery main.c skips the rate call entirely,
+     * but even a stale last_level_m paired with the zeroed elapsed counter
+     * must yield NaN — never a huge false rate spike. */
+    TEST_ASSERT_TRUE(isnan(welld_rate_cm_per_hour(2.0f, 4.5f, 0)));
+}
+
+static void test_rate_nan_input_propagates(void)
+{
+    /* Defensive: a NaN level on either side must never produce a finite rate
+     * (EP4 is only reported when the rate is finite). */
+    TEST_ASSERT_TRUE(isnan(welld_rate_cm_per_hour(NAN, 2.0f, 3600)));
+    TEST_ASSERT_TRUE(isnan(welld_rate_cm_per_hour(2.0f, NAN, 3600)));
+}
+
+static void test_rate_both_invalid_returns_nan(void)
+{
+    /* Two consecutive open-loop readings → still no rate. */
+    TEST_ASSERT_TRUE(isnan(welld_rate_cm_per_hour(-1.0f, -1.0f, 3600)));
+}
+
+static void test_rate_zero_level_is_valid(void)
+{
+    /* 0.0 m is a legitimate reading (empty well), not a sentinel — rate must
+     * be computed, not NaN. 0.0 → 0.5 m over 1 h = +50 cm/h. */
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 50.0f,
+        welld_rate_cm_per_hour(0.0f, 0.5f, 3600));
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, -50.0f,
+        welld_rate_cm_per_hour(0.5f, 0.0f, 3600));
+}
+
 /* welld_adaptive_sleep_sec ------------------------------------------------- */
 /*
  * Five-band schedule (tuned for well behaviour):
@@ -280,6 +329,38 @@ static void test_adaptive_sleep_boundary_20(void)
     TEST_ASSERT_EQUAL_UINT32(60, welld_adaptive_sleep_sec(20.0f, 300, 60, 1800));
 }
 
+static void test_adaptive_sleep_fast_band_clamps_to_min(void)
+{
+    /* Fast band is default / 2: with default = 100 that gives 50, which is
+     * below min_sec = 60 → the clamp must lift it back to min_sec. */
+    TEST_ASSERT_EQUAL_UINT32(60, welld_adaptive_sleep_sec(15.0f, 100, 60, 1800));
+}
+
+static void test_adaptive_sleep_slow_band_clamps_to_max(void)
+{
+    /* Slow band is default × 2: with default = 1000 that gives 2000, above
+     * max_sec = 1800 → the clamp must cap it at max_sec. */
+    TEST_ASSERT_EQUAL_UINT32(1800, welld_adaptive_sleep_sec(3.0f, 1000, 60, 1800));
+}
+
+static void test_adaptive_sleep_fast_band_exact_half(void)
+{
+    /* default / 2 lands exactly on min_sec: no clamp needed, value passes. */
+    TEST_ASSERT_EQUAL_UINT32(60, welld_adaptive_sleep_sec(15.0f, 120, 60, 1800));
+}
+
+static void test_adaptive_sleep_boundary_just_below_2(void)
+{
+    /* 1.999 cm/h stays in the idle band → max_sec. */
+    TEST_ASSERT_EQUAL_UINT32(1800, welld_adaptive_sleep_sec(1.999f, 300, 60, 1800));
+}
+
+static void test_adaptive_sleep_boundary_just_below_20(void)
+{
+    /* 19.999 cm/h stays in the heavy-pumping band → default / 2. */
+    TEST_ASSERT_EQUAL_UINT32(150, welld_adaptive_sleep_sec(19.999f, 300, 60, 1800));
+}
+
 static int run_tests(void)
 {
     UNITY_BEGIN();
@@ -289,6 +370,8 @@ static int run_tests(void)
     RUN_TEST(test_post_send_success_already_zero);
     RUN_TEST(test_post_send_success_after_failures);
     RUN_TEST(test_post_send_failure_increments);
+    RUN_TEST(test_post_send_success_at_wipe_threshold);
+    RUN_TEST(test_post_send_failure_ignores_count);
     RUN_TEST(test_encode_temp_positive);
     RUN_TEST(test_encode_temp_negative);
     RUN_TEST(test_encode_temp_zero);
@@ -309,6 +392,10 @@ static int run_tests(void)
     RUN_TEST(test_rate_open_loop_returns_nan);
     RUN_TEST(test_rate_zero_elapsed_returns_nan);
     RUN_TEST(test_rate_accumulated_elapsed);
+    RUN_TEST(test_rate_nan_after_history_invalidation);
+    RUN_TEST(test_rate_nan_input_propagates);
+    RUN_TEST(test_rate_both_invalid_returns_nan);
+    RUN_TEST(test_rate_zero_level_is_valid);
     RUN_TEST(test_adaptive_sleep_stable_stretches);
     RUN_TEST(test_adaptive_sleep_slow_drift);
     RUN_TEST(test_adaptive_sleep_normal);
@@ -321,6 +408,11 @@ static int run_tests(void)
     RUN_TEST(test_adaptive_sleep_boundary_5);
     RUN_TEST(test_adaptive_sleep_boundary_10);
     RUN_TEST(test_adaptive_sleep_boundary_20);
+    RUN_TEST(test_adaptive_sleep_fast_band_clamps_to_min);
+    RUN_TEST(test_adaptive_sleep_slow_band_clamps_to_max);
+    RUN_TEST(test_adaptive_sleep_fast_band_exact_half);
+    RUN_TEST(test_adaptive_sleep_boundary_just_below_2);
+    RUN_TEST(test_adaptive_sleep_boundary_just_below_20);
     return UNITY_END();
 }
 

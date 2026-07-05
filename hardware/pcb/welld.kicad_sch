@@ -356,7 +356,7 @@
 				(justify left)
 			)
 		)
-		(pin "GPIO13_LED" output
+		(pin "GPIO14_LED" output
 			(at 304.8 50.8 0)
 			(uuid "30fa27f0-99ee-4c31-92e5-a5a2cd4e54e8")
 			(effects
@@ -575,7 +575,7 @@
 				(justify right)
 			)
 		)
-		(pin "GPIO13_LED" input
+		(pin "GPIO14_LED" input
 			(at 177.8 342.9 180)
 			(uuid "1c5dec3c-47e8-445d-bd7b-7fecc0472212")
 			(effects

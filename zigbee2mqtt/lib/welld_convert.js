@@ -4,23 +4,44 @@
 const DEFAULT_BATTERY_FULL_MV  = 8400;
 const DEFAULT_BATTERY_EMPTY_MV = 6000;
 
+/* ZCL AnalogInput presentValue must decode to a plain finite number. Anything
+   else (strings, booleans, NaN, ±Infinity, missing) is a malformed report —
+   reject it instead of letting `.toFixed()` throw inside the fromZigbee
+   handler. Note the global `isFinite()` is NOT safe here: it coerces
+   (isFinite("2.5") === true), so use Number.isFinite on the raw value. */
+function finitePresentValue(presentValue) {
+    if (typeof presentValue !== 'number' || !Number.isFinite(presentValue)) return undefined;
+    return presentValue;
+}
+
+/* Device options may arrive from YAML as strings ("8400"); coerce, and fall
+   back to the default for anything missing or non-finite. */
+function optionMv(value, fallback) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+}
+
 /* Endpoint 1: water level in metres. Negative present_value means the
    transducer loop is open — surface this to HA as null so the entity goes
    unavailable rather than reading "0 m". */
 function convertLevel(presentValue) {
-    if (presentValue == null || !isFinite(presentValue)) return undefined;
-    if (presentValue < 0) return null;
-    return parseFloat(presentValue.toFixed(2));
+    const value = finitePresentValue(presentValue);
+    if (value === undefined) return undefined;
+    if (value < 0) return null;
+    return parseFloat(value.toFixed(2));
 }
 
 /* Endpoint 2: battery voltage + percentage. Percentage is linear between the
-   user-configured full/empty thresholds and clamped to [0, 100]. */
+   user-configured full/empty thresholds and clamped to [0, 100]. A
+   misconfigured threshold pair (full <= empty) makes the percentage
+   incomputable, but the voltage reading is still valid — report it alone. */
 function convertBattery(presentValue, options = {}) {
-    if (presentValue == null || !isFinite(presentValue)) return undefined;
-    const voltage = parseFloat(presentValue.toFixed(2));
-    const fullMv  = options.battery_full_mv  ?? DEFAULT_BATTERY_FULL_MV;
-    const emptyMv = options.battery_empty_mv ?? DEFAULT_BATTERY_EMPTY_MV;
-    if (fullMv === emptyMv) return undefined;
+    const value = finitePresentValue(presentValue);
+    if (value === undefined) return undefined;
+    const voltage = parseFloat(value.toFixed(2));
+    const fullMv  = optionMv(options.battery_full_mv,  DEFAULT_BATTERY_FULL_MV);
+    const emptyMv = optionMv(options.battery_empty_mv, DEFAULT_BATTERY_EMPTY_MV);
+    if (fullMv <= emptyMv) return {battery_voltage: voltage};
     const pct = Math.min(100, Math.max(0,
         Math.round((voltage * 1000 - emptyMv) / (fullMv - emptyMv) * 100)));
     return {battery_voltage: voltage, battery: pct};
@@ -30,26 +51,30 @@ function convertBattery(presentValue, options = {}) {
    level rising (well recovering), negative = level falling (draw-down).
    Rounded to one decimal for readability. */
 function convertRate(presentValue) {
-    if (presentValue == null || !isFinite(presentValue)) return undefined;
-    return parseFloat(presentValue.toFixed(1));
+    const value = finitePresentValue(presentValue);
+    if (value === undefined) return undefined;
+    return parseFloat(value.toFixed(1));
 }
 
 /* Endpoint 5: Zigbee failure counter (0–255 float). Truncated to integer. */
 function convertFails(presentValue) {
-    if (presentValue == null || !isFinite(presentValue)) return undefined;
-    return Math.min(255, Math.max(0, Math.floor(presentValue)));
+    const value = finitePresentValue(presentValue);
+    if (value === undefined) return undefined;
+    return Math.min(255, Math.max(0, Math.floor(value)));
 }
 
 /* Endpoint 6: Link Quality (LQI), 0–255 integer. */
 function convertLqi(presentValue) {
-    if (presentValue == null || !isFinite(presentValue)) return undefined;
-    return Math.min(255, Math.max(0, Math.round(presentValue)));
+    const value = finitePresentValue(presentValue);
+    if (value === undefined) return undefined;
+    return Math.min(255, Math.max(0, Math.round(value)));
 }
 
 /* Endpoint 7: Solar charging state, 0/1 boolean. */
 function convertSolar(presentValue) {
-    if (presentValue == null || !isFinite(presentValue)) return undefined;
-    return presentValue >= 0.5;
+    const value = finitePresentValue(presentValue);
+    if (value === undefined) return undefined;
+    return value >= 0.5;
 }
 
 /* Mirrors the inline `convert` function in welld.js. Returns undefined when
