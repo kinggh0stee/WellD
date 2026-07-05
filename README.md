@@ -55,9 +55,9 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 | 4  | Output | TP5100 USB charger CE — HIGH enables USB-C charging |
 | 6  | Input  | CN3722 /CHRG — solar-charging-active detect (active-low: LOW = charging) |
 | 7  | 1-Wire | DS18B20 data |
-| 13 | Output | Status LED (D4; disconnect via SJ3) |
+| 13 | Input  | Factory reset (hold LOW at boot → NVS erase + rejoin) |
 | 15 | Output | Battery-divider enable gate (`BATT_DIV_EN`) |
-| 14 | —      | Spare |
+| 14 | —      | Status LED (D4, optional — no firmware support yet) |
 
 ### Connections (screw terminals)
 
@@ -87,7 +87,7 @@ Connector placement on the 100 × 55 mm board:
 
 ### 4–20 mA loop
 
-The MT3608B boost converter lifts VLOOP to 12 V to power the transducer loop. Firmware gates EN high for 5 ms (MT3608B soft-start) before reading, then drives it low immediately after. Maximum ON time is 100 ms.
+The MT3608B boost converter lifts VLOOP to 12 V to power the transducer loop. Firmware gates EN high for 10 ms (MT3608B soft-start plus rail settling through the Q3 load-disconnect P-FET into C20/C22) before reading, then drives it low immediately after. Maximum ON time is 100 ms.
 
 The ADS1115 measures the voltage across a shunt resistor on the loop return. PGA ±2.048 V, single-shot at 860 SPS, AIN0 vs GND.
 

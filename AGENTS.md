@@ -35,7 +35,7 @@ cd zigbee2mqtt && npm test
 ## Architecture Constraints (Load-Bearing)
 
 - **Sensor reads must precede `zigbee_send()`** — the ADC is sensitive to 802.15.4 RF interference.
-- **GPIO5 (VLOOP) HIGH ≥ 5 ms before 4–20 mA read, LOW immediately after.** Max ON time 100 ms.
+- **GPIO5 (VLOOP) HIGH ≥ 10 ms before 4–20 mA read, LOW immediately after.** Max ON time 100 ms. (12 V rail settles through the Q3 load-disconnect P-FET into C20/C22.)
 - **All power-control GPIOs (4, 5, 15) must be held LOW through deep sleep** via `esp_sleep_gpio_isolate()`.
 - **`zigbee_send()` blocks** until radio idle (success/timeout/OTA). Caller must wait for `STOPPED_BIT` before `esp_deep_sleep()` so the radio is fully released.
 - **5 consecutive Zigbee failures → next boot erases NVS** and forces fresh join (namespace `"welld"`, key `"zb_fails"`).

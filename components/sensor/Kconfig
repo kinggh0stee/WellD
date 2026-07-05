@@ -117,9 +117,11 @@ menu "WellD Sensor"
         default 5
         help
             Drive HIGH before any 4-20 mA transducer read; hold HIGH for
-            at least 5 ms to guarantee the MT3608B output rail is stable
-            (datasheet soft-start < 5 ms typical);
-            drive LOW immediately after. Max ON time 100 ms per wake cycle.
+            at least 10 ms to guarantee the 12 V rail is stable — the boost
+            output caps (C20/C22) charge through the Q3 load-disconnect
+            P-FET, so the rail settles slower than the bare MT3608B
+            soft-start (< 5 ms typical). Drive LOW immediately after.
+            Max ON time 100 ms per wake cycle.
 
     config WELLD_BATT_DIV_EN_GPIO
         int "Battery divider enable GPIO (Q2 gate)"

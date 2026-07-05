@@ -257,6 +257,55 @@ static void send_reports(void)
         .payload = { .attr_id = EZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID },
     };
 
+    /* Store-and-forward burst: re-send previously-failed readings FIRST,
+       oldest to newest, then the current reading below. Zigbee2MQTT keeps the
+       last-received value per attribute, so the current reading must be the
+       final report on each endpoint — bursting after it would leave the
+       coordinator showing the oldest backlog entry until the next wakeup. */
+    for (uint8_t i = 0; i < s_store_count; i++) {
+        float burst_level = s_store_level_m[i];
+        if (burst_level >= 0.0f) {
+            ezb_zcl_set_attr_value(EP_LEVEL,
+                EZB_ZCL_CLUSTER_ID_ANALOG_INPUT, EZB_ZCL_CLUSTER_SERVER,
+                EZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID,
+                EZB_ZCL_STD_MANUF_CODE, &burst_level, false);
+            report.cmd_ctrl.src_ep = EP_LEVEL;
+            ezb_zcl_report_attr_cmd_req(&report);
+        }
+#if CONFIG_WELLD_BATT_ADC_CHANNEL >= 0
+        /* Same compile-time gate as the EP_BATTERY endpoint registration:
+           without it the burst would report on an unregistered endpoint. */
+        float burst_batt = s_store_battery_v[i];
+        if (welld_zb_should_report_battery(burst_batt)) {
+            ezb_zcl_set_attr_value(EP_BATTERY,
+                EZB_ZCL_CLUSTER_ID_ANALOG_INPUT, EZB_ZCL_CLUSTER_SERVER,
+                EZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID,
+                EZB_ZCL_STD_MANUF_CODE, &burst_batt, false);
+            report.cmd_ctrl.src_ep = EP_BATTERY;
+            ezb_zcl_report_attr_cmd_req(&report);
+        }
+#endif
+        if (s_store_temp_c[i] > -127.0f) {
+            int16_t temp_zb = welld_zb_encode_temp(s_store_temp_c[i]);
+            ezb_zcl_set_attr_value(EP_TEMPERATURE,
+                EZB_ZCL_CLUSTER_ID_TEMPERATURE_MEASUREMENT, EZB_ZCL_CLUSTER_SERVER,
+                EZB_ZCL_ATTR_TEMPERATURE_MEASUREMENT_MEASURED_VALUE_ID,
+                EZB_ZCL_STD_MANUF_CODE, &temp_zb, false);
+            ezb_zcl_report_attr_cmd_t burst_temp = {
+                .cmd_ctrl = {
+                    .dst_addr   = EZB_ADDRESS_SHORT(0x0000),
+                    .dst_ep     = 1,
+                    .src_ep     = EP_TEMPERATURE,
+                    .cluster_id = EZB_ZCL_CLUSTER_ID_TEMPERATURE_MEASUREMENT,
+                    .manuf_code = EZB_ZCL_STD_MANUF_CODE,
+                    .fc = { .direction = 1 },
+                },
+                .payload = { .attr_id = EZB_ZCL_ATTR_TEMPERATURE_MEASUREMENT_MEASURED_VALUE_ID },
+            };
+            ezb_zcl_report_attr_cmd_req(&burst_temp);
+        }
+    }
+
     /* Water level — Analog Input cluster, endpoint 1 */
     ezb_zcl_set_attr_value(EP_LEVEL,
         EZB_ZCL_CLUSTER_ID_ANALOG_INPUT, EZB_ZCL_CLUSTER_SERVER,
@@ -350,49 +399,6 @@ static void send_reports(void)
             EZB_ZCL_STD_MANUF_CODE, &solar_f, false);
         report.cmd_ctrl.src_ep = EP_SOLAR;
         ezb_zcl_report_attr_cmd_req(&report);
-    }
-
-    /* Store-and-forward burst: re-send previously-failed readings.
-       Each stored reading is sent on the level endpoint so the
-       coordinator receives the full history. */
-    for (uint8_t i = 0; i < s_store_count; i++) {
-        float burst_level = s_store_level_m[i];
-        float burst_batt  = s_store_battery_v[i];
-        if (burst_level >= 0.0f) {
-            ezb_zcl_set_attr_value(EP_LEVEL,
-                EZB_ZCL_CLUSTER_ID_ANALOG_INPUT, EZB_ZCL_CLUSTER_SERVER,
-                EZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID,
-                EZB_ZCL_STD_MANUF_CODE, &burst_level, false);
-            report.cmd_ctrl.src_ep = EP_LEVEL;
-            ezb_zcl_report_attr_cmd_req(&report);
-        }
-        if (welld_zb_should_report_battery(burst_batt)) {
-            ezb_zcl_set_attr_value(EP_BATTERY,
-                EZB_ZCL_CLUSTER_ID_ANALOG_INPUT, EZB_ZCL_CLUSTER_SERVER,
-                EZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID,
-                EZB_ZCL_STD_MANUF_CODE, &burst_batt, false);
-            report.cmd_ctrl.src_ep = EP_BATTERY;
-            ezb_zcl_report_attr_cmd_req(&report);
-        }
-        if (s_store_temp_c[i] > -127.0f) {
-            int16_t temp_zb = welld_zb_encode_temp(s_store_temp_c[i]);
-            ezb_zcl_set_attr_value(EP_TEMPERATURE,
-                EZB_ZCL_CLUSTER_ID_TEMPERATURE_MEASUREMENT, EZB_ZCL_CLUSTER_SERVER,
-                EZB_ZCL_ATTR_TEMPERATURE_MEASUREMENT_MEASURED_VALUE_ID,
-                EZB_ZCL_STD_MANUF_CODE, &temp_zb, false);
-            ezb_zcl_report_attr_cmd_t burst_temp = {
-                .cmd_ctrl = {
-                    .dst_addr   = EZB_ADDRESS_SHORT(0x0000),
-                    .dst_ep     = 1,
-                    .src_ep     = EP_TEMPERATURE,
-                    .cluster_id = EZB_ZCL_CLUSTER_ID_TEMPERATURE_MEASUREMENT,
-                    .manuf_code = EZB_ZCL_STD_MANUF_CODE,
-                    .fc = { .direction = 1 },
-                },
-                .payload = { .attr_id = EZB_ZCL_ATTR_TEMPERATURE_MEASUREMENT_MEASURED_VALUE_ID },
-            };
-            ezb_zcl_report_attr_cmd_req(&burst_temp);
-        }
     }
 
     /* Give the stack SEND_DELAY_MS to transmit before we declare success */
@@ -701,9 +707,21 @@ bool zigbee_send(float level_m,
         return false;
     }
 
-    EventBits_t bits = xEventGroupWaitBits(s_events, SENT_BIT | FAIL_BIT,
-                                           pdFALSE, pdFALSE,
-                                           pdMS_TO_TICKS(TOTAL_TIMEOUT_MS + 5000));
+    /* Wait for SENT/FAIL. During an OTA download neither bit is set for
+     * potentially many minutes (do_stop_sent returns early while
+     * s_ota_in_progress), so keep re-waiting while OTA is running instead of
+     * falling through on timeout: returning here would delete the event group
+     * and timers still used by zb_task (use-after-free) and let the caller
+     * enter deep sleep with the radio mid-transfer. The wait is still
+     * bounded — the stall watchdog in do_timeout_check aborts a hung OTA
+     * with FAIL_BIT after CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC, and a
+     * successful OTA ends in esp_restart(). */
+    EventBits_t bits;
+    do {
+        bits = xEventGroupWaitBits(s_events, SENT_BIT | FAIL_BIT,
+                                   pdFALSE, pdFALSE,
+                                   pdMS_TO_TICKS(TOTAL_TIMEOUT_MS + 5000));
+    } while ((bits & (SENT_BIT | FAIL_BIT)) == 0 && s_ota_in_progress);
     /* Wait for the radio to be released before entering deep sleep */
     xEventGroupWaitBits(s_events, STOPPED_BIT, pdFALSE, pdFALSE, pdMS_TO_TICKS(5000));
 

@@ -67,8 +67,8 @@ One `app_main()` = one report. The order matters and is load-bearing:
 6. **`sensor_i2c_init()`** — brings up the I²C bus + ADS1115 and drives the power-control GPIOs to safe idle. Must precede any sensor read.
 7. **Solar detect** — GPIO6 (CN3722 /CHRG, active-low input) sampled and later reported on EP7.
 8. **Fail-counter check** — NVS namespace `"welld"`, key `"zb_fails"` (names centralised in `components/welld_core/include/welld_nvs.h`). If ≥ `FAIL_THRESHOLD` (5), `nvs_flash_erase()` drops stale Zigbee network state to force a fresh join. The calibrated sensor offset is read out first and re-saved immediately after the wipe, so calibration survives.
-9. **Read all sensors before starting the radio.** The ADC is sensitive to 802.15.4 RF interference, so all `sensor_read_*` calls must precede `zigbee_send`. GPIO5 (VLOOP) must be HIGH ≥5 ms before any 4–20 mA read and LOW immediately after. A valid level reading is temperature-compensated for water density (`CONFIG_WELLD_TEMP_COMPENSATION_ENABLED`, default on).
-10. **Low-battery guard** — if battery ≤ `CONFIG_WELLD_BATT_EMPTY_MV`, skip the Zigbee send *and all NVS writes* (flash programming below 2.7 V during a TX spike corrupts NVS), reset the elapsed accumulator, and sleep for `CONFIG_WELLD_SLEEP_MAX_SEC`.
+9. **Read all sensors before starting the radio.** The ADC is sensitive to 802.15.4 RF interference, so all `sensor_read_*` calls must precede `zigbee_send`. GPIO5 (VLOOP) must be HIGH ≥10 ms before any 4–20 mA read (12 V rail settles through the Q3 load-disconnect P-FET into C20/C22) and LOW immediately after. A valid level reading is temperature-compensated for water density (`CONFIG_WELLD_TEMP_COMPENSATION_ENABLED`, default on).
+10. **Low-battery guard** — if battery ≤ `CONFIG_WELLD_BATT_EMPTY_MV`, skip the Zigbee send *and all NVS writes* (flash programming below 2.7 V during a TX spike corrupts NVS), invalidate the rate history (the level can drift arbitrarily during the blackout, so the first reading after recovery reports rate = NaN), and sleep for `CONFIG_WELLD_SLEEP_MAX_SEC`.
 11. **Compute rate of change** from RTC-memory history: the previous valid level plus cumulative elapsed time (sleep durations **and** active-phase durations) across any intervening invalid wakeups. NaN if there's no prior valid reading yet.
 12. **`zigbee_send()` blocks** until the radio is idle (success, timeout, or OTA reboot). Receives level / battery / temperature / rate / fail count / solar state, plus the store-and-forward backlog.
 13. **Post-send bookkeeping** via `welld_post_send_action()` — the fail counter is written only on change (an in-RAM cache skips redundant NVS commits; flash has limited write cycles). On failure the reading is pushed into the 8-entry RTC store-and-forward buffer; on success the buffer and boot-attempt counter are cleared.
@@ -101,7 +101,7 @@ All in `main/main.c`, each guarded by its own magic constant:
   | 11 | I2C SCL (ADS1115 only) |
   | 12 | ADS1115 ALERT/DRDY (open-drain conversion-ready output, external 4.7 kΩ pull-up) |
   | 13 | Factory reset (hold LOW at boot → NVS erase + rejoin) |
-  | 14 | Spare |
+  | 14 | Status LED (D4, optional — no firmware support yet) |
   | 15 | Battery divider enable (Q2 gate; pulse HIGH ≥1 ms before AIN2 read) |
 - `components/zigbee/` — esp-zigbee-lib wrapper. Spawns `zb_task` which runs the BDB commissioning state machine and the stack main loop, with a randomised steering backoff (`CONFIG_WELLD_ZIGBEE_BACKOFF_MAX_MS`) to avoid steer storms after a power outage. Synchronisation back to the caller uses a FreeRTOS event group with `SENT_BIT` / `FAIL_BIT` / `STOPPED_BIT`. The caller must wait for `STOPPED_BIT` before deep-sleep so the radio is fully released.
 

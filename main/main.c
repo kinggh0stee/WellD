@@ -44,18 +44,31 @@ static void boot_attempts_init(void)
     if (s_boot_attempts.count >= BOOT_ATTEMPTS_LIMIT) {
         ESP_LOGW(TAG, "boot attempt %d/%d — rolling back to previous firmware",
                  s_boot_attempts.count, BOOT_ATTEMPTS_LIMIT);
-        const esp_partition_t *run = esp_ota_get_running_partition();
-        const esp_partition_t *prev = esp_ota_get_last_invalid_partition();
-        if (prev && prev != run) {
+        /* The previous image lives in the inactive OTA slot. We cannot use
+         * esp_ota_get_last_invalid_partition() here: nothing ever marks the
+         * old slot ESP_OTA_IMG_INVALID in this app-level rollback scheme, so
+         * that call always returns NULL and rollback would never fire.
+         * esp_ota_get_partition_description() gates against an empty slot
+         * (first flash, no OTA yet): it fails on erased flash. */
+        const esp_partition_t *run  = esp_ota_get_running_partition();
+        const esp_partition_t *prev = esp_ota_get_next_update_partition(NULL);
+        esp_app_desc_t prev_desc;
+        if (prev && prev != run &&
+            esp_ota_get_partition_description(prev, &prev_desc) == ESP_OK) {
             esp_err_t err = esp_ota_set_boot_partition(prev);
             if (err == ESP_OK) {
-                ESP_LOGI(TAG, "OTA rollback → %s", prev->label);
+                ESP_LOGI(TAG, "OTA rollback → %s (v%s)", prev->label, prev_desc.version);
+                /* Clear the counter before restarting: it lives in RTC memory
+                 * and survives esp_restart(). Left at the limit, the rolled-
+                 * back image would immediately bounce back to the broken
+                 * slot on its own first boot. */
+                s_boot_attempts.count = 0;
                 esp_restart();
             } else {
                 ESP_LOGE(TAG, "rollback failed: %s", esp_err_to_name(err));
             }
         } else {
-            ESP_LOGW(TAG, "no previous partition to roll back to");
+            ESP_LOGW(TAG, "no valid previous partition to roll back to");
         }
         s_boot_attempts.count = 0;
     }
@@ -165,7 +178,10 @@ static void store_clear(void)
 /* RTC event log — small ring buffer of structured events for field debugging.
  * Preserved across deep sleep, zeroed on cold boot. Each entry is a 32-bit
  * seconds-since-boot timestamp and an 8-bit event code. */
-#define RTC_LOG_MAGIC    0x574C4402UL
+/* Magic bumped 0x574C4402 → 0x574C4405 when head grew uint8_t → uint32_t
+ * (a uint8_t head wrapped after 256 events, making rtc_log_print() report
+ * an empty/short log once per wrap). */
+#define RTC_LOG_MAGIC    0x574C4405UL
 #define RTC_LOG_ENTRIES  16
 
 typedef enum {
@@ -185,7 +201,7 @@ typedef enum {
 
 RTC_DATA_ATTR static struct {
     uint32_t magic;
-    uint8_t  head;
+    uint32_t head;   /* total events ever logged; index = head % RTC_LOG_ENTRIES */
     uint32_t ts[RTC_LOG_ENTRIES];
     uint8_t  ev[RTC_LOG_ENTRIES];
 } s_rtc_log;
@@ -201,7 +217,7 @@ static void rtc_log_init(void)
 static void rtc_log_event(rtc_event_t ev)
 {
     uint32_t now_sec = (uint32_t)(esp_timer_get_time() / 1000000LL);
-    uint8_t idx = s_rtc_log.head % RTC_LOG_ENTRIES;
+    uint32_t idx = s_rtc_log.head % RTC_LOG_ENTRIES;
     s_rtc_log.ts[idx] = now_sec;
     s_rtc_log.ev[idx] = (uint8_t)ev;
     s_rtc_log.head++;
@@ -210,11 +226,11 @@ static void rtc_log_event(rtc_event_t ev)
 static void rtc_log_print(void)
 {
     if (s_rtc_log.head == 0) return;
-    uint8_t count = (s_rtc_log.head < RTC_LOG_ENTRIES) ? s_rtc_log.head : RTC_LOG_ENTRIES;
-    uint8_t start = (s_rtc_log.head >= RTC_LOG_ENTRIES) ? s_rtc_log.head % RTC_LOG_ENTRIES : 0;
-    ESP_LOGI(TAG, "RTC event log (last %u entries):", count);
-    for (uint8_t i = 0; i < count; i++) {
-        uint8_t idx = (start + i) % RTC_LOG_ENTRIES;
+    uint32_t count = (s_rtc_log.head < RTC_LOG_ENTRIES) ? s_rtc_log.head : RTC_LOG_ENTRIES;
+    uint32_t start = (s_rtc_log.head >= RTC_LOG_ENTRIES) ? s_rtc_log.head % RTC_LOG_ENTRIES : 0;
+    ESP_LOGI(TAG, "RTC event log (last %u entries):", (unsigned)count);
+    for (uint32_t i = 0; i < count; i++) {
+        uint32_t idx = (start + i) % RTC_LOG_ENTRIES;
         const char *name = "unknown";
         switch (s_rtc_log.ev[idx]) {
             case RTC_EVT_BOOT:          name = "BOOT";          break;
@@ -230,7 +246,7 @@ static void rtc_log_print(void)
             case RTC_EVT_BROWNOUT:      name = "BROWNOUT";      break;
             case RTC_EVT_WATCHDOG:      name = "WATCHDOG";      break;
         }
-        ESP_LOGI(TAG, "  [%u] t=%lus  %s", i, (unsigned long)s_rtc_log.ts[idx], name);
+        ESP_LOGI(TAG, "  [%u] t=%lus  %s", (unsigned)i, (unsigned long)s_rtc_log.ts[idx], name);
     }
 }
 
@@ -439,8 +455,8 @@ void app_main(void)
      * nearly-dead cell can dip below that, corrupting NVS. If the battery is at
      * or below the empty threshold, skip the send and all NVS writes and sleep
      * as long as possible to conserve the remaining charge. */
-    if (battery_v > 0.0f && battery_v < CONFIG_WELLD_BATT_EMPTY_MV / 1000.0f) {
-        ESP_LOGW(TAG, "battery critically low (%.2f V < %.2f V) — skipping send",
+    if (battery_v > 0.0f && battery_v <= CONFIG_WELLD_BATT_EMPTY_MV / 1000.0f) {
+        ESP_LOGW(TAG, "battery critically low (%.2f V <= %.2f V) — skipping send",
                  battery_v, CONFIG_WELLD_BATT_EMPTY_MV / 1000.0f);
         rtc_log_event(RTC_EVT_LOW_BATT_SKIP);
         uint32_t low_batt_sleep = CONFIG_WELLD_SLEEP_DURATION_SEC;
@@ -450,8 +466,14 @@ void app_main(void)
         s_history.pending_sleep_sec = low_batt_sleep;
         s_history.last_active_sec =
             (uint32_t)((esp_timer_get_time() - wakeup_start_us) / 1000000LL);
-        /* Reset elapsed accumulator to prevent a stale gap producing a false
-         * rate spike when the battery recovers and the device resumes sending. */
+        /* Invalidate the rate history entirely. The level can drift
+         * arbitrarily far across a low-battery blackout while the elapsed
+         * accumulator is repeatedly reset here, so pairing the stale
+         * last_level_m with a short elapsed window on recovery would
+         * produce a huge false rate spike. Invalidating means the first
+         * valid reading after recovery re-seeds history and reports
+         * rate = NaN once (EP4 report skipped). */
+        s_history.valid = false;
         s_history.elapsed_since_last_valid_sec = 0;
         enter_deep_sleep(low_batt_sleep);
     }

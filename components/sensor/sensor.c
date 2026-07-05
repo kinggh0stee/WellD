@@ -417,11 +417,13 @@ void sensor_offset_cache_reset(void)
 float sensor_read_level(void)
 {
     /* Gate VLOOP HIGH to enable the MT3608B boost converter.
-     * MT3608B datasheet specifies < 5 ms soft-start; hold for 5 ms to
-     * guarantee the output rail is stable before the ADC reads the shunt.
-     * Constraint from CLAUDE.md: GPIO5 must be HIGH ≥ 5 ms before any read. */
+     * The 12 V output caps (C20/C22) charge through the Q3 load-disconnect
+     * P-FET, so the rail needs longer than the bare MT3608B soft-start
+     * (< 5 ms typ) to stabilise. Hold HIGH for 10 ms before the ADC reads
+     * the shunt (PCB review 2026-07: raised from 5 ms for Q3 + C20/C22).
+     * Constraint from CLAUDE.md: GPIO5 must be HIGH ≥ 10 ms before any read. */
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 1);
-    vTaskDelay(pdMS_TO_TICKS(5));   /* 5 ms soft-start margin (MT3608B typ < 5 ms) */
+    vTaskDelay(pdMS_TO_TICKS(10));  /* MT3608B soft-start + Q3/C20/C22 rail settle */
 
     int volt_mv;
 #if CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED
@@ -662,12 +664,17 @@ void sensor_selftest(void)
     }
     ESP_LOGI(TAG, "[ADS1115] %s", ads_ok ? "PASS" : "FAIL");
 
-    /* VLOOP GPIO toggle */
+    /* VLOOP GPIO toggle. The pin is normally configured GPIO_MODE_OUTPUT,
+     * whose input buffer is disabled — gpio_get_level() would always read 0
+     * and the test would fail even on good hardware. Temporarily enable the
+     * input buffer for the readback, then restore output-only mode. */
     bool vloop_ok = true;
+    gpio_set_direction(CONFIG_WELLD_VLOOP_GPIO, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 1);
     vTaskDelay(pdMS_TO_TICKS(1));
     if (gpio_get_level(CONFIG_WELLD_VLOOP_GPIO) != 1) vloop_ok = false;
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
+    gpio_set_direction(CONFIG_WELLD_VLOOP_GPIO, GPIO_MODE_OUTPUT);
     ESP_LOGI(TAG, "[VLOOP GPIO] %s", vloop_ok ? "PASS" : "FAIL");
 
     /* DS18B20 presence */
