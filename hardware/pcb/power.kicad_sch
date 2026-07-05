@@ -6543,102 +6543,6 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 66.04 185.42 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "0ab162ba-e49c-5e89-8571-5a4794668fb8")
-		(property "Reference" "C25"
-			(at 66.04 183.42 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-					(bold yes)
-				)
-			)
-		)
-		(property "Value" "100nF"
-			(at 66.04 187.42 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(property "LCSC" "C14663"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 0.8 0.8)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "357fd8c6-f12f-4a93-a475-76471b4ea1c5")
-		)
-		(pin "2"
-			(uuid "b9193021-ac2e-4c58-9237-ae804366c941")
-		)
-		(instances
-			(project "welld"
-				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
-					(reference "C25")
-					(unit 1)
-				)
-				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/64fba67a-e021-5c3c-b6fb-14c5c55ee35f/0ab162ba-e49c-5e89-8571-5a4794668fb8"
-					(reference "C25")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C")
 		(at 185.42 39.37 0)
 		(unit 1)
 		(body_style 1)
@@ -7629,7 +7533,7 @@
 				)
 			)
 		)
-		(property "Value" "AP63205"
+		(property "Value" "AP63203WU"
 			(at 66.04 92.17 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10899,7 +10803,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "aaaa0001-f010-4000-8000-000000000001")
 		(property "Reference" "R_FBH"
@@ -10995,7 +10899,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "aaaa0002-f020-4000-8000-000000000001")
 		(property "Reference" "R_FBL"

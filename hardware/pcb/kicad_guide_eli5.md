@@ -59,18 +59,14 @@ The schematic files were originally auto-generated. They contain all the compone
 
 The new symbols (R_FBH, R_FBL, R_DRDY, C_BST, C_BUCK) have already been added to the schematic files by script. You will see them when you open KiCad — they just need wiring.
 
+> **2026-07-05 review:** R_FBH/R_FBL are now marked **DNP** (U1 changed to the fixed-3.3V AP63203WU — see Fix 1), C25 has been deleted, C16 is assigned as U1's VIN bulk cap, and the status LED moved to **GPIO14**. Several new components (D15, Q3, Q4, Q5, R15, R16, R25, R27, R29, C36, TP13) still need symbols added — see the resolution table at the end of `schematic_connections.md`.
+
 ---
 
-### Resolving C25 and C16 before wiring
+### C25 and C16 — resolved (2026-07-05)
 
-Before you start adding wires, sort out two ambiguous components in the power sub-sheet:
-
-| Symbol | Where | What to do |
-|--------|-------|------------|
-| **C25** (100nF, lower area near U8) | power.kicad_sch | Either: wire it as C_BST (BST pin 6 → SW node) and **delete the new C_BST symbol**, or delete C25 if it's not needed |
-| **C16** (10µF, right of U1) | power.kicad_sch | Either: rename it to C_BUCK and **delete the new C_BUCK symbol**, or delete C16 if it has no purpose |
-
-If you use the existing C25/C16, just delete the new duplicate. If you delete C25/C16, use the new symbols.
+- **C25** was a duplicate of C_BST and has been **deleted** from power.kicad_sch.
+- **C16** (10µF, right of U1) is now the U1 **VIN bulk cap**: wire it VBAT → C16 → GND next to C9/C10.
 
 ---
 
@@ -80,19 +76,15 @@ The following components have been added to the schematic as symbols (already do
 
 ---
 
-#### Fix 1 — AP63205 output voltage divider (CRITICAL — board won't work without this)
+#### Fix 1 — U1 buck feedback (CRITICAL — updated 2026-07-05)
 
-The 3.3V buck converter (U1, AP63205) has no feedback divider. Without it, the output voltage is undefined and will destroy the ESP32 on first power-on.
+**The original fix was wrong.** AP63205WU is the **5V fixed** variant, and the 560k/124k divider assumed a 0.6V reference that no AP6320x part has. Any combination of the old parts would have over-volted the 3V3 rail and destroyed the ESP32.
 
-**In the power sub-sheet, near U1:**
-1. Add resistor **R_FBH = 560kΩ 1% 0402**
-   - Connect one end to the **+3V3 output net** (VOUT of AP63205)
-   - Connect the other end to the **FB pin** of U1
-2. Add resistor **R_FBL = 124kΩ 1% 0402**
-   - Connect one end to the **FB pin** of U1 (same node as R_FBH bottom)
-   - Connect the other end to **GND**
-
-This sets VOUT = 0.6 × (1 + 560/124) = **3.31V**. ✓
+U1 is now **AP63203WU (3.3V fixed)**:
+1. Wire U1 **FB pin directly to the +3V3 output rail** (after L2) — fixed-output parts sense VOUT on this pin.
+2. Leave **R_FBH / R_FBL as DNP** (they are already marked DNP in the schematic).
+3. *Alternative:* if you fit the adjustable **AP63200WU** instead, change R_FBH to **390kΩ** and R_FBL to **124kΩ** (VFB = 0.8V → 3.32V) and clear the DNP flags.
+4. **Verify the variant table in the Diodes datasheet before ordering** — this change was made without datasheet access (see `schematic_connections.md` → verification blockers).
 
 ---
 
@@ -107,15 +99,16 @@ The ADS1115 ALERT/DRDY pin is open-drain and needs an external pull-up. Without 
 
 ---
 
-#### Fix 3 — MT3608B bootstrap capacitor (CRITICAL — boost converter may fail at low battery)
+#### Fix 3 — MT3608B boost topology (CRITICAL — updated 2026-07-05)
 
-The MT3608B requires a 100nF capacitor from BST pin (pin 6) to the SW node for its gate driver circuit.
+The boost was documented backwards (SW→L1→VOUT is a *buck* arrangement). Correct wiring:
 
-**In the power sub-sheet, near U8:**
-1. Find if **C_BST** (100nF) is already connected from U8 pin 6 (BST) to the SW node
-2. If it is missing or connected to GND instead of SW: add/fix **C_BST = 100nF 0402**
-   - One end: U8 pin 6 (BST)
-   - Other end: U8 SW node (the same net as L1 pin 1)
+1. **VBAT → Q3 (P-FET) → L1 pin 1; L1 pin 2 → U8 SW pin** (boost inductor goes on the *input* side)
+2. **D15 (SS34): anode → SW node, cathode → VLOOP** — the MT3608 family is an async boost and needs this external rectifier (it was missing entirely)
+3. **C_BST = 100nF between U8 BST pin and the SW node** (if pin 6 turns out to be NC on the real part, the fitted cap is harmless)
+4. **Q4 (BSS123)**: gate → VBOOST_EN (GPIO5, with R27 100k pull-down), drain → Q3 gate (with R29 100k pull-up to VBAT), source → GND. Without Q3/Q4, VBAT−0.4V leaks through L1+D15 to the loop terminals permanently and drains the battery during sleep.
+
+See the VLOOP section of `schematic_connections.md` for the full net list.
 
 ---
 
@@ -268,6 +261,8 @@ Common false positives you can ignore:
 - "Courtyard overlap" on thermal vias inside a copper pour island
 - "Pad not connected" on DNF test points (TP1–TP15 are DNF pads, no component body)
 
+Note: the placement script and older docs may still call the CC resistors R_CC1/R_CC2 (schematic: **R50/R51**) and the module caps C14a–C14d (schematic: **C13, C30–C33**).
+
 ---
 
 ## Step 10 — Generate Gerbers for PCBWay
@@ -290,13 +285,16 @@ For PCBWay PCBA, also generate:
 > **Schematic wiring checklist** — before generating Gerbers, verify in the schematic editor that every net listed in `schematic_connections.md` is wired. The "Components Still Needing Resolution" table at the end of that document must be cleared first.
 
 - [ ] All nets in `schematic_connections.md` are wired (no floating symbols)
-- [ ] C25 / C16 ambiguity resolved (see "Resolving C25 and C16" section above)
-- [ ] R_FBH (560kΩ) and R_FBL (124kΩ) wired: +3V3 → R_FBH → FB → R_FBL → GND
+- [ ] C25 deleted ✓ / C16 wired as U1 VIN bulk
+- [ ] U1 = AP63203WU with FB tied to +3V3 (R_FBH/R_FBL DNP) — or AP63200WU with 390k/124k fitted
 - [ ] R_DRDY (4.7kΩ) wired: +3V3 → R_DRDY → ADS_DRDY net (→ GPIO12)
-- [ ] C_BST (100nF) wired: U8 BST pin6 → C_BST → U8 SW pin3 node
+- [ ] Boost wired VBAT → Q3 → L1 → SW → D15 → VLOOP, with C_BST on BST↔SW
 - [ ] C_BUCK (10µF 0805) wired: +3V3 rail (after L2) → C_BUCK → GND
 - [ ] R33 = 590kΩ in schematic (already done — Vchg = 8.31V, safe for 2S Li-ion)
 - [ ] R32 (DS18B20 33Ω series) is populated (not DNF — needed for cable runs)
+- [ ] Status LED D4 wired to **GPIO14** (not GPIO13 — that is the factory-reset strap); TP13 wired to GPIO13
+- [ ] New symbols added and wired: D15, Q3, Q4, Q5, R15, R16, R25, R27, R29, C36, TP13 (see resolution table in `schematic_connections.md`)
+- [ ] Datasheet verification blockers in `schematic_connections.md` cleared (U1 variant, TP5100 replacement, MT3608B pinout, CN3722 package)
 - [ ] ERC passes (Tools → Electrical Rules Checker) before generating netlist
 - [ ] Board outline is on Edge.Cuts and is closed
 - [ ] DRC passes with no errors

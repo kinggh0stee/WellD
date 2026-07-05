@@ -46,7 +46,7 @@ print("Placing components at target positions...")
 place("J1",   5,   50, 0)       # XT30 right-angle, long edge bottom
 place("D13",  14,  48, 0)       # SMAJ10CA battery TVS
 place("D5",   19,  48, 0)       # AO3407 P-MOS load switch
-place("R31",  23,  48, 0)       # gate pull-up
+place("R31",  23,  48, 0)       # D5 gate pull-down (holds switch ON)
 
 # ── Group G — TP5100 USB charger cluster (short edge right) ───────────────
 place("J13",  78,  10, 270)     # USB-C connector, right short edge
@@ -60,33 +60,46 @@ place("R35",  76,  18, 0)       # PROG resistor
 place("R36",  76,  14, 0)       # CHRG pull-up
 place("R37",  72,  14, 0)       # CE pull-up
 place("R38",  74,  30, 0)       # /CHRG pull-up
-place("R_CC1", 78, 16, 0)       # CC1 5k1
-place("R_CC2", 78, 20, 0)       # CC2 5k1
+place("R50", 78, 16, 0)         # CC1 5k1 (was R_CC1)
+place("R51", 78, 20, 0)         # CC2 5k1 (was R_CC2)
 
 # ── Group D — CN3722 solar charger (top-centre) ───────────────────────────
 place("U7",   40,  18, 0)       # CN3722 solar MPPT charger
 place("C17",  34,  22, 0)       # VIN filter
 place("C18",  46,  22, 0)       # VBAT bypass
 place("C21",  34,  18, 0)       # second VIN filter
-place("R19",  32,  14, 0)       # MPPT divider top
-place("R20",  32,  18, 0)       # MPPT divider bottom
-place("R21",  38,  12, 0)       # CC setpoint
+place("R19",  32,  14, 0)       # VPROG current-set (500mA)
+place("R20",  32,  18, 0)       # MPPT divider top (VSOLAR side)
+place("R21",  38,  12, 0)       # MPPT divider bottom (GND side)
+place("R25",  48,  10, 0)       # /CHRG_SOLAR pull-up to +3V3
+place("D7",   52,  12, 0)       # Solar charge LED (DNF R22)
+place("R22",  52,  16, 0)       # LED series 1k DNF
 place("R33",  44,  14, 0)       # CV setpoint 590kΩ → 8.31V
 place("R34",  48,  14, 0)       # Parallel CV resistor
 
 # ── Group A — MT3608B boost (centre-left) ────────────────────────────────
 place("U8",   20,  22, 0)       # MT3608B boost converter
-place("L1",   14,  22, 0)       # Boost inductor (SW→L1→VLOOP)
+place("L1",   14,  22, 0)       # Boost inductor (VBAT→Q3→L1→SW)
+place("Q3",   10,  22, 0)       # VLOOP disconnect P-FET (VBAT→L1)
+place("Q4",   10,  18, 0)       # Q3 gate driver (GPIO5)
+place("R29",  12,  18, 0)       # Q3 gate pull-up 100k
+place("R27",  12,  26, 0)       # VBOOST_EN pull-down 100k
+place("D15",  17,  18, 0)       # SS34 boost rectifier SW→VLOOP
 place("C20",  14,  16, 0)       # VOUT decoupling
 place("C22",  18,  16, 0)       # VOUT parallel cap
+place("D11",  16,  13, 0)       # SMAJ13A VLOOP TVS (near C20/C22, J4/J5 side)
 place("C_BST", 20, 16, 0)      # 100nF BST→SW bootstrap cap
 place("C19",  26,  22, 0)       # VIN bypass
+place("R23",  24,  16, 0)       # VLOOP FB divider 1.91M
+place("R24",  24,  18, 0)       # VLOOP FB divider 100k
 
-# ── Group B — AP63205WU buck (top-left) ──────────────────────────────────
-place("U1",   12,  10, 0)       # AP63205WU 3.3V buck
+# ── Group B — AP63203WU buck (top-left) ──────────────────────────────────
+place("U1",   12,  10, 0)       # AP63203WU 3.3V fixed buck
 place("L2",   20,  10, 0)       # Buck inductor
-place("R_FBH", 26, 10, 0)      # 560kΩ FB divider high-side
-place("R_FBL", 26, 14, 0)      # 124kΩ FB divider low-side
+place("R_FBH", 26, 10, 0)      # DNP (only for adjustable AP63200 option)
+place("R_FBL", 26, 14, 0)      # DNP (only for adjustable AP63200 option)
+place("C16",  10,  18, 0)      # 10µF VIN bulk
+place("R11",  16,  14, 0)      # EN pull-up to VIN
 place("C_BUCK", 28, 10, 0)     # 10µF primary output filter
 place("C9",   10,  14, 0)       # VIN decoupling
 place("C10",  14,  14, 0)       # VIN decoupling
@@ -101,11 +114,14 @@ place("D8",   16,  28, 0)       # Second TVS at CN3722 VIN
 
 # ── Group F — ESP32-C6 module (centre) ───────────────────────────────────
 place("U6",   50,  28, 0)       # ESP32-C6-MINI-1U; keep antenna (top end) clear
-place("C14a", 44,  28, 0)       # 100nF decoupling × 4 (around VCC pads)
-place("C14b", 44,  32, 0)
-place("C14c", 44,  36, 0)
-place("C14d", 44,  40, 0)
+place("C13",  44,  28, 0)       # 100nF decoupling × 5 (around VCC pads)
+place("C30",  44,  32, 0)
+place("C31",  44,  36, 0)
+place("C32",  44,  40, 0)
+place("C33",  46,  42, 0)
 place("C15",  60,  28, 0)       # 10µF bulk
+place("R15",  60,  32, 0)       # EN pull-up 10k
+place("C36",  60,  34, 0)       # EN delay cap 1µF
 
 # ── Group C — ADS1115 analog island (right of module) ────────────────────
 place("U9",   62,  38, 0)       # ADS1115 ADC — ≥20mm from U8
@@ -122,7 +138,8 @@ place("R2",   12,  37, 0)       # CH1 100Ω shunt
 place("R3",   18,  37, 0)       # CH1 series protection
 place("C3",   22,  37, 0)       # CH1 bypass
 place("C4",   22,  41, 0)       # CH1 bypass
-place("TP5",  15,  37, 0)       # CH1 test point between R2/R3
+place("C34",  12,  35, 0)       # 10nF across R2 shunt
+place("TP5",  15,  37, 0)       # CH1 test point at shunt top
 
 place("J5",    3,  43, 0)       # CH2 4-20mA terminal
 place("D10",   8,  43, 0)       # CH2 TVS
@@ -130,12 +147,18 @@ place("R4",   12,  43, 0)       # CH2 100Ω shunt
 place("R5",   18,  43, 0)       # CH2 series protection
 place("C5",   22,  43, 0)       # CH2 bypass
 place("C6",   22,  47, 0)       # CH2 bypass
+place("C35",  12,  45, 0)       # 10nF across R4 shunt
 place("TP6",  15,  43, 0)       # CH2 test point
 place("D1",   26,  40, 0)       # PRTR5V0U2X dual-channel clamp
 
-# Battery voltage divider
-place("R7",   70,  45, 0)       # VBAT→ADC divider top (330kΩ)
-place("R8",   74,  45, 0)       # VBAT→ADC divider bottom (100kΩ)
+# Battery voltage divider (Group K — high-side gated)
+place("Q5",   66,  45, 0)       # AO3407 high-side divider switch
+place("R16",  66,  48, 0)       # Q5 gate pull-up 100k
+place("Q2",   68,  48, 0)       # BSS123 level shifter (GPIO15)
+place("R26",  70,  48, 0)       # Q2 gate pull-down 4.7k
+place("R7",   70,  45, 0)       # divider top (330kΩ)
+place("R8",   74,  45, 0)       # divider bottom (100kΩ)
+place("C8",   74,  48, 0)       # 1nF across R8
 
 # ── Group I — DS18B20 interface ───────────────────────────────────────────
 place("J6",    3,  49, 90)      # DS18B20 screw terminal
@@ -151,10 +174,10 @@ place("J10",  72,  50, 0)       # Programming header (keep accessible)
 place("J3",    3,  12, 90)      # SMA edge-mount antenna (short left edge)
 
 # Buttons and LED
-place("SW1",  66,  10, 0)       # BOOT button
-place("SW2",  70,  10, 0)       # EN/Reset button
-place("D11",  74,   6, 0)       # Status LED
-place("R16",  74,  10, 0)       # LED series resistor
+place("SW1",  66,  10, 0)       # RESET button (EN to GND)
+place("SW2",  70,  10, 0)       # BOOT button (GPIO9 to GND)
+place("D4",   74,   6, 0)       # Status LED (GPIO14)
+place("R14",  74,  10, 0)       # LED series resistor 1k
 
 # Test points
 place("TP1",  32,   6, 0)       # +3V3
@@ -167,7 +190,9 @@ place("TP9",  60,  36, 0)       # SCL
 place("TP10",  6,  28, 0)       # Solar input
 place("TP11",  6,  50, 0)       # BAT+
 place("TP12", 68,  42, 0)       # GPIO12 / DRDY
-place("TP15", 74,  22, 0)       # /CHRG
+place("TP13", 76,  52, 0)       # GPIO13 / FACTORY_RESET (keep reachable)
+place("TP14", 44,  12, 0)       # /CHRG_SOLAR
+place("TP15", 74,  22, 0)       # /CHRG_USB
 
 # SMA needs to be on an edge — script places near left edge
 # W1 pigtail: hand-attach after reflow (PCBWay manual install)

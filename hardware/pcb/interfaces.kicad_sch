@@ -6198,7 +6198,7 @@
 			(embedded_fonts no)
 		)
 	)
-	(hierarchical_label "GPIO13_LED"
+	(hierarchical_label "GPIO14_LED"
 		(shape input)
 		(at 25.4 165.1 0)
 		(effects
