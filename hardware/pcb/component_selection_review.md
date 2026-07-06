@@ -237,3 +237,23 @@ Board outline unchanged (80×55 mm). Net BOM delta ≈ +1 inductor, −2 resisto
   cold-charge (< 0 °C) strategy per O-1.
 - #8 NEW: F2 replacement PTC exact MPN (2 A hold, ≥6 V, 1206), sized for ≈1.9 A boost
   input current.
+
+---
+
+## Datasheet verification results — 2026-07-06 (IP2326 v1.2 datasheet obtained)
+
+Source: ChipSourceTek/Injoinic IP2326 datasheet V1.2 (via done.land mirror + LCSC C2832094 listing). Corrections and confirmations to §1:
+
+**Package correction:** the IP2326 is a **24-pin package with exposed pad** (pins: DM=1, DP=2, VSET=3, NTC=4, BAT_STAT=5, LED=6, TIME_SET=7, VIN_UVSET=8, VIN_OVSET=9, CON_SEL=10, ISET=11, EN=12, VIN=13, BST=14, LX=15/16/17, PGND=18, VSYS=19/20, VOUT=21/22, VBATM=23, VBAT_GND=24, GND=EPAD) — **not ESOP-8** as assumed in §1. Confirm the exact package code (ESSOP-24/QFN-24) on the LCSC C2832094 listing before footprint work; "hand-reworkable" now depends on that answer.
+
+**Blocker 2a (mid-cell balance) — RESOLVED, no connector change:** VBATM (23) and VBAT_GND (24) implement the optional 2S charge-equalisation function and the datasheet states both "should be left floating when doesn't use." Our 2-pin XT30 pack works as-is with balancing disabled (the pack's internal PCM still protects). Optional future upgrade: 3-pin J1 + VBATM wiring enables charger-side balancing.
+
+**Blocker 2e (EN pin) — RESOLVED, EN exists:** pin 12, "the chip does not work after pull down to ground" (pull-low-to-disable, float/high = enabled). Decision stands: leave EN floating → auto-charge on VBUS, GPIO4 stays freed. Note the polarity matches the old TP5100 CE drive exactly (HIGH=charge, LOW=off), so wiring GPIO4→EN is a zero-firmware-change option if charge gating is ever wanted again.
+
+**CV strap — CORRECTION to §1:** RVSET=NC gives 8.4 V *typ* but **8.5 V max** — above the 8.40 V 2S limit. Use **RVSET = 120 kΩ → 8.3 V typ / 8.4 V max**, which also converges with the CN3722's 8.31 V CV for co-charging. R_VSET added to the BOM implication list.
+
+**Other confirmed facts:** ISET = pin 11, must not float, ICHG = 90000/RISET (RISET=90 kΩ → 1 A; datasheet efficiency specs quoted at that value) — R35 value now firm at 90 kΩ for 1 A. CON_SEL floating = 2S (correct for us; 1 kΩ to GND = 3S). NTC = pin 4 with a 20 µA source current — **this is the concrete path to the sub-zero charge cutoff (review finding O-1 / blocker #7)** for the USB path; strap a 10 kΩ-class NTC per the datasheet threshold table. BST cap 0.1 µF between BST(14) and LX; inductor 2.2 µH (datasheet-supported value, ≥3 A Isat per §1 stands); VSYS needs 2×22 µF at pins 19/20; VIN abs max 25 V; USB DM/DP (1/2) give input-adaptive current limiting. BAT_STAT (5) is the charge-state output → R38/TP15 reassignment in §1 confirmed viable (verify open-drain vs push-pull polarity on bench).
+
+## Firmware API note — esp-zigbee-lib 2.0.1 (verified 2026-07-06)
+
+Verified against the pinned 2.0.1 headers (esp-zigbee-sdk checkout, `components/esp-zigbee-lib/include/ezbee/nwk.h`): `ezb_nwk_get_next_neighbor(ezb_nwk_info_iterator_t *, ezb_nwk_neighbor_info_t *)` exists with `uint8_t lqi` and `uint8_t relationship` (`EZB_NWK_RELATIONSHIP_PARENT = 0`) fields; iterator init is `EZB_NWK_INFO_ITERATOR_INIT` (NULL); success code `EZB_ERR_NONE` (`ezbee/error.h`). The CONFIG_ZB_SDK_1xx compat layer maps `esp_zb_nwk_get_next_neighbor` onto it. The EP6 device-LQI stub in `components/zigbee/zigbee.c` has been replaced with a real parent-neighbor read on this basis.

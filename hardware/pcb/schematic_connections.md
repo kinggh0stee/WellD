@@ -475,11 +475,11 @@ Wiring above uses **pin names**. Before assigning footprints / generating a netl
 
 1. **U1 identity**: confirm AP63203WU = 3.3 V fixed / AP63205WU = 5 V fixed / AP63200WU = adjustable (VFB 0.8 V), and whether the BST pin needs an external cap. Pick AP63203WU (preferred, R_FBH/R_FBL stay DNP) or AP63200WU (fit R_FBH=390k, R_FBL=124k). Also confirm the ~22 µA no-load Iq figure used in the sleep budget (`component_selection_review.md` §3).
 2. **U12 IP2326** (replaced TP5100, design change #12) — verify against the Injoinic datasheet:
-   - **2a. Mid-cell/balance pin**: our pack is 2S1P with integrated PCM behind a **2-pin XT30** — no mid-cell tap. Confirm the balance pin may be left unconnected/strapped. **If mandatory, the charger choice reopens** (fallbacks: 3-pin J1 + case change, or a CS5095-class no-balance part).
+   - **2a. Mid-cell/balance pin — ✅ RESOLVED 2026-07-06**: VBATM (pin 23) and VBAT_GND (pin 24) "should be left floating when doesn't use" per the IP2326 V1.2 datasheet. The 2-pin XT30 pack works unchanged with balancing disabled. Charger choice stands.
    - 2b. Package = ESOP-8 and exposed-pad size; full pinout for a new `welld:IP2326` symbol.
    - 2c. CV = 8.40 V fixed for 2S (or how it is set).
    - 2d. R35 ISET value for ~1 A charge current.
-   - 2e. EN/CE pin: confirm none exists (R36/R37 deleted, GPIO4 freed). If one exists, decide whether to restore GPIO4 gating.
+   - 2e. EN/CE pin — ✅ RESOLVED 2026-07-06: **EN exists (pin 12)**, pull-low-to-disable, float = enabled. Decision: leave floating (auto-charge on VBUS), GPIO4 stays freed. Polarity matches the old TP5100 CE drive, so GPIO4→EN is a zero-firmware-change option later. Package is **24-pin + EPAD, not ESOP-8** — see component_selection_review.md 2026-07-06 addendum for the full verified pin map, RVSET=120k CV correction (NC strap maxes at 8.5 V — unsafe for 2S), RISET=90k (1 A), and the NTC pin path to the sub-zero cutoff.
    - 2f. NTC pin function and strap; wire a real pack NTC if feasible (blocker #7 / review O-1).
    - 2g. BAT-pin quiescent with USB absent — must be < 10 µA (nightly battery drain).
    - 2h. Input-adaptive current limiting behaviour on weak 5 V sources (we advertise only default USB via 5.1 k CC sinks).
