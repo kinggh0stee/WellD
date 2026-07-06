@@ -266,7 +266,7 @@ The device publishes to `zigbee2mqtt/<friendly_name>` on each wakeup:
 - `battery_voltage` comes from the ADS1115 AIN2 voltage divider (R7 330 kΩ / R8 100 kΩ, switched high-side by Q5 under GPIO15 control).
 - `battery` is a percentage derived from `battery_voltage` using the device options `battery_full_mv` / `battery_empty_mv`. Options are coerced to numbers (YAML strings like `"8400"` are accepted) and fall back to the defaults 8400 / 6000 mV for anything missing or non-numeric. If the thresholds are misconfigured (`battery_full_mv <= battery_empty_mv`), the voltage is still published but the percentage is omitted.
 - `zb_fails` counts consecutive Zigbee send failures since the last success (0 = healthy; the device auto-rejoins at 5).
-- `device_lqi` is the link quality measured on the device side (EP6, 1–255). It is distinct from Zigbee2MQTT's own `linkquality` field, which comes from the coordinator side of the link. A value of 0 means "unknown" and is not published — **current firmware always sends 0** (the device-side reading is not implemented yet), so this key will not appear until a future firmware release populates it.
+- `device_lqi` is the link quality measured on the device side (EP6, 1–255) — the LQI of the device's parent entry in its own neighbor table. It is distinct from Zigbee2MQTT's own `linkquality` field, which comes from the coordinator side of the link. A value of 0 means "unknown" (no parent entry found) and is not published. Firmware ≤ 1.0.2 always sent 0, so the key only appears from firmware 1.0.3 onwards.
 - `solar_charging` is a **boolean** (binary expose): `true` = the CN3722 MPPT charger is actively charging, `false` = not charging.
 - When previous sends failed, the buffered readings (up to 8, RTC store-and-forward) are burst-reported oldest-first before the current reading, so the coordinator receives the full history in order.
 - The converter rejects malformed reports: any non-numeric or non-finite `presentValue` is dropped instead of being published.
@@ -283,7 +283,7 @@ The Z2M–Home Assistant integration auto-creates these entities:
 | `sensor.<name>_battery_voltage` | V |
 | `sensor.<name>_battery` | % (omitted when `battery_full_mv <= battery_empty_mv`) |
 | `sensor.<name>_zb_fails` | count, 0–255 |
-| `sensor.<name>_device_lqi` | device-side LQI, 1–255 (absent until firmware populates it; 0 = unknown is never published) |
+| `sensor.<name>_device_lqi` | device-side LQI, 1–255 (needs firmware ≥ 1.0.3; 0 = unknown is never published) |
 | `binary_sensor.<name>_solar_charging` | on / off |
 
 ---

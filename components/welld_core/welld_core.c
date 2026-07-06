@@ -13,6 +13,20 @@ welld_fail_action_t welld_post_send_action(uint32_t effective_count, bool sent)
     return effective_count == 0 ? WELLD_FAIL_NONE : WELLD_FAIL_RESET;
 }
 
+bool welld_send_result(bool sent_bit, bool fail_bit, bool sent_before_ota)
+{
+    if (sent_bit || sent_before_ota) {
+        /* Report delivered. Any FAIL_BIT alongside is OTA-origin (the OTA
+         * failure is logged separately) — never a send failure. */
+        return true;
+    }
+    /* No sent flag: failure regardless of fail_bit — an explicit FAIL_BIT
+     * (init/steering error, timeout watchdog) and a bare wait timeout are
+     * equally fatal to the report. */
+    (void)fail_bit;
+    return false;
+}
+
 int16_t welld_zb_encode_temp(float temp_c)
 {
     if (temp_c <= -127.0f) {

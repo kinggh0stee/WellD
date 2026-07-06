@@ -6,6 +6,7 @@
 #include "esp_timer.h"
 #include "esp_system.h"
 #include "esp_ota_ops.h"
+#include "esp_app_desc.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "driver/gpio.h"
@@ -25,7 +26,17 @@ static const char *TAG = "main";
 
 /* OTA rollback: count consecutive boots without a successful Zigbee send.
  * If the new OTA image is broken (crashes before send), we roll back to
- * the previous partition after 3 failed boot attempts. */
+ * the previous partition after 3 failed boot attempts.
+ *
+ * The counter is armed only while the running image is UNPROVEN: NVS key
+ * WELLD_NVS_KEY_IMG_OK stores the version string of the last image that
+ * completed a successful send. An image that has EVER sent successfully is
+ * never rolled back — otherwise a routine coordinator outage (3 wakeups
+ * without an ACK) would flip a healthy image back to the old slot, which
+ * would then re-OTA ~1.5 MB over the radio. Storing the version string
+ * (rather than a bool) self-invalidates the marker when a new image boots:
+ * a fresh OTA image sees a mismatching string and is unproven until its own
+ * first successful send. */
 #define BOOT_ATTEMPTS_MAGIC  0x574C4403UL
 #define BOOT_ATTEMPTS_LIMIT  3
 
@@ -34,11 +45,61 @@ RTC_DATA_ATTR static struct {
     uint8_t  count;   /* increments each boot, cleared on ZB_SENT */
 } s_boot_attempts;
 
+/* True when the proven-image marker in NVS matches the running image's
+ * version string. Requires NVS to be initialised. */
+static bool image_is_proven(void)
+{
+    nvs_handle_t h;
+    char stored[sizeof(((esp_app_desc_t *)0)->version)];
+    size_t len = sizeof(stored);
+    bool proven = false;
+    if (nvs_open(WELLD_NVS_NAMESPACE, NVS_READONLY, &h) == ESP_OK) {
+        if (nvs_get_str(h, WELLD_NVS_KEY_IMG_OK, stored, &len) == ESP_OK) {
+            proven = (strcmp(stored, esp_app_get_description()->version) == 0);
+        }
+        nvs_close(h);
+    }
+    return proven;
+}
+
+/* Stamp the running image's version string as the proven marker.
+ * Called only from the post-send success path, which can never coincide
+ * with the low-battery no-NVS-writes rule (the guard skips the send
+ * entirely). Write-on-change: skipped when the stored string already
+ * matches, so this costs one NVS commit per new image, not per wakeup. */
+static void image_mark_proven(void)
+{
+    if (image_is_proven()) {
+        return;
+    }
+    nvs_handle_t h;
+    if (nvs_open(WELLD_NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK) {
+        const char *ver = esp_app_get_description()->version;
+        esp_err_t err = nvs_set_str(h, WELLD_NVS_KEY_IMG_OK, ver);
+        if (err == ESP_OK) {
+            err = nvs_commit(h);
+        }
+        if (err == ESP_OK) {
+            ESP_LOGI(TAG, "image v%s marked proven — OTA rollback disarmed", ver);
+        } else {
+            ESP_LOGW(TAG, "proven-image marker write: %s", esp_err_to_name(err));
+        }
+        nvs_close(h);
+    }
+}
+
 static void boot_attempts_init(void)
 {
     if (s_boot_attempts.magic != BOOT_ATTEMPTS_MAGIC) {
         memset(&s_boot_attempts, 0, sizeof(s_boot_attempts));
         s_boot_attempts.magic = BOOT_ATTEMPTS_MAGIC;
+    }
+    if (image_is_proven()) {
+        /* This image has already sent successfully — rollback stays
+         * disarmed. Pin the counter to 0 so accumulated coordinator
+         * outages can never roll back a known-good image. */
+        s_boot_attempts.count = 0;
+        return;
     }
     s_boot_attempts.count++;
     if (s_boot_attempts.count >= BOOT_ATTEMPTS_LIMIT) {
@@ -77,6 +138,18 @@ static void boot_attempts_init(void)
 static void boot_attempts_clear(void)
 {
     s_boot_attempts.count = 0;
+}
+
+/* A wakeup that never attempts a send (low-battery guard) must not count
+ * towards rollback — the image had no chance to prove itself, and 3
+ * consecutive low-battery skips would otherwise roll back an unproven-but-
+ * working image. RTC-memory only; safe under the low-battery
+ * no-NVS-writes rule. */
+static void boot_attempts_uncount(void)
+{
+    if (s_boot_attempts.count > 0) {
+        s_boot_attempts.count--;
+    }
 }
 
 /* Factory reset: hold GPIO13 LOW at boot to erase NVS and force rejoin.
@@ -139,19 +212,20 @@ RTC_DATA_ATTR static struct {
  * On the next successful send, the backlog is burst-reported so the
  * coordinator receives the full history (preserving rate accuracy).
  * Preserved across deep sleep, zeroed on cold boot. */
-#define STORE_MAGIC      0x574C4404UL
+/* Magic bumped 0x574C4404 → 0x574C4406 when the dead sleep_sec[] field was
+ * removed (RTC layout change; 0x574C4405 is taken by the RTC event log). */
+#define STORE_MAGIC      0x574C4406UL
 #define STORE_ENTRIES    8
 
 RTC_DATA_ATTR static struct {
     uint32_t magic;
     uint8_t  count;
-    uint32_t sleep_sec[STORE_ENTRIES];   /* sleep duration preceding each stored reading */
     float    level_m[STORE_ENTRIES];
     float    battery_v[STORE_ENTRIES];
     float    temp_c[STORE_ENTRIES];
 } s_store;
 
-static void store_push(float level_m, float battery_v, float temp_c, uint32_t sleep_sec)
+static void store_push(float level_m, float battery_v, float temp_c)
 {
     if (s_store.count >= STORE_ENTRIES) {
         /* shift oldest out */
@@ -159,7 +233,6 @@ static void store_push(float level_m, float battery_v, float temp_c, uint32_t sl
             s_store.level_m[i]   = s_store.level_m[i + 1];
             s_store.battery_v[i] = s_store.battery_v[i + 1];
             s_store.temp_c[i]    = s_store.temp_c[i + 1];
-            s_store.sleep_sec[i] = s_store.sleep_sec[i + 1];
         }
         s_store.count = STORE_ENTRIES - 1;
     }
@@ -167,7 +240,6 @@ static void store_push(float level_m, float battery_v, float temp_c, uint32_t sl
     s_store.level_m[idx]   = level_m;
     s_store.battery_v[idx] = battery_v;
     s_store.temp_c[idx]    = temp_c;
-    s_store.sleep_sec[idx] = sleep_sec;
 }
 
 static void store_clear(void)
@@ -418,36 +490,34 @@ void app_main(void)
         int saved_offset = sensor_get_offset_cm();
         if (saved_offset != CONFIG_WELLD_SENSOR_OFFSET_CM)
             ESP_LOGW(TAG, "preserving sensor offset %d cm across NVS erase", saved_offset);
+        bool img_was_proven = image_is_proven();
         ESP_ERROR_CHECK(nvs_flash_erase());
         ESP_ERROR_CHECK(nvs_flash_init());
         sensor_offset_cache_reset();
         sensor_set_offset_cm(saved_offset);
+        if (img_was_proven) {
+            /* Re-save the proven-image marker: the wipe targets stale Zigbee
+             * join state, not the rollback arming. Losing it here would
+             * re-arm rollback and let 3 more coordinator-less boots flip a
+             * healthy image back to the old slot. */
+            image_mark_proven();
+        }
         fail_count = 0;
     }
 
     /* Read sensors before powering the radio. The ADC is sensitive to 802.15.4
-     * RF interference, so all ADC reads must complete before zigbee_send(). */
+     * RF interference, so all ADC reads must complete before zigbee_send().
+     * The battery is read FIRST so the low-battery guard below can run before
+     * the level (12 V VLOOP boost) and temperature (DS18B20, whose probe-change
+     * path writes the ROM code to NVS) reads — a wakeup that won't report must
+     * not burn loop power or touch NVS below the flash-safe voltage. */
     t0 = esp_timer_get_time();
-    float level_m   = sensor_read_level();
     float battery_v = sensor_read_battery_v();
-    float temperature_c = sensor_read_temperature();
-    s_profile.t_sensors = esp_timer_get_time() - t0;
-    if (level_m >= 0.0f) {
-        rtc_log_event(RTC_EVT_SENSOR_OK);
-    }
-
-    /* Temperature compensation for water density */
-    if (level_m >= 0.0f && temperature_c > -127.0f) {
-        level_m = sensor_level_temp_compensate(level_m, temperature_c);
-    }
-
-#ifdef CONFIG_WELLD_SELFTEST_ENABLED
-    sensor_selftest();
-#endif
 
     /* Accumulate elapsed time from the previous wakeup: both the programmed sleep
      * duration and the active phase, so the rate calculation reflects wall-clock
-     * time rather than just sleep time. */
+     * time rather than just sleep time. Must run before either exit path — the
+     * low-battery guard below or the normal cycle. */
     if (s_history.valid) {
         s_history.elapsed_since_last_valid_sec +=
             s_history.pending_sleep_sec + s_history.last_active_sec;
@@ -455,12 +525,17 @@ void app_main(void)
 
     /* Flash programming requires VCC >= 2.7 V. A 20 mA Zigbee TX spike on a
      * nearly-dead cell can dip below that, corrupting NVS. If the battery is at
-     * or below the empty threshold, skip the send and all NVS writes and sleep
-     * as long as possible to conserve the remaining charge. */
+     * or below the empty threshold, skip the remaining sensor reads, the send,
+     * and all NVS writes, and sleep as long as possible to conserve the
+     * remaining charge. */
     if (battery_v > 0.0f && battery_v <= CONFIG_WELLD_BATT_EMPTY_MV / 1000.0f) {
         ESP_LOGW(TAG, "battery critically low (%.2f V <= %.2f V) — skipping send",
                  battery_v, CONFIG_WELLD_BATT_EMPTY_MV / 1000.0f);
         rtc_log_event(RTC_EVT_LOW_BATT_SKIP);
+        /* This wakeup never attempts a send — un-count its boot attempt so
+         * low-battery skips cannot accumulate towards an OTA rollback.
+         * RTC-memory only, so the no-NVS-writes rule holds. */
+        boot_attempts_uncount();
         uint32_t low_batt_sleep = CONFIG_WELLD_SLEEP_DURATION_SEC;
 #ifdef CONFIG_WELLD_SLEEP_MAX_SEC
         low_batt_sleep = CONFIG_WELLD_SLEEP_MAX_SEC;
@@ -479,6 +554,23 @@ void app_main(void)
         s_history.elapsed_since_last_valid_sec = 0;
         enter_deep_sleep(low_batt_sleep);
     }
+
+    /* Battery is healthy — read the remaining sensors (still before the radio). */
+    float level_m       = sensor_read_level();
+    float temperature_c = sensor_read_temperature();
+    s_profile.t_sensors = esp_timer_get_time() - t0;
+    if (level_m >= 0.0f) {
+        rtc_log_event(RTC_EVT_SENSOR_OK);
+    }
+
+    /* Temperature compensation for water density */
+    if (level_m >= 0.0f && temperature_c > -127.0f) {
+        level_m = sensor_level_temp_compensate(level_m, temperature_c);
+    }
+
+#ifdef CONFIG_WELLD_SELFTEST_ENABLED
+    sensor_selftest();
+#endif
 
     float rate_cm_per_hour = NAN;
     if (s_history.valid && level_m >= 0.0f) {
@@ -501,7 +593,7 @@ void app_main(void)
                  (unsigned long)(fail_count + 1), FAIL_THRESHOLD);
         rtc_log_event(RTC_EVT_ZB_FAIL);
         /* Save reading for next successful send */
-        store_push(level_m, battery_v, temperature_c, CONFIG_WELLD_SLEEP_DURATION_SEC);
+        store_push(level_m, battery_v, temperature_c);
         break;
     case WELLD_FAIL_RESET:
         write_fail_count(0);
@@ -510,6 +602,10 @@ void app_main(void)
         rtc_log_event(RTC_EVT_ZB_SENT);
         store_clear();
         boot_attempts_clear();
+        /* First successful send from this image disarms OTA rollback
+         * (write-on-change; a no-op on every later wakeup). Cannot coincide
+         * with the low-battery no-NVS-writes path — that path never sends. */
+        image_mark_proven();
         break;
     }
 

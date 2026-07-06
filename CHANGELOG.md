@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- OTA rollback can no longer flip a healthy image to the old slot during a coordinator outage: the boot-attempt counter is armed only while the running image is unproven (NVS marker `img_ok` stores the version string of the last image that completed a successful send), and low-battery-skip wakeups no longer count as failed boot attempts.
+- An OTA download failure (stall abort, flash error) no longer counts as a Zigbee send failure when the sensor report itself was delivered — previously five OTA-plagued wakeups could wipe NVS and force a needless rejoin.
+- `zigbee_send()` no longer deletes its synchronisation objects while `zb_task` may still be unwinding (>5 s teardown): the objects are deliberately leaked for the one remaining wake cycle instead (deep sleep resets the chip), eliminating a narrow use-after-free window.
+- EP6 now reports the real device-side LQI, read from the Zigbee stack's neighbor table (parent entry). Previously it sent a constant 0 stub, which the converter suppresses as "unknown".
 - OTA rollback guard was inert: it looked up `esp_ota_get_last_invalid_partition()`, which never matches in this app-level scheme. It now targets the inactive OTA slot (validated to contain an app image) and clears the RTC boot-attempt counter before restarting so the rolled-back image cannot immediately bounce back to the broken slot.
 - OTA firmware version encoding now matches the documented `0xMMmmPP00` format used by the CI-packed `.zigbee` image (the firmware previously advertised `0xMMmm00PP`, so an identically-versioned OTA file looked like an upgrade).
 - `zigbee_send()` no longer times out mid-OTA: it keeps waiting while a download is in progress instead of deleting the event group/timers still used by the Zigbee task and deep-sleeping with the radio active (the OTA stall watchdog still bounds the wait).
@@ -20,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Battery voltage is now reported over Zigbee (EP2) by default: the stale `CONFIG_WELLD_BATT_ADC_CHANNEL` int option (default `-1`, which silently disabled EP2 while the battery was still measured internally) is replaced by `CONFIG_WELLD_BATT_REPORT_ENABLED` (bool, default `y`).
 - Z2M converter: the device-side LQI (EP6) is now exposed as `device_lqi` instead of `linkquality`, which Zigbee2MQTT's own coordinator-side key was shadowing. A value of 0 means "unknown" and is not published — current firmware always sends 0 (the device-side reading is a stub), so `device_lqi` will not appear until a future firmware release populates it.
 - VLOOP (MT3608B EN) settling wait before a 4–20 mA read raised from 5 ms to 10 ms — the 12 V output caps now charge through the Q3 load-disconnect P-FET (PCB review 2026-07).
+- The battery is now read before the water level and temperature so the low-battery guard can skip the remaining sensor reads entirely (no VLOOP boost power or DS18B20 NVS write on a wakeup that won't report).
+- The post-send ACK window now scales with the store-and-forward backlog size (up to 4× `CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS`), so a full 8-entry burst isn't cut off mid-flight.
 - **Migration notes for the battery change**: (1) devices OTA-upgraded from ≤ 1.0.2 need a Zigbee2MQTT re-interview (or re-pair) to surface the new EP2 battery entities — Z2M caches the endpoint list from the original interview; (2) a stale `CONFIG_WELLD_BATT_ADC_CHANNEL` line in `sdkconfig.defaults.local` is silently ignored by Kconfig — operators who used `-1` to disable battery reporting must now set `CONFIG_WELLD_BATT_REPORT_ENABLED=n`.
 
 ### Added

@@ -8,6 +8,7 @@
 #include "ezbee/zcl/cluster/ota_upgrade_desc.h"
 #include "ezbee/zcl/cluster/ota_upgrade.h"
 #include "ezbee/zcl/zcl_general_cmd.h"
+#include "ezbee/nwk.h"
 #include "ezbee/zha.h"
 #include "esp_app_desc.h"
 #include "esp_ota_ops.h"
@@ -46,8 +47,11 @@ static const char *TAG = "zigbee";
 #define OTA_MANUFACTURER_CODE  0x1234
 #define OTA_IMAGE_TYPE         0x0001
 
-/* Event bits used to synchronise zb_task with zigbee_send() on the main task */
-#define SENT_BIT    BIT0   /* reports were queued and SEND_DELAY_MS elapsed */
+/* Event bits used to synchronise zb_task with zigbee_send() on the main task.
+ * A FAIL_BIT raised after the report was already delivered (SENT_BIT or
+ * s_sent_before_ota) is OTA-origin and does not fail the send — the outcome
+ * is resolved by welld_send_result(). */
+#define SENT_BIT    BIT0   /* reports were queued and the finish window elapsed */
 #define FAIL_BIT    BIT1   /* coordinator not found, steering failed, or OTA error */
 #define STOPPED_BIT BIT2   /* mainloop has exited; radio is free */
 
@@ -75,6 +79,11 @@ static const float *s_store_temp_c;
    volatile prevents the compiler from caching the value across calls. */
 static volatile bool   s_ota_in_progress  = false;
 static volatile bool   s_ota_begin_failed = false;
+/* Set when the finish window elapsed while an OTA download owned the radio:
+   the report was delivered but SENT_BIT stays clear so zigbee_send() keeps
+   waiting for the transfer. A later OTA-origin FAIL_BIT must not turn that
+   delivered report into a send failure (see welld_send_result). */
+static volatile bool   s_sent_before_ota  = false;
 static int64_t         s_ota_start_us    = 0;   /* wall-clock time when OTA began */
 static esp_ota_handle_t s_ota_handle     = 0;
 static const esp_partition_t *s_ota_partition = NULL;
@@ -136,13 +145,21 @@ static void finish_timer_cb(TimerHandle_t xTimer)
 static void do_stop_sent(void *ctx)
 {
     if (s_ota_in_progress) {
+        /* The report frames had the full finish window before the OTA
+           download took over the radio. Record the delivery separately:
+           SENT_BIT must stay clear so zigbee_send() keeps waiting for the
+           transfer to finish, but if that transfer later fails (FAIL_BIT)
+           the already-delivered report must not count as a send failure. */
+        s_sent_before_ota = true;
         return;
     }
     if (s_ota_begin_failed) {
-        xEventGroupSetBits(s_events, FAIL_BIT);
-    } else {
-        xEventGroupSetBits(s_events, SENT_BIT);
+        /* esp_ota_begin failed, but only after the report window elapsed —
+           the sensor report itself went out. Report send success; the OTA
+           error was already logged in zb_action_handler. */
+        ESP_LOGW(TAG, "OTA begin failed; report already delivered — send still succeeds");
     }
+    xEventGroupSetBits(s_events, SENT_BIT);
     esp_zigbee_deinit();
 }
 
@@ -377,10 +394,21 @@ static void send_reports(void)
     }
 
     /* Link quality (LQI) — Analog Input cluster, endpoint 6.
-       TODO: read actual LQI from stack when API is available.
-       For now report 0 (unknown) so the endpoint is stable. */
+       Device-side reading: walk the stack's neighbor table and take the LQI
+       of the parent entry (an end device has exactly one parent; its link is
+       the one that matters). Runs in zb_task with the network up. 0 = no
+       parent entry found = "unknown" — the Z2M converter skips publishing 0,
+       so a failed lookup can never masquerade as a dead link. */
     {
         float lqi_f = 0.0f;
+        ezb_nwk_info_iterator_t nbr_it = EZB_NWK_INFO_ITERATOR_INIT;
+        ezb_nwk_neighbor_info_t nbr;
+        while (ezb_nwk_get_next_neighbor(&nbr_it, &nbr) == EZB_ERR_NONE) {
+            if (nbr.relationship == EZB_NWK_RELATIONSHIP_PARENT) {
+                lqi_f = (float)nbr.lqi;
+                break;
+            }
+        }
         ezb_zcl_set_attr_value(EP_LQI,
             EZB_ZCL_CLUSTER_ID_ANALOG_INPUT, EZB_ZCL_CLUSTER_SERVER,
             EZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID,
@@ -659,7 +687,9 @@ static void zb_task(void *pvParameters)
  *   4. Wait for STOPPED_BIT before returning — ensures the IEEE 802.15.4
  *      radio is fully idle before the caller enters deep sleep
  *
- * Returns true if SENT_BIT was set (coordinator acknowledged). */
+ * Returns true when the report was delivered — either SENT_BIT, or the
+ * finish window elapsed before an OTA download took over the radio. An OTA
+ * failure after that point does not fail the send (welld_send_result). */
 bool zigbee_send(float level_m,
                  float battery_v,
                  float temperature_c,
@@ -672,6 +702,7 @@ bool zigbee_send(float level_m,
                  const float *store_temp_c)
 {
     s_ota_begin_failed  = false;
+    s_sent_before_ota   = false;
     s_level_m           = level_m;
     s_battery_v         = battery_v;
     s_temperature_c     = temperature_c;
@@ -685,10 +716,23 @@ bool zigbee_send(float level_m,
     portMEMORY_BARRIER();  /* prevent compiler from moving writes past xTaskCreate */
     s_events            = xEventGroupCreate();
 
+    /* Scale the finish (ACK) window with the store-and-forward backlog: each
+       backlog entry adds up to 3 extra report frames (level, battery,
+       temperature) on top of the ~7 current-reading frames, so a full
+       8-entry burst is ~31 frames and a single SEND_DELAY_MS window sized
+       for one reading can elapse before the tail of the burst has gone out.
+       Clamped to a hardcoded 4× the configured value (deliberately not a
+       Kconfig tunable) so a corrupted store count can never keep the radio
+       alive much longer than a normal cycle. */
+    uint32_t finish_ms = (uint32_t)SEND_DELAY_MS * (1U + store_count);
+    if (finish_ms > (uint32_t)SEND_DELAY_MS * 4U) {
+        finish_ms = (uint32_t)SEND_DELAY_MS * 4U;
+    }
+
     /* Create the one-shot timers. pdFALSE = one-shot (auto-reload off). */
     s_timeout_timer = xTimerCreate("zb_timeout", pdMS_TO_TICKS(TOTAL_TIMEOUT_MS),
                                    pdFALSE, NULL, timeout_timer_cb);
-    s_finish_timer  = xTimerCreate("zb_finish",  pdMS_TO_TICKS(SEND_DELAY_MS),
+    s_finish_timer  = xTimerCreate("zb_finish",  pdMS_TO_TICKS(finish_ms),
                                    pdFALSE, NULL, finish_timer_cb);
 
     if (!s_timeout_timer || !s_finish_timer) {
@@ -723,13 +767,28 @@ bool zigbee_send(float level_m,
                                    pdMS_TO_TICKS(TOTAL_TIMEOUT_MS + 5000));
     } while ((bits & (SENT_BIT | FAIL_BIT)) == 0 && s_ota_in_progress);
     /* Wait for the radio to be released before entering deep sleep */
-    xEventGroupWaitBits(s_events, STOPPED_BIT, pdFALSE, pdFALSE, pdMS_TO_TICKS(5000));
+    EventBits_t stop_bits = xEventGroupWaitBits(s_events, STOPPED_BIT, pdFALSE, pdFALSE,
+                                                pdMS_TO_TICKS(5000));
 
-    xTimerDelete(s_timeout_timer, 0);
-    xTimerDelete(s_finish_timer, 0);
+    if (stop_bits & STOPPED_BIT) {
+        xTimerDelete(s_timeout_timer, 0);
+        xTimerDelete(s_finish_timer, 0);
+        vEventGroupDelete(s_events);
+    } else {
+        /* zb_task has not unwound yet — its mainloop and the timer callbacks
+           may still touch the event group and timers, so deleting them here
+           would be a use-after-free. Deliberately leak them instead: the
+           caller enters deep sleep right after we return, and deep sleep is
+           a full chip reset, so the leak is bounded to this one wake cycle
+           and strictly safer than freeing under a live task. */
+        ESP_LOGW(TAG, "zb_task did not stop within 5 s — leaking Zigbee sync objects until deep sleep");
+    }
     s_timeout_timer = NULL;
     s_finish_timer  = NULL;
 
-    vEventGroupDelete(s_events);
-    return (bits & SENT_BIT) != 0;
+    /* Success = report delivered (SENT_BIT, or the finish window elapsed
+       before an OTA took over). An OTA-origin FAIL_BIT never fails the send. */
+    return welld_send_result((bits & SENT_BIT) != 0,
+                             (bits & FAIL_BIT) != 0,
+                             s_sent_before_ota);
 }

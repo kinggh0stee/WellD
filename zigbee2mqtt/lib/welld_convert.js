@@ -69,12 +69,11 @@ function convertFails(presentValue) {
    every message with the coordinator-side radio LQI, so publishing under
    that key would be permanently shadowed.
 
-   0 means "unknown / not measured" and is NOT published: current firmware
-   reports a constant 0 (the stack API for a real device-side reading is not
-   wired up yet), and a genuine LQI of 0 cannot coexist with a successfully
-   delivered report frame. Skipping 0 keeps HA from showing a permanent
-   dead-link sensor; real values 1–255 flow through unchanged once the
-   firmware provides them. */
+   0 means "unknown / not measured" and is NOT published: the firmware sends
+   0 when no parent entry is found in its neighbor table (and firmware
+   <= 1.0.2 always sent 0), and a genuine LQI of 0 cannot coexist with a
+   successfully delivered report frame. Skipping 0 keeps HA from showing a
+   permanent dead-link sensor; real values 1-255 flow through unchanged. */
 function convertLqi(presentValue) {
     const value = finitePresentValue(presentValue);
     if (value === undefined) return undefined;
