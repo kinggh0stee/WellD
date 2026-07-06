@@ -43,7 +43,7 @@ were considered:
   up to ~2 A charge current (we set ~1 A), with input-power-adaptive throttling that
   folds back charge current when a weak USB source sags — this is what makes it safe on
   an uncharacterised 5 V wall adapter behind our passive 5.1 kΩ CC sink strapping.
-- **Package:** ESOP-8 (SOP-8 + exposed pad). Hand-solderable, and the existing Group G
+- **Package:** ~~ESOP-8 (SOP-8 + exposed pad)~~ **CORRECTED 2026-07-06: 24-pin + EPAD** (see the datasheet-verification addendum at the end of this file). Original text kept for the audit trail. Hand-solderable, and the existing Group G
   8×8 mm thermal pour requirement in `placement_constraints.md` carries over (≈0.9 W
   dissipation at 1 A charge, 90 % efficiency).
 - **Sourcing:** Injoinic (英集芯) is stocked directly at LCSC; exact C-number to be looked
