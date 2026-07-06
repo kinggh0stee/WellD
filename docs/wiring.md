@@ -290,13 +290,21 @@ CONFIG_WELLD_SENSOR_MAX_DEPTH_CM=600    # change to match your transducer range
 # DS18B20
 CONFIG_WELLD_DS18B20_GPIO=4
 
-# Battery (LiPo with 2:1 divider on ADS1115 AIN2)
-# Set to n to drop the Zigbee battery endpoint (EP2); the battery is still
-# measured internally for the low-battery guard.
+# Battery (DEV-BOARD EXAMPLE: 1S LiPo through a home-built 2:1 divider
+# into ADS1115 AIN2).
+#
+# ⚠ Do NOT copy these three values onto the WellD PCB. The PCB has a fixed
+# R7/R8 = 330 kΩ/100 kΩ divider and a 2S pack — its correct values are the
+# firmware defaults (RATIO=430, FULL=8400, EMPTY=6000). Using the 1S values
+# below on the PCB makes the reported voltage read ~2× low and defeats the
+# low-battery guard.
+#
+# Set REPORT_ENABLED to n to drop the Zigbee battery endpoint (EP2); the
+# battery is still measured internally for the low-battery guard.
 CONFIG_WELLD_BATT_REPORT_ENABLED=y
-CONFIG_WELLD_BATT_DIVIDER_RATIO=200     # (100+100)/100 × 100 = 200
-CONFIG_WELLD_BATT_FULL_MV=4200          # LiPo full charge in millivolts
-CONFIG_WELLD_BATT_EMPTY_MV=3000         # LiPo cutoff in millivolts
+CONFIG_WELLD_BATT_DIVIDER_RATIO=200     # (100+100)/100 × 100 = 200 (1S example!)
+CONFIG_WELLD_BATT_FULL_MV=4200          # 1S LiPo full charge in millivolts
+CONFIG_WELLD_BATT_EMPTY_MV=3000         # 1S LiPo cutoff in millivolts
 ```
 
 If you moved a sensor to a different GPIO, change the corresponding channel or GPIO number here. You can also use `idf.py menuconfig` → **WellD Configuration** for an interactive menu instead of editing the file directly.

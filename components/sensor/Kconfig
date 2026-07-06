@@ -112,6 +112,11 @@ menu "WellD Sensor"
             GPIO connected to the TP5100 CE (chip-enable) pin via R36 (100 kΩ pull-up
             to VUSB) and R37 (4.7 kΩ pull-down to GND). Drive HIGH to enable USB-C
             charging; isolate before deep-sleep so R37 passively holds CE LOW.
+            NOTE: the PCB BOM replaces the TP5100 with an IP2326 boost charger
+            (auto-charge on VBUS, no CE pin; R36/R37 deleted) — on IP2326 boards
+            this GPIO drives an unconnected pad (harmless no-op). Firmware keeps
+            the TP5100 behaviour until the swap is datasheet-confirmed; see
+            hardware/pcb/component_selection_review.md.
 
     config WELLD_VLOOP_GPIO
         int "VLOOP 12 V boost enable GPIO (MT3608B EN)"

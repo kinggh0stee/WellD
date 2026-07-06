@@ -302,7 +302,9 @@ static void write_fail_count(uint32_t count)
  *     current.  The power-control outputs are already LOW before this call
  *     so they remain LOW in isolation.  For GPIO4 specifically, floating
  *     during sleep lets R37 (4.7 kΩ) passively hold TP5100 CE LOW so the
- *     USB charger is off while the MCU sleeps. */
+ *     USB charger is off while the MCU sleeps.  (On the pending IP2326
+ *     board revision GPIO4 is unconnected and this drive is a no-op —
+ *     see hardware/pcb/component_selection_review.md.) */
 static void enter_deep_sleep(uint32_t sleep_sec)
 {
     sensor_pre_sleep_cleanup();

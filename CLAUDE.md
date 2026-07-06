@@ -93,7 +93,7 @@ All in `main/main.c`, each guarded by its own magic constant:
 
   | GPIO | PCB function |
   |------|---------------|
-  | 4 | TP5100 USB charger CE — HIGH enables USB-C charging; isolated before deep-sleep (R37 pulls LOW passively) |
+  | 4 | TP5100 USB charger CE — HIGH enables USB-C charging; isolated before deep-sleep (R37 pulls LOW passively). **Pending hardware change**: the BOM replaces the TP5100 with an IP2326 (auto-charge, no CE pin — GPIO4 becomes spare, R36/R37 deleted); firmware keeps the TP5100 drive until the swap is datasheet-confirmed (`hardware/pcb/component_selection_review.md`) |
   | 5 | MT3608B VLOOP boost enable — HIGH → 12 V VLOOP active |
   | 6 | Solar charging detect input (CN3722 /CHRG, active-low — LOW = solar charging in progress) |
   | 7 | DS18B20 1-Wire data (external power mode required; parasite power unsupported) |
@@ -112,7 +112,7 @@ All in `main/main.c`, each guarded by its own magic constant:
 - EP 3 — Temperature Measurement (0x0402, int16 × 0.01 °C). `0x8000` is the ZCL "invalid" sentinel.
 - EP 4 — Analog Input (level rate of change, cm/h, signed). Always registered (the descriptor has to be stable across wakeups), but **only reported when the rate is finite** — `isnan(rate)` means there is no prior valid reading and the EP4 report frame is skipped.
 - EP 5 — Analog Input (consecutive Zigbee failure counter). Always reported.
-- EP 6 — Analog Input (device-side LQI 0–255). Always reported. Exposed as `device_lqi` in the converter — Z2M's own `linkquality` key comes from the coordinator and was shadowing it.
+- EP 6 — Analog Input (device-side LQI). Always reported, but **current firmware sends a constant 0** (stub — no verified stack API for a device-side reading yet; see the TODO in `zigbee.c`). The converter publishes nonzero values as `device_lqi` and treats 0 as "unknown" (not published) — Z2M's own `linkquality` key comes from the coordinator and was shadowing this endpoint.
 - EP 7 — Analog Input (solar charging state, 0/1). Always reported.
 
 When the store-and-forward buffer is non-empty, previously-failed readings are burst-reported before the current one. Reports are unsolicited `zcl_report_attr_cmd_req` to short address `0x0000` (the coordinator). The Z2M external converter (`zigbee2mqtt/welld.js`, logic in `zigbee2mqtt/lib/welld_convert.js`) translates EP IDs to `water_level` / `battery_voltage` / `battery` / `temperature` / `water_level_rate` / `zb_fails` / `device_lqi` / `solar_charging` keys and computes battery % from the `battery_full_mv` / `battery_empty_mv` device options.
