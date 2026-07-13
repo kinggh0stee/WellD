@@ -243,20 +243,45 @@ test('endpoint 5 with zero failures reports 0', () => {
 
 test('convertLqi rounds float to integer', () => {
     assert.equal(convertLqi(200.7), 201);
-    assert.equal(convertLqi(0.0), 0);
+    assert.equal(convertLqi(1.0), 1);
 });
 
-test('convertLqi clamps to [0, 255]', () => {
-    assert.equal(convertLqi(-10), 0);
+test('convertLqi clamps to [1, 255]; 0 and below-zero are unknown', () => {
     assert.equal(convertLqi(300), 255);
+    /* 0 = "unknown / not measured" (current firmware stub) — never published,
+       so HA cannot show a permanent dead-link sensor. Negative clamps to 0
+       and is likewise suppressed. */
+    assert.equal(convertLqi(0.0), undefined);
+    assert.equal(convertLqi(-10), undefined);
+    assert.equal(convertLqi(0.4), undefined);
 });
 
-test('endpoint 6 dispatches to LQI', () => {
+test('endpoint 6 with stub zero LQI is not published', () => {
+    const result = convertAnalogInput({
+        endpoint: {ID: 6},
+        data: {presentValue: 0.0},
+    });
+    assert.equal(result, undefined);
+});
+
+test('endpoint 6 dispatches to device-side LQI', () => {
     const result = convertAnalogInput({
         endpoint: {ID: 6},
         data: {presentValue: 200.0},
     });
-    assert.deepEqual(result, {linkquality: 200});
+    assert.deepEqual(result, {device_lqi: 200});
+});
+
+test('endpoint 6 must not publish under the linkquality key (Z2M shadows it)', () => {
+    /* Zigbee2MQTT overwrites `linkquality` on every message with the
+       coordinator-side radio LQI, so the device-side value would be
+       permanently shadowed if published under that key. */
+    const result = convertAnalogInput({
+        endpoint: {ID: 6},
+        data: {presentValue: 180.0},
+    });
+    assert.ok(!('linkquality' in result));
+    assert.equal(result.device_lqi, 180);
 });
 
 /* convertSolar ------------------------------------------------------------- */
@@ -362,7 +387,7 @@ test('store-and-forward burst: mixed-endpoint reports stay isolated', () => {
         {battery_voltage: 7.2, battery: 50},
         {water_level_rate: -3.2},
         {zb_fails: 1},
-        {linkquality: 180},
+        {device_lqi: 180},
         {solar_charging: false},
     ]);
 });

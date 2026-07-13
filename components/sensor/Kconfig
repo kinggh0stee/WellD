@@ -34,13 +34,15 @@ menu "WellD Sensor"
             'welld/offset_cm' are clamped to the range -600 to +600 cm at
             runtime.
 
-    config WELLD_BATT_ADC_CHANNEL
-        int "ADC1 channel for battery voltage (set to -1 to disable)"
-        default -1
-        range -1 6
+    config WELLD_BATT_REPORT_ENABLED
+        bool "Report battery voltage over Zigbee (EP2)"
+        default y
         help
-            ADC1 channel wired to the battery via a resistor divider.
-            Set to -1 to disable battery monitoring.
+            Registers Zigbee endpoint 2 (Analog Input, battery volts) and
+            reports the battery voltage to the coordinator on every wakeup.
+            The battery is always measured internally via the ADS1115 AIN2
+            gated resistor divider for the low-battery guard, regardless of
+            this option — disabling it only removes the Zigbee endpoint.
 
     config WELLD_BATT_DIVIDER_RATIO
         int "Battery divider ratio * 100 (e.g. 430 = 4.3:1 divider)"
@@ -110,6 +112,11 @@ menu "WellD Sensor"
             GPIO connected to the TP5100 CE (chip-enable) pin via R36 (100 kΩ pull-up
             to VUSB) and R37 (4.7 kΩ pull-down to GND). Drive HIGH to enable USB-C
             charging; isolate before deep-sleep so R37 passively holds CE LOW.
+            NOTE: the PCB BOM replaces the TP5100 with an IP2326 boost charger
+            (auto-charge on VBUS, no CE pin; R36/R37 deleted) — on IP2326 boards
+            this GPIO drives an unconnected pad (harmless no-op). Firmware keeps
+            the TP5100 behaviour until the swap is datasheet-confirmed; see
+            hardware/pcb/component_selection_review.md.
 
     config WELLD_VLOOP_GPIO
         int "VLOOP 12 V boost enable GPIO (MT3608B EN)"

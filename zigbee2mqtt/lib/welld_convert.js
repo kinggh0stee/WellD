@@ -63,11 +63,23 @@ function convertFails(presentValue) {
     return Math.min(255, Math.max(0, Math.floor(value)));
 }
 
-/* Endpoint 6: Link Quality (LQI), 0–255 integer. */
+/* Endpoint 6: device-side Link Quality (LQI), 1–255 integer — the device's
+   own view of its link, reported as an AnalogInput attribute. Published as
+   `device_lqi`, NOT `linkquality`: Zigbee2MQTT overwrites `linkquality` on
+   every message with the coordinator-side radio LQI, so publishing under
+   that key would be permanently shadowed.
+
+   0 means "unknown / not measured" and is NOT published: the firmware sends
+   0 when no parent entry is found in its neighbor table (and firmware
+   <= 1.0.2 always sent 0), and a genuine LQI of 0 cannot coexist with a
+   successfully delivered report frame. Skipping 0 keeps HA from showing a
+   permanent dead-link sensor; real values 1-255 flow through unchanged. */
 function convertLqi(presentValue) {
     const value = finitePresentValue(presentValue);
     if (value === undefined) return undefined;
-    return Math.min(255, Math.max(0, Math.round(value)));
+    const lqi = Math.min(255, Math.max(0, Math.round(value)));
+    if (lqi === 0) return undefined;
+    return lqi;
 }
 
 /* Endpoint 7: Solar charging state, 0/1 boolean. */
@@ -103,7 +115,7 @@ function convertAnalogInput(msg) {
     if (ep === 6) {
         const lqi = convertLqi(msg.data.presentValue);
         if (lqi === undefined) return undefined;
-        return {linkquality: lqi};
+        return {device_lqi: lqi};
     }
     if (ep === 7) {
         const solar = convertSolar(msg.data.presentValue);

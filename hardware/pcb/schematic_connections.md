@@ -20,7 +20,8 @@ The schematic files contain component symbol placements but **no wire connection
 | 8 | **D8/D14 changed SMAJ28CA → SMAJ24CA; C17 uprated to 35 V** | SMAJ28CA standoff equals the CN3722 28 V abs max — zero clamp margin (senior review warning #5). Consequence: max permitted panel Voc is now **24 V** (12 V-nominal panels, Voc ≈ 21–22 V, still fine). C17 at 25 V had no margin over a 24 V standoff rail. |
 | 9 | **C25 deleted from power.kicad_sch** (duplicate of C_BST); **C16 assigned as U1 VIN bulk 10 µF** | Resolves senior review warnings #8 and #9; the AP6320x datasheet input cap is 10 µF, previously only 100 nF + 1 µF were fitted. |
 | 10 | Refdes reconciliation: `R_CC1/R_CC2` → **R50/R51**, `C14a–C14d` → **C13, C30–C33**, `C_SH1/C_SH2` → **C34/C35**; **R38 is the TP5100 /CHRG pull-up** (the solar /CHRG pull-up is new R25); TP1=VBAT, TP3=+3V3, TP4=GND | Docs referred to symbols that do not exist in the schematics under those names. |
-| 11 | **TP5100 USB charge path flagged NON-FUNCTIONAL as designed** | TP5100 is a switching **step-down** (buck) 2S/1S charger. It cannot charge an 8.4 V pack from 5 V USB — VIN must exceed the pack voltage. See [verification blockers](#datasheet-verification-blockers). Wiring below is retained for reference but do not tape out with this section unresolved. |
+| 11 | **TP5100 USB charge path flagged NON-FUNCTIONAL as designed** | TP5100 is a switching **step-down** (buck) 2S/1S charger. It cannot charge an 8.4 V pack from 5 V USB — VIN must exceed the pack voltage. Superseded by change #12. |
+| 12 | **U12 replaced TP5100 → Injoinic IP2326** (5 V→2S synchronous **boost** charger, ESOP-8); **L3 boost inductor added**; R35 repurposed as ISET (value TBD); **R36/R37 deleted — GPIO4/USB_CE freed**; R38 reassigned to the IP2326 status pin; NTC strap placeholder added; **F2 uprated 1.1 A → 2 A hold** (boost input ≈1.9 A at 1 A charge) | Component-selection review 2026-07-05 (`component_selection_review.md` §1). Resolves change #11. IP2326 auto-runs on VBUS — no charge-enable GPIO (⚠️ verify EN absence, plus full pinout/CV/ISET/mid-cell-balance behaviour: blocker #2). Firmware must be told GPIO4 is no longer USB_CE. |
 
 ---
 
@@ -56,8 +57,9 @@ The schematic files contain component symbol placements but **no wire connection
 | LOOP_TERM_CH1/2 | signal | 4-20mA SIG inputs from J4/J5 |
 | SHUNT_IN_1/2, SHUNT_OUT_1/2 | analog | Shunt chain intermediate nets (see ADC_CH0/1) |
 | /CHRG_SOLAR | signal | CN3722 /CHRG (open-drain, active-low) → GPIO6, R25 pull-up |
-| /CHRG_USB | signal | TP5100 /CHRG (open-drain) → R38 pull-up → TP15 only |
-| USB_CE | signal | TP5100 CE ← GPIO4 (HIGH = charge enabled); R37 pull-down |
+| /CHRG_USB | signal | IP2326 charge-status pin (⚠️ verify pin/polarity) → R38 pull-up → TP15 only |
+| ~~USB_CE~~ | — | **DELETED 2026-07-05** — IP2326 auto-charges on VBUS; R36/R37 removed, GPIO4 freed (spare — coordinate with firmware) |
+| USBCHG_SW | switching | IP2326 boost switch node (VUSB → L3 → SW, internal sync FETs) — ⚠️ pin per datasheet |
 | BATT_DIV_EN | signal | GPIO15 → Q2 gate (HIGH enables battery divider via Q5) |
 | VBOOST_EN | signal | GPIO5 → MT3608B EN + Q4 gate (HIGH = 12V loop on); R27 pull-down |
 | GPIO14_LED | signal | Status LED (GPIO14 → R14 → D4 → SJ3 → GND) |
@@ -80,14 +82,13 @@ The schematic files contain component symbol placements but **no wire connection
 | U9 ADS1115 | GND **and ADDR** | ADDR→GND sets I²C address 0x48 |
 | U6 ESP32-C6-MINI-1U | GND (all) | Module GND + thermal pad |
 | U11 USBLC6-2SC6 | GND | USB ESD clamp |
-| U12 TP5100 | GND (+ exposed pad) | |
+| U12 IP2326 | GND (+ exposed pad) | |
 | D1, D12 PRTR5V0U2X | GND | Rail clamps |
 | R_FBL | pin 2 | **DNP** (only fitted with adjustable AP63200 option) |
 | R24 | pin 2 | MT3608B FB divider low side |
 | R21 | pin 2 | MPPT divider low side |
 | R34 | pin 2 | CN3722 CV divider low side |
-| R35 | pin 2 | TP5100 PROG resistor |
-| R37 | pin 2 | TP5100 CE pull-down (charger off by default) |
+| R35 | pin 2 | IP2326 ISET resistor (value TBD ⚠️) |
 | R26 | pin 2 | Q2 gate pull-down |
 | R27 | pin 2 | VBOOST_EN pull-down |
 | R31 | pin 2 | D5 gate pull-down (turns load switch ON) |
@@ -105,7 +106,7 @@ The schematic files contain component symbol placements but **no wire connection
 | C15 | pin 2 | ESP32-C6 bulk |
 | C36 | pin 2 | ESP32 EN reset-delay cap |
 | C27, C28 | pin 2 | VUSB filters |
-| C29 | pin 2 | TP5100 BAT bypass |
+| C29 | pin 2 | IP2326 BAT-side bypass |
 | C3–C6, C34, C35 | pin 2 | 4-20mA filter/bypass caps |
 | C7 | pin 2 | J6 VCC bypass |
 | R2, R4 | pin 2 (shunt low side) | 4-20mA shunt return |
@@ -151,7 +152,7 @@ The schematic files contain component symbol placements but **no wire connection
 | D12 PRTR5V0U2X | VCC | 1-Wire clamp rail |
 | TP3 | pad | +3V3 test point |
 
-> **CE pull-up note:** R36 (100 kΩ) pulls TP5100 CE toward **VUSB (5 V)**, but R37 (4.7 kΩ to GND) dominates, so CE idles LOW (~0.22 V, charger off) until GPIO4 drives it HIGH. R36 is electrically ineffective as fitted — candidate DNP. Firmware semantics unchanged: **GPIO4 HIGH enables charging; R37 holds it off during reset/deep sleep.**
+> **CE network removed (2026-07-05):** R36/R37 belonged to the TP5100 CE pin. The IP2326 replacement auto-charges whenever VBUS is present (⚠️ verify no EN pin exists — blocker #2). **GPIO4 is freed**; firmware's USB_CHG drive becomes a no-op (harmless against an unconnected pad) until firmware is updated.
 
 ### +3V3_ADS
 
@@ -178,7 +179,7 @@ The schematic files contain component symbol placements but **no wire connection
 | C9, C10, C16 | pin 1 | U1 VIN decoupling (100n / 1µ / 10µ) |
 | C18 | pin 1 | CN3722 VBAT cap |
 | C19 | pin 1 | MT3608B VIN bypass |
-| U12 TP5100 | BAT (both pins) | Charger output; C29 pin 1 here |
+| U12 IP2326 | BAT/VOUT (⚠️ pin per datasheet) | Boost charger output; C29 pin 1 here. ⚠️ Verify BAT-pin quiescent < 10 µA with USB absent |
 | TP1 | pad | VBAT test point (after D5) |
 | J9 | VBAT pin (optional) | — only if the header carries VBAT; otherwise omit |
 
@@ -279,36 +280,32 @@ Current path: `VBAT → Q3 (P-FET switch) → L1 → SW node → D15 (Schottky) 
 | J13 USB-C | VBUS (A4/B4/A9/B9) | VUSB_IN |
 | U11 USBLC6-2SC6 | VBUS | ESD clamp on VUSB_IN |
 | U11 | IO1/IO2 pairs | To J13 D+/D− stubs (power-only port; D± go nowhere else) |
-| F2 polyfuse | pin 1 / pin 2 | VUSB_IN → VUSB |
+| F2 polyfuse (2A hold) | pin 1 / pin 2 | VUSB_IN → VUSB (uprated — boost input ≈1.9 A at 1 A charge) |
 | C27 (4.7µF) | pin 1 | VUSB after F2 |
-| U12 TP5100 | VCC/VIN | VUSB; C28 (10µF) pin 1 at pin |
-| R36 (100k) | pin 1 | VUSB → CE (see CE note; candidate DNP) |
+| U12 IP2326 | VIN (⚠️ pin per datasheet) | VUSB; C28 (10µF) pin 1 at pin |
+| L3 | pin 1 / pin 2 | VUSB → USBCHG_SW (⚠️ topology/pin per IP2326 datasheet — internal sync FETs, no external rectifier) |
 | J13 | CC1 → R50 (5.1k) → GND; CC2 → R51 (5.1k) → GND | Sink advertising 5 V |
 
-### USB_CE (TP5100 charge enable)
+### ~~USB_CE~~ — deleted 2026-07-05
 
-| Component | Pin | Note |
-|-----------|-----|------|
-| U12 TP5100 | CE | HIGH = charge enabled |
-| U6 ESP32-C6 | GPIO4 | Drives HIGH while awake to charge |
-| R37 (4.7k) | pin 1 | CE → GND: fail-safe off at reset/boot/deep-sleep |
-| R36 (100k) | pin 2 | CE ← VUSB (dominated by R37; candidate DNP) |
+R36/R37 removed with the TP5100. IP2326 auto-runs on VBUS presence (⚠️ verify no EN/CE pin — blocker #2). **GPIO4 is spare**; coordinate with the firmware agent before re-tasking it.
 
 ### /CHRG_USB
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U12 TP5100 | /CHRG | Open-drain status |
-| R38 (4.7k) | pin 2 | Pull-up to +3V3 |
+| U12 IP2326 | charge-status pin (⚠️ verify name, polarity, open-drain vs push-pull LED driver) | |
+| R38 (4.7k) | pin 2 | Pull-up to +3V3 (fit only if the status pin is open-drain) |
 | TP15 | pad | Hardware-only test point (no GPIO) |
 
-### TP5100 PROG
+### IP2326 ISET / NTC
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U12 TP5100 | PROG | R35 (1.2k) to GND → I = 1200/1.2k ≈ 1 A |
+| U12 IP2326 | ISET | R35 → GND, **value TBD ⚠️** for ~1 A charge current (was TP5100 PROG 1.2 k) |
+| U12 IP2326 | NTC | RT1 strap **TBD ⚠️** — strongly prefer a real 10 k NTC thermally coupled to the pack (cold-charge cutoff, `component_selection_review.md` O-1) over a fixed disable strap |
 
-> ⚠️ **CRITICAL — do not tape out as-is:** TP5100 is a step-down charger; from 5 V USB it cannot reach the 8.4 V 2S CV point. Replace with a 5 V→2S boost charger (e.g. Injoinic IP2326-class) or insert a 5 V→12 V pre-boost ahead of TP5100 VIN. Also verify package (likely QFN-16, not SOP-8) and the 2S-select (CX) strap. See verification blockers.
+> **2026-07-05:** the TP5100 CRITICAL flag is resolved by the IP2326 replacement (design change #12). Remaining risk: IP2326's 2S **mid-cell/balance pin** vs our 2-pin XT30 pack — if the pin cannot be left unconnected, the charger choice reopens (blocker #2a).
 
 ### AP63203WU buck (U1)
 
@@ -449,7 +446,7 @@ GPIO8 strapping: R13 (10k) pull-up to +3V3, no other connection.
 
 1. Battery connects → VBAT_RAW → D5 body diode conducts, then channel enhances (gate at GND via R31) → VBAT.
 2. U1 (fixed 3.3 V) starts (EN via R11) → +3V3 → C36/R15 delay → ESP32 boots.
-3. Boost and both chargers idle: R27 holds MT3608B EN + Q4 low; R37 holds TP5100 CE low; CN3722 charges autonomously whenever panel power is present.
+3. Boost idles: R27 holds MT3608B EN + Q4 low. Both chargers are autonomous — CN3722 charges whenever panel power is present, IP2326 whenever VBUS is present (no enable GPIOs).
 4. Firmware: GPIO5 HIGH → U8 EN + Q4 → Q3 closes → VLOOP = 12 V (allow ≥5 ms, recommend 10 ms for C20/C22 charge through Q3) → loop read → GPIO5 LOW.
 5. Firmware: GPIO15 HIGH → Q2 → Q5 closes → divider live (settles < 1 ms with C8 = 1 nF) → AIN2 read → GPIO15 LOW.
 6. Deep sleep: all control GPIOs driven LOW then isolated; R27/R26/R37/R31 define every switch state passively. No DC path from VBAT except U1, R11, and IC quiescents.
@@ -467,7 +464,7 @@ Wiring above uses **pin names**. Before assigning footprints / generating a netl
 | welld:AP63205WU (used for U1) | ⚠️ numbering EN=1, GND=2, FB=3, VIN=4, SW=5, BST=6 — **verify against Diodes TSOT-26 datasheet**; also rename to AP63203WU |
 | welld:MT3608B | ❌ suspect — classic MT3608 SOT-23-6 is SW=1, GND=2, FB=3, EN=4, IN=5, NC=6. Symbol has IN=1, SW=5, BST=6. Fix numbering (or the footprint mapping) before layout |
 | welld:USBLC6_2SC6 | ❌ suspect — real part: IO1=1, GND=2, IO2=3, IO2'=4, VBUS=5, IO1'=6. Symbol has VBUS=1, GND=4 |
-| welld:TP5100 | ❌ 8-pin symbol; real TP5100 is likely QFN-16 with CX (cell-count) pin — resolve with the charger-architecture fix |
+| welld:TP5100 | ❌ obsolete — TP5100 replaced by IP2326 (design change #12). Delete this symbol and draw a new **welld:IP2326** (ESOP-8) from the Injoinic datasheet |
 | welld:CN3722 | ⚠️ 8-pin symbol; part is likely SSOP-10 (with /DONE pin). Verify pinout + package |
 | welld:PRTR5V0U2X | ⚠️ 6-pin symbol / SOT-363 footprint; real PRTR5V0U2X is SOT-143B (4 pins: I/O1, I/O2, VCC, GND) |
 | welld:ESP32_C6_MINI_1U | ⚠️ custom numbering — replace with the official Espressif KiCad symbol/footprint before layout |
@@ -476,11 +473,24 @@ Wiring above uses **pin names**. Before assigning footprints / generating a netl
 
 ## Datasheet verification blockers (resolve before tape-out)
 
-1. **U1 identity**: confirm AP63203WU = 3.3 V fixed / AP63205WU = 5 V fixed / AP63200WU = adjustable (VFB 0.8 V), and whether the BST pin needs an external cap. Pick AP63203WU (preferred, R_FBH/R_FBL stay DNP) or AP63200WU (fit R_FBH=390k, R_FBL=124k).
-2. **U12 TP5100**: step-down charger cannot charge 2S from 5 V. Choose replacement (IP2326-class 5 V→2S boost charger) or add pre-boost; then fix symbol/package/CX strap.
-3. **U8 MT3608B**: confirm pinout, whether pin 6 is BST or NC (C_BST fitted either way — harmless on NC), and switch-current/sync-rectifier details. D15 + Q3/Q4 disconnect are required regardless unless the chosen part has true load disconnect.
-4. **U7 CN3722**: confirm package (SSOP-10?), current-set mechanism (VPROG resistor vs CSP/CSN sense resistor), /DONE pin, and MPPT/FB pin numbering.
+1. **U1 identity**: confirm AP63203WU = 3.3 V fixed / AP63205WU = 5 V fixed / AP63200WU = adjustable (VFB 0.8 V), and whether the BST pin needs an external cap. Pick AP63203WU (preferred, R_FBH/R_FBL stay DNP) or AP63200WU (fit R_FBH=390k, R_FBL=124k). Also confirm the ~22 µA no-load Iq figure used in the sleep budget (`component_selection_review.md` §3).
+2. **U12 IP2326** (replaced TP5100, design change #12) — verify against the Injoinic datasheet:
+   - **2a. Mid-cell/balance pin — ✅ RESOLVED 2026-07-06**: VBATM (pin 23) and VBAT_GND (pin 24) "should be left floating when doesn't use" per the IP2326 V1.2 datasheet. The 2-pin XT30 pack works unchanged with balancing disabled. Charger choice stands.
+   - 2b. Package = ESOP-8 and exposed-pad size; full pinout for a new `welld:IP2326` symbol.
+   - 2c. CV = 8.40 V fixed for 2S (or how it is set).
+   - 2d. R35 ISET value for ~1 A charge current.
+   - 2e. EN/CE pin — ✅ RESOLVED 2026-07-06: **EN exists (pin 12)**, pull-low-to-disable, float = enabled. Decision: leave floating (auto-charge on VBUS), GPIO4 stays freed. Polarity matches the old TP5100 CE drive, so GPIO4→EN is a zero-firmware-change option later. Package is **24-pin + EPAD, not ESOP-8** — see component_selection_review.md 2026-07-06 addendum for the full verified pin map, RVSET=120k CV correction (NC strap maxes at 8.5 V — unsafe for 2S), RISET=90k (1 A), and the NTC pin path to the sub-zero cutoff.
+   - 2f. NTC pin function and strap; wire a real pack NTC if feasible (blocker #7 / review O-1).
+   - 2g. BAT-pin quiescent with USB absent — must be < 10 µA (nightly battery drain).
+   - 2h. Input-adaptive current limiting behaviour on weak 5 V sources (we advertise only default USB via 5.1 k CC sinks).
+   - 2i. L3 inductor value/Isat and input/output cap values (C28/C29); status-pin type for R38.
+   - 2j. LCSC part number and stock.
+3. **U8 MT3608B**: confirm pinout, whether pin 6 is BST or NC (C_BST fitted either way — harmless on NC), switch-current/sync-rectifier details, and EN-low shutdown current (<1 µA assumed in the sleep budget). D15 + Q3/Q4 disconnect are required regardless unless the chosen part has true load disconnect.
+4. **U7 CN3722**: confirm package (SSOP-10?), current-set mechanism (VPROG resistor vs CSP/CSN sense resistor), /DONE pin, and MPPT/FB pin numbering. **Added 2026-07-05**: (a) BAT-pin quiescent in the dark — this sits on the pack every night, expect low single-digit µA; (b) whether a TEMP/NTC pin exists — if so, wire it for cold-charge cutoff (blocker #7).
 5. **ESP32-C6-MINI-1U**: replace custom symbol with the Espressif library part.
+6. **D9/D10 SMAJ3.3CA leakage** (added 2026-07-05): confirm reverse leakage at 2.0 V working voltage / 60 °C is ≤ 1 µA — the leakage path parallels the 100 Ω shunt and reads as loop current. If it fails, substitute a 5 V-standoff low-leakage clamp (R3/R5 + D1 still protect the ADS1115 pins).
+7. **Charge-temperature and pack-current limits** (added 2026-07-05): (a) confirm the pack PCM continuous charge rating ≥ 2 A (solar 0.5 A + USB 1 A co-charge, review §2); (b) decide the below-0 °C charging strategy — Li-ion must not be charged below 0 °C, and this is an outdoor device. Preferred: real NTC to both chargers' temperature pins (review O-1).
+8. **F2 replacement PTC** (added 2026-07-05): exact MPN for a 2 A-hold / ≥6 V / 1206 part (MF-MSMF200/16X class — verify suffix and voltage rating), sized for the IP2326's ≈1.9 A input current at 1 A charge.
 
 ---
 
@@ -498,6 +508,10 @@ Wiring above uses **pin names**. Before assigning footprints / generating a netl
 | D8, D14 | SMAJ28CA → SMAJ24CA | Edit values in power sheet |
 | C17 | 25 V → 35 V rating (footprint 0805 → 1206) | Edit value/footprint in power sheet |
 | SJ2/SJ3 (and new SJ4/SJ5) | All five SJ symbols use the *Open* variant; SJ2/SJ3/SJ4/SJ5 should default **bridged** | Swap symbol/footprint variant |
+| U12 | TP5100 symbol obsolete | Delete; draw `welld:IP2326` (ESOP-8) from datasheet after blocker #2 is resolved; rewire USB section per the VUSB, /CHRG_USB, and ISET/NTC tables above |
+| L3, RT1 | New IP2326 support parts — **not yet placed** | Add to power sheet once blocker #2 fixes values (L3 boost inductor, RT1 NTC strap) |
+| R36, R37 | Deleted with TP5100 CE network | Remove symbols from power sheet; GPIO4 net becomes spare (tell firmware agent) |
+| F2 | 1.1 A → 2 A hold PTC | Edit value/MPN in power sheet (blocker #8) |
 | U6 | Custom symbol | Replace with Espressif official symbol + footprint |
 | C25 | ~~Duplicate of C_BST~~ | ✅ Deleted 2026-07-05 |
 | C16 | ~~Unidentified~~ | ✅ Assigned: U1 VIN bulk 10 µF 16 V 0805 |

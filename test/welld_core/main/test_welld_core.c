@@ -65,6 +65,49 @@ static void test_post_send_failure_ignores_count(void)
     TEST_ASSERT_EQUAL_INT(WELLD_FAIL_INCREMENT, welld_post_send_action(0xFFFFFFFFu, false));
 }
 
+/* welld_send_result --------------------------------------------------------- */
+/* Resolves the outcome of a zigbee_send() cycle from SENT_BIT / FAIL_BIT and
+ * the "finish window elapsed while an OTA download owned the radio" flag.
+ * Contract: success = report delivered (either sent flag), regardless of an
+ * OTA-origin FAIL_BIT raised afterwards. */
+
+static void test_send_result_sent_only(void)
+{
+    TEST_ASSERT_TRUE(welld_send_result(true, false, false));
+}
+
+static void test_send_result_sent_with_late_ota_fail(void)
+{
+    /* SENT_BIT seen, FAIL_BIT raised later (OTA abort) — still a success;
+     * 5 OTA-plagued wakeups must not wipe NVS and force a rejoin. */
+    TEST_ASSERT_TRUE(welld_send_result(true, true, false));
+}
+
+static void test_send_result_sent_before_ota_then_ota_fail(void)
+{
+    /* Report delivered, then the OTA took over the radio (SENT_BIT deferred)
+     * and later failed (stall abort / write / finalise). */
+    TEST_ASSERT_TRUE(welld_send_result(false, true, true));
+}
+
+static void test_send_result_sent_before_ota_no_fail(void)
+{
+    TEST_ASSERT_TRUE(welld_send_result(false, false, true));
+}
+
+static void test_send_result_fail_only(void)
+{
+    /* Init/steering failure or coordinator-not-found timeout: the report
+     * itself failed — behaviour unchanged, counts as a send failure. */
+    TEST_ASSERT_FALSE(welld_send_result(false, true, false));
+}
+
+static void test_send_result_timeout_no_bits(void)
+{
+    /* Bare wait timeout with no bits at all is equally a failure. */
+    TEST_ASSERT_FALSE(welld_send_result(false, false, false));
+}
+
 /* welld_zb_encode_temp ----------------------------------------------------- */
 
 static void test_encode_temp_positive(void)
@@ -372,6 +415,12 @@ static int run_tests(void)
     RUN_TEST(test_post_send_failure_increments);
     RUN_TEST(test_post_send_success_at_wipe_threshold);
     RUN_TEST(test_post_send_failure_ignores_count);
+    RUN_TEST(test_send_result_sent_only);
+    RUN_TEST(test_send_result_sent_with_late_ota_fail);
+    RUN_TEST(test_send_result_sent_before_ota_then_ota_fail);
+    RUN_TEST(test_send_result_sent_before_ota_no_fail);
+    RUN_TEST(test_send_result_fail_only);
+    RUN_TEST(test_send_result_timeout_no_bits);
     RUN_TEST(test_encode_temp_positive);
     RUN_TEST(test_encode_temp_negative);
     RUN_TEST(test_encode_temp_zero);

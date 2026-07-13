@@ -21,6 +21,24 @@ bool welld_should_wipe_nvs(uint32_t current_count, uint32_t threshold);
  * at boot, otherwise the value loaded from NVS). */
 welld_fail_action_t welld_post_send_action(uint32_t effective_count, bool sent);
 
+/* Resolve the outcome of one zigbee_send() cycle from its synchronisation
+ * flags:
+ *   sent_bit        — SENT_BIT: reports were queued and the ACK window
+ *                     elapsed with no OTA transfer running.
+ *   fail_bit        — FAIL_BIT: commissioning/steering failed, no coordinator
+ *                     was found, or an OTA transfer failed.
+ *   sent_before_ota — the ACK window elapsed but an OTA download had taken
+ *                     over the radio, so SENT_BIT was deferred to keep the
+ *                     caller waiting for the transfer.
+ *
+ * The report counts as delivered when either sent flag is set. A FAIL_BIT
+ * raised after that can only be OTA-origin (stall abort, flash write or
+ * finalise failure) and must NOT count as a send failure — five of those
+ * would wipe NVS and force a needless rejoin. fail_bit never changes the
+ * outcome: with no sent flag the send failed whether FAIL_BIT was raised or
+ * the wait simply timed out. */
+bool welld_send_result(bool sent_bit, bool fail_bit, bool sent_before_ota);
+
 /* Encode a temperature in °C as ZCL Temperature Measurement value (int16,
  * units of 0.01 °C). Returns 0x8000 — the ZCL "invalid" sentinel — when the
  * input is the sensor's -127 not-found marker. */
