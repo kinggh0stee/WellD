@@ -22,13 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Battery voltage is now reported over Zigbee (EP2) by default: the stale `CONFIG_WELLD_BATT_ADC_CHANNEL` int option (default `-1`, which silently disabled EP2 while the battery was still measured internally) is replaced by `CONFIG_WELLD_BATT_REPORT_ENABLED` (bool, default `y`).
-- Z2M converter: the device-side LQI (EP6) is now exposed as `device_lqi` instead of `linkquality`, which Zigbee2MQTT's own coordinator-side key was shadowing. A value of 0 means "unknown" and is not published — current firmware always sends 0 (the device-side reading is a stub), so `device_lqi` will not appear until a future firmware release populates it.
+- Z2M converter: the device-side LQI (EP6) is now exposed as `device_lqi` instead of `linkquality`, which Zigbee2MQTT's own coordinator-side key was shadowing. A value of 0 means "unknown" and is not published (firmware ≤ 1.0.2 always sent 0; this release populates the real reading — see Fixed).
 - VLOOP (MT3608B EN) settling wait before a 4–20 mA read raised from 5 ms to 10 ms — the 12 V output caps now charge through the Q3 load-disconnect P-FET (PCB review 2026-07).
 - The battery is now read before the water level and temperature so the low-battery guard can skip the remaining sensor reads entirely (no VLOOP boost power or DS18B20 NVS write on a wakeup that won't report).
 - The post-send ACK window now scales with the store-and-forward backlog size (up to 4× `CONFIG_WELLD_ZIGBEE_SEND_DELAY_MS`), so a full 8-entry burst isn't cut off mid-flight.
 - **Migration notes for the battery change**: (1) devices OTA-upgraded from ≤ 1.0.2 need a Zigbee2MQTT re-interview (or re-pair) to surface the new EP2 battery entities — Z2M caches the endpoint list from the original interview; (2) a stale `CONFIG_WELLD_BATT_ADC_CHANNEL` line in `sdkconfig.defaults.local` is silently ignored by Kconfig — operators who used `-1` to disable battery reporting must now set `CONFIG_WELLD_BATT_REPORT_ENABLED=n`.
 
 ### Added
+- Hardware: schematic fully wired (stub+label connectivity across all four sheets, explicit no-connects, PWR_FLAGs); netlist machine-verified against `schematic_connections.md` with zero mismatches (`hardware/pcb/kicad_wire_script.py` + `netlist_check.py`; KiCad-native ERC pending KiCad 10 availability).
 - `.editorconfig`, `.clang-format`, and `.pre-commit-config.yaml` for consistent code style.
 - CI static-analysis job (`cppcheck`) and automatic OTA image artifact generation.
 - `CHANGELOG.md` and version-bump enforcement in CI.
