@@ -4236,7 +4236,7 @@
 			(in_pos_files yes)
 			(duplicate_pin_numbers_are_jumpers no)
 			(property "Reference" "U"
-				(at 0 10.16 0)
+				(at 0 12.7 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -4246,7 +4246,7 @@
 				)
 			)
 			(property "Value" "CN3722"
-				(at 0 -10.16 0)
+				(at 0 -12.7 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -4255,7 +4255,7 @@
 					)
 				)
 			)
-			(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
+			(property "Footprint" "Package_SO:TSSOP-16_4.4x5mm_P0.65mm"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -4290,8 +4290,8 @@
 			)
 			(symbol "CN3722_0_1"
 				(rectangle
-					(start -3.81 -8.89)
-					(end 3.81 8.89)
+					(start -6.35 -11.43)
+					(end 6.35 11.43)
 					(stroke
 						(width 0)
 						(type default)
@@ -4303,9 +4303,9 @@
 			)
 			(symbol "CN3722_1_1"
 				(pin passive line
-					(at 6.35 6.35 180)
+					(at -8.89 8.89 0)
 					(length 2.54)
-					(name "VPROG"
+					(name "VG"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -4321,9 +4321,9 @@
 					)
 				)
 				(pin power_in line
-					(at 6.35 3.81 180)
+					(at -8.89 6.35 0)
 					(length 2.54)
-					(name "GND"
+					(name "PGND"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -4339,9 +4339,9 @@
 					)
 				)
 				(pin power_in line
-					(at 6.35 1.27 180)
+					(at -8.89 3.81 0)
 					(length 2.54)
-					(name "VIN"
+					(name "GND"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -4356,10 +4356,10 @@
 						)
 					)
 				)
-				(pin power_in line
-					(at 6.35 -1.27 180)
+				(pin open_collector line
+					(at -8.89 1.27 0)
 					(length 2.54)
-					(name "VIN2"
+					(name "/CHRG"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -4374,10 +4374,10 @@
 						)
 					)
 				)
-				(pin passive line
-					(at -6.35 3.81 0)
+				(pin open_collector line
+					(at -8.89 -1.27 0)
 					(length 2.54)
-					(name "VBAT"
+					(name "/DONE"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -4392,10 +4392,10 @@
 						)
 					)
 				)
-				(pin passive line
-					(at -6.35 1.27 0)
+				(pin input line
+					(at -8.89 -3.81 0)
 					(length 2.54)
-					(name "VBAT2"
+					(name "TEMP"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -4410,10 +4410,10 @@
 						)
 					)
 				)
-				(pin open_collector line
-					(at -6.35 -1.27 0)
+				(pin input line
+					(at -8.89 -6.35 0)
 					(length 2.54)
-					(name "/CHRG"
+					(name "MPPT"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -4428,10 +4428,10 @@
 						)
 					)
 				)
-				(pin input line
-					(at -6.35 -3.81 0)
+				(pin passive line
+					(at -8.89 -8.89 0)
 					(length 2.54)
-					(name "MPPT"
+					(name "COM1"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -4439,6 +4439,150 @@
 						)
 					)
 					(number "8"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 8.89 -8.89 180)
+					(length 2.54)
+					(name "COM2"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "9"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 8.89 -6.35 180)
+					(length 2.54)
+					(name "FB"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "10"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 8.89 -3.81 180)
+					(length 2.54)
+					(name "COM3"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "11"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin no_connect line
+					(at 8.89 -1.27 180)
+					(length 2.54)
+					(name "NC"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "12"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 8.89 1.27 180)
+					(length 2.54)
+					(name "CSP"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "13"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 8.89 3.81 180)
+					(length 2.54)
+					(name "BAT"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "14"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 8.89 6.35 180)
+					(length 2.54)
+					(name "VCC"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "15"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin output line
+					(at 8.89 8.89 180)
+					(length 2.54)
+					(name "DRV"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "16"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5100,7 +5244,7 @@
 							)
 						)
 					)
-					(number "1"
+					(number "5"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5172,7 +5316,7 @@
 							)
 						)
 					)
-					(number "5"
+					(number "1"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5180,10 +5324,10 @@
 						)
 					)
 				)
-				(pin passive line
+				(pin no_connect line
 					(at -6.35 -1.27 0)
 					(length 2.54)
-					(name "BST"
+					(name "NC"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5388,7 +5532,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "welld:TP5100"
+		(symbol "welld:IP2326"
 			(pin_names
 				(offset 1.016)
 			)
@@ -5398,7 +5542,7 @@
 			(in_pos_files yes)
 			(duplicate_pin_numbers_are_jumpers no)
 			(property "Reference" "U"
-				(at 0 10.16 0)
+				(at 0 17.78 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -5407,8 +5551,8 @@
 					)
 				)
 			)
-			(property "Value" "TP5100"
-				(at 0 -10.16 0)
+			(property "Value" "IP2326"
+				(at 0 -17.78 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -5417,7 +5561,7 @@
 					)
 				)
 			)
-			(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
+			(property "Footprint" "welld:IP2326_TBD"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -5450,10 +5594,10 @@
 					)
 				)
 			)
-			(symbol "TP5100_0_1"
+			(symbol "IP2326_0_1"
 				(rectangle
-					(start -3.81 -8.89)
-					(end 3.81 8.89)
+					(start -10.16 -16.51)
+					(end 10.16 16.51)
 					(stroke
 						(width 0)
 						(type default)
@@ -5463,11 +5607,11 @@
 					)
 				)
 			)
-			(symbol "TP5100_1_1"
-				(pin passive line
-					(at 6.35 6.35 180)
+			(symbol "IP2326_1_1"
+				(pin bidirectional line
+					(at -12.7 13.97 0)
 					(length 2.54)
-					(name "PROG"
+					(name "DM"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5482,10 +5626,10 @@
 						)
 					)
 				)
-				(pin power_in line
-					(at 6.35 3.81 180)
+				(pin bidirectional line
+					(at -12.7 11.43 0)
 					(length 2.54)
-					(name "VCC"
+					(name "DP"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5500,10 +5644,10 @@
 						)
 					)
 				)
-				(pin open_collector line
-					(at 6.35 1.27 180)
+				(pin input line
+					(at -12.7 8.89 0)
 					(length 2.54)
-					(name "/CHRG"
+					(name "VSET"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5518,10 +5662,10 @@
 						)
 					)
 				)
-				(pin passive line
-					(at 6.35 -1.27 180)
+				(pin input line
+					(at -12.7 6.35 0)
 					(length 2.54)
-					(name "BAT"
+					(name "NTC"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5536,10 +5680,10 @@
 						)
 					)
 				)
-				(pin passive line
-					(at -6.35 -1.27 0)
+				(pin open_collector line
+					(at -12.7 3.81 0)
 					(length 2.54)
-					(name "BAT2"
+					(name "BAT_STAT"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5554,10 +5698,10 @@
 						)
 					)
 				)
-				(pin input line
-					(at -6.35 1.27 0)
+				(pin output line
+					(at -12.7 1.27 0)
 					(length 2.54)
-					(name "CE"
+					(name "LED"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5572,10 +5716,10 @@
 						)
 					)
 				)
-				(pin power_in line
-					(at -6.35 3.81 0)
+				(pin input line
+					(at -12.7 -1.27 0)
 					(length 2.54)
-					(name "GND"
+					(name "TIME_SET"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5590,10 +5734,10 @@
 						)
 					)
 				)
-				(pin power_in line
-					(at -6.35 6.35 0)
+				(pin input line
+					(at -12.7 -3.81 0)
 					(length 2.54)
-					(name "GND2"
+					(name "VIN_UVSET"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5601,6 +5745,312 @@
 						)
 					)
 					(number "8"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -12.7 -6.35 0)
+					(length 2.54)
+					(name "VIN_OVSET"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "9"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -12.7 -8.89 0)
+					(length 2.54)
+					(name "CON_SEL"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "10"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -12.7 -11.43 0)
+					(length 2.54)
+					(name "ISET"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "11"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -12.7 -13.97 0)
+					(length 2.54)
+					(name "EN"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "12"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 12.7 -13.97 180)
+					(length 2.54)
+					(name "VIN"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "13"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 -11.43 180)
+					(length 2.54)
+					(name "BST"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "14"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 -8.89 180)
+					(length 2.54)
+					(name "LX"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "15"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 -6.35 180)
+					(length 2.54)
+					(name "LX"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "16"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 -3.81 180)
+					(length 2.54)
+					(name "LX"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "17"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 12.7 -1.27 180)
+					(length 2.54)
+					(name "PGND"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "18"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin power_out line
+					(at 12.7 1.27 180)
+					(length 2.54)
+					(name "VSYS"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "19"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin power_out line
+					(at 12.7 3.81 180)
+					(length 2.54)
+					(name "VSYS"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "20"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin power_out line
+					(at 12.7 6.35 180)
+					(length 2.54)
+					(name "VOUT"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "21"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin power_out line
+					(at 12.7 8.89 180)
+					(length 2.54)
+					(name "VOUT"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "22"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 12.7 11.43 180)
+					(length 2.54)
+					(name "VBATM"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "23"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 13.97 180)
+					(length 2.54)
+					(name "VBAT_GND"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "24"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 0 -19.05 90)
+					(length 2.54)
+					(name "EPAD"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "25"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -7670,6 +8120,258 @@
 				)
 				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/2b6726ca-47e0-5ff0-b8ba-45087cce0cf4/fd0a3d75-2904-560f-bce1-191aa81c90b9"
 					(reference "SW1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 125.73 156.21 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "82e9df95-9d4c-44bc-a2e3-7f842e8e85c4")
+		(property "Reference" "R15"
+			(at 125.73 154.21 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "10k"
+			(at 125.73 158.21 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "f3a59278-d3d9-47b7-9426-076b28e003e5")
+		)
+		(pin "2"
+			(uuid "5aa8b1c6-5547-405e-a0dc-0cc2c37764cc")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "R15")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/2b6726ca-47e0-5ff0-b8ba-45087cce0cf4/82e9df95-9d4c-44bc-a2e3-7f842e8e85c4"
+					(reference "R15")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C")
+		(at 140.97 156.21 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "827a38f9-007f-450e-88aa-8785874a6271")
+		(property "Reference" "C36"
+			(at 140.97 154.21 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "1uF"
+			(at 140.97 158.21 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "e54390a3-34df-4330-8fac-136dc957c448")
+		)
+		(pin "2"
+			(uuid "a9cc4c5f-9460-4ba9-bbf6-2e9fcde8f29c")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "C36")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/2b6726ca-47e0-5ff0-b8ba-45087cce0cf4/827a38f9-007f-450e-88aa-8785874a6271"
+					(reference "C36")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:TestPoint_Pad")
+		(at 156.21 156.21 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "1a10d429-adeb-4cfc-99e5-de8682ddd63d")
+		(property "Reference" "TP13"
+			(at 156.21 154.21 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "FACTORY_RESET"
+			(at 156.21 158.21 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "TestPoint:TestPoint_Pad_1.0x1.0mm"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "83c538d3-6522-4623-9a1a-308b006818a9")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "TP13")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/2b6726ca-47e0-5ff0-b8ba-45087cce0cf4/1a10d429-adeb-4cfc-99e5-de8682ddd63d"
+					(reference "TP13")
 					(unit 1)
 				)
 			)

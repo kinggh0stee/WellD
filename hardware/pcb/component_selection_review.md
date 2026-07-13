@@ -257,3 +257,21 @@ Source: ChipSourceTek/Injoinic IP2326 datasheet V1.2 (via done.land mirror + LCS
 ## Firmware API note — esp-zigbee-lib 2.0.1 (verified 2026-07-06)
 
 Verified against the pinned 2.0.1 headers (esp-zigbee-sdk checkout, `components/esp-zigbee-lib/include/ezbee/nwk.h`): `ezb_nwk_get_next_neighbor(ezb_nwk_info_iterator_t *, ezb_nwk_neighbor_info_t *)` exists with `uint8_t lqi` and `uint8_t relationship` (`EZB_NWK_RELATIONSHIP_PARENT = 0`) fields; iterator init is `EZB_NWK_INFO_ITERATOR_INIT` (NULL); success code `EZB_ERR_NONE` (`ezbee/error.h`). The CONFIG_ZB_SDK_1xx compat layer maps `esp_zb_nwk_get_next_neighbor` onto it. The EP6 device-LQI stub in `components/zigbee/zigbee.c` has been replaced with a real parent-neighbor read on this basis.
+
+## CN3722 CV/MPPT correction — 2026-07-13 (Consonance datasheet Rev 1.1 obtained)
+
+**Supersedes every "8.31 V / R33 = 590 k" figure in this document.** The CV math above
+(and in §2) assumed a 1.205 V FB reference — that is the **CN3791's** reference. The
+CN3722's **V_FB = 2.416 V** (2.392–2.44); with 590 k/100 k the pack would have been
+regulated at 2.416 × (1 + 5.9) ≈ **16.7 V** — destructive for 2S. Corrected divider:
+**R33 = 243 kΩ (E96) / R34 = 100 kΩ → 8.287 V** (V_REG = 2.416 × (1 + R_H/R_L)).
+The co-charge stack-up conclusion in §2 is unchanged in character (IP2326's 8.3/8.4 V
+still tops the CN3722's 8.29 V, so USB still finishes the charge).
+
+Same-datasheet verifications recorded elsewhere (see `schematic_connections.md` design
+changes #13–15): package TSSOP-16 (not SOP-8); external P-FET buck controller with
+CSP–BAT sense resistor (I_CH = 0.2 V/R_CS → 0.4 Ω = 500 mA; no VPROG pin); MPPT pin
+reference **1.04 V** (R20 corrected 36 k → 158 k → V_MP ≈ 17.5 V); TEMP pin (55 µA
+pull-up, 1.61/0.175 V thresholds) now carries RT_SOLAR 10 k NTC — the solar-path
+cold-charge cutoff (finding O-1); BAT-pin sleep current 10 µA typ at V_BAT = 12 V
+(dark-quiescent question answered).

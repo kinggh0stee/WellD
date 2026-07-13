@@ -22,6 +22,10 @@ The schematic files contain component symbol placements but **no wire connection
 | 10 | Refdes reconciliation: `R_CC1/R_CC2` → **R50/R51**, `C14a–C14d` → **C13, C30–C33**, `C_SH1/C_SH2` → **C34/C35**; **R38 is the TP5100 /CHRG pull-up** (the solar /CHRG pull-up is new R25); TP1=VBAT, TP3=+3V3, TP4=GND | Docs referred to symbols that do not exist in the schematics under those names. |
 | 11 | **TP5100 USB charge path flagged NON-FUNCTIONAL as designed** | TP5100 is a switching **step-down** (buck) 2S/1S charger. It cannot charge an 8.4 V pack from 5 V USB — VIN must exceed the pack voltage. Superseded by change #12. |
 | 12 | **U12 replaced TP5100 → Injoinic IP2326** (5 V→2S synchronous **boost** charger, ESOP-8); **L3 boost inductor added**; R35 repurposed as ISET (value TBD); **R36/R37 deleted — GPIO4/USB_CE freed**; R38 reassigned to the IP2326 status pin; NTC strap placeholder added; **F2 uprated 1.1 A → 2 A hold** (boost input ≈1.9 A at 1 A charge) | Component-selection review 2026-07-05 (`component_selection_review.md` §1). Resolves change #11. IP2326 auto-runs on VBUS — no charge-enable GPIO (⚠️ verify EN absence, plus full pinout/CV/ISET/mid-cell-balance behaviour: blocker #2). Firmware must be told GPIO4 is no longer USB_CE. |
+| 13 | **CN3722 CV divider corrected — R33 590 kΩ → 243 kΩ** (CRITICAL, 2026-07-13) | The CV math assumed a 1.205 V FB reference — that is the **CN3791's** reference. The CN3722's **V_FB = 2.416 V** (2.392–2.44, datasheet Rev 1.1). As previously documented, the divider would have regulated the pack at 2.416 × (1 + 5.9) ≈ **16.7 V — destructive for a 2S pack**. Formula: **V_REG = 2.416 × (1 + R_FBH/R_FBL)**. New values: R33 = 243 kΩ (E96) / R34 = 100 kΩ → **8.287 V** (safe margin under 8.40 V). |
+| 14 | **CN3722 symbol redrawn as TSSOP-16 + external buck stage added** (M_SOLAR P-FET, D16 series Schottky, D_SOLAR catch Schottky, L_SOLAR, R19 repurposed as R_CS 0.4 Ω, C_VG + COM1/2/3 compensation network, RT_SOLAR NTC on TEMP) | Datasheet Rev 1.1: the CN3722 is a **controller, not an integrated switcher** — DRV (16) drives an external P-FET; charge current is set by a CSP/BAT sense resistor (I_CH = 0.2 V / R_CS → 0.4 Ω = 500 mA), **not** by a "VPROG" resistor (no such pin exists — the old 8-pin symbol was fiction). TEMP (6) gets a real 10 k NTC → cold-charge cutoff (review O-1). Sleep current into BAT pin: 10 µA typ at V_BAT = 12 V (blocker #4a answered — power budget). |
+| 15 | **MPPT divider corrected — R20 36 kΩ → 158 kΩ** | Same root cause as #13: the MPPT pin regulates the panel to **1.04 V** at the divider mid-point (not 1.205 V), so the old values would have set V_MP ≈ 4.8 V — below the CN3722's own UVLO (7.5 V min VCC) and useless for charging an 8.4 V pack through a buck. New: V_MP = 1.04 × (1 + 158/10) ≈ **17.5 V**, matching a 12 V-nominal (36-cell) panel, Voc ≤ 24 V. ⚠️ Adjust R20 to the actual panel's V_MP before ordering. |
+| 16 | **Symbol reconciliation pass (2026-07-13)** — all BOM-only components now placed as schematic symbols; MT3608B symbol pin numbering fixed (was IN=1/SW=5; now **SW=1, GND=2, FB=3, EN=4, IN=5, NC=6**); IP2326 drawn as the verified 24-pin+EPAD part | Clears senior review 2026-07-06 CRITICAL 1–3 (the layout/ordering gate). Wiring is still doc-driven — this pass places symbols with correct pin definitions and values only. |
 
 ---
 
@@ -43,8 +47,14 @@ The schematic files contain component symbol placements but **no wire connection
 | +3V3_ADS | 3.3V filtered | ADS1115 VDD (after FB1 ferrite bead) |
 | AP_FB | 3.3V (sense) | U1 FB/VOUT sense pin tie to +3V3 (fixed-output part) |
 | MT_FB | 0.6V | MT3608B feedback divider mid-point (R23/R24) |
-| MPPT_REF | 1.205V | CN3722 MPPT pin divider mid-point (R20/R21) |
-| CN_FB | 1.205V | CN3722 CV feedback divider mid-point (R33/R34) |
+| MPPT_REF | 1.04V | CN3722 MPPT pin divider mid-point (R20/R21) |
+| CN_FB | 2.416V | CN3722 CV feedback divider mid-point (R33/R34) |
+| SOLAR_SW | switching | CN3722 buck: M_SOLAR drain → D16 anode |
+| SOLAR_FW | switching | Freewheel node: D16 cathode / D_SOLAR cathode / L_SOLAR in |
+| CN_CS | 6.0–8.4V | Current-sense node: L_SOLAR out / R19 (R_CS) / U7 CSP |
+| CN_VG | analog | U7 VG internal regulator (C_VG to VCC) |
+| CN_DRV | gate drive | U7 DRV (16) → M_SOLAR gate |
+| TEMP_SOLAR | analog | U7 TEMP (6) → RT_SOLAR NTC → GND (cold/hot charge cutoff) |
 | ADS_DRDY | signal | ADS1115 ALERT/RDY open-drain → GPIO12 (R_DRDY pull-up) |
 | I2C_SDA | signal | I²C SDA → GPIO10 (R9 pull-up) |
 | I2C_SCL | signal | I²C SCL → GPIO11 (R10 pull-up) |
@@ -77,12 +87,20 @@ The schematic files contain component symbol placements but **no wire connection
 | Component | Pin | Note |
 |-----------|-----|------|
 | U1 AP63203WU | GND | Buck GND |
-| U7 CN3722 | GND | Solar charger GND |
+| U7 CN3722 | GND (3) **and** PGND (2) | Solar charger analog + power GND |
 | U8 MT3608B | GND | Boost GND |
 | U9 ADS1115 | GND **and ADDR** | ADDR→GND sets I²C address 0x48 |
 | U6 ESP32-C6-MINI-1U | GND (all) | Module GND + thermal pad |
 | U11 USBLC6-2SC6 | GND | USB ESD clamp |
-| U12 IP2326 | GND (+ exposed pad) | |
+| U12 IP2326 | PGND (18) + EPAD (25) | |
+| R_VSET | pin 2 | IP2326 VSET strap (⚠️ verify strap polarity to GND vs VOUT in datasheet table) |
+| RT1 | pin 2 | IP2326 NTC (pin 4) low side |
+| RT_SOLAR | pin 2 | CN3722 TEMP (pin 6) NTC low side |
+| C_COM1 | pin 2 | CN3722 COM1 compensation (470 pF) |
+| R_COM2 | pin 2 | CN3722 COM2 compensation low side (COM2 → C_COM2 → R_COM2 → GND) |
+| C_COM3 | pin 2 | CN3722 COM3 compensation (100 nF) |
+| D_SOLAR | anode | CN3722 buck catch Schottky (cathode → SOLAR_FW) |
+| C_SYS1, C_SYS2 | pin 2 | IP2326 VSYS caps (2 × 22 µF) |
 | D1, D12 PRTR5V0U2X | GND | Rail clamps |
 | R_FBL | pin 2 | **DNP** (only fitted with adjustable AP63200 option) |
 | R24 | pin 2 | MT3608B FB divider low side |
@@ -168,7 +186,8 @@ The schematic files contain component symbol placements but **no wire connection
 |-----------|-----|------|
 | D5 AO3407 | S (source) | Load-switch output |
 | U1 | VIN | Buck input |
-| U7 CN3722 | VBAT (both pins if present) | Charger output |
+| U7 CN3722 | BAT (14) | Charge-current sense negative input (charge output node = pack side of R19/R_CS) |
+| R19 (R_CS, 0.4 Ω) | pin 2 | Sense resistor output → VBAT (pin 1 → CN_CS node / U7 CSP) |
 | U8 MT3608B | IN | Boost controller supply (stays connected; <1 µA when EN low) |
 | Q3 AO3407 | S (source) | Boost inductor disconnect switch input |
 | Q5 AO3407 | S (source) | Battery divider disconnect switch input |
@@ -179,7 +198,7 @@ The schematic files contain component symbol placements but **no wire connection
 | C9, C10, C16 | pin 1 | U1 VIN decoupling (100n / 1µ / 10µ) |
 | C18 | pin 1 | CN3722 VBAT cap |
 | C19 | pin 1 | MT3608B VIN bypass |
-| U12 IP2326 | BAT/VOUT (⚠️ pin per datasheet) | Boost charger output; C29 pin 1 here. ⚠️ Verify BAT-pin quiescent < 10 µA with USB absent |
+| U12 IP2326 | VOUT (21, 22) | Boost charger output; C29 pin 1 here. ⚠️ Verify VOUT quiescent < 10 µA with USB absent (blocker 2g) |
 | TP1 | pad | VBAT test point (after D5) |
 | J9 | VBAT pin (optional) | — only if the header carries VBAT; otherwise omit |
 
@@ -240,34 +259,64 @@ Current path: `VBAT → Q3 (P-FET switch) → L1 → SW node → D15 (Schottky) 
 | D6 MBRS140 | anode | VSOLAR_IN — backfeed block |
 | D6 MBRS140 | cathode | VSOLAR (CN3722 VIN node) |
 | D8 SMAJ24CA | terminal 1 | Second-stage TVS at CN3722 VIN (other terminal GND) |
-| U7 CN3722 | VIN (both pins if present) | |
+| U7 CN3722 | VCC (15) | Supply input (7.5–28 V operating) |
+| M_SOLAR AO3407 | S (source) | Buck high-side P-FET input |
+| C_VG (100nF) | pin 2 | VG bypass returns to **VCC**, not GND (pin 1 → U7 VG) |
 | C17 (10µF **35V**), C21 (100nF 50V) | pin 1 | VIN filters |
-| R20 | pin 1 | MPPT divider high side (senses CN3722 VIN) |
+| R20 | pin 1 | MPPT divider high side (senses CN3722 VCC node) |
 | TP10 | pad | VSOLAR_IN test point at J12 |
 
 ### MPPT_REF
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U7 CN3722 | MPPT | Regulates panel to VMPPT when divider mid = 1.205 V |
-| R20 (36k) | pin 2 | High side from VSOLAR; V_MPPT = 1.205 × (36+10)/10 ≈ 5.54 V |
+| U7 CN3722 | MPPT (7) | Regulates panel to V_MP when divider mid = **1.04 V** (datasheet Rev 1.1; TC −0.4 %/°C) |
+| R20 (**158k**) | pin 2 | High side from VSOLAR; V_MP = 1.04 × (1 + 158/10) ≈ **17.5 V** (12 V-nominal / 36-cell panel) |
 | R21 (10k) | pin 1 | Low side to GND |
+
+> **Corrected 2026-07-13** (design change #15): the old 36k/10k values assumed a 1.205 V reference *and* targeted 5.54 V — below the CN3722's own 7.5 V minimum VCC. ⚠️ Recompute R20 for the actual panel's V_MP before ordering.
+
+### CN3722 — full pin map and external buck stage (TSSOP-16, datasheet Rev 1.1)
+
+The CN3722 is a **controller**: DRV drives an external P-FET buck stage. Power path:
+`VSOLAR → M_SOLAR (P-FET) → SOLAR_SW → D16 (series Schottky) → SOLAR_FW → L_SOLAR → CN_CS → R19 (R_CS 0.4 Ω) → VBAT`, with `D_SOLAR` freewheeling from GND to SOLAR_FW. D16 follows the datasheet Figure 1 topology and blocks the night-time back-feed path (VBAT → L_SOLAR → M_SOLAR body diode → VSOLAR node), which would otherwise leak ≈45 µA through R20/R21 every night.
+
+| U7 pin | Name | Connection |
+|--------|------|------------|
+| 1 | VG | C_VG (100 nF) → VCC (internal gate-driver regulator; bypass between VG and VCC per datasheet) |
+| 2 | PGND | GND |
+| 3 | GND | GND |
+| 4 | /CHRG | /CHRG_SOLAR net (open-drain, LOW = charging) — R25 pull-up, GPIO6, D7/R22, TP14 |
+| 5 | /DONE | Open-drain, LOW = charge done. **NC for now** (no spare GPIO); pad available for future TP |
+| 6 | TEMP | TEMP_SOLAR → RT_SOLAR (10 k NTC, B≈3950, thermally coupled to pack) → GND. 55 µA internal pull-up; thresholds 1.61 V (rising) / 0.175 V (falling) → charge suspended below ≈ +2 °C and above ≈ +54 °C. This is the **solar-path cold-charge cutoff** (review O-1) |
+| 7 | MPPT | MPPT_REF divider mid (R20/R21, see above) |
+| 8 | COM1 | C_COM1 (470 pF) → GND |
+| 9 | COM2 | C_COM2 (220 nF) in series with R_COM2 (120 Ω) → GND |
+| 10 | FB | CN_FB divider mid (R33/R34, see below) |
+| 11 | COM3 | C_COM3 (100 nF) → GND |
+| 12 | NC | — |
+| 13 | CSP | CN_CS node (inductor side of R19) — current-sense positive |
+| 14 | BAT | VBAT (pack side of R19) — current-sense negative. Sleep current into this pin: **10 µA typ** at V_BAT = 12 V (power budget, blocker #4a) |
+| 15 | VCC | VSOLAR (C17/C21/D8 at pin) |
+| 16 | DRV | CN_DRV → M_SOLAR gate |
+
+**Charge current**: I_CH = V_CS / R_CS = 0.2 V / 0.4 Ω = **500 mA** (V_CS = 200 mV typ). R19 is **repurposed** from the fictional "VPROG" resistor (no such pin exists) to R_CS: 0.4 Ω 1 % 1206 (P = 0.1 W).
 
 ### CN3722 CV feedback (CN_FB)
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U7 CN3722 | FB (CV sense) | Regulates VBAT so that mid = 1.205 V |
-| R33 (590k) | pin 2 | High side from VBAT → Vchg = 1.205 × (1 + 590/100) = **8.31 V** ✓ (≤8.40 V for 2S) |
+| U7 CN3722 | FB (10) | Regulates VBAT so that mid = **2.416 V** (2.392–2.44) |
+| R33 (**243k** E96) | pin 2 | High side from VBAT → V_REG = 2.416 × (1 + 243/100) = **8.287 V** ✓ (≤8.40 V for 2S) |
 | R34 (100k) | pin 1 | Low side to GND |
 
-> **R19 (2.0 kΩ)** sets the 500 mA charge current per the original design ("CN3722 PROG pin"). The current 8-pin symbol has a `VPROG` pin — wire R19 from VPROG to GND. **Verify against the CN3722 datasheet**: Consonance chargers in this family normally set current with a CSP/CSN sense resistor, and the package is likely SSOP-10, not SOP-8. Blocking item — see verification blockers.
+> **CRITICAL fix 2026-07-13** (design change #13): the previous R33 = 590 kΩ was derived with the CN3791's 1.205 V reference and would have regulated the pack at ≈**16.7 V**. Formula: V_REG = 2.416 × (1 + R_FBH/R_FBL).
 
 ### /CHRG_SOLAR
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U7 CN3722 | /CHRG | Open-drain, LOW = charging |
+| U7 CN3722 | /CHRG (4) | Open-drain, LOW = charging |
 | R25 (4.7k) | pin 2 | Pull-up to +3V3 (**new** — was internal-pull-up only) |
 | U6 ESP32-C6 | GPIO6 | Input; firmware reads LOW = charging |
 | D7 LED | cathode | Solar-charge indicator (green): +3V3 → R22 (1k, **DNF**) → D7 anode; D7 cathode → /CHRG_SOLAR. Lights while charging. DNF by default to save power. |
@@ -282,9 +331,35 @@ Current path: `VBAT → Q3 (P-FET switch) → L1 → SW node → D15 (Schottky) 
 | U11 | IO1/IO2 pairs | To J13 D+/D− stubs (power-only port; D± go nowhere else) |
 | F2 polyfuse (2A hold) | pin 1 / pin 2 | VUSB_IN → VUSB (uprated — boost input ≈1.9 A at 1 A charge) |
 | C27 (4.7µF) | pin 1 | VUSB after F2 |
-| U12 IP2326 | VIN (⚠️ pin per datasheet) | VUSB; C28 (10µF) pin 1 at pin |
-| L3 | pin 1 / pin 2 | VUSB → USBCHG_SW (⚠️ topology/pin per IP2326 datasheet — internal sync FETs, no external rectifier) |
+| U12 IP2326 | VIN (13) | VUSB; C28 (10µF) pin 1 at pin |
+| L3 (2.2µH) | pin 1 / pin 2 | VUSB → USBCHG_SW = LX (15/16/17, internal sync FETs — no external rectifier) |
+| C_BST2 (100nF) | pin 1 / pin 2 | U12 BST (14) ↔ LX (bootstrap) |
+| C_SYS1, C_SYS2 (22µF) | pin 1 | U12 VSYS (19/20) — 2 × 22 µF per datasheet |
 | J13 | CC1 → R50 (5.1k) → GND; CC2 → R51 (5.1k) → GND | Sink advertising 5 V |
+
+#### IP2326 (U12) — full pin map (24-pin + EPAD, datasheet V1.2, verified 2026-07-06)
+
+| U12 pin | Name | Connection |
+|---------|------|------------|
+| 1, 2 | DM, DP | ⚠️ Float for now; optionally wire to J13 D−/D+ (through U11) at the wiring pass for adapter-type detection / input-adaptive limiting (blocker 2h) |
+| 3 | VSET | R_VSET 120 kΩ strap → CV **8.3 V typ / 8.4 V max**. Mandatory — the NC strap maxes at 8.5 V (unsafe for 2S). ⚠️ Verify strap polarity (GND vs VOUT) against the datasheet table |
+| 4 | NTC | RT1 (10 k NTC, thermally coupled to pack) → GND. 20 µA source — **USB-path cold-charge cutoff** (review O-1) |
+| 5 | BAT_STAT | /CHRG_USB net → R38 pull-up → TP15 (⚠️ verify open-drain vs push-pull on bench; fit R38 only if open-drain) |
+| 6 | LED | NC |
+| 7 | TIME_SET | Float (default charge timer) ⚠️ confirm default |
+| 8, 9 | VIN_UVSET, VIN_OVSET | Float (defaults) ⚠️ confirm defaults suit 5 V USB |
+| 10 | CON_SEL | **Float = 2S** (1 kΩ to GND would select 3S — do not fit anything) |
+| 11 | ISET | R35 90 kΩ → GND. I_CH = 90000/R_ISET = **1 A** |
+| 12 | EN | **Float = enabled** (auto-charge on VBUS). Pull-low-to-disable; GPIO4→EN is a zero-firmware-change option later |
+| 13 | VIN | VUSB (C28 at pin) |
+| 14 | BST | C_BST2 100 nF → LX |
+| 15–17 | LX | USBCHG_SW ← L3 ← VUSB |
+| 18 | PGND | GND |
+| 19, 20 | VSYS | C_SYS1 + C_SYS2 (2 × 22 µF) → GND |
+| 21, 22 | VOUT | VBAT (C29 at pin) |
+| 23 | VBATM | **Float** (2S balance unused — 2-pin pack, resolved blocker 2a) |
+| 24 | VBAT_GND | **Float** (pairs with VBATM) |
+| 25 | EPAD | GND (thermal pour per Group G) |
 
 ### ~~USB_CE~~ — deleted 2026-07-05
 
@@ -294,7 +369,7 @@ R36/R37 removed with the TP5100. IP2326 auto-runs on VBUS presence (⚠️ verif
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U12 IP2326 | charge-status pin (⚠️ verify name, polarity, open-drain vs push-pull LED driver) | |
+| U12 IP2326 | BAT_STAT (5) | Charge-status output (⚠️ verify polarity, open-drain vs push-pull on bench) |
 | R38 (4.7k) | pin 2 | Pull-up to +3V3 (fit only if the status pin is open-drain) |
 | TP15 | pad | Hardware-only test point (no GPIO) |
 
@@ -302,10 +377,10 @@ R36/R37 removed with the TP5100. IP2326 auto-runs on VBUS presence (⚠️ verif
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U12 IP2326 | ISET | R35 → GND, **value TBD ⚠️** for ~1 A charge current (was TP5100 PROG 1.2 k) |
-| U12 IP2326 | NTC | RT1 strap **TBD ⚠️** — strongly prefer a real 10 k NTC thermally coupled to the pack (cold-charge cutoff, `component_selection_review.md` O-1) over a fixed disable strap |
+| U12 IP2326 | ISET (11) | R35 (90 kΩ) → GND → **1 A** charge current (I_CH = 90000/R_ISET; datasheet-firm 2026-07-06) |
+| U12 IP2326 | NTC (4) | RT1 = real 10 k NTC thermally coupled to the pack (cold-charge cutoff, `component_selection_review.md` O-1) — **do not strap fixed** |
 
-> **2026-07-05:** the TP5100 CRITICAL flag is resolved by the IP2326 replacement (design change #12). Remaining risk: IP2326's 2S **mid-cell/balance pin** vs our 2-pin XT30 pack — if the pin cannot be left unconnected, the charger choice reopens (blocker #2a).
+> **2026-07-06:** blocker 2a resolved — VBATM (23) / VBAT_GND (24) float when unused; the 2-pin XT30 pack works unchanged. Charger choice stands. **2026-07-13:** U12 drawn as the 24-pin+EPAD symbol; footprint is `welld:IP2326_TBD` until the exact package code (ESSOP-24/QFN-24) is confirmed on the LCSC C2832094 listing.
 
 ### AP63203WU buck (U1)
 
@@ -462,10 +537,10 @@ Wiring above uses **pin names**. Before assigning footprints / generating a netl
 | welld:ADS1115 | ✅ matches TI MSOP-10 (ADDR=1 … SCL=10) |
 | welld:AO3407 | ✅ G=1, S=2, D=3 (SOT-23) |
 | welld:AP63205WU (used for U1) | ⚠️ numbering EN=1, GND=2, FB=3, VIN=4, SW=5, BST=6 — **verify against Diodes TSOT-26 datasheet**; also rename to AP63203WU |
-| welld:MT3608B | ❌ suspect — classic MT3608 SOT-23-6 is SW=1, GND=2, FB=3, EN=4, IN=5, NC=6. Symbol has IN=1, SW=5, BST=6. Fix numbering (or the footprint mapping) before layout |
+| welld:MT3608B | ✅ **fixed 2026-07-13** to SW=1, GND=2, FB=3, EN=4, IN=5, NC=6 (standard MT3608-family map; two independent reviews agree, but the Aerosemi datasheet fetch was proxy-blocked — **bench-verify pin continuity before first power-on**) |
 | welld:USBLC6_2SC6 | ❌ suspect — real part: IO1=1, GND=2, IO2=3, IO2'=4, VBUS=5, IO1'=6. Symbol has VBUS=1, GND=4 |
-| welld:TP5100 | ❌ obsolete — TP5100 replaced by IP2326 (design change #12). Delete this symbol and draw a new **welld:IP2326** (ESOP-8) from the Injoinic datasheet |
-| welld:CN3722 | ⚠️ 8-pin symbol; part is likely SSOP-10 (with /DONE pin). Verify pinout + package |
+| welld:IP2326 | ✅ **drawn 2026-07-13** from datasheet V1.2 (24-pin + EPAD); replaced welld:TP5100. Footprint `welld:IP2326_TBD` — pending exact package code from LCSC C2832094 |
+| welld:CN3722 | ✅ **redrawn 2026-07-13** as TSSOP-16 from Consonance datasheet Rev 1.1 (VG=1, PGND=2, GND=3, /CHRG=4, /DONE=5, TEMP=6, MPPT=7, COM1=8, COM2=9, FB=10, COM3=11, NC=12, CSP=13, BAT=14, VCC=15, DRV=16) |
 | welld:PRTR5V0U2X | ⚠️ 6-pin symbol / SOT-363 footprint; real PRTR5V0U2X is SOT-143B (4 pins: I/O1, I/O2, VCC, GND) |
 | welld:ESP32_C6_MINI_1U | ⚠️ custom numbering — replace with the official Espressif KiCad symbol/footprint before layout |
 
@@ -476,17 +551,17 @@ Wiring above uses **pin names**. Before assigning footprints / generating a netl
 1. **U1 identity**: confirm AP63203WU = 3.3 V fixed / AP63205WU = 5 V fixed / AP63200WU = adjustable (VFB 0.8 V), and whether the BST pin needs an external cap. Pick AP63203WU (preferred, R_FBH/R_FBL stay DNP) or AP63200WU (fit R_FBH=390k, R_FBL=124k). Also confirm the ~22 µA no-load Iq figure used in the sleep budget (`component_selection_review.md` §3).
 2. **U12 IP2326** (replaced TP5100, design change #12) — verify against the Injoinic datasheet:
    - **2a. Mid-cell/balance pin — ✅ RESOLVED 2026-07-06**: VBATM (pin 23) and VBAT_GND (pin 24) "should be left floating when doesn't use" per the IP2326 V1.2 datasheet. The 2-pin XT30 pack works unchanged with balancing disabled. Charger choice stands.
-   - 2b. Package = ESOP-8 and exposed-pad size; full pinout for a new `welld:IP2326` symbol.
-   - 2c. CV = 8.40 V fixed for 2S (or how it is set).
-   - 2d. R35 ISET value for ~1 A charge current.
+   - 2b. **Partially resolved 2026-07-13**: `welld:IP2326` symbol drawn (24-pin + EPAD, full pin map in the VUSB section). Still open: exact package code (ESSOP-24/QFN-24) + land pattern from the LCSC C2832094 listing — footprint is `welld:IP2326_TBD` until then.
+   - 2c. ✅ RESOLVED 2026-07-06/13: CV set by VSET strap; **R_VSET = 120 kΩ → 8.3 V typ / 8.4 V max** (symbol placed). NC strap is unsafe (8.5 V max).
+   - 2d. ✅ RESOLVED 2026-07-06/13: I_CH = 90000/R_ISET; **R35 = 90 kΩ → 1 A** (symbol value updated).
    - 2e. EN/CE pin — ✅ RESOLVED 2026-07-06: **EN exists (pin 12)**, pull-low-to-disable, float = enabled. Decision: leave floating (auto-charge on VBUS), GPIO4 stays freed. Polarity matches the old TP5100 CE drive, so GPIO4→EN is a zero-firmware-change option later. Package is **24-pin + EPAD, not ESOP-8** — see component_selection_review.md 2026-07-06 addendum for the full verified pin map, RVSET=120k CV correction (NC strap maxes at 8.5 V — unsafe for 2S), RISET=90k (1 A), and the NTC pin path to the sub-zero cutoff.
-   - 2f. NTC pin function and strap; wire a real pack NTC if feasible (blocker #7 / review O-1).
-   - 2g. BAT-pin quiescent with USB absent — must be < 10 µA (nightly battery drain).
-   - 2h. Input-adaptive current limiting behaviour on weak 5 V sources (we advertise only default USB via 5.1 k CC sinks).
-   - 2i. L3 inductor value/Isat and input/output cap values (C28/C29); status-pin type for R38.
+   - 2f. ✅ RESOLVED 2026-07-13: NTC = pin 4 (20 µA source); **RT1 placed as a real 10 k NTC** to be thermally coupled to the pack (blocker #7 / review O-1).
+   - 2g. VOUT-pin quiescent with USB absent — must be < 10 µA (nightly battery drain). Bench item.
+   - 2h. Input-adaptive current limiting behaviour on weak 5 V sources (we advertise only default USB via 5.1 k CC sinks); also decide DM/DP (pins 1/2) wiring — float vs J13 D± for adapter detection — at the wiring pass.
+   - 2i. **Partially resolved 2026-07-13**: L3 = 2.2 µH (≥3 A Isat, datasheet-supported), VSYS 2×22 µF (C_SYS1/C_SYS2), BST 100 nF (C_BST2) all placed; C28/C29 values ⚠️ still to confirm against the app note. Status-pin type for R38 remains a bench item (2g/2h/BAT_STAT polarity).
    - 2j. LCSC part number and stock.
-3. **U8 MT3608B**: confirm pinout, whether pin 6 is BST or NC (C_BST fitted either way — harmless on NC), switch-current/sync-rectifier details, and EN-low shutdown current (<1 µA assumed in the sleep budget). D15 + Q3/Q4 disconnect are required regardless unless the chosen part has true load disconnect.
-4. **U7 CN3722**: confirm package (SSOP-10?), current-set mechanism (VPROG resistor vs CSP/CSN sense resistor), /DONE pin, and MPPT/FB pin numbering. **Added 2026-07-05**: (a) BAT-pin quiescent in the dark — this sits on the pack every night, expect low single-digit µA; (b) whether a TEMP/NTC pin exists — if so, wire it for cold-charge cutoff (blocker #7).
+3. **U8 MT3608B**: symbol numbering fixed 2026-07-13 to the standard family map (SW=1, GND=2, FB=3, EN=4, IN=5, NC=6) — the Aerosemi datasheet fetch was proxy-blocked, so **bench-verify pin continuity (SW↔L1 node, IN↔VBAT) on the first article before power-on**. Still to confirm: switch-current details and EN-low shutdown current (<1 µA assumed in the sleep budget). D15 + Q3/Q4 disconnect are required regardless unless the chosen part has true load disconnect.
+4. **U7 CN3722 — ✅ RESOLVED 2026-07-13** (Consonance datasheet Rev 1.1): package **TSSOP-16**; current set by **CSP/BAT sense resistor** (V_CS = 200 mV typ → R_CS = 0.4 Ω for 500 mA; R19 repurposed, no VPROG pin exists); /DONE = pin 5 (left NC); MPPT reference **1.04 V** (pin 7), FB reference **2.416 V** (pin 10). (a) **BAT-pin sleep current = 10 µA typ at V_BAT = 12 V** — power-budget entry for every night; (b) **TEMP pin exists (pin 6, 55 µA pull-up, 1.61 V/0.175 V thresholds)** — wired to RT_SOLAR 10 k NTC for the cold-charge cutoff (blocker #7 / review O-1). Remaining: confirm VCC-pin dark quiescent (sleep-mode I_VCC) on the bench — the D16 series Schottky already blocks the battery→VCC back-feed path at night.
 5. **ESP32-C6-MINI-1U**: replace custom symbol with the Espressif library part.
 6. **D9/D10 SMAJ3.3CA leakage** (added 2026-07-05): confirm reverse leakage at 2.0 V working voltage / 60 °C is ≤ 1 µA — the leakage path parallels the 100 Ω shunt and reads as loop current. If it fails, substitute a 5 V-standoff low-leakage clamp (R3/R5 + D1 still protect the ADS1115 pins).
 7. **Charge-temperature and pack-current limits** (added 2026-07-05): (a) confirm the pack PCM continuous charge rating ≥ 2 A (solar 0.5 A + USB 1 A co-charge, review §2); (b) decide the below-0 °C charging strategy — Li-ion must not be charged below 0 °C, and this is an outdoor device. Preferred: real NTC to both chargers' temperature pins (review O-1).
@@ -499,19 +574,22 @@ Wiring above uses **pin names**. Before assigning footprints / generating a netl
 | Symbol | Issue | Action in KiCad |
 |--------|-------|-----------------|
 | R_FBH / R_FBL | Marked DNP in schematic (fixed-3.3 V U1 needs no divider) | Leave DNP for AP63203WU; if AP63200WU chosen, set values 390k/124k and clear DNP |
-| Q3, Q4, R29, D15 | VLOOP disconnect + rectifier — **not yet placed as symbols** | Add to power sheet per the VLOOP section above (Q3=AO3407, Q4=BSS123, R29=100k 0402, D15=SS34 SMA) |
-| R25, R27 | New pull-up/pull-down — **not yet placed** | Add to power sheet (R25 4.7k 0402, R27 100k 0402) |
-| Q5, R16 | Battery divider high-side switch — **not yet placed** | Add to sensors sheet (Q5=AO3407, R16=100k 0402); rewire Q2 as its gate driver per ADC_CH2 section |
-| R15, C36 | ESP32 EN RC — **not yet placed** | Add to mcu sheet (10k 0402, 1µF 0402) |
-| TP13 | Factory-reset pad — **not yet placed** | Add to interfaces sheet (TestPoint_Pad, net GPIO13) |
-| C8 | Value change 100nF → 1nF | Edit value in sensors sheet |
-| D8, D14 | SMAJ28CA → SMAJ24CA | Edit values in power sheet |
-| C17 | 25 V → 35 V rating (footprint 0805 → 1206) | Edit value/footprint in power sheet |
-| SJ2/SJ3 (and new SJ4/SJ5) | All five SJ symbols use the *Open* variant; SJ2/SJ3/SJ4/SJ5 should default **bridged** | Swap symbol/footprint variant |
-| U12 | TP5100 symbol obsolete | Delete; draw `welld:IP2326` (ESOP-8) from datasheet after blocker #2 is resolved; rewire USB section per the VUSB, /CHRG_USB, and ISET/NTC tables above |
-| L3, RT1 | New IP2326 support parts — **not yet placed** | Add to power sheet once blocker #2 fixes values (L3 boost inductor, RT1 NTC strap) |
-| R36, R37 | Deleted with TP5100 CE network | Remove symbols from power sheet; GPIO4 net becomes spare (tell firmware agent) |
-| F2 | 1.1 A → 2 A hold PTC | Edit value/MPN in power sheet (blocker #8) |
-| U6 | Custom symbol | Replace with Espressif official symbol + footprint |
+| Q3, Q4, R29, D15 | ~~VLOOP disconnect + rectifier~~ | ✅ **Placed 2026-07-13** (power sheet: Q3=AO3407, Q4=BSS123, R29=100k, D15=SS34) — wiring per the VLOOP section still pending |
+| R25, R27 | ~~Pull-up/pull-down~~ | ✅ **Placed 2026-07-13** (power sheet: R25 4.7k, R27 100k) |
+| Q5, R16 | ~~Battery divider high-side switch~~ | ✅ **Placed 2026-07-13** (power sheet: Q5=AO3407, R16=100k); rewire Q2 (sensors sheet) as its gate driver per ADC_CH2 section at the wiring pass |
+| R15, C36 | ~~ESP32 EN RC~~ | ✅ **Placed 2026-07-13** (mcu sheet: 10k 0402, 1µF 0402) |
+| TP13 | ~~Factory-reset pad~~ | ✅ **Placed 2026-07-13** (mcu sheet, TestPoint_Pad, net GPIO13/FACTORY_RESET) |
+| C8 | ~~Value change 100nF → 1nF~~ | ✅ **Edited 2026-07-13** (sensors sheet) |
+| D8, D14 | ~~SMAJ28CA → SMAJ24CA~~ | ✅ **Edited 2026-07-13** (power sheet) |
+| C17 | ~~25 V → 35 V rating (footprint 0805 → 1206)~~ | ✅ **Edited 2026-07-13** (power sheet: "10uF 35V", C_1206) |
+| SJ2/SJ3 (and new SJ4/SJ5) | All five SJ symbols use the *Open* variant; SJ2/SJ3/SJ4/SJ5 should default **bridged** | Swap symbol/footprint variant — **still open** |
+| U12 | ~~TP5100 symbol obsolete~~ | ✅ **Replaced 2026-07-13**: `welld:IP2326` drawn (24-pin + EPAD) and instantiated with R_VSET/L3/RT1/C_BST2/C_SYS1/C_SYS2; footprint `welld:IP2326_TBD` pending package code. Wiring per the VUSB / /CHRG_USB / ISET-NTC tables still pending |
+| L3, RT1 | ~~IP2326 support parts~~ | ✅ **Placed 2026-07-13** (power sheet: L3 2.2µH, RT1 10k NTC) |
+| R36, R37 | ~~Deleted with TP5100 CE network~~ | ✅ **Removed 2026-07-13** from power sheet; GPIO4 net is spare (firmware already annotated) |
+| F2 | ~~1.1 A → 2 A hold PTC~~ | ✅ **Edited 2026-07-13** (value "PTC 2A hold"); exact MPN still blocker #8 (2.5 A-hold preferred, see BOM) |
+| U7 externals | ~~CN3722 buck stage missing~~ | ✅ **Placed 2026-07-13** (power sheet: M_SOLAR, D16, D_SOLAR, L_SOLAR, C_VG, C_COM1/2/3, R_COM2, RT_SOLAR; R19 repurposed as R_CS 0.4Ω 1206) |
+| U6 | Custom symbol | Replace with Espressif official symbol + footprint — **still open** |
 | C25 | ~~Duplicate of C_BST~~ | ✅ Deleted 2026-07-05 |
 | C16 | ~~Unidentified~~ | ✅ Assigned: U1 VIN bulk 10 µF 16 V 0805 |
+
+> **2026-07-13 note:** every symbol above marked "Placed" exists in the sheets with correct pin definitions and values, but **no wires have been drawn** — this document remains the authoritative wiring reference until the wiring pass.
