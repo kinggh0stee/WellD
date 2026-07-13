@@ -290,11 +290,11 @@ For PCBWay PCBA, also generate:
 - [ ] R_DRDY (4.7kΩ) wired: +3V3 → R_DRDY → ADS_DRDY net (→ GPIO12)
 - [ ] Boost wired VBAT → Q3 → L1 → SW → D15 → VLOOP, with C_BST on BST↔SW
 - [ ] C_BUCK (10µF 0805) wired: +3V3 rail (after L2) → C_BUCK → GND
-- [ ] R33 = 590kΩ in schematic (already done — Vchg = 8.31V, safe for 2S Li-ion)
+- [ ] R33 = **243kΩ** in schematic (fixed 2026-07-13 — CN3722 V_FB = 2.416V, so V_REG = 2.416×(1+243/100) = 8.29V, safe for 2S Li-ion; the old 590k value assumed the CN3791's 1.205V reference and would have regulated at ≈16.7V)
 - [ ] R32 (DS18B20 33Ω series) is populated (not DNF — needed for cable runs)
 - [ ] Status LED D4 wired to **GPIO14** (not GPIO13 — that is the factory-reset strap); TP13 wired to GPIO13
-- [ ] New symbols added and wired: D15, Q3, Q4, Q5, R15, R16, R25, R27, R29, C36, TP13 (see resolution table in `schematic_connections.md`)
-- [ ] Datasheet verification blockers in `schematic_connections.md` cleared (U1 variant, TP5100 replacement, MT3608B pinout, CN3722 package)
+- [ ] New symbols added 2026-07-13 (D15, Q3, Q4, Q5, R15, R16, R25, R27, R29, C36, TP13, U12/IP2326 + supports, CN3722 buck stage M_SOLAR/D16/D_SOLAR/L_SOLAR/R_CS/compensation/RT_SOLAR) — **wiring still pending** (see resolution table in `schematic_connections.md`)
+- [ ] Datasheet verification blockers in `schematic_connections.md` cleared (U1 variant, IP2326 package code/footprint, MT3608B bench continuity check)
 - [ ] ERC passes (Tools → Electrical Rules Checker) before generating netlist
 - [ ] Board outline is on Edge.Cuts and is closed
 - [ ] DRC passes with no errors

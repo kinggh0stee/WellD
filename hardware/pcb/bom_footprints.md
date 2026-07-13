@@ -7,6 +7,8 @@
 > **2026-07-05 electrical review:** several parts changed (U1, D8/D14, C8, C17, LED GPIO) and new components were added (D15, Q3–Q5, R15/R16/R25/R27/R29, C36, TP13). See `schematic_connections.md` → "Design changes" and "Datasheet verification blockers" before ordering.
 >
 > **2026-07-05 component-selection review** (`component_selection_review.md`): the non-functional TP5100 USB charge path is **replaced by an Injoinic IP2326 5 V→2S synchronous boost charger** (U12; +L3, R35 repurposed as ISET, R36/R37 deleted, F2 uprated to 2 A hold). Do not order the USB-charger section until verification blocker #2 (IP2326 datasheet items) is resolved — the mid-cell/balance-pin question could still reopen the choice.
+>
+> **2026-07-13 reconciliation pass:** all rows below now have matching schematic symbols (senior review 2026-07-06 CRITICAL 1–3 cleared). **CN3722 CRITICAL CV fix**: R33 590k→243k, R20 36k→158k, R19 repurposed as R_CS 0.4 Ω, U7 redrawn TSSOP-16 with its external buck stage (see the solar section). The IP2326 mid-cell question is resolved (VBATM/VBAT_GND float); remaining order blockers: IP2326 package code (footprint TBD), F2 exact MPN, NTC MPNs, L_SOLAR MPN.
 
 ---
 
@@ -30,13 +32,16 @@
 | J13 | USB-C 2.0 power-only | 16-pin SMD | `Connector_USB:USB_C_Receptacle_GCT_USB4135` ⚠️ or use GCT KiCad file | USB4135-GF-A | — ⚠️ | GCT publishes KiCad footprint; check PCBWay global sourcing. LCSC-stocked alternate (footprint-check first): HRO TYPE-C-31-M-12 class |
 | U11 | USBLC6-2SC6 ESD | SOT-23-6 | `Package_TO_SOT_SMD:SOT-23-6` | USBLC6-2SC6 | C7519 ✅ | VBUS + D+/D− clamp |
 | F2 | **2A hold PTC fuse** | 1206 | `Fuse:Fuse_1206_3216Metric` | MF-MSMF200/16X ⚠️ verify suffix | — ⚠️ | Series with J13 VBUS. **Uprated from 1.1 A hold**: boost charger input ≈1.9 A at 1 A charge (8.4 V × 1 A / 5 V / 0.9). ⚠️ Margin is thin — PTC hold current derates with ambient (~-20 % at 60 °C), so a 2 A-hold part can nuisance-trip in a hot enclosure. Prefer a 2.5 A-hold PTC, or drop RISET to 120 kΩ (0.75 A charge → ≈1.4 A input) if 1206 2.5 A parts are unavailable |
-| U12 | **IP2326 2S boost charger** | **24-pin + EPAD** (datasheet V1.2 verified 2026-07-06; exact code — ESSOP-24/QFN-24 — ⚠️ confirm on LCSC C2832094 before footprint work) | ⚠️ TBD pending package code — do NOT use the old SOIC-8 footprint | IP2326 | C2832094 ⚠️ confirm variant | 5 V VBUS → 8.3 V (RVSET=120k) CC/CV sync boost, 1 A charge (RISET=90k), input-power-adaptive. Auto-runs on VBUS (EN pin 12 left floating = enabled; VBATM/VBAT_GND 23/24 left floating = balance off, 2-pin pack OK). Keep the 8×8 mm GND pour from Group G (~0.9 W at 1 A charge) |
-| **L3** | **2.2µH ≥3A Isat** ⚠️ value per datasheet | 5×5mm SMD | `Inductor_SMD:L_Bourns-SRN6045TA` ⚠️ or create 5.0×5.0mm | — | — ⚠️ | **NEW** — IP2326 boost power inductor |
-| R35 | **ISET — value TBD** ⚠️ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | Was TP5100 PROG 1.2 kΩ. Re-derive from IP2326 datasheet for ~1 A charge current |
+| U12 | **IP2326 2S boost charger** | **24-pin + EPAD** (datasheet V1.2 verified 2026-07-06; exact code — ESSOP-24/QFN-24 — ⚠️ confirm on LCSC C2832094 before footprint work) | `welld:IP2326_TBD` (**placeholder assigned 2026-07-13** — draw the real land pattern once the package code is confirmed; do NOT use the old SOIC-8) | IP2326 | C2832094 ⚠️ confirm variant | 5 V VBUS → 8.3 V (RVSET=120k) CC/CV sync boost, 1 A charge (RISET=90k), input-power-adaptive. Auto-runs on VBUS (EN pin 12 left floating = enabled; VBATM/VBAT_GND 23/24 left floating = balance off, 2-pin pack OK). Keep the 8×8 mm GND pour from Group G (~0.9 W at 1 A charge). Symbol placed 2026-07-13 |
+| **L3** | **2.2µH ≥3A Isat** | 5×5mm SMD | `Inductor_SMD:L_Bourns-SRN6045TA` ⚠️ or create 5.0×5.0mm | — | — ⚠️ | IP2326 boost power inductor (2.2 µH is the datasheet-supported value). Symbol placed 2026-07-13 |
+| R35 | **90kΩ 1% (ISET)** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | I_CH = 90000/R_ISET → **1 A** (datasheet-firm 2026-07-06; was TP5100 PROG 1.2 kΩ). Value updated in schematic 2026-07-13 |
+| **R_VSET** | **120kΩ 1%** | 0603 | `Resistor_SMD:R_0603_1608Metric` | — | ✅ | VSET (pin 3) strap → CV **8.3 V typ / 8.4 V max**. Do NOT leave NC (NC strap maxes at 8.5 V — unsafe for 2S). Symbol placed 2026-07-13; ⚠️ verify strap polarity (GND vs VOUT) |
+| **C_BST2** | **100nF 25V** | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | **NEW 2026-07-13** — BST (14) ↔ LX bootstrap per datasheet |
+| **C_SYS1, C_SYS2** | **22µF 16V X5R ×2** | 1206 | `Capacitor_SMD:C_1206_3216Metric` | — | ✅ | **NEW 2026-07-13** — VSYS (19/20) caps, 2×22 µF per datasheet |
 | ~~R36~~ | — | — | — | — | — | **DELETED 2026-07-05** — TP5100 CE pull-up; IP2326 has no CE (⚠️ verify) |
 | ~~R37~~ | — | — | — | — | — | **DELETED 2026-07-05** — TP5100 CE pull-down; **GPIO4 freed** (coordinate with firmware). Restore only if IP2326 proves to have an EN pin |
 | R38 | 4.7kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | /CHRG_USB pull-up to +3V3 (routes to TP15 only). ⚠️ Reassign to IP2326 charge-status/LED pin — verify pin, polarity, open-drain |
-| RT1 | **NTC strap — TBD** ⚠️ | — | — | — | — | **NEW placeholder** — IP2326 NTC pin network per datasheet. Strongly prefer a real 10 k NTC at the pack for cold-charge (<0 °C) cutoff over a disable strap — see `component_selection_review.md` O-1 |
+| RT1 | **10kΩ NTC B≈3950** | 0603 | `Resistor_SMD:R_0603_1608Metric` | MF52-class ⚠️ pick MPN | — ⚠️ | IP2326 NTC (pin 4, 20 µA source) → GND, thermally coupled to the pack — USB-path cold-charge (<0 °C) cutoff (`component_selection_review.md` O-1). Symbol placed 2026-07-13; ⚠️ derive the exact R/B value from the datasheet threshold table |
 | R50 | 5.1kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | J13 CC1 → GND (was "R_CC1") |
 | R51 | 5.1kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | J13 CC2 → GND (was "R_CC2") |
 | C27 | 4.7µF 10V X5R | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | VUSB input filter after F2 |
@@ -47,16 +52,28 @@
 
 ## Power — Solar MPPT Charging (CN3722 path)
 
+> **2026-07-13 CRITICAL correction + datasheet verification (Consonance Rev 1.1):** the CN3722's FB reference is **2.416 V** (not the CN3791's 1.205 V used in all earlier math — the old R33=590k divider would have regulated the pack at ≈16.7 V), its MPPT reference is **1.04 V**, the package is **TSSOP-16**, and it is a **controller** requiring an external P-FET buck stage (M_SOLAR/D16/D_SOLAR/L_SOLAR) with a CSP–BAT sense resistor (R19 repurposed as R_CS; there is no VPROG pin). Formula: **V_REG = 2.416 × (1 + R_FBH/R_FBL)**.
+
 | Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC | Notes |
 |-----|-------|---------|-------------------|-----|------|-------|
-| U7 | CN3722 2S MPPT charger | SOP-8 | `Package_SO:SOIC-8_3.9x4.9mm_P1.27mm` | CN3722 | C2690716 ✅ | 5–25V in, 8.4V out |
+| U7 | CN3722 MPPT buck charge controller | **TSSOP-16** | `Package_SO:TSSOP-16_4.4x5mm_P0.65mm` | CN3722 | C2690716 ✅ | VCC 7.5–28V; external P-FET buck; BAT-pin sleep current 10µA typ @ 12V |
 | D6 | MBRS140 Schottky 1A 40V | SMB | `Diode_SMD:D_SMB` | MBRS140T3G | — ✅ | Solar backfeed block (MBRS140T3G is SMB, not SOD-123) |
 | D8 | **SMAJ24CA TVS 24V bidi** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ24CA | — ⚠️ | At CN3722 VIN; same reel as D14. Was SMAJ28CA (zero margin vs CN3722 28V abs max). Panel Voc limit now **24V** |
-| R19 | 2.0kΩ 1% | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | VPROG → GND, sets 500mA charge current (⚠️ verify vs CN3722 datasheet) |
-| R20 | 36kΩ 1% | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | MPPT divider high-side (VSOLAR→MPPT pin; Vmppt≈5.54V) |
+| **M_SOLAR** | **AO3407 P-ch MOSFET** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | AO3407 | C31417 ✅ | **NEW 2026-07-13** — buck high-side switch, gate driven by DRV (16). −30V Vds = 25% margin over 24V max panel; same reel as D5/Q3/Q5 |
+| **D16** | **SS34 Schottky 3A 40V** | DO-214AC | `Diode_SMD:D_SMA` | SS34 | C8678 ✅ | **NEW 2026-07-13** — series diode after M_SOLAR (datasheet Fig. 1): blocks night back-feed VBAT→L_SOLAR→M_SOLAR body diode→R20/R21 (≈45µA) |
+| **D_SOLAR** | **SS34 Schottky 3A 40V** | DO-214AC | `Diode_SMD:D_SMA` | SS34 | C8678 ✅ | **NEW 2026-07-13** — buck catch/freewheel diode (GND→SOLAR_FW) |
+| **L_SOLAR** | **47µH ≥1A Isat shielded** | 6×6mm SMD | `Inductor_SMD:L_Bourns-SRN6045TA` | SRN6045TA-470M ⚠️ verify | — ⚠️ | **NEW 2026-07-13** — buck inductor; ΔI≈0.3A at 300kHz/17.5V→8.4V/0.5A |
+| **R19** | **0.4Ω 1% (R_CS)** | **1206** | `Resistor_SMD:R_1206_3216Metric` | — | ✅ | **REPURPOSED 2026-07-13** — CSP–BAT sense resistor: I_CH = 0.2V/R_CS = **500mA**; P = 0.1W. (Was "2.0kΩ VPROG" — no such pin exists) |
+| R20 | **158kΩ 1% E96** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | MPPT divider high-side → V_MP = 1.04×(1+158/10) ≈ **17.5V** (12V-nominal panel; was 36k assuming a 1.205V ref → 5.5V, below UVLO). ⚠️ Recompute for the actual panel |
 | R21 | 10kΩ 1% | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | MPPT divider low-side (MPPT pin→GND) |
-| R33 | **590kΩ 1% E96** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | CV FB divider high-side (VBAT→FB) → Vchg=1.205×(1+590/100)=8.31V ✓ (was 604kΩ→8.48V, fixed) |
+| R33 | **243kΩ 1% E96** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | CV FB divider high-side (VBAT→FB) → V_REG = 2.416×(1+243/100) = **8.287V** ✓ (**was 590kΩ → ≈16.7V with the real 2.416V reference — CRITICAL fix 2026-07-13**) |
 | R34 | 100kΩ 1% | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | CV FB divider low-side (FB→GND) |
+| **C_VG** | **100nF 50V** | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | **NEW 2026-07-13** — VG (1) ↔ **VCC** (not GND) per datasheet |
+| **C_COM1** | **470pF 50V** | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | **NEW 2026-07-13** — COM1 (8) → GND |
+| **C_COM2** | **220nF 25V** | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | **NEW 2026-07-13** — COM2 (9) → C_COM2 → R_COM2 → GND |
+| **R_COM2** | **120Ω 5%** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW 2026-07-13** — series with C_COM2 |
+| **C_COM3** | **100nF 25V** | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | **NEW 2026-07-13** — COM3 (11) → GND |
+| **RT_SOLAR** | **10kΩ NTC B≈3950** | 0603 | `Resistor_SMD:R_0603_1608Metric` | MF52-class ⚠️ pick MPN | — ⚠️ | **NEW 2026-07-13** — TEMP (6) → GND, thermally coupled to the pack: charge suspended below ≈+2°C / above ≈+54°C (55µA pull-up, 1.61V/0.175V thresholds). Solar-path cold-charge cutoff (review O-1) |
 | C17 | 10µF **35V** X5R | **1206** | `Capacitor_SMD:C_1206_3216Metric` | — | ✅ | CN3722 VIN filter (rail can sit at panel Voc up to 24V; 25V rating had no margin) |
 | C18 | 10µF 16V | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | CN3722 VBAT filter |
 | C21 | 100nF **50V** | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | HF bypass at CN3722 VIN (across D8) |
@@ -88,11 +105,11 @@
 
 | Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC | Notes |
 |-----|-------|---------|-------------------|-----|------|-------|
-| U8 | MT3608B boost 12V | SOT-23-6 | `Package_TO_SOT_SMD:SOT-23-6` | MT3608B | C84005 ✅ | GPIO5-gated, EN=HIGH during 4-20mA reads |
+| U8 | MT3608B boost 12V | SOT-23-6 | `Package_TO_SOT_SMD:SOT-23-6` | MT3608B | C84005 ✅ | GPIO5-gated, EN=HIGH during 4-20mA reads. Symbol numbering fixed 2026-07-13 (SW=1, GND=2, FB=3, EN=4, IN=5, NC=6); datasheet fetch was proxy-blocked — **bench-verify continuity before first power-on** |
 | L1 | 4.7µH 1A shielded | 4×4mm SMD | `Inductor_SMD:L_4.0x4.0mm_H2.6mm` ⚠️verify name | CDRH4D22NP-4R7NC | C376098 ✅ | Same part as L2 |
 | R23 | 1.91MΩ 1% E96 | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | VOUT divider high-side → VOUT=0.6×(1+1910/100)=12.06V (matches schematic value) |
 | R24 | 100kΩ 1% | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | VOUT divider low-side |
-| C_BST | 100nF 16V | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | C14663 ✅ | BST↔SW. ⚠️ Classic MT3608 has pin 6 = NC (no BST); harmless if fitted to NC — verify datasheet |
+| C_BST | 100nF 16V | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | C14663 ✅ | Pin 6 ↔ SW. Symbol pin 6 renamed **NC** 2026-07-13 (standard family map) — cap is harmless on an NC pin; keep fitted until the bench continuity check confirms, then DNF |
 | **D15** | **SS34 Schottky 3A 40V** | DO-214AC | `Diode_SMD:D_SMA` | SS34 | C8678 ✅ | **NEW** — boost rectifier SW→VLOOP (MT3608 is an async boost; there was no rectifier in the BOM) |
 | **Q3** | **AO3407 P-ch MOSFET** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | AO3407 | C31417 ✅ | **NEW** — VLOOP input disconnect (VBAT→Q3→L1); kills the permanent VBAT−0.4V leak through L1+D15 to the loop terminals during sleep |
 | **Q4** | **BSS123 N-ch MOSFET** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | BSS123 | — ✅ | **NEW** — Q3 gate driver, gate on VBOOST_EN (GPIO5) |
@@ -274,5 +291,5 @@ All test points use: `TestPoint:TestPoint_Pad_1.0x1.0mm`
 | USB4135-GF-A (J13) | Not in standard lib | Download from GCT website (they provide KiCad files) |
 | CDRH4D22 inductors (L1, L2) | May need verification | Check `Inductor_SMD:L_4.0x4.0mm_H2.6mm` exists; if not, use KiCad footprint editor to create 4.0×4.0mm SMD pad |
 | L3 (IP2326 boost inductor) | Part not final | Pick footprint once the IP2326 datasheet fixes the inductor value/size (5×5mm class assumed) |
-| IP2326 (U12) | 24-pin + EPAD, exact package code unverified | Get the package code + land pattern from the LCSC C2832094 listing; the previously assumed SOIC-8-1EP footprint is WRONG (part is 24-pin) |
-| R_VSET | **120 kΩ 1%** | 0603 | `Resistor_SMD:R_0603_1608Metric` | — | ✅ generic | IP2326 VSET (pin 3) strap → CV 8.3 V typ / 8.4 V max. Do NOT leave NC: the NC strap's CV maxes at 8.5 V, above the 2S pack limit (datasheet verification 2026-07-06) |
+| L_SOLAR (CN3722 buck inductor) | SRN6045TA-470M assumed | Verify `Inductor_SMD:L_Bourns-SRN6045TA` matches the chosen 47 µH part |
+| IP2326 (U12) | 24-pin + EPAD, exact package code unverified | Get the package code + land pattern from the LCSC C2832094 listing and draw `welld:IP2326_TBD` → real footprint in `WellD.pretty/`; the previously assumed SOIC-8-1EP footprint is WRONG (part is 24-pin). Symbol placed 2026-07-13 with the placeholder footprint name |

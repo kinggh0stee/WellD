@@ -234,7 +234,7 @@ Firmware agent → test agent → docs agent
 1. **IC companion passives** — every active IC must have all required passive components present in the schematic: feedback dividers (buck/boost), bootstrap caps, decoupling caps, pull-ups on open-drain pins, PG/EN resistors per datasheet.
 2. **Net connectivity** — verify `hardware/pcb/schematic_connections.md` reflects any new or changed nets. If wires are missing from a schematic sheet, this document is the authoritative reference.
 3. **Voltage ratings** — all component ratings must cover the operating range with ≥20% margin: VBAT 6.0–8.4V, VLOOP 12V, VUSB 5V, +3V3.
-4. **CV/CC setpoints** — verify charger output voltage is ≤8.40V for 2S Li-ion (CN3722 CV = 8.31V via R33=590kΩ).
+4. **CV/CC setpoints** — verify charger output voltage is ≤8.40V for 2S Li-ion. CN3722: V_REG = 2.416V × (1 + R_FBH/R_FBL) — **the FB reference is 2.416V (Consonance datasheet Rev 1.1), not 1.205V** (that is the CN3791's reference; the pre-2026-07-13 R33=590kΩ math would have regulated the pack at ≈16.7V). Correct divider: R33=243kΩ / R34=100kΩ → 8.29V.
 5. **Open-drain pull-ups** — any open-drain signal (ADS_DRDY, I²C) must have an external pull-up resistor; do not rely on internal weak pull-ups alone.
 
 **Why this gate exists**: the Python-generated schematics (pre-2026-05-25) had correct component symbols but zero wire connections and missing critical passives (R_FBH/R_FBL for the AP63205WU feedback divider, R_DRDY for ADS1115 DRDY). These were not caught until the senior reviewer ran on 2026-05-25 (BLOCKED, 4 CRITICAL). The gate prevents tape-out with a schematic that has symbols but no electrical correctness verification.
