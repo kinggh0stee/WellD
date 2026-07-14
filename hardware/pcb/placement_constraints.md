@@ -71,15 +71,35 @@ These components must land on a specific board edge:
 - R15/C36 (EN reset RC) within **5mm** of the module EN pad, C36 ground via short
 - Keep a **15mm no-copper keep-out** zone around the module's on-chip antenna area (the far end from the U.FL pad) on both layers
 
-### Group G — TP5100 USB charger cluster (⚠️ architecture unresolved — see BOM)
-`J13, U11, F2, U12, C27, C28, C29, R35, R36, R37, R38, R50, R51`
-- U12 near J13; keep VIN trace (F2 → U12 VIN) under **10mm**
-- R50 and R51 within **3mm** of J13 CC1/CC2 pins
-- C28 within **2mm** of U12 VIN pin
-- C29 within **3mm** of U12 VBAT pin
-- R35 within **3mm** of U12 PROG pin
-- Add **8×8mm solid GND copper pour on F.Cu** under U12 for thermal relief
-- U11 and F2 between J13 VBUS pin and U12 VIN — keep total VUSB trace under **15mm**
+### Group G — IP2326 USB boost-charger cluster (rewritten 2026-07-13 for the TP5100→IP2326 swap)
+`J13, U11, F2, U12, L3, C27, C28, C_SYS1, C_SYS2, C29, C_BST2, R35, R_VSET, R38, R50, R51, RT1`
+
+**Hot loop (synchronous boost, input side):** `C28 (VIN cap) → L3 → U12 LX (15–17) → internal FETs → VSYS (19/20) → C_SYS1/C_SYS2 → PGND (18)`.
+- C28 (10µF) within **2mm** of U12 VIN (13); C27 (4.7µF) just behind it on VUSB
+- L3 (2.2µH, ≥3A Isat) within **3mm** of the LX pins; **no copper pour under L3 on either layer**
+- C_SYS1/C_SYS2 (2×22µF) within **3mm** of VSYS (19/20), ground ends short and direct to PGND (18) — this closes the switching loop; keep the LX→L3→VSYS-caps loop area minimal
+- C_BST2 (100nF) within **1mm** of BST (14), other end to the LX node
+- C29 (10µF) within **3mm** of VOUT (21/22) — output (VBAT) side
+- **EPAD (25) thermal**: solder the exposed pad to a GND pour; **8×8mm solid GND copper on F.Cu** under U12, ≥6 thermal vias (0.5–0.6mm drill) through to a matching B.Cu pour (boost at 1A charge dissipates ~1W)
+- R35 (ISET) and R_VSET within **3mm** of pins 11/3; their GND ends to quiet analog ground, not into the power loop
+- RT1 (pack NTC) — route the NTC pair away from LX; the thermistor body must be thermally coupled to the pack, so expect a wired stub or pack-adjacent placement
+- R50/R51 within **3mm** of J13 CC1/CC2 pins; U11 and F2 between J13 VBUS and U12 VIN — total VUSB trace under **15mm**
+- LX node copper: small — enough for ~2A but no larger (EMI); keep LX away from RT1, ISET, VSET sense nets
+
+### Group L — CN3722 external buck stage (added 2026-07-13, senior-review open item)
+`U7, M_SOLAR, D16, D_SOLAR, L_SOLAR, R19 (R_CS), C17, C21, C_VG, C_COM1, C_COM2, R_COM2, C_COM3, RT_SOLAR`
+
+**Hot loop (buck):** `C17/C21 (VIN caps) → M_SOLAR S→D → D16 → SOLAR_FW node ← D_SOLAR (catch, GND→FW)`; L_SOLAR carries the FW node to CN_CS.
+- C17 (10µF 35V) + C21 (100nF) within **3mm** of M_SOLAR source / U7 VCC (15); the C17-ground → D_SOLAR-anode-ground path must be short — this is the fast di/dt loop
+- M_SOLAR, D16, D_SOLAR within **5mm** of each other; SOLAR_SW / SOLAR_FW copper small
+- D_SOLAR anode ground and C17 ground tied at one point into the pour (loop closure)
+- L_SOLAR after the FW node; no pour under it
+- **Kelvin current sense (datasheet):** R19 (R_CS 0.4Ω 1206) in the L_SOLAR→VBAT path; route **CSP (13) and BAT (14) as a paired sense track directly to the two R19 pads** — no shared copper with the power path, ≥0.2mm gap from the switching nodes
+- C_VG (100nF) within **2mm** of VG (1), returned to **VCC** (not GND)
+- Gate drive DRV (16) → M_SOLAR gate: short, ≤10mm
+- Compensation parts C_COM1 / C_COM2+R_COM2 / C_COM3 within **5mm** of pins 8/9/11, grounds to quiet analog ground
+- RT_SOLAR (pack NTC): same routing rule as RT1 — away from switching nodes, body thermally coupled to the pack
+- Keep the U7 thermal pour rules from Group D (10×10mm F.Cu+B.Cu, ≥4 vias)
 
 ### Group H — Battery input protection
 `J1, D13, D5, R31`
@@ -136,7 +156,7 @@ W1 is a hand-attached cable — it is NOT pick-and-place. PCBWay installs it man
 | Component | Pour size | Layer | Via stitching |
 |-----------|-----------|-------|---------------|
 | U7 CN3722 | 10×10mm | F.Cu + B.Cu, GND net | ≥4 vias, 0.6mm drill, through to B.Cu |
-| U12 TP5100 | 8×8mm | F.Cu, GND net | optional; helps with 1.5W dissipation |
+| U12 IP2326 | 8×8mm | F.Cu + B.Cu, GND net (EPAD soldered) | ≥6 vias, 0.5–0.6mm drill (≈1W at 1A boost charge) |
 
 ---
 
