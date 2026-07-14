@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Hardware
+- Full BOM component-verification sweep against vendor datasheets (`hardware/pcb/component_verification_2026-07-14.md`): AP63203 buck requires a previously-missing 100 nF BST–SW bootstrap cap (new C_BST_AP row — the 3.3 V rail could not start) and its symbol pin numbering was wrong; IP2326 package resolved (QFN24 4×4 mm); D9/D10 loop clamps changed SMAJ3.3CA → SMAJ5.0A (leakage); F2 PTC, L3, L_SOLAR and NTC MPNs fixed; wrong LCSC numbers corrected (PRTR5V0U2X, CN3722, ESP32-C6-MINI-1U-H4); USBLC6/PRTR5V0U2X/MT3608B pinouts verified.
+
 ### Fixed
 - OTA rollback can no longer flip a healthy image to the old slot during a coordinator outage: the boot-attempt counter is armed only while the running image is unproven (NVS marker `img_ok` stores the version string of the last image that completed a successful send), and low-battery-skip wakeups no longer count as failed boot attempts.
 - An OTA download failure (stall abort, flash error) no longer counts as a Zigbee send failure when the sensor report itself was delivered — previously five OTA-plagued wakeups could wipe NVS and force a needless rejoin.
