@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Hardware
+- `hardware/pcb/fab_checklist.md`: consolidated, ordered path-to-fabrication checklist (first KiCad session + ERC waivables, vendor question, layout constraints, verified order list, first-article bench checks, enclosure sequencing).
 - All eight required schematic edits from the component sweep applied (AP63203 renumber + BST bootstrap cap on new net AP_BST, USBLC6/PRTR5V0U2X pinout fixes, SMAJ5.0A clamps, QFN-24 IP2326 footprint, cap voltage uprates); netlist re-verified with zero mismatches.
 - Full BOM component-verification sweep against vendor datasheets (`hardware/pcb/component_verification_2026-07-14.md`): AP63203 buck requires a previously-missing 100 nF BST–SW bootstrap cap (new C_BST_AP row — the 3.3 V rail could not start) and its symbol pin numbering was wrong; IP2326 package resolved (QFN24 4×4 mm); D9/D10 loop clamps changed SMAJ3.3CA → SMAJ5.0A (leakage); F2 PTC, L3, L_SOLAR and NTC MPNs fixed; wrong LCSC numbers corrected (PRTR5V0U2X, CN3722, ESP32-C6-MINI-1U-H4); USBLC6/PRTR5V0U2X/MT3608B pinouts verified.
 
