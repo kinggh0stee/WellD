@@ -10810,7 +10810,7 @@
 				)
 			)
 		)
-		(property "Description" "560k 1% 0402 AP63205WU FB divider high-side VOUT->FB sets VOUT=3.31V"
+		(property "Description" "560k 1% 0402 AP63203WU FB divider high-side VOUT->FB sets VOUT=3.31V"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -10906,7 +10906,7 @@
 				)
 			)
 		)
-		(property "Description" "124k 1% 0402 AP63205WU FB divider low-side FB->GND sets VOUT=3.31V"
+		(property "Description" "124k 1% 0402 AP63203WU FB divider low-side FB->GND sets VOUT=3.31V"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -11194,7 +11194,7 @@
 				)
 			)
 		)
-		(property "Description" "10uF 10V X5R 0805 AP63205WU primary output filter cap +3V3 rail after L2"
+		(property "Description" "10uF 10V X5R 0805 AP63203WU primary output filter cap +3V3 rail after L2"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
