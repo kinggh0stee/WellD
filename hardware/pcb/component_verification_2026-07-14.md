@@ -146,6 +146,8 @@ blockers #1, #2b, #3, #5 (both parts), #6 and #8 in `schematic_connections.md`.
 
 ## Issues — required actions
 
+> **Status 2026-07-14 (same-day follow-up pass):** all eight schematic edits below are APPLIED and netlist-re-verified (393 pins / 78 nets / 0 mismatches). Remaining open: pack PCM charge rating (vendor inquiry) and the bench-verify list.
+
 **Required schematic edits (flagged only — no .kicad_sch touched in this pass):**
 
 1. **welld:AP63205WU symbol**: renumber to FB=1, EN=2, VIN=3, GND=4, SW=5, BST=6; rename

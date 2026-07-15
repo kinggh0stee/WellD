@@ -544,12 +544,12 @@ Wiring above uses **pin names**. Before assigning footprints / generating a netl
 |--------|--------|
 | welld:ADS1115 | ✅ matches TI MSOP-10 (ADDR=1 … SCL=10) |
 | welld:AO3407 | ✅ G=1, S=2, D=3 (SOT-23) |
-| welld:AP63205WU (used for U1) | ❌ **verified WRONG 2026-07-14** — real map (Diodes DS41326 + KiCad official lib): **FB=1, EN=2, VIN=3, GND=4, SW=5, BST=6** (symbol has pins 1–4 scrambled). Renumber + rename to AP63203WU; footprint is `Package_TO_SOT_SMD:TSOT-23-6` |
+| welld:AP63203WU (U1) | ✅ **fixed 2026-07-14 follow-up**: renumbered to the Diodes DS41326 map (FB=1, EN=2, VIN=3, GND=4, SW=5, BST=6), renamed from AP63205WU, footprint `Package_TO_SOT_SMD:TSOT-23-6`; C_BST_AP 100 nF wired BST↔SW (net AP_BST) |
 | welld:MT3608B | ✅ **datasheet-confirmed 2026-07-14**: SW=1, GND=2, FB=3, EN=4, IN=5, NC=6 — third independent source (KiCad official `MT3608` symbol, librarian-reviewed against the Aerosemi PDF) agrees with both prior reviews. Bench caveat downgraded to routine first-article check |
-| welld:USBLC6_2SC6 | ❌ **verified WRONG 2026-07-14** — real map (ST datasheet + KiCad official lib): **1=I/O1, 2=GND, 3=I/O2, 4=I/O2, 5=VBUS, 6=I/O1**. Symbol has VBUS=1, GND=4 — renumber |
+| welld:USBLC6_2SC6 | ✅ **fixed 2026-07-14 follow-up**: renumbered to the ST map (1=I/O1, 2=GND, 3=I/O2, 4=I/O2', 5=VBUS, 6=I/O1') |
 | welld:IP2326 | ✅ **drawn 2026-07-13** from datasheet V1.2 (24-pin + EPAD); replaced welld:TP5100. Package **resolved 2026-07-14: QFN24 4×4 mm, 0.5 mm pitch, EPAD 2.5×2.5 mm** (DS §11 + LCSC C2832094) — draw `welld:IP2326_TBD` from KiCad standard `Package_DFN_QFN:QFN-24-1EP_4x4mm_P0.5mm_EP2.6x2.6mm` |
 | welld:CN3722 | ✅ **redrawn 2026-07-13** as TSSOP-16 from Consonance datasheet Rev 1.1 (VG=1, PGND=2, GND=3, /CHRG=4, /DONE=5, TEMP=6, MPPT=7, COM1=8, COM2=9, FB=10, COM3=11, NC=12, CSP=13, BAT=14, VCC=15, DRV=16) |
-| welld:PRTR5V0U2X | ❌ **verified WRONG 2026-07-14** — real part is SOT-143B, 4 pins: **1=GND, 2=I/O1, 3=I/O2, 4=VCC** (Nexperia DS + KiCad official lib; footprint `Package_TO_SOT_SMD:SOT-143`). Redraw the 6-pin SOT-363 symbol. LCSC is **C12333** (PRTR5V0U2X,215) — the BOM's old C2687116 was a UMW USBLC6-2SC6 clone |
+| welld:PRTR5V0U2X | ❌ **verified WRONG 2026-07-14** — real part is SOT-143B, 4 pins: **1=GND, 2=I/O1, 3=I/O2, 4=VCC** (Nexperia DS + KiCad official lib; footprint `Package_TO_SOT_SMD:SOT-143`). ✅ **redrawn 2026-07-14 follow-up** as 4-pin SOT-143B (phantom VCC2/GND2 pins + stubs removed), footprint `Package_TO_SOT_SMD:SOT-143`. LCSC is **C12333** (PRTR5V0U2X,215) — the BOM's old C2687116 was a UMW USBLC6-2SC6 clone |
 | welld:ESP32_C6_MINI_1U | ⚠️ custom numbering — replace with the official Espressif KiCad symbol/footprint before layout |
 
 ---
@@ -593,7 +593,7 @@ Wiring above uses **pin names**. Before assigning footprints / generating a netl
 | C17 | ~~25 V → 35 V rating (footprint 0805 → 1206)~~ | ✅ **Edited 2026-07-13** (power sheet: "10uF 35V", C_1206) |
 | SJ2/SJ3 (and new SJ4/SJ5) | All five SJ symbols use the *Open* variant; SJ2/SJ3/SJ4/SJ5 should default **bridged** | Swap symbol/footprint variant — **still open** |
 | U12 | ~~TP5100 symbol obsolete~~ | ✅ **Replaced 2026-07-13**: `welld:IP2326` drawn (24-pin + EPAD) and instantiated with R_VSET/L3/RT1/C_BST2/C_SYS1/C_SYS2. ✅ Wired at the wiring pass (VUSB / /CHRG_USB / ISET-NTC tables). Package resolved 2026-07-14 (QFN24 4×4) — draw the `welld:IP2326_TBD` footprint from `Package_DFN_QFN:QFN-24-1EP_4x4mm_P0.5mm_EP2.6x2.6mm` — **still open** |
-| U1 BST + symbols | **NEW 2026-07-14** (component sweep, blocker #9) | Renumber `welld:AP63205WU` (FB=1, EN=2, VIN=3, GND=4, SW=5, BST=6) and rename AP63203WU; **add C_BST_AP 100 nF BST↔SW**; renumber `welld:USBLC6_2SC6`; redraw `welld:PRTR5V0U2X` as 4-pin SOT-143B; D9/D10 value → SMAJ5.0A; FB1 footprint → 0603; C28/C29/C_SYS1/C_SYS2 → 25 V — **all still open** |
+| U1 BST + symbols | **NEW 2026-07-14** (component sweep, blocker #9) | Renumber `welld:AP63205WU` (FB=1, EN=2, VIN=3, GND=4, SW=5, BST=6) and rename AP63203WU; **add C_BST_AP 100 nF BST↔SW**; renumber `welld:USBLC6_2SC6`; redraw `welld:PRTR5V0U2X` as 4-pin SOT-143B; D9/D10 value → SMAJ5.0A; FB1 footprint → 0603; C28/C29/C_SYS1/C_SYS2 → 25 V — ✅ **ALL APPLIED 2026-07-14 follow-up** (netlist re-verified: 393 pins / 78 nets / 0 mismatches) |
 | L3, RT1 | ~~IP2326 support parts~~ | ✅ **Placed 2026-07-13** (power sheet: L3 2.2µH, RT1 10k NTC) |
 | R36, R37 | ~~Deleted with TP5100 CE network~~ | ✅ **Removed 2026-07-13** from power sheet; GPIO4 net is spare (firmware already annotated) |
 | F2 | ~~1.1 A → 2 A hold PTC~~ | ✅ **Edited 2026-07-13** (value "PTC 2A hold"); exact MPN still blocker #8 (2.5 A-hold preferred, see BOM) |
