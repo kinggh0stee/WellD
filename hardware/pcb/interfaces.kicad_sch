@@ -4039,7 +4039,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "welld:AP63205WU"
+		(symbol "welld:AP63203WU"
 			(pin_names
 				(offset 1.016)
 			)
@@ -4058,7 +4058,7 @@
 					)
 				)
 			)
-			(property "Value" "AP63205WU"
+			(property "Value" "AP63203WU"
 				(at 0 -7.62 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -4068,7 +4068,7 @@
 					)
 				)
 			)
-			(property "Footprint" "Package_TO_SOT_SMD:SOT-23-6"
+			(property "Footprint" "Package_TO_SOT_SMD:TSOT-23-6"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -4101,7 +4101,7 @@
 					)
 				)
 			)
-			(symbol "AP63205WU_0_1"
+			(symbol "AP63203WU_0_1"
 				(rectangle
 					(start -3.81 -6.35)
 					(end 3.81 6.35)
@@ -4114,7 +4114,7 @@
 					)
 				)
 			)
-			(symbol "AP63205WU_1_1"
+			(symbol "AP63203WU_1_1"
 				(pin input line
 					(at 6.35 3.81 180)
 					(length 2.54)
@@ -4125,7 +4125,7 @@
 							)
 						)
 					)
-					(number "1"
+					(number "2"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -4143,7 +4143,7 @@
 							)
 						)
 					)
-					(number "2"
+					(number "4"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -4161,7 +4161,7 @@
 							)
 						)
 					)
-					(number "3"
+					(number "1"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -4179,7 +4179,7 @@
 							)
 						)
 					)
-					(number "4"
+					(number "3"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5374,7 +5374,7 @@
 					)
 				)
 			)
-			(property "Footprint" "Package_TO_SOT_SMD:SOT-363_SC-70-6"
+			(property "Footprint" "Package_TO_SOT_SMD:SOT-143"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -5467,7 +5467,7 @@
 							)
 						)
 					)
-					(number "3"
+					(number "4"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5485,43 +5485,7 @@
 							)
 						)
 					)
-					(number "4"
-						(effects
-							(font
-								(size 0.8 0.8)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at -6.35 -1.27 0)
-					(length 2.54)
-					(name "VCC2"
-						(effects
-							(font
-								(size 0.8 0.8)
-							)
-						)
-					)
-					(number "5"
-						(effects
-							(font
-								(size 0.8 0.8)
-							)
-						)
-					)
-				)
-				(pin power_in line
-					(at 6.35 -1.27 180)
-					(length 2.54)
-					(name "GND2"
-						(effects
-							(font
-								(size 0.8 0.8)
-							)
-						)
-					)
-					(number "6"
+					(number "3"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -5561,7 +5525,7 @@
 					)
 				)
 			)
-			(property "Footprint" "welld:IP2326_TBD"
+			(property "Footprint" "Package_DFN_QFN:QFN-24-1EP_4x4mm_P0.5mm_EP2.6x2.6mm"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -6244,7 +6208,7 @@
 							)
 						)
 					)
-					(number "1"
+					(number "5"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -6262,7 +6226,7 @@
 							)
 						)
 					)
-					(number "2"
+					(number "6"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -6298,7 +6262,7 @@
 							)
 						)
 					)
-					(number "4"
+					(number "2"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -6316,7 +6280,7 @@
 							)
 						)
 					)
-					(number "5"
+					(number "4"
 						(effects
 							(font
 								(size 0.8 0.8)
@@ -6334,7 +6298,7 @@
 							)
 						)
 					)
-					(number "6"
+					(number "1"
 						(effects
 							(font
 								(size 0.8 0.8)

@@ -49,7 +49,7 @@ NETS = {
     # =====================================================================
     "power": {
         "GND": [
-            "U1.2", "U7.2", "U7.3", "U8.2", "U12.18", "U12.25",
+            "U1.4", "U7.2", "U7.3", "U8.2", "U12.18", "U12.25",
             "R_VSET.2", "RT1.2", "RT_SOLAR.2",
             "C_COM1.2", "R_COM2.2", "C_COM3.2",
             "D_SOLAR.2",           # catch Schottky anode
@@ -61,17 +61,17 @@ NETS = {
             "C17.2", "C21.2", "C18.2", "C19.2", "C20.2", "C22.2",
             "C27.2", "C28.2", "C29.2",
             "D11.2", "D13.2", "D14.2", "D8.2",
-            "Q4.S", "J1.2", "J12.2", "J13.A1", "U11.4",
+            "Q4.S", "J1.2", "J12.2", "J13.A1", "U11.2",
         ],
         "+3V3": [
-            "U1.3",                # FB tied to output (fixed 3.3 V part)
+            "U1.1",                # FB tied to output (fixed 3.3 V part)
             "R_FBH.1",             # DNP divider top (adjustable option)
             "L2.2", "C_BUCK.1", "C11.1", "C12.1",
             "R25.1", "R38.1", "R22.1",
         ],
         "AP_FB": ["R_FBH.2", "R_FBL.1"],  # DNP mid-point (see report note)
         "VBAT": [
-            "U1.4", "C9.1", "C10.1", "C16.1", "R11.1",
+            "U1.3", "C9.1", "C10.1", "C16.1", "R11.1",
             "U7.14", "R19.2", "C18.1",
             "U8.5", "C19.1",
             "Q3.2", "Q5.2", "R29.1", "R16.1", "R33.1",
@@ -80,8 +80,9 @@ NETS = {
         ],
         "VBAT_RAW": ["J1.1", "D13.1", "D5.3"],
         "D5_GATE": ["D5.1", "R31.1"],
-        "U1_EN": ["U1.1", "R11.2"],
-        "AP_SW": ["U1.5", "L2.1"],
+        "U1_EN": ["U1.2", "R11.2"],
+        "AP_SW": ["U1.5", "L2.1", "C_BST_AP.2"],
+        "AP_BST": ["U1.6", "C_BST_AP.1"],
         # --- MT3608B boost + Q3/Q4 disconnect ---
         "VLOOP_L": ["Q3.3", "L1.1"],
         "Q3_GATE": ["Q3.1", "R29.2", "Q4.D"],
@@ -111,9 +112,9 @@ NETS = {
         "/CHRG_SOLAR": ["U7.4", "R25.2", "D7.1"],
         "D7_A": ["D7.2", "R22.2"],
         # --- USB input + IP2326 boost charger ---
-        "VUSB_IN": ["J13.A4", "U11.1", "F2.1"],
+        "VUSB_IN": ["J13.A4", "U11.5", "F2.1"],
         "USB_DP": ["J13.A6", "U11.3"],
-        "USB_DM": ["J13.A7", "U11.6"],
+        "USB_DM": ["J13.A7", "U11.1"],
         "CC1": ["J13.A5", "R50.1"],
         "CC2": ["J13.B5", "R51.1"],
         "VUSB": ["F2.2", "C27.1", "U12.13", "C28.1", "L3.1"],
@@ -170,14 +171,14 @@ NETS = {
             "C23.2", "C24.2",
             "C3.2", "C4.2", "C5.2", "C6.2", "C7.2", "C8.2",
             "C34.2", "C35.2",
-            "D1.1", "D1.6", "D12.1", "D12.6",
+            "D1.1", "D12.1",
             "D9.2", "D10.2",
             "R2.2", "R4.2", "R8.2", "R26.2",
             "Q2.S", "J4.3", "J5.3", "J6.3", "J7.3",
         ],
         "+3V3": [
             "FB1.1", "R_DRDY.1", "R6.1", "R28.1",
-            "D1.3", "D1.5", "D12.3", "D12.5",
+            "D1.4", "D12.4",
             "J7.1",
         ],
         "+3V3_ADS": ["FB1.2", "U9.8", "C23.1", "C24.1"],
@@ -191,7 +192,7 @@ NETS = {
         # CH2 4-20 mA chain (loop power gated by SJ2 on interfaces sheet)
         "VLOOP_CH2": ["J5.1"],
         "LOOP_TERM_CH2": ["J5.2", "D10.1", "R4.1", "C35.1", "R5.1"],
-        "ADC_CH1": ["U9.5", "R5.2", "C5.1", "C6.1", "D1.4"],
+        "ADC_CH1": ["U9.5", "R5.2", "C5.1", "C6.1", "D1.3"],
         # battery divider (high-side switch Q5/R16 on power sheet)
         "VBAT_SW": ["R7.1"],
         "ADC_CH2": ["U9.6", "R7.2", "R8.1", "C8.1"],
@@ -241,10 +242,9 @@ NETS = {
 # Explicit no-connects (see schematic_connections.md + wiring-pass decisions)
 NC_PINS = {
     "power": [
-        "U1.6",    # AP63203 BST — left NC per doc (verify blocker #1)
         "U7.5",    # CN3722 /DONE — no spare GPIO
         "U7.12",   # CN3722 NC
-        "U11.2", "U11.5",   # USBLC6 device-side line ends (DM/DP float)
+        "U11.6", "U11.4",   # USBLC6 device-side line ends (DM/DP float)
         "U12.1", "U12.2",   # IP2326 DM/DP — float (blocker 2h decision)
         "U12.6",   # LED
         "U12.7",   # TIME_SET (float = default timer)
@@ -260,7 +260,7 @@ NC_PINS = {
     ],
     "sensors": [
         "U9.7",    # ADS1115 AIN3 unused
-        "D12.4",   # PRTR5V0U2X IO2 unused on 1-Wire clamp
+        "D12.3",   # PRTR5V0U2X IO2 unused on 1-Wire clamp
     ],
     "interfaces": [
         "J3.1",    # SMA RF pin — no PCB trace (W1 pigtail carries RF)
