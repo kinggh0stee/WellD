@@ -48,34 +48,36 @@ place("D13",  14,  48, 0)       # SMAJ10CA battery TVS
 place("D5",   19,  48, 0)       # AO3407 P-MOS load switch
 place("R31",  23,  48, 0)       # D5 gate pull-down (holds switch ON)
 
-# ── Group G — TP5100 USB charger cluster (short edge right) ───────────────
+# ── Group G — TP4056 USB charger cluster (short edge right, 1S 2026-07-19) ─
 place("J13",  78,  10, 270)     # USB-C connector, right short edge
 place("F2",   70,  10, 0)       # Polyfuse
 place("U11",  62,   8, 0)       # USBLC6-2SC6 ESD
-place("U12",  70,  20, 0)       # TP5100 USB charger
+place("U12",  70,  20, 0)       # TP4056 1S linear charger (EPAD thermal pour)
 place("C27",  64,  18, 0)       # VUSB filter
-place("C28",  74,  26, 0)       # U12 VIN bypass
-place("C29",  66,  26, 0)       # U12 VBAT bypass
-place("R35",  76,  18, 0)       # PROG resistor
-place("R36",  76,  14, 0)       # CHRG pull-up
-place("R37",  72,  14, 0)       # CE pull-up
+place("C28",  74,  26, 0)       # U12 VCC bypass 10µF
+place("C29",  66,  26, 0)       # U12 BAT bypass 10µF
+place("R_PROG", 76, 18, 0)      # PROG resistor 1.2k → 1A
+place("R_NTC", 76, 14, 0)       # TEMP divider top (VUSB→TEMP)
+place("RT1",  72,  14, 0)       # TEMP NTC (thermally couple to pack)
 place("R38",  74,  30, 0)       # /CHRG pull-up
 place("R50", 78, 16, 0)         # CC1 5k1 (was R_CC1)
 place("R51", 78, 20, 0)         # CC2 5k1 (was R_CC2)
 
-# ── Group D — CN3722 solar charger (top-centre) ───────────────────────────
-place("U7",   40,  18, 0)       # CN3722 solar MPPT charger
+# ── Group D — CN3791 solar charger (top-centre, 1S 2026-07-19) ────────────
+place("U7",   40,  18, 0)       # CN3791 solar MPPT buck charger (int. switch)
 place("C17",  34,  22, 0)       # VIN filter
-place("C18",  46,  22, 0)       # VBAT bypass
+place("C18",  46,  22, 0)       # BAT bypass
 place("C21",  34,  18, 0)       # second VIN filter
-place("R19",  32,  14, 0)       # VPROG current-set (500mA)
-place("R20",  32,  18, 0)       # MPPT divider top (VSOLAR side)
-place("R21",  38,  12, 0)       # MPPT divider bottom (GND side)
+place("D_SOLAR", 42, 12, 0)     # SS34 catch diode (GND→SW)
+place("L_SOLAR", 46, 12, 0)     # 47µH buck inductor (SW→CN_CS); no pour under
+place("R19",  32,  14, 0)       # R_CS 0.1Ω CSP–BAT sense (1.2A)
+place("C_VG", 44, 16, 0)        # VG↔VCC bypass 100nF
+place("RT_SOLAR", 36, 14, 0)    # TEMP NTC (thermally couple to pack)
+place("R20",  32,  18, 0)       # MPPT divider top (VSOLAR side) 316k
+place("R21",  38,  12, 0)       # MPPT divider bottom (GND side) 100k
 place("R25",  48,  10, 0)       # /CHRG_SOLAR pull-up to +3V3
 place("D7",   52,  12, 0)       # Solar charge LED (DNF R22)
 place("R22",  52,  16, 0)       # LED series 1k DNF
-place("R33",  44,  14, 0)       # CV setpoint 590kΩ → 8.31V
-place("R34",  48,  14, 0)       # Parallel CV resistor
 
 # ── Group A — MT3608B boost (centre-left) ────────────────────────────────
 place("U8",   20,  22, 0)       # MT3608B boost converter
@@ -93,14 +95,10 @@ place("C19",  26,  22, 0)       # VIN bypass
 place("R23",  24,  16, 0)       # VLOOP FB divider 1.91M
 place("R24",  24,  18, 0)       # VLOOP FB divider 100k
 
-# ── Group B — AP63203WU buck (top-left) ──────────────────────────────────
-place("U1",   12,  10, 0)       # AP63203WU 3.3V fixed buck
-place("L2",   20,  10, 0)       # Buck inductor
-place("R_FBH", 26, 10, 0)      # DNP (only for adjustable AP63200 option)
-place("R_FBL", 26, 14, 0)      # DNP (only for adjustable AP63200 option)
+# ── Group B — HT7333-A 3.3V LDO (top-left, 1S 2026-07-19) ────────────────
+place("U1",   12,  10, 0)       # HT7333-A SOT-23 LDO (VBAT→+3V3)
 place("C16",  10,  18, 0)      # 10µF VIN bulk
-place("R11",  16,  14, 0)      # EN pull-up to VIN
-place("C_BUCK", 28, 10, 0)     # 10µF primary output filter
+place("C_BUCK", 28, 10, 0)     # 10µF primary output cap
 place("C9",   10,  14, 0)       # VIN decoupling
 place("C10",  14,  14, 0)       # VIN decoupling
 place("C11",  30,  10, 0)       # +3V3 output cap
@@ -110,7 +108,7 @@ place("C12",  34,  10, 0)       # +3V3 output cap
 place("J12",   3,  28, 0)       # Solar screw terminal
 place("D14",   8,  28, 0)       # First TVS
 place("D6",   12,  28, 0)       # Schottky backfeed block
-place("D8",   16,  28, 0)       # Second TVS at CN3722 VIN
+place("D8",   16,  28, 0)       # Second TVS at CN3791 VIN
 
 # ── Group F — ESP32-C6 module (centre) ───────────────────────────────────
 place("U6",   50,  28, 0)       # ESP32-C6-MINI-1U; keep antenna (top end) clear
@@ -154,9 +152,9 @@ place("D1",   26,  40, 0)       # PRTR5V0U2X dual-channel clamp
 # Battery voltage divider (Group K — high-side gated)
 place("Q5",   66,  45, 0)       # AO3407 high-side divider switch
 place("R16",  66,  48, 0)       # Q5 gate pull-up 100k
-place("Q2",   68,  48, 0)       # BSS123 level shifter (GPIO15)
+place("Q2",   68,  48, 0)       # AO3400A level shifter (GPIO15)
 place("R26",  70,  48, 0)       # Q2 gate pull-down 4.7k
-place("R7",   70,  45, 0)       # divider top (330kΩ)
+place("R7",   70,  45, 0)       # divider top (100kΩ — 1S divide-by-2)
 place("R8",   74,  45, 0)       # divider bottom (100kΩ)
 place("C8",   74,  48, 0)       # 1nF across R8
 
@@ -202,7 +200,7 @@ print("Next steps:")
 print("  1. Review placement — move components to fine-tune")
 print("  2. Check placement_constraints.md for must-be-near/apart rules")
 print("  3. Ensure U8 (MT3608B) and U9 (ADS1115) are ≥20mm apart")
-print("  4. Ensure U7 (CN3722) and U6 (ESP32) are ≥15mm apart")
+print("  4. Ensure U7 (CN3791) and U6 (ESP32) are ≥15mm apart")
 print("  5. Draw Edge.Cuts board outline (~80×55mm)")
 print("  6. Route traces (start with power planes, then signals)")
 print("  7. Add GND copper pours (press B to fill zones)")

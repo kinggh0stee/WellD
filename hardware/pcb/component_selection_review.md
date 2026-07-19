@@ -1,5 +1,17 @@
 # WellD PCB — Component Selection Review — 2026-07-05
 
+> **⚠️ SUPERSEDED IN PART — 1S CONVERSION 2026-07-19 (design change #18):** this review
+> evaluated parts for a **2S** (6.0–8.4 V) architecture. The user has since switched the
+> design to **1S2P** (3.0–4.2 V). Consequences for the verdicts below: the **IP2326**
+> (item 1) and **CN3722** (solar section) selections are **deleted** — replaced by
+> **TP4056** (1 A linear USB charger) and **CN3791** (1S MPPT buck, integrated switch);
+> the **AP63203WU** buck is **deleted** (VIN min 3.8 V fails at 1S empty) — replaced by
+> the **HT7333-A** LDO. The O-1 NTC cold-charge requirement carries over to both new
+> chargers (RT1 on TP4056 TEMP, RT_SOLAR on CN3791 TEMP). Everything else in this review
+> (MT3608B, ADS1115, ESP32-C6, protection, connectors) still stands. Current state:
+> `schematic_connections.md` (1S blocker #10) and `bom_footprints.md`. This file is kept
+> as the historical record of the 2S-era reasoning.
+
 **Scope:** selection/architecture review of every active component and key passive in
 `bom_footprints.md`. This is *not* a wiring pass — the electrical-gate/wiring review ran
 last cycle (`senior_review_2026-05-25.md` + the 2026-07-05 design-change list in

@@ -1,6 +1,6 @@
-pins checked      : 393
-intended nets     : 78
-extracted nets ok : 78
-no-connect pins   : 20
+pins checked      : 337
+intended nets     : 63
+extracted nets ok : 63
+no-connect pins   : 10
 
 RESULT: zero mismatches — schematic connectivity matches schematic_connections.md table.

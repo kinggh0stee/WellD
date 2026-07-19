@@ -65,7 +65,7 @@ One `app_main()` = one report. The order matters and is load-bearing:
 4. **OTA rollback guard** — an RTC boot-attempt counter increments each boot and is cleared on a successful Zigbee send. At 3 consecutive boots without a send, `esp_ota_set_boot_partition()` rolls back to the inactive partition (protects against a broken OTA image that crashes before reporting). The counter is **armed only while the running image is unproven**: NVS key `"img_ok"` stores the version string of the last image that ever sent successfully, so a coordinator outage can never roll back a known-good image, and low-battery-skip wakeups un-count themselves (they never attempt a send).
 5. **RTC struct validation** — each `RTC_DATA_ATTR` struct carries a magic constant; a mismatch (cold boot, or an OTA that changed the layout) zeroes the struct. **Bump the magic whenever you change an RTC struct layout.**
 6. **`sensor_i2c_init()`** — brings up the I²C bus + ADS1115 and drives the power-control GPIOs to safe idle. Must precede any sensor read.
-7. **Solar detect** — GPIO6 (CN3722 /CHRG, active-low input) sampled and later reported on EP7.
+7. **Solar detect** — GPIO6 (solar charger /CHRG, active-low input; CN3791 on the 1S board) sampled and later reported on EP7.
 8. **Fail-counter check** — NVS namespace `"welld"`, key `"zb_fails"` (names centralised in `components/welld_core/include/welld_nvs.h`). If ≥ `FAIL_THRESHOLD` (5), `nvs_flash_erase()` drops stale Zigbee network state to force a fresh join. The calibrated sensor offset is read out first and re-saved immediately after the wipe, so calibration survives.
 9. **Read the battery first, then the low-battery guard, then the remaining sensors — all before the radio.** The ADC is sensitive to 802.15.4 RF interference, so all `sensor_read_*` calls must precede `zigbee_send`. The battery (AIN2) is read before level/temperature so the guard can bail out before burning VLOOP power or risking the DS18B20 probe-change NVS write. GPIO5 (VLOOP) must be HIGH ≥10 ms before any 4–20 mA read (12 V rail settles through the Q3 load-disconnect P-FET into C20/C22) and LOW immediately after. A valid level reading is temperature-compensated for water density (`CONFIG_WELLD_TEMP_COMPENSATION_ENABLED`, default on).
 10. **Low-battery guard** — if battery ≤ `CONFIG_WELLD_BATT_EMPTY_MV`, skip the remaining sensor reads, the Zigbee send, *and all NVS writes* (flash programming below 2.7 V during a TX spike corrupts NVS), invalidate the rate history (the level can drift arbitrarily during the blackout, so the first reading after recovery reports rate = NaN), un-count the boot attempt, and sleep for `CONFIG_WELLD_SLEEP_MAX_SEC`.
@@ -74,7 +74,7 @@ One `app_main()` = one report. The order matters and is load-bearing:
 13. **Post-send bookkeeping** via `welld_post_send_action()` — the fail counter is written only on change (an in-RAM cache skips redundant NVS commits; flash has limited write cycles). On failure the reading is pushed into the 8-entry RTC store-and-forward buffer; on success the buffer and boot-attempt counter are cleared.
 14. **Update RTC history** — only when this wakeup's reading was valid (`level_m >= 0`). On an open-loop reading the previous `last_level_m` is kept and elapsed time keeps accumulating so the next valid reading spans the full gap.
 15. **Pick next sleep duration** via `welld_adaptive_sleep_sec()` when `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED` and a rate is available; otherwise `CONFIG_WELLD_SLEEP_DURATION_SEC`. Stored in `s_history.pending_sleep_sec` so the next wakeup knows how long it slept.
-16. **`enter_deep_sleep()`** — every exit path goes through this helper: `sensor_pre_sleep_cleanup()` (removes the DRDY ISR, deletes the I²C bus), drives VLOOP / BATT_DIV_EN / USB_CHG LOW, then `esp_sleep_config_gpio_isolate()` and `esp_deep_sleep()`. Never call `esp_deep_sleep()` directly.
+16. **`enter_deep_sleep()`** — every exit path goes through this helper: `sensor_pre_sleep_cleanup()` (removes the DRDY ISR, deletes the I²C bus), drives VLOOP / BATT_DIV_EN LOW, then `esp_sleep_config_gpio_isolate()` and `esp_deep_sleep()`. Never call `esp_deep_sleep()` directly.
 
 ### RTC-memory state (survives deep sleep, zeroed on cold boot)
 
@@ -93,9 +93,9 @@ All in `main/main.c`, each guarded by its own magic constant:
 
   | GPIO | PCB function |
   |------|---------------|
-  | 4 | TP5100 USB charger CE — HIGH enables USB-C charging; isolated before deep-sleep (R37 pulls LOW passively). **Pending hardware change**: the BOM replaces the TP5100 with an IP2326 (auto-charge, no CE pin — GPIO4 becomes spare, R36/R37 deleted); firmware keeps the TP5100 drive until the swap is datasheet-confirmed (`hardware/pcb/component_selection_review.md`) |
+  | 4 | Spare — no schematic connection (TP4056 auto-charges, CE strapped high in hardware) |
   | 5 | MT3608B VLOOP boost enable — HIGH → 12 V VLOOP active |
-  | 6 | Solar charging detect input (CN3722 /CHRG, active-low — LOW = solar charging in progress) |
+  | 6 | Solar charging detect input (/CHRG from the CN3791 MPPT charger, active-low — LOW = solar charging in progress) |
   | 7 | DS18B20 1-Wire data (external power mode required; parasite power unsupported) |
   | 10 | I2C SDA (ADS1115 only) |
   | 11 | I2C SCL (ADS1115 only) |
@@ -233,8 +233,8 @@ Firmware agent → test agent → docs agent
 
 1. **IC companion passives** — every active IC must have all required passive components present in the schematic: feedback dividers (buck/boost), bootstrap caps, decoupling caps, pull-ups on open-drain pins, PG/EN resistors per datasheet.
 2. **Net connectivity** — verify `hardware/pcb/schematic_connections.md` reflects any new or changed nets. If wires are missing from a schematic sheet, this document is the authoritative reference.
-3. **Voltage ratings** — all component ratings must cover the operating range with ≥20% margin: VBAT 6.0–8.4V, VLOOP 12V, VUSB 5V, +3V3.
-4. **CV/CC setpoints** — verify charger output voltage is ≤8.40V for 2S Li-ion. CN3722: V_REG = 2.416V × (1 + R_FBH/R_FBL) — **the FB reference is 2.416V (Consonance datasheet Rev 1.1), not 1.205V** (that is the CN3791's reference; the pre-2026-07-13 R33=590kΩ math would have regulated the pack at ≈16.7V). Correct divider: R33=243kΩ / R34=100kΩ → 8.29V.
+3. **Voltage ratings** — all component ratings must cover the operating range with ≥20% margin: VBAT 3.0–4.2V (1S — since 2026-07-19), VLOOP 12V, VUSB 5V, VSOLAR ≤10V, +3V3.
+4. **CV/CC setpoints** — verify charger output voltage is ≤4.20V for 1S Li-ion. The CN3791 regulates 4.2V internally at its BAT pin (no CV divider) and its MPPT reference is **1.205V**; the TP4056 is fixed 4.2V with I_CH = 1200V/R_PROG. **History lesson (keep):** the CN3722 that preceded it had V_FB = 2.416V, *not* 1.205V — confusing the two references once put the computed pack voltage at ≈16.7V (design change #13). Always name the exact part and datasheet revision when doing charger divider math.
 5. **Open-drain pull-ups** — any open-drain signal (ADS_DRDY, I²C) must have an external pull-up resistor; do not rely on internal weak pull-ups alone.
 
 **Why this gate exists**: the Python-generated schematics (pre-2026-05-25) had correct component symbols but zero wire connections and missing critical passives (R_FBH/R_FBL for the AP63205WU feedback divider, R_DRDY for ADS1115 DRDY). These were not caught until the senior reviewer ran on 2026-05-25 (BLOCKED, 4 CRITICAL). The gate prevents tape-out with a schematic that has symbols but no electrical correctness verification.

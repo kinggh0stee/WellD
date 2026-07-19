@@ -34,66 +34,67 @@ test('convertLevel returns undefined for null/NaN/Infinity', () => {
 /* convertBattery ---------------------------------------------------------- */
 
 test('battery percentage uses defaults when options omitted', () => {
-    /* 7.2 V with default 6.0 V empty / 8.4 V full → 50 % */
-    const out = convertBattery(7.2);
-    assert.equal(out.battery_voltage, 7.2);
+    /* 3.6 V with default 3.0 V empty / 4.2 V full → 50 % */
+    const out = convertBattery(3.6);
+    assert.equal(out.battery_voltage, 3.6);
     assert.equal(out.battery, 50);
 });
 
 test('battery percentage clamps to 0 below empty threshold', () => {
-    const out = convertBattery(5.5);
+    const out = convertBattery(2.7);
     assert.equal(out.battery, 0);
 });
 
 test('battery percentage clamps to 100 above full threshold', () => {
-    const out = convertBattery(9.0);
+    const out = convertBattery(4.5);
     assert.equal(out.battery, 100);
 });
 
 test('battery percentage honours custom full/empty options', () => {
-    /* Custom 2S range: empty 6.5 V, full 8.0 V → midpoint 7.25 V → 50 % */
-    const out = convertBattery(7.25, {battery_full_mv: 8000, battery_empty_mv: 6500});
+    /* Custom conservative range: empty 3.2 V, full 4.0 V → 3.6 V → 50 % */
+    const out = convertBattery(3.6, {battery_full_mv: 4000, battery_empty_mv: 3200});
     assert.equal(out.battery, 50);
 });
 
 test('battery percentage rounds to nearest integer', () => {
-    /* 7.21 V with defaults 6.0 V empty / 8.4 V full → (7.21-6.0)/(8.4-6.0)*100
-       = 1.21/2.4*100 = 50.416…% → rounds to 50 */
-    const out = convertBattery(7.21);
-    assert.equal(out.battery, 50);
+    /* 3.61 V with defaults 3.0 V empty / 4.2 V full → (3.61-3.0)/(4.2-3.0)*100
+       = 0.61/1.2*100 = 50.833…% → rounds to 51 */
+    const out = convertBattery(3.61);
+    assert.equal(out.battery, 51);
 });
 
 test('battery defaults match the firmware Kconfig defaults', () => {
-    /* If these drift, the JS converter will silently misreport %. */
-    assert.equal(DEFAULT_BATTERY_FULL_MV, 8400);
-    assert.equal(DEFAULT_BATTERY_EMPTY_MV, 6000);
+    /* If these drift, the JS converter will silently misreport %.
+       Firmware >= 1.1.0 is the 1S board: 4200 / 3000 mV. */
+    assert.equal(DEFAULT_BATTERY_FULL_MV, 4200);
+    assert.equal(DEFAULT_BATTERY_EMPTY_MV, 3000);
 });
 
 test('equal thresholds: voltage still reported, percentage omitted (no division by zero)', () => {
     /* The voltage reading is valid even when the % is incomputable. */
-    assert.deepEqual(convertBattery(7.2, {battery_full_mv: 7200, battery_empty_mv: 7200}),
-        {battery_voltage: 7.2});
+    assert.deepEqual(convertBattery(3.6, {battery_full_mv: 3600, battery_empty_mv: 3600}),
+        {battery_voltage: 3.6});
 });
 
 test('inverted thresholds (full < empty): voltage still reported, percentage omitted', () => {
-    assert.deepEqual(convertBattery(7.2, {battery_full_mv: 6000, battery_empty_mv: 8400}),
-        {battery_voltage: 7.2});
+    assert.deepEqual(convertBattery(3.6, {battery_full_mv: 3000, battery_empty_mv: 4200}),
+        {battery_voltage: 3.6});
 });
 
 test('battery options arriving as strings (YAML config) are coerced', () => {
-    const out = convertBattery(7.25, {battery_full_mv: '8000', battery_empty_mv: '6500'});
+    const out = convertBattery(3.6, {battery_full_mv: '4000', battery_empty_mv: '3200'});
     assert.equal(out.battery, 50);
 });
 
 test('non-finite battery options fall back to defaults instead of publishing NaN', () => {
-    const out = convertBattery(7.2, {battery_full_mv: NaN, battery_empty_mv: 'garbage'});
+    const out = convertBattery(3.6, {battery_full_mv: NaN, battery_empty_mv: 'garbage'});
     assert.equal(out.battery, 50);
     assert.ok(Number.isFinite(out.battery));
 });
 
 test('a single provided battery option combines with the other default', () => {
-    /* full 8000 (custom), empty 6000 (default) → 7.0 V = 50 % */
-    const out = convertBattery(7.0, {battery_full_mv: 8000});
+    /* full 4000 (custom), empty 3000 (default) → 3.5 V = 50 % */
+    const out = convertBattery(3.5, {battery_full_mv: 4000});
     assert.equal(out.battery, 50);
 });
 
@@ -103,22 +104,22 @@ test('convertBattery returns undefined for null/NaN/Infinity', () => {
     assert.equal(convertBattery(Infinity), undefined);
 });
 
-test('2S1P 18650 battery at full charge (8400 mV) reports 100 %', () => {
-    const out = convertBattery(8.4);
-    assert.equal(out.battery_voltage, 8.4);
+test('1S2P 18650 battery at full charge (4200 mV) reports 100 %', () => {
+    const out = convertBattery(4.2);
+    assert.equal(out.battery_voltage, 4.2);
     assert.equal(out.battery, 100);
 });
 
-test('2S1P 18650 battery at midpoint (7200 mV) reports 50 %', () => {
-    /* (7200 - 6000) / (8400 - 6000) * 100 = 50 % */
-    const out = convertBattery(7.2);
-    assert.equal(out.battery_voltage, 7.2);
+test('1S2P 18650 battery at midpoint (3600 mV) reports 50 %', () => {
+    /* (3600 - 3000) / (4200 - 3000) * 100 = 50 % */
+    const out = convertBattery(3.6);
+    assert.equal(out.battery_voltage, 3.6);
     assert.equal(out.battery, 50);
 });
 
-test('2S1P 18650 battery at minimum safe discharge (6000 mV) reports 0 %', () => {
-    const out = convertBattery(6.0);
-    assert.equal(out.battery_voltage, 6);
+test('1S2P 18650 battery at minimum safe discharge (3000 mV) reports 0 %', () => {
+    const out = convertBattery(3.0);
+    assert.equal(out.battery_voltage, 3);
     assert.equal(out.battery, 0);
 });
 
@@ -143,9 +144,9 @@ test('endpoint 1 with negative present value reports null', () => {
 test('endpoint 2 dispatches to battery converter', () => {
     const result = convertAnalogInput({
         endpoint: {ID: 2},
-        data: {presentValue: 7.2},
+        data: {presentValue: 3.6},
     });
-    assert.equal(result.battery_voltage, 7.2);
+    assert.equal(result.battery_voltage, 3.6);
     assert.equal(result.battery, 50);
 });
 
@@ -375,7 +376,7 @@ test('store-and-forward burst: mixed-endpoint reports stay isolated', () => {
        must not leak state between endpoints. */
     const frames = [
         {endpoint: {ID: 1}, data: {presentValue: 2.5}},
-        {endpoint: {ID: 2}, data: {presentValue: 7.2}},
+        {endpoint: {ID: 2}, data: {presentValue: 3.6}},
         {endpoint: {ID: 4}, data: {presentValue: -3.2}},
         {endpoint: {ID: 5}, data: {presentValue: 1.0}},
         {endpoint: {ID: 6}, data: {presentValue: 180.0}},
@@ -384,7 +385,7 @@ test('store-and-forward burst: mixed-endpoint reports stay isolated', () => {
     const results = frames.map(convertAnalogInput);
     assert.deepEqual(results, [
         {water_level: 2.5},
-        {battery_voltage: 7.2, battery: 50},
+        {battery_voltage: 3.6, battery: 50},
         {water_level_rate: -3.2},
         {zb_fails: 1},
         {device_lqi: 180},

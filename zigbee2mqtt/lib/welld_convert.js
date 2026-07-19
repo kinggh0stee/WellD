@@ -1,8 +1,8 @@
 /* Pure conversion helpers used by welld.js. Kept dependency-free so they can
    be unit-tested with `node --test` without installing zigbee-herdsman. */
 
-const DEFAULT_BATTERY_FULL_MV  = 8400;
-const DEFAULT_BATTERY_EMPTY_MV = 6000;
+const DEFAULT_BATTERY_FULL_MV  = 4200;   /* 1S2P 18650 */
+const DEFAULT_BATTERY_EMPTY_MV = 3000;
 
 /* ZCL AnalogInput presentValue must decode to a plain finite number. Anything
    else (strings, booleans, NaN, ±Infinity, missing) is a malformed report —
@@ -14,7 +14,7 @@ function finitePresentValue(presentValue) {
     return presentValue;
 }
 
-/* Device options may arrive from YAML as strings ("8400"); coerce, and fall
+/* Device options may arrive from YAML as strings ("4200"); coerce, and fall
    back to the default for anything missing or non-finite. */
 function optionMv(value, fallback) {
     const n = Number(value);

@@ -45,11 +45,11 @@ const definition = {
     ],
     options: [
         numeric('battery_full_mv', ea.SET)
-            .withValueMin(5000).withValueMax(10000)
-            .withDescription('Voltage (mV) at 100 % battery. Default 8400 (2S1P 18650 Li-ion full charge).'),
+            .withValueMin(2500).withValueMax(4500)
+            .withDescription('Voltage (mV) at 100 % battery. Default 4200 (1S2P 18650 Li-ion full charge).'),
         numeric('battery_empty_mv', ea.SET)
-            .withValueMin(5000).withValueMax(10000)
-            .withDescription('Voltage (mV) at 0 % battery. Default 6000 (2S1P 18650 minimum safe discharge).'),
+            .withValueMin(2500).withValueMax(4500)
+            .withDescription('Voltage (mV) at 0 % battery. Default 3000 (1S2P 18650 minimum safe discharge).'),
     ],
 };
 

@@ -3,7 +3,7 @@
 Battery-powered well-level monitor for the ESP32-C6. Each wakeup it reads a 4–20 mA submersible pressure transducer, a DS18B20 temperature probe, and battery voltage; reports them over Zigbee to Zigbee2MQTT; then deep-sleeps until the next cycle.
 
 - **Radio:** Zigbee 3.0 over the C6's built-in 802.15.4 — no extra modules
-- **Battery life:** months on a 2S1P 18650 pack at the default 5-minute interval (deep sleep between readings)
+- **Battery life:** months on a 1S2P 18650 pack at the default 5-minute interval (deep sleep between readings)
 - **Adaptive sleep:** sleep duration scales with how fast the level is changing — longer windows when stable, shorter during transients
 - **Rate-of-change reporting:** `water_level_rate` in cm/h; distinguishes "well recovering" from "well being drawn down"
 - **Self-healing:** wipes Zigbee NVS state and rejoins fresh after 5 consecutive send failures
@@ -22,10 +22,10 @@ The current design is a purpose-built **100 × 55 mm** custom PCB. Design files,
 |----|------|
 | ESP32-C6 module | MCU + Zigbee radio |
 | ADS1115 (0x48) | 16-bit I²C ADC — shunt voltage (AIN0) + battery divider (AIN2) |
-| AP63203WU | 3.3 V **fixed** synchronous buck converter (22 µA Iq; VIN 3.8–32 V). Changed from the AP63205WU in the 2026-07-05 electrical review — the AP63205 is the 5 V fixed variant of the same family |
+| HT7333-A | 3.3 V LDO (≈4 µA Iq, 250 mA, ~90 mV dropout). Replaced the AP63203WU buck in the 2026-07-19 1S conversion — the buck's 3.8 V minimum input fails at 1S empty (3.0 V). Below ≈3.4 V the output follows the battery minus dropout; the ESP32-C6 runs down to 3.0 V |
 | MT3608B | 12 V **asynchronous** boost for the 4–20 mA loop supply (VLOOP, GPIO5-gated). D15 (SS34 Schottky) rectifies the switch node; a Q3/Q4 load-disconnect switch in series with L1 blocks the permanent VBAT leak to the loop terminals during deep sleep |
-| CN3722 | MPPT solar charger (8.31 V CV via R33 = 590 kΩ; panel Voc limited to **24 V** by the SMAJ24CA input TVS) |
-| TP5100 | USB-C charger — **currently non-functional as designed**: the TP5100 is a step-down charger and cannot charge the 8.4 V 2S pack from 5 V USB. IC replacement (5 V→2S boost charger) pending; do not rely on USB charging |
+| CN3791 | 1S MPPT solar buck charger, integrated switch, fixed 4.2 V CV (2026-07-19 1S conversion — replaced the CN3722 2S controller + external buck stage). MPPT set ≈5.0 V for 6 V-nominal panels; panel Voc limited to **10 V** by the SMAJ10CA input TVS |
+| TP4056 | USB-C 1 A linear charger (2026-07-19 1S conversion — replaced the IP2326 boost selection, which itself replaced the non-functional TP5100). Auto-charges whenever VBUS is present (CE strapped high); charge-temperature NTC window ≈ +5…+44 °C |
 
 ### Test points (production / field debug)
 
@@ -33,18 +33,18 @@ All 15 test point pads are 1.0 mm SMD, **DNF** (do not fit) — bare copper pads
 
 | Ref | Net | Ref | Net |
 |-----|-----|-----|-----|
-| TP1 | VBAT (6.0–8.4 V, 2S range) | TP9 | I2C SCL |
+| TP1 | VBAT (3.0–4.2 V, 1S range) | TP9 | I2C SCL |
 | TP2 | VLOOP (12 V boost) | TP10 | VSOLAR_IN |
-| TP3 | +3V3 | TP11 | VBAT_RAW (2S, before D5 reverse-polarity MOSFET) |
+| TP3 | +3V3 | TP11 | VBAT_RAW (before D5 reverse-polarity MOSFET) |
 | TP4 | GND | TP12 | ADS1115 DRDY |
 | TP5 | LOOP+ (LOOP_TERM_CH1) | TP13 | FACTORY_RESET (GPIO13 — short to GND while powering on) |
-| TP6 | LOOP- (LOOP_TERM_CH2) | TP14 | /CHRG_SOLAR (CN3722 charge status) |
-| TP7 | 1WIRE | TP15 | /CHRG_USB (TP5100 charge-status, with R38 pull-up) |
+| TP6 | LOOP- (LOOP_TERM_CH2) | TP14 | /CHRG_SOLAR (CN3791 charge status) |
+| TP7 | 1WIRE | TP15 | /CHRG_USB (TP4056 charge status, with R38 pull-up) |
 | TP8 | I2C SDA | | |
 
 ### Thermal improvements
 
-The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on the CN3722 solar charger (U7), connected by four thermal vias (0.6 mm drill / 1.0 mm pad). This reduces the effective θJA during high-current solar charging and reduces the frequency of thermal fold-back. A GND via-stitch ring around the MT3608B / L1 boost island provides a low-inductance return path for the switching node without adding a solid pour under L1.
+The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on the CN3791 solar charger (U7), connected by four thermal vias (0.6 mm drill / 1.0 mm pad) — the CN3791's integrated switch dissipates in-package, so this pour matters more than it did for the CN3722 controller it replaced. A matching pour under the TP4056 EPAD carries the ≈1.3 W of linear charge dissipation at 1 A. A GND via-stitch ring around the MT3608B / L1 boost island provides a low-inductance return path for the switching node without adding a solid pour under L1.
 
 ### GPIO map
 
@@ -54,8 +54,8 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 | 11 | SCL | I²C bus (ADS1115 only) |
 | 12 | Input  | ADS1115 ALERT/DRDY |
 | 5  | Output | MT3608B EN + Q4 gate — 12 V loop supply (`VLOOP`), with Q3/Q4 load-disconnect; R27 pull-down holds it off during deep sleep |
-| 4  | Output | TP5100 USB charger CE — HIGH enables USB-C charging (USB charging is currently non-functional at hardware level; TP5100 replacement pending) |
-| 6  | Input  | CN3722 /CHRG — solar-charging-active detect (active-low: LOW = charging; R25 external pull-up) |
+| 4  | —      | Spare — no schematic connection (the TP4056 USB charger is autonomous, CE strapped high in hardware) |
+| 6  | Input  | Solar charger /CHRG (CN3791) — solar-charging-active detect (active-low: LOW = charging; R25 external pull-up) |
 | 7  | 1-Wire | DS18B20 data |
 | 13 | Input  | Factory reset only (hold LOW at boot → NVS erase + rejoin; field-accessible via TP13 pad) |
 | 15 | Output | Battery-divider enable (`BATT_DIV_EN`) — drives the Q2 level-shifter that switches the Q5 high-side P-FET |
@@ -67,8 +67,8 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 |----------|------|------------------------|
 | LOOP+ / LOOP− | 4–20 mA transducer, two-wire | D9 / D10 SMAJ3.3CA bidirectional TVS (200 W, DO-214AC); D11 SMAJ13A unidirectional TVS on VLOOP; D1 PRTR5V0U2X rail clamp at ADS1115 inputs |
 | 1W DATA / GND | DS18B20 data + ground | D12 PRTR5V0U2X dual-channel rail clamp (SOT-363) — 0.5 pF added capacitance, well below the 800 pF 1-Wire add limit |
-| BAT+ / BAT−   | 2S1P 18650 pack (6.0–8.4 V) via **AMASS XT30PW-F** right-angle THT connector (J1, LCSC C601498; pin 1 = BAT+, pin 2 = BAT−) | D13 SMAJ10CA bidirectional TVS (200 W, DO-214AC) at terminal — 10 V standoff above 8.4 V full charge; D5 AO3407 P-ch MOSFET in series on BAT+ for reverse-polarity protection (RDS(on) max 55 mΩ); R31 10 kΩ gate-to-GND pull-down holds D5 in a defined on-state |
-| SOLAR+/−      | Solar panel, ≤ **24 V Voc** (12 V-nominal panels, Voc ≈ 21–22 V, are fine) | D14 SMAJ24CA bidirectional TVS (400 W, DO-214AC) at the terminal, plus second-stage D8 SMAJ24CA at the CN3722 VIN. Was SMAJ28CA — 28 V standoff equalled the CN3722 absolute maximum, leaving zero clamp margin |
+| BAT+ / BAT−   | 1S2P 18650 pack (3.0–4.2 V) via **AMASS XT30PW-F** right-angle THT connector (J1, LCSC C601498; pin 1 = BAT+, pin 2 = BAT−) | D13 SMAJ5.0A unidirectional TVS (400 W, DO-214AC) at terminal — 5 V standoff above 4.2 V full charge, forward diode clamps negative transients; D5 AO3407 P-ch MOSFET in series on BAT+ for reverse-polarity protection; R31 10 kΩ gate-to-GND pull-down holds D5 in a defined on-state |
+| SOLAR+/−      | Solar panel, ≤ **10 V Voc** (6 V-nominal panels — 1S conversion 2026-07-19; the 2S design accepted 12 V panels) | D14 SMAJ10CA bidirectional TVS (400 W, DO-214AC) at the terminal, plus second-stage D8 SMAJ10CA at the CN3791 VIN |
 
 ### RF / antenna
 
@@ -103,19 +103,19 @@ The 1W DATA terminal (J6) is protected by D12, a PRTR5V0U2X dual-channel rail cl
 
 ### Battery monitoring
 
-Battery voltage is read via the gated resistor divider (R7 330 kΩ / R8 100 kΩ) on ADS1115 AIN2. The divider is disconnected on the **high side** by Q5 (AO3407 P-FET) between VBAT and R7; GPIO15 drives the Q2 level-shifter (BSS123) that pulls Q5's gate low. GPIO15 is pulsed HIGH for 1 ms before reading, then LOW immediately after — C8 across R8 was reduced to 1 nF so the mid-node settles well inside that 1 ms window. With Q5 off the divider is completely dead: AIN2 rests at 0 V through R8, eliminating the ~14 µA sleep leakage that the previous low-side switch pushed into the ADS1115 input ESD diodes. The divider ratio is 4.30 (430/100), mapping 8.4 V full charge to approximately 1.95 V — within the ADS1115 ±2.048 V PGA range.
+Battery voltage is read via the gated resistor divider (R7 100 kΩ / R8 100 kΩ) on ADS1115 AIN2. The divider is disconnected on the **high side** by Q5 (AO3407 P-FET) between VBAT and R7; GPIO15 drives the Q2 level-shifter (AO3400A) that pulls Q5's gate low. GPIO15 is pulsed HIGH for 1 ms before reading, then LOW immediately after — C8 across R8 is 1 nF so the mid-node settles well inside that 1 ms window. With Q5 off the divider is completely dead: AIN2 rests at 0 V through R8, eliminating sleep leakage into the ADS1115 input ESD diodes. The divider ratio is 2.00 (200/100), mapping 4.2 V full charge to 2.1 V — the firmware reads AIN2 with the ADS1115 **±4.096 V** PGA (the ±2.048 V range used for the loop shunt would clip right at full charge).
 
 The BAT+ rail protection chain: **J1 BAT+ → D13 (SMAJ10CA TVS, at terminal) → D5 S→D (AO3407 reverse-polarity MOSFET) → VBAT system rail.**
 
-D13 is a SMAJ10CA bidirectional TVS (200 W, DO-214AC/SMA). Its 10 V standoff is above the 8.4 V 2S full-charge voltage so it does not conduct in normal operation. Cable-induction surges are absorbed before they reach D5 and downstream circuits.
+D13 is a SMAJ5.0A unidirectional TVS (400 W, DO-214AC/SMA). Its 5 V standoff is above the 4.2 V 1S full-charge voltage so it does not conduct in normal operation; its forward diode clamps negative transients. Cable-induction surges are absorbed before they reach D5 and downstream circuits.
 
-D5 (AO3407, SOT-23) is a P-channel MOSFET placed in series on BAT+. Its body diode blocks reverse current when the battery is connected with reversed polarity; in normal operation the MOSFET is fully on (Vgs = −Vbat, saturated well above the −1.5 V Vgs(th) max at any 2S voltage down to 6.0 V) with a drop of at most 55 mV at 1 A.
+D5 (AO3407, SOT-23) is a P-channel MOSFET placed in series on BAT+. Its body diode blocks reverse current when the battery is connected with reversed polarity; in normal operation the MOSFET is on (Vgs = −Vbat — still twice the −1.5 V Vgs(th) max even at the 3.0 V 1S cutoff, though RDS(on) rises somewhat below the −4.5 V datasheet test point; the drop stays in the tens of millivolts at ≤1 A).
 
 R31 (10 kΩ, 0402) connects D5's gate to GND. R31 holds Vgs = −Vbat so the MOSFET is unconditionally on whenever a battery is present, regardless of firmware state.
 
 ### Enclosure
 
-The enclosure is designed in [`hardware/case/welld_case.scad`](hardware/case/welld_case.scad). External footprint is **105 × 60 mm** (2.5 mm wall on each side of the 100 × 55 mm PCB). The battery bay is sized for the Sinowatt GR 3350 mAh 2S1P 18650 rectangular pack (41 × 71 × 22 mm) with corner locating posts and hook-and-loop strap slots through the side walls. A USB-C slot on the left short wall accommodates the J13 charging connector (TP5100 USB-C charging input — note that USB charging is currently non-functional at hardware level; the TP5100 replacement is pending).
+The enclosure is designed in [`hardware/case/welld_case.scad`](hardware/case/welld_case.scad). External footprint is **105 × 60 mm** (2.5 mm wall on each side of the 100 × 55 mm PCB). The battery bay is sized for a Sinowatt 3350 mAh 18650 pack — now **1S2P** (two cells side-by-side, ≈37 × 70 × 19 mm; confirm the vendor drawing before cutting the bay) with corner locating posts and hook-and-loop strap slots through the side walls. A USB-C slot on the left short wall accommodates the J13 charging connector (TP4056 USB-C charging, functional on the 1S board).
 
 For concrete underside mounting, the lid grows four corner wings with M6 anchor-bolt clearance holes. The bolt pattern centre-to-centre span is **127 × 82 mm** (X × Y). Use the `drill_template()` module to print a 1:1 paper/card drill guide before installing anchor bolts.
 
@@ -168,9 +168,9 @@ All options have sensible defaults. Only change what differs from your hardware.
 | Option | Default | Description |
 |--------|---------|-------------|
 | `CONFIG_WELLD_BATT_REPORT_ENABLED` | `y` | Report battery voltage over Zigbee (EP2, Analog Input). The battery is always measured internally via ADS1115 AIN2 (R7/R8 divider) for the low-battery guard; disabling this only removes the Zigbee endpoint |
-| `CONFIG_WELLD_BATT_DIVIDER_RATIO` | `430` | Divider ratio × 100 — matches 330 kΩ / 100 kΩ divider (R7/R8) scaled for 2S: (330+100)/100 = 4.30 |
-| `CONFIG_WELLD_BATT_FULL_MV` | `8400` | Voltage (mV) reported as 100 % by the Z2M converter (2S full charge) |
-| `CONFIG_WELLD_BATT_EMPTY_MV` | `6000` | Voltage (mV) at or below which the device skips the Zigbee send and all NVS writes to protect flash (2S minimum safe discharge) |
+| `CONFIG_WELLD_BATT_DIVIDER_RATIO` | `200` | Divider ratio × 100 — matches the 100 kΩ / 100 kΩ divider (R7/R8): (100+100)/100 = 2.00 |
+| `CONFIG_WELLD_BATT_FULL_MV` | `4200` | Voltage (mV) reported as 100 % by the Z2M converter (1S full charge) |
+| `CONFIG_WELLD_BATT_EMPTY_MV` | `3000` | Voltage (mV) at or below which the device skips the Zigbee send and all NVS writes to protect flash (1S minimum safe discharge) |
 
 ### Sleep
 
@@ -195,8 +195,7 @@ All options have sensible defaults. Only change what differs from your hardware.
 | `CONFIG_WELLD_I2C_SDA_GPIO` | `10` | I²C SDA pin (ADS1115) |
 | `CONFIG_WELLD_I2C_SCL_GPIO` | `11` | I²C SCL pin |
 | `CONFIG_WELLD_VLOOP_GPIO` | `5` | MT3608B EN + Q3/Q4 load-disconnect — 12 V loop supply enable. Held HIGH ≥ 10 ms before any 4–20 mA read (rail settles through the Q3 P-FET into C20/C22) |
-| `CONFIG_WELLD_SOLAR_DETECT_GPIO` | `6` | CN3722 /CHRG — solar-charging-active detect (active-low) |
-| `CONFIG_WELLD_USB_CHG_GPIO` | `4` | TP5100 USB charger CE (active-HIGH; R37 passively holds it LOW during deep sleep). USB charging is currently non-functional at hardware level — TP5100 replacement pending |
+| `CONFIG_WELLD_SOLAR_DETECT_GPIO` | `6` | Solar charger /CHRG (CN3791) — solar-charging-active detect (active-low) |
 | `CONFIG_WELLD_BATT_DIV_EN_GPIO` | `15` | Battery-divider enable — Q2 level-shifter gate, switching the Q5 high-side P-FET |
 | `CONFIG_WELLD_ADS1115_DRDY_GPIO` | `12` | ADS1115 ALERT/DRDY interrupt input (open-drain, falling edge = conversion complete) |
 
@@ -263,11 +262,11 @@ The device publishes to `zigbee2mqtt/<friendly_name>` on each wakeup:
 - `water_level` is `null` when the pressure loop reads below 3.5 mA (open circuit / broken wire) or above 21 mA (short circuit / shorted transducer). Trigger a Home Assistant alert on `water_level is null` to catch both fault conditions.
 - `water_level_rate` is signed cm/h. Positive = recovering, negative = drawing down. Omitted on the first valid wakeup after a cold boot and during open-loop cycles.
 - `temperature` is omitted when the DS18B20 is not detected.
-- `battery_voltage` comes from the ADS1115 AIN2 voltage divider (R7 330 kΩ / R8 100 kΩ, switched high-side by Q5 under GPIO15 control).
-- `battery` is a percentage derived from `battery_voltage` using the device options `battery_full_mv` / `battery_empty_mv`. Options are coerced to numbers (YAML strings like `"8400"` are accepted) and fall back to the defaults 8400 / 6000 mV for anything missing or non-numeric. If the thresholds are misconfigured (`battery_full_mv <= battery_empty_mv`), the voltage is still published but the percentage is omitted.
+- `battery_voltage` comes from the ADS1115 AIN2 voltage divider (R7/R8 100 kΩ / 100 kΩ, switched high-side by Q5 under GPIO15 control).
+- `battery` is a percentage derived from `battery_voltage` using the device options `battery_full_mv` / `battery_empty_mv`. Options are coerced to numbers (YAML strings like `"4200"` are accepted) and fall back to the defaults 4200 / 3000 mV for anything missing or non-numeric. If the thresholds are misconfigured (`battery_full_mv <= battery_empty_mv`), the voltage is still published but the percentage is omitted.
 - `zb_fails` counts consecutive Zigbee send failures since the last success (0 = healthy; the device auto-rejoins at 5).
 - `device_lqi` is the link quality measured on the device side (EP6, 1–255) — the LQI of the device's parent entry in its own neighbor table. It is distinct from Zigbee2MQTT's own `linkquality` field, which comes from the coordinator side of the link. A value of 0 means "unknown" (no parent entry found) and is not published. Firmware ≤ 1.0.2 always sent 0, so the key only appears from firmware 1.0.3 onwards.
-- `solar_charging` is a **boolean** (binary expose): `true` = the CN3722 MPPT charger is actively charging, `false` = not charging.
+- `solar_charging` is a **boolean** (binary expose): `true` = the solar MPPT charger (CN3791) is actively charging, `false` = not charging.
 - When previous sends failed, the buffered readings (up to 8, RTC store-and-forward) are burst-reported oldest-first before the current reading, so the coordinator receives the full history in order.
 - The converter rejects malformed reports: any non-numeric or non-finite `presentValue` is dropped instead of being published.
 
@@ -393,7 +392,7 @@ I (main):   sleeping 300 s
 Solar charging active:
 
 ```
-I (main): solar charging active (CN3722 /CHRG asserted)
+I (main): solar charging active (solar /CHRG asserted)
 ```
 
 No coordinator in range:
@@ -428,9 +427,9 @@ W (sensor): DS18B20 ROM changed: stored=28ff1234ab000002 active=28ff5678cd000003
 
 ## Power
 
-The device spends nearly all of its time in deep sleep. Each wakeup is typically 6–12 seconds of active current (I²C reads, Zigbee send, 1-Wire conversion), followed by a sleep window of 1–30 minutes depending on rate-of-change. At the default 5-minute interval, average current is well under 1 mA — months of runtime on the 2S1P 18650 pack (7.2 V nominal, 3350 mAh). The AP63203 buck converter's 22 µA quiescent current keeps the standby draw negligible, and the Q3/Q5 high-side disconnect switches leave no DC path from VBAT during sleep except the buck and IC quiescents. Charging is effectively solar-only via the CN3722 MPPT charger: the USB-C path (TP5100) is currently non-functional at hardware level and awaits an IC replacement.
+The device spends nearly all of its time in deep sleep. Each wakeup is typically 6–12 seconds of active current (I²C reads, Zigbee send, 1-Wire conversion), followed by a sleep window of 1–30 minutes depending on rate-of-change. At the default 5-minute interval, average current is well under 1 mA — months of runtime on the 1S2P 18650 pack (3.6 V nominal, ≈6.7 Ah). The HT7333-A LDO's ≈4 µA quiescent current keeps the standby draw negligible, and the Q3/Q5 high-side disconnect switches leave no DC path from VBAT during sleep except the LDO and IC quiescents. Charging is dual-path: solar via the CN3791 MPPT charger and USB-C via the TP4056 (both autonomous — they charge whenever their input is present).
 
-All power-control GPIOs (VLOOP, BATT_DIV_EN, USB_CHG CE) are driven low and the GPIO matrix is isolated (`esp_sleep_gpio_isolate()`) before every `esp_deep_sleep()` call to eliminate leakage through partially-driven outputs during sleep.
+Both power-control GPIOs (VLOOP, BATT_DIV_EN) are driven low and the GPIO matrix is isolated (`esp_sleep_gpio_isolate()`) before every `esp_deep_sleep()` call to eliminate leakage through partially-driven outputs during sleep.
 
 ---
 
@@ -445,7 +444,7 @@ components/zigbee/       esp-zigbee-lib wrapper, OTA client, BDB commissioning t
 components/welld_core/   pure helpers (rate-of-change, adaptive sleep, ZCL encoding)
 zigbee2mqtt/welld.js     external converter for Zigbee2MQTT
 hardware/pcb/            PCB design reference, BOM, Gerber generation script
-hardware/case/           OpenSCAD parametric enclosure (2S1P 18650 battery bay)
+hardware/case/           OpenSCAD parametric enclosure (1S2P 18650 battery bay)
 test/sensor/             on-device Unity tests (1-Wire, NVS round-trips)
 test/welld_core/         on-device Unity tests (rate, sleep, ZCL helpers)
 test/host/               host CMake test project — no ESP-IDF required

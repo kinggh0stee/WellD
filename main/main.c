@@ -366,23 +366,18 @@ static void write_fail_count(uint32_t count)
  *     spurious GPIO12 edge from waking the CPU during sleep entry) and
  *     deletes the I2C master bus (prevents port 0 staying claimed across
  *     wakeups).
- *  2. Drive power-control outputs LOW: GPIO5 (VLOOP), GPIO15 (BATT_DIV_EN),
- *     GPIO4 (USB_CHG CE). All are already LOW after sensor reads; driven LOW
- *     again here as a belt-and-suspenders guard before isolation.
+ *  2. Drive power-control outputs LOW: GPIO5 (VLOOP), GPIO15 (BATT_DIV_EN).
+ *     Both are already LOW after sensor reads; driven LOW again here as a
+ *     belt-and-suspenders guard before isolation.
  *  3. esp_sleep_config_gpio_isolate() — disconnects all GPIO pads from the
  *     GPIO matrix so outputs hold their last state but draw no dynamic
  *     current.  The power-control outputs are already LOW before this call
- *     so they remain LOW in isolation.  For GPIO4 specifically, floating
- *     during sleep lets R37 (4.7 kΩ) passively hold TP5100 CE LOW so the
- *     USB charger is off while the MCU sleeps.  (On the pending IP2326
- *     board revision GPIO4 is unconnected and this drive is a no-op —
- *     see hardware/pcb/component_selection_review.md.) */
+ *     so they remain LOW in isolation. */
 static void enter_deep_sleep(uint32_t sleep_sec)
 {
     sensor_pre_sleep_cleanup();
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
     gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 0);
-    gpio_set_level(CONFIG_WELLD_USB_CHG_GPIO, 0);
     esp_sleep_config_gpio_isolate();
     esp_deep_sleep((uint64_t)sleep_sec * 1000000ULL);
 }
@@ -459,7 +454,8 @@ void app_main(void)
     }
     s_profile.t_i2c_init = esp_timer_get_time() - t0;
 
-    /* Read the CN3722 CHRG signal (GPIO6) to determine whether solar charging
+    /* Read the solar charger's /CHRG signal (GPIO6, CN3791 open-drain
+     * output) to determine whether solar charging
      * is active. Active-low: LOW means solar charging is in progress.
      * Reported to Zigbee coordinator via zigbee_send(). */
     bool solar_charging = false;
