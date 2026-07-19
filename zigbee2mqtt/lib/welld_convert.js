@@ -1,7 +1,7 @@
 /* Pure conversion helpers used by welld.js. Kept dependency-free so they can
    be unit-tested with `node --test` without installing zigbee-herdsman. */
 
-const DEFAULT_BATTERY_FULL_MV  = 4200;   /* 1S2P 18650 */
+const DEFAULT_BATTERY_FULL_MV  = 4200;   /* 1S 18650 */
 const DEFAULT_BATTERY_EMPTY_MV = 3000;
 
 /* ZCL AnalogInput presentValue must decode to a plain finite number. Anything
