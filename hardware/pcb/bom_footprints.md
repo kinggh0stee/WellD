@@ -69,7 +69,14 @@
 | **R_DRV** | 300kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW 2026-07-19** — M_SOLAR gate–source pull-off (per the Soldered Electronics CN3791 reference design) |
 | **C_COM** | 220nF | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | **NEW 2026-07-19** — CN3791 COM (5) compensation, series with R_COM (datasheet-required) |
 | **R_COM** | 120Ω | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW 2026-07-19** — COM network low side to GND |
-| ~~RT_SOLAR~~ | — | — | — | — | — | **DELETED 2026-07-19** — the CN3791 has no TEMP pin; solar-path cold-charge cutoff is gone (blocker #10f). RT1 on the TP4056 remains the only charge-temperature guard |
+| **U14** | **LM393 dual comparator** | SOIC-8 | `Package_SO:SOIC-8_3.9x4.9mm_P1.27mm` | LM393DR (TI/onsemi/second sources) | LCSC TBD ⚠️ (ubiquitous — e.g. C7955-class, pick at order) | **NEW 2026-07-19** — solar cold-charge cutoff (#10f resolved): powered from VSOLAR (zero night draw), ratiometric NTC threshold, clamps CN3791 MPPT via Q7 when < ≈+2 °C |
+| RT_SOLAR | **10kΩ NTC B3950 1%** | 0603 | `Resistor_SMD:R_0603_1608Metric` | **SDNT1608X103F3950FTF** (Sunlord) ✅ | — ✅ (same reel as RT1) | **REVIVED 2026-07-19** for the LM393 cutoff (was deleted when the CN3791 turned out to have no TEMP pin) — thermally couple to the **cell** |
+| **R_NT1** | **30kΩ 1%** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — cutoff temp divider top; 30 k ≈ NTC B3950 at +2 °C → trip threshold |
+| **R_NT2, R_NT3** | **100kΩ 1% ×2** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — cutoff reference divider (0.5·VSOLAR, ratiometric) |
+| **R_PU** | 100kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — LM393 OUT1 pull-up to VSOLAR |
+| **R_HYS** | 330kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — hysteresis (≈2 °C: trip +2 °C falling, release ≈+4 °C) |
+| **C_NTC** | 100nF | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | **NEW** — U14 supply bypass |
+| **Q7** | **AO3400A N-FET** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | AO3400A | **C20917** ✅ (same reel as Q2/Q4) | **NEW** — MPPT clamp switch (small-signal; Vgs ≈ VSOLAR ≤10 V vs ±12 V abs max — OK for ≤6 V-nominal panels) |
 | D6 | MBRS140 Schottky 1A 40V | SMB | `Diode_SMD:D_SMB` | MBRS140T3G | — ✅ | Solar backfeed block (MBRS140T3G is SMB, not SOD-123) |
 | D8 | **SMAJ10CA TVS 10V bidi** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ10CA | C2836474 ⚠️ (unconfirmed listing — verify at order time; Littelfuse/MDD SMAJ10CA variants stocked) | **Re-rated 2026-07-19** (1S conversion): at CN3791 VIN; same reel as D14. Panel is now 6 V-nominal → Voc limit **10 V** (was SMAJ24CA / 24 V for the 12 V-panel 2S design) |
 | ~~M_SOLAR, D16, C_COM1, C_COM2, C_COM3, R_COM2, R33, R34~~ | — | — | — | — | — | **DELETED 2026-07-19** (1S conversion) — the CN3791's integrated switch needs no external P-FET/series diode/compensation, and its fixed 4.2 V CV needs no divider. (M_SOLAR had been swapped to SI2319CDS earlier the same day — the swap died young; C146287 is simply not ordered) |

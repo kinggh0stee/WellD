@@ -83,6 +83,15 @@ place("D16", 38, 16, 0)         # SS34 series diode (night back-feed block)
 place("R_DRV", 34, 16, 0)       # 300k gate-source pull-off at M_SOLAR
 place("C_COM", 36, 20, 0)       # COM compensation 220nF (series R_COM)
 place("R_COM", 38, 20, 0)       # COM compensation 120R to GND
+place("U14", 44, 22, 0)         # LM393 cold-cutoff comparator (solar-powered)
+place("RT_SOLAR", 46, 26, 0)    # cutoff NTC (thermally couple to cell/carrier)
+place("R_NT1", 40, 24, 0)       # temp divider top 30k
+place("R_NT2", 42, 26, 0)       # ref divider top 100k
+place("R_NT3", 44, 28, 0)       # ref divider bottom 100k
+place("R_PU", 46, 22, 0)        # OUT1 pull-up 100k
+place("R_HYS", 48, 24, 0)       # hysteresis 330k
+place("C_NTC", 42, 22, 0)       # U14 VCC bypass
+place("Q7", 48, 20, 0)          # AO3400A MPPT clamp
 place("R20",  32,  18, 0)       # MPPT divider top (VSOLAR side) 316k
 place("R21",  38,  12, 0)       # MPPT divider bottom (GND side) 100k
 place("R25",  48,  10, 0)       # /CHRG_SOLAR pull-up to +3V3

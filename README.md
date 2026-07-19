@@ -24,7 +24,7 @@ The current design is a purpose-built custom PCB (outline set at layout — work
 | ADS1115 (0x48) | 16-bit I²C ADC — shunt voltage (AIN0) + battery divider (AIN2) |
 | HT7333-A | 3.3 V LDO (≈4 µA Iq, 250 mA, ~90 mV dropout). Replaced the AP63203WU buck in the 2026-07-19 1S conversion — the buck's 3.8 V minimum input fails at 1S empty (3.0 V). Below ≈3.4 V the output follows the battery minus dropout; the ESP32-C6 runs down to 3.0 V |
 | MT3608B | 12 V **asynchronous** boost for the 4–20 mA loop supply (VLOOP, GPIO5-gated). D15 (SS34 Schottky) rectifies the switch node; a Q3/Q4 load-disconnect switch in series with L1 blocks the permanent VBAT leak to the loop terminals during deep sleep |
-| CN3791 | 1S MPPT solar buck charger, integrated switch, fixed 4.2 V CV (2026-07-19 1S conversion — replaced the CN3722 2S controller + external buck stage). MPPT set ≈5.0 V for 6 V-nominal panels; panel Voc limited to **10 V** by the SMAJ10CA input TVS |
+| CN3791 | 1S MPPT solar buck charge **controller** (external SI2319CDS P-FET stage; fixed 4.2 V CV, MPPT ≈5.0 V for 6 V-nominal panels; panel Voc limited to **10 V** by the SMAJ10CA input TVS). A solar-powered LM393 cold-charge cutoff clamps charging below ≈+2 °C — zero battery draw at night |
 | TP4056 | USB-C 1 A linear charger (2026-07-19 1S conversion — replaced the IP2326 boost selection, which itself replaced the non-functional TP5100). Auto-charges whenever VBUS is present (CE strapped high); charge-temperature NTC window ≈ +5…+44 °C |
 | DW01A + FS8205A | On-board 1S battery protection (supervisor + dual N-FET in the cell− path) — added 2026-07-19 with the generic-18650 carrier; a bare cell has no PCM |
 

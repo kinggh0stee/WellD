@@ -50,7 +50,7 @@ NETS = {
     "power": {
         "GND": [
             "U1.1", "U7.2", "U8.2", "U12.3", "U12.9",
-            "RT1.2", "R_PROG.2", "R_COM.2",
+            "RT1.2", "R_PROG.2", "R_COM.2", "RT_SOLAR.2", "R_NT3.2", "U14.4", "U14.5", "C_NTC.2", "Q7.S",
             "D_SOLAR.2",           # catch Schottky anode
             "R24.2", "R21.2", "R27.2", "R31.2",
             "R50.2", "R51.2",
@@ -95,8 +95,13 @@ NETS = {
         "VSOLAR": [
             "D6.1", "D8.1", "U7.9", "C17.1", "C21.1", "R20.1",
             "C_VG.2", "M_SOLAR.2", "R_DRV.1",
+            "R_NT1.1", "R_NT2.1", "R_PU.1", "U14.8", "C_NTC.1",
         ],
-        "MPPT_REF": ["R20.2", "R21.1", "U7.6"],
+        "MPPT_REF": ["R20.2", "R21.1", "U7.6", "Q7.D"],
+        # --- solar cold-charge cutoff (LM393, solar-powered, zero night draw) ---
+        "NTC_T": ["R_NT1.2", "RT_SOLAR.1", "U14.3", "R_HYS.2"],
+        "NTC_REF": ["R_NT2.2", "R_NT3.1", "U14.2", "U14.6"],
+        "NTC_OUT": ["U14.1", "R_PU.2", "R_HYS.1", "Q7.G"],
         "CN_VG": ["U7.1", "C_VG.1"],
         "CN_DRV": ["U7.10", "M_SOLAR.1", "R_DRV.2"],
         "SOLAR_SW": ["M_SOLAR.3", "D16.2"],
@@ -240,6 +245,7 @@ NC_PINS = {
         "U11.6", "U11.4",   # USBLC6 device-side line ends (DM/DP float)
         "U12.6",   # TP4056 /STDBY — unused (only /CHRG is monitored)
         "U13.4",   # DW01A TD (test/delay pin — float per every reference design)
+        "U14.7",   # LM393 OUT2 — second comparator unused (inputs tied to NTC_REF/GND)
     ],
     "mcu": [
         "U6.19",   # GPIO4 — spare (TP4056 CE strapped high in hardware, no charger GPIO)

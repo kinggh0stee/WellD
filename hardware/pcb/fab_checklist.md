@@ -1,6 +1,6 @@
 # Path to fabrication — ordered checklist (updated 2026-07-19 for the 1S conversion + battery carrier)
 
-Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_verification_2026-07-14.md`, and the blocker list in `schematic_connections.md`. The schematic is fully wired (stub+label) and machine-verified (**366 pins / 72 nets / 0 mismatches** after the 1S conversion + battery carrier + CN3791 correction pass, `netlist_check_output.txt`), but the 1S conversion introduced three new parts whose datasheets were not fetchable at conversion time — **blockers #10 (a–e) and #11 (a–c) in `schematic_connections.md` are now the top of this list**. Everything below is what still stands between this repo and ordering boards.
+Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_verification_2026-07-14.md`, and the blocker list in `schematic_connections.md`. The schematic is fully wired (stub+label) and machine-verified (**391 pins / 75 nets / 0 mismatches** after the 1S conversion + battery carrier + CN3791 correction + solar cold-charge cutoff, `netlist_check_output.txt`), but the 1S conversion introduced three new parts whose datasheets were not fetchable at conversion time — **blockers #10 (a–e) and #11 (a–c) in `schematic_connections.md` are now the top of this list**. Everything below is what still stands between this repo and ordering boards.
 
 ## 0. Datasheet checks — ✅ DONE 2026-07-19 (web-verification pass; see blockers #10–#11 for details)
 
@@ -10,7 +10,7 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 - **DW01A** (#11a): ✅ pinout + thresholds + app values confirmed (LCSC candidate C351410).
 - **FS8205A** (#11b): ✅ verified **with correction** — real map D=1&8/S1=2&3/G1=4/G2=5/S2=6&7; symbol redrawn (LCSC candidates C14212/C908265).
 - **BT1 carrier** (#11c): MPNs picked — **recommended MY-18650-02 THT clip pair (C2979182 ×2)**, alt BH-18650-B1BA002 one-piece (C2988620); draw the footprint from the LCSC drawing at order time (drawing PDFs proxy-blocked here). Placement already resolved: top-side along a long edge, board ≈100 × 60 mm.
-- **⚠️ NEW open item (#10f)**: solar path has **no cold-charge cutoff** (CN3791 lacks a TEMP pin) — decide before winter deployment (accept, or add a discrete NTC cutoff). RT1 guards only the USB path.
+- **#10f — ✅ RESOLVED (user decision)**: discrete **LM393 cold-charge cutoff added** — solar-powered (zero night draw), ratiometric NTC threshold, clamps the CN3791 MPPT pin below ≈+2 °C (release ≈+4 °C). Bench-verify trip/release and zero charge current while clamped.
 - Remaining bench-math: TP4056 TEMP window for R_NTC 5.6 k/RT1 10 k; L_SOLAR Isat margin at 1.2 A (prefer a 2 A-class 33–47 µH part at order time).
 
 ## 1. First interactive KiCad 10 session (~1 hour, needs a desktop)
@@ -48,7 +48,7 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 | 3 | TP4056 1 A charge without thermal fold-back in the enclosure (or accept fold-back / drop R_PROG to 2.4 k) | ≈1.3 W linear dissipation at mid-charge; pour sizing is a guess until measured |
 | 4 | Sleep floor < 15 µA total: HT7333 Iq + TP4056 BAT leak + CN3791 BAT dark current + TVS at 4.2 V | nightly battery budget (1S blocker #10e) |
 | 5 | Charger CV agreement: CN3791 vs TP4056, both nominally 4.2 V, under co-charge | verify no oscillation / one-charger-hogging at the overlap |
-| 6 | NTC cutoff: TP4056 stops outside RT1's ≈ +5…+44 °C window; **solar path has NO cutoff (#10f)** — log winter cell temperature | outdoor Li-ion; thresholds computed, not measured |
+| 6 | NTC cutoffs: TP4056 stops outside RT1's ≈ +5…+44 °C window; **LM393 cutoff clamps solar charge below ≈+2 °C (release ≈+4 °C) and passes zero charge current while clamped** | outdoor Li-ion; thresholds computed, not measured |
 | 7 | MT3608B EN-low shutdown current < 1 µA; boost still makes 12 V from VBAT = 3.0 V (ratio 4×, higher input current) | sleep-budget + low-battery loop-read assumptions |
 | 8 | CN3791 charge current ≈ 1.2 A at R_CS 0.1 Ω (sense-formula assumption); L_SOLAR stays out of saturation | 1S blocker #10b — formula and Isat margin both assumed |
 | 9 | Loop reading sanity vs known pressure; SMAJ5.0A leakage invisible on the shunt | D9/D10 substitution validation |

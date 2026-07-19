@@ -93,8 +93,15 @@ These components must land on a specific board edge:
 - C_VG (100nF) within **2mm** of VG (1), returned to **VCC** (✅ datasheet-verified)
 - Gate drive DRV (10) → M_SOLAR gate: short, ≤10mm; R_DRV (300k) gate–source at the FET
 - C_COM (220nF) + R_COM (120Ω) within **5mm** of COM (5), ground end to quiet analog ground
-- (RT_SOLAR deleted — the CN3791 has no TEMP pin; only RT1 remains, thermally coupled to the cell)
+- RT_SOLAR (revived for the LM393 cutoff): thermistor body thermally coupled to the **cell/carrier**, wired stub or cell-adjacent placement — same rule as RT1; keep the NTC pair away from switching nodes
 - The heat now lives in M_SOLAR/D16/D_SOLAR, not U7 — the Group D pour under U7 shrinks in importance; give M_SOLAR a modest copper spread instead
+
+### Group N — Solar cold-charge cutoff (NEW 2026-07-19)
+`U14 (LM393), RT_SOLAR, R_NT1, R_NT2, R_NT3, R_PU, R_HYS, C_NTC, Q7`
+- Small-signal analog: place near U7's MPPT corner (Q7 drain lands on the MPPT_REF node — keep that trace short)
+- C_NTC within **2mm** of U14 VCC (8)
+- Divider nodes NTC_T / NTC_REF away from SOLAR_SW/SOLAR_FW switching copper (≥2 mm)
+- RT_SOLAR body couples to the cell, not to this cluster — expect a routed pair out to the carrier area
 
 ### Group H — Battery carrier + input protection (rewritten 2026-07-19)
 `BT1, U13, Q6, R_DW1, C_DW, R_CS_DW, D13, D5, R31`
