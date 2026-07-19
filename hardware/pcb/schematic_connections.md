@@ -137,7 +137,8 @@
 | C7 | pin 2 | J6 VCC bypass |
 | R2, R4 | pin 2 (shunt low side) | 4-20mA shunt return |
 | D9, D10, D11, D13, D14, D8 | one terminal | TVS clamps (bidirectional except D11 = unidirectional, cathode to VLOOP) |
-| Q2 | S | BSS123 source |
+| Q2 | S | AO3400A source |
+| GDT1, GDT2 | pin 2 | GDT coarse surge stage returns (DNF footprints) |
 | SW1 | pin 2 | Reset to GND |
 | SW2 | pin 2 | Boot to GND |
 | D4 | cathode via SJ3 | Status LED return |
@@ -229,9 +230,9 @@ Current path: `VBAT → Q3 (P-FET switch) → L1 → SW node → D15 (Schottky) 
 | Q3 AO3407 | S | VBAT | Disconnect switch |
 | Q3 AO3407 | D | VLOOP_L | To inductor |
 | Q3 AO3407 | G | Q3_GATE | R29 (100k) to VBAT; Q4 drain pulls low to turn on |
-| Q4 BSS123 | D | Q3_GATE | Level shifter |
-| Q4 BSS123 | G | VBOOST_EN | With R27 pull-down |
-| Q4 BSS123 | S | GND | |
+| Q4 AO3400A | D | Q3_GATE | Level shifter |
+| Q4 AO3400A | G | VBOOST_EN | With R27 pull-down |
+| Q4 AO3400A | S | GND | |
 | L1 | pin 1 | VLOOP_L | Inductor input |
 | L1 | pin 2 | VLOOP_SW | Switch node |
 | U8 MT3608B | SW | VLOOP_SW | Internal low-side switch |
@@ -254,7 +255,7 @@ Current path: `VBAT → Q3 (P-FET switch) → L1 → SW node → D15 (Schottky) 
 |-----------|-----|------|
 | U6 ESP32-C6 | GPIO5 | Drives HIGH ≥5 ms before a loop read (recommend 10 ms now that C20/C22 charge through Q3) |
 | U8 MT3608B | EN | HIGH = boost active |
-| Q4 BSS123 | G | Enables Q3 simultaneously |
+| Q4 AO3400A | G | Enables Q3 simultaneously |
 | R27 (100k) | pin 1 | Pull-down to GND — holds boost + Q3 off while GPIO5 is isolated in deep sleep |
 | SJ1 | A/B | Open by default; bridging ties EN permanently to VBAT for bench debug (jumper from EN to VBAT side) |
 
@@ -268,7 +269,7 @@ Current path: `VBAT → Q3 (P-FET switch) → L1 → SW node → D15 (Schottky) 
 | D6 MBRS140 | cathode | VSOLAR (CN3722 VIN node) |
 | D8 SMAJ24CA | terminal 1 | Second-stage TVS at CN3722 VIN (other terminal GND) |
 | U7 CN3722 | VCC (15) | Supply input (7.5–28 V operating) |
-| M_SOLAR AO3407 | S (source) | Buck high-side P-FET input |
+| M_SOLAR SI2319CDS | S (source) | Buck high-side P-FET input |
 | C_VG (100nF) | pin 2 | VG bypass returns to **VCC**, not GND (pin 1 → U7 VG) |
 | C17 (10µF **35V**), C21 (100nF 50V) | pin 1 | VIN filters |
 | R20 | pin 1 | MPPT divider high side (senses CN3722 VCC node) |
@@ -436,8 +437,9 @@ CH1 path: `J4 SIG → D9 clamp → R2 shunt (‖ C34) → R3 → ADC_CH0 (C3, C4
 | D1 PRTR5V0U2X | IO1 | ADC_CH0 | Clamp to +3V3/GND |
 | U9 ADS1115 | AIN0 | ADC_CH0 | 20 mA × 100 Ω = 2.0 V max, PGA ±2.048 V |
 | TP5 | pad | LOOP_TERM_CH1 | At shunt top |
+| GDT1 (DNF) | pin 1 | LOOP_TERM_CH1 | 2-pole 90 V gas discharge tube to GND (pin 2) — coarse stage of the industrial GDT → series-R → TVS coordination; footprint only, populate per site for long/buried cable runs |
 
-CH2 identical: `J5 SIG → D10 → R4 (‖ C35) → R5 → ADC_CH1 (C5, C6, D1 IO2) → U9 AIN1`, TP6 at shunt top.
+CH2 identical: `J5 SIG → D10 → R4 (‖ C35) → R5 → ADC_CH1 (C5, C6, D1 IO2) → U9 AIN1`, TP6 at shunt top, GDT2 (DNF) from LOOP_TERM_CH2 to GND.
 
 ### ADC_CH2 (battery divider — corrected high-side gating)
 
@@ -448,9 +450,9 @@ Path: `VBAT → Q5 (P-FET) → R7 (330k) → mid (ADC_CH2) → R8 (100k) → GND
 | Q5 AO3407 | S | VBAT |
 | Q5 AO3407 | D | VBAT_SW → R7 pin 1 |
 | Q5 AO3407 | G | Q5_GATE: R16 (100k) to VBAT; Q2 drain pulls low to enable |
-| Q2 BSS123 | D | Q5_GATE |
-| Q2 BSS123 | G | BATT_DIV_EN (GPIO15), R26 (4.7k) pull-down |
-| Q2 BSS123 | S | GND |
+| Q2 AO3400A | D | Q5_GATE |
+| Q2 AO3400A | G | BATT_DIV_EN (GPIO15), R26 (4.7k) pull-down |
+| Q2 AO3400A | S | GND |
 | R7 | pin 2 | ADC_CH2 (mid) |
 | R8 | pin 1 / pin 2 | mid / GND |
 | C8 (**1 nF**) | pins 1–2 | across R8 — τ ≈ 77 µs, settles well inside the 1 ms firmware enable window |
@@ -583,7 +585,7 @@ Wiring above uses **pin names**. Before assigning footprints / generating a netl
 | Symbol | Issue | Action in KiCad |
 |--------|-------|-----------------|
 | R_FBH / R_FBL | Marked DNP in schematic (fixed-3.3 V U1 needs no divider) | Leave DNP for AP63203WU; if AP63200WU chosen, set values 390k/124k and clear DNP |
-| Q3, Q4, R29, D15 | ~~VLOOP disconnect + rectifier~~ | ✅ **Placed 2026-07-13** (power sheet: Q3=AO3407, Q4=BSS123, R29=100k, D15=SS34); ✅ wired per the VLOOP section |
+| Q3, Q4, R29, D15 | ~~VLOOP disconnect + rectifier~~ | ✅ **Placed 2026-07-13** (power sheet: Q3=AO3407, Q4=BSS123 → AO3400A per 2026-07-15 alternatives review P-1 (applied 2026-07-19), R29=100k, D15=SS34); ✅ wired per the VLOOP section |
 | R25, R27 | ~~Pull-up/pull-down~~ | ✅ **Placed 2026-07-13** (power sheet: R25 4.7k, R27 100k) |
 | Q5, R16 | ~~Battery divider high-side switch~~ | ✅ **Placed 2026-07-13** (power sheet: Q5=AO3407, R16=100k); ✅ Q2 (sensors sheet) wired as its gate driver per ADC_CH2 section — nets `Q5_GATE`/`VBAT_SW` cross the power↔sensors boundary as hierarchical nets |
 | R15, C36 | ~~ESP32 EN RC~~ | ✅ **Placed 2026-07-13** (mcu sheet: 10k 0402, 1µF 0402) |

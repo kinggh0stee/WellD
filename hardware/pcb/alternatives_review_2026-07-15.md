@@ -10,19 +10,21 @@ quality, and price — against the WellD profile: outdoor solar+USB 2S Li-ion,
 deep-sleep-dominated (nightly µA budget dominates over efficiency at load), hobby-scale
 assembly (hot-air OK, no stencil oven guaranteed), 80×55 mm board.
 
-**Nothing in this document is applied to the BOM or schematic.** SWAP and OPTIONAL
-verdicts are proposals for user approval only.
+**Update 2026-07-19: all four proposals below were USER-APPROVED and applied** to the
+schematic (`power.kicad_sch` / `sensors.kicad_sch`), the intent net table
+(`kicad_wire_script.py`), `schematic_connections.md` and `bom_footprints.md`;
+`netlist_check.py` passes with zero mismatches.
 
 ---
 
-## Proposed changes (awaiting approval — not applied)
+## Proposed changes (✅ applied 2026-07-19)
 
-| # | Position | Proposal | Effort |
-|---|----------|----------|--------|
-| P-1 | Q2/Q4 (BSS123) | **SWAP → AO3400A** (LCSC C20917). Settles review finding O-3: Vgs(th) max 1.45 V vs BSS123's 1.7 V at 3.3 V drive, ~10× cheaper, 1M+ LCSC stock, consolidates on the AOS reel family already used for Q3/Q5/D5/M_SOLAR. Same SOT-23 footprint — value-field edit only. | Trivial |
-| P-2 | J13 (USB4135-GF-A) | **SWAP → HRO TYPE-C-31-M-12** (LCSC C165948) as *primary*, GCT demoted to approved alternate. Removes the last global-sourcing connector; ~$0.10 vs ~$1+; the de-facto standard USB-C receptacle of hobby/low-volume boards; 4 THT shell legs give better field retention than the GCT's SMT shell. Requires a footprint swap (not pin-compatible with the USB4135 land pattern). | Footprint change |
-| P-3 | J4/J5 field lines | **OPTIONAL: add 2-electrode GDT footprints (DNF)** between each loop terminal and chassis/GND (90 V class, SMD 3216/4532, e.g. Littelfuse GTCS23-900M-R05 / BOURNS 2038-09-SM class). Completes the industrial 3-stage GDT → series-R → TVS norm for buried outdoor cable runs; DNF by default, populate only for long exposed runs. | 2 footprints |
-| P-4 | M_SOLAR (AO3407) | **OPTIONAL: SI2319CDS** (−40 V, Vishay LCSC C146287, in stock ~$0.16) for the solar buck high-side only. Restores >60 % Vds margin over the 24 V-clamped panel + switch-node ringing (currently ~23 %). Endorses verification-sweep recommendation R-1. Same SOT-23 pinout. | Value-field edit |
+| # | Position | Proposal | Effort | Status |
+|---|----------|----------|--------|--------|
+| P-1 | Q2/Q4 (BSS123) | **SWAP → AO3400A** (LCSC C20917). Settles review finding O-3: Vgs(th) max 1.45 V vs BSS123's 1.7 V at 3.3 V drive, ~10× cheaper, 1M+ LCSC stock, consolidates on the AOS reel family already used for Q3/Q5/D5. Same SOT-23 footprint — value-field edit only. | Trivial | ✅ applied (value edits, Q2 in sensors / Q4 in power; 2N7002 second-sourced in BOM) |
+| P-2 | J13 (USB4135-GF-A) | **SWAP → HRO TYPE-C-31-M-12** (LCSC C165948) as *primary*, GCT demoted to approved alternate. Removes the last global-sourcing connector; ~$0.10 vs ~$1+; the de-facto standard USB-C receptacle of hobby/low-volume boards; 4 THT shell legs give better field retention than the GCT's SMT shell. Requires a footprint swap (not pin-compatible with the USB4135 land pattern). | Footprint change | ✅ applied (footprint → `Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12`; ⚠️ verify exact name vs installed lib before layout) |
+| P-3 | J4/J5 field lines | **OPTIONAL: add 2-electrode GDT footprints (DNF)** between each loop terminal and chassis/GND (90 V class, SMD, e.g. Littelfuse GTCS23-900M-R05 / BOURNS 2038-09-SM class). Completes the industrial 3-stage GDT → series-R → TVS norm for buried outdoor cable runs; DNF by default, populate only for long exposed runs. | 2 footprints | ✅ applied (GDT1: LOOP_TERM_CH1→GND, GDT2: LOOP_TERM_CH2→GND, dnp; `WellD:GDT_BOURNS_2038_SM` footprint still to draw) |
+| P-4 | M_SOLAR (AO3407) | **OPTIONAL: SI2319CDS** (−40 V, Vishay LCSC C146287, in stock ~$0.16) for the solar buck high-side only. Restores >60 % Vds margin over the 24 V-clamped panel + switch-node ringing (currently ~23 %). Endorses verification-sweep recommendation R-1. Same SOT-23 pinout. | Value-field edit | ✅ applied (new `welld:SI2319CDS` lib symbol, identical pin map; VBsemi C558254 alternate) |
 
 Everything else: **KEEP** — details below.
 

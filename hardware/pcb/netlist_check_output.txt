@@ -1,4 +1,4 @@
-pins checked      : 393
+pins checked      : 397
 intended nets     : 78
 extracted nets ok : 78
 no-connect pins   : 20

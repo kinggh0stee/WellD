@@ -31,7 +31,7 @@
 
 | Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC | Notes |
 |-----|-------|---------|-------------------|-----|------|-------|
-| J13 | USB-C 2.0 power-only | 16-pin SMD | `Connector_USB:USB_C_Receptacle_GCT_USB4135` ⚠️ or use GCT KiCad file | USB4135-GF-A | — ⚠️ | GCT publishes KiCad footprint; check PCBWay global sourcing. LCSC-stocked alternate (footprint-check first): HRO TYPE-C-31-M-12 class |
+| J13 | USB-C 2.0 power-only | 16-pin SMD + 4 THT shell legs | `Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12` ⚠️ verify exact footprint name in installed KiCad 10 lib before layout | **HRO TYPE-C-31-M-12** | **C165948** ✅ (order the Korean Hroparts listing specifically — part is endlessly cloned) | **SWAPPED 2026-07-19** (alternatives review P-2): was GCT USB4135-GF-A (~$1+, global sourcing) — GCT demoted to approved alternate (needs its own land pattern back). 16-pin USB-2.0 subset; symbol pins A1/A4/A5/A6/A7/B5 unchanged. ⚠️ Layout note: B-side mirror pins (B1/B4/B6/B7/B9/B12 etc.) tie to the same nets inside the footprint (GND/VBUS/D±) — check pad-to-net map when the footprint lands |
 | U11 | USBLC6-2SC6 ESD | SOT-23-6 | `Package_TO_SOT_SMD:SOT-23-6` | USBLC6-2SC6 | C7519 ✅ | VBUS + D+/D− clamp. Pinout verified 2026-07-14: 1=I/O1, 2=GND, 3=I/O2, 4=I/O2, 5=VBUS, 6=I/O1 — **welld symbol must be renumbered** (blocker #9) |
 | F2 | **MF-MSMF250/16X-2 PTC 2.5A hold** | **1812** | `Fuse:Fuse_1812_4532Metric` | MF-MSMF250/16X-2 | C210838 ✅ | **Resolved 2026-07-14** (blocker #8): 2.5 A hold / 5.0 A trip / 16 V / 100 A max / 15 mΩ, −40…+85 °C. Series with J13 VBUS; boost charger input ≈1.9 A at 1 A charge. Hold derates to ≈1.75–2 A at 60 °C — if hot-enclosure nuisance trips appear, drop RISET to 120 kΩ (0.75 A charge → ≈1.4 A input) |
 | U12 | **IP2326 2S boost charger** | **QFN24 4×4 mm, 0.5 mm pitch, EPAD 2.5×2.5 mm** (✅ resolved 2026-07-14: DS V1.2 §11 + LCSC listing) | `welld:IP2326_TBD` → draw from `Package_DFN_QFN:QFN-24-1EP_4x4mm_P0.5mm_EP2.6x2.6mm` (KiCad standard fits; EP max 2.6) | IP2326 | C2832094 ✅ (in stock; do NOT order IP2326-NPD C5441281) | 5 V VBUS → 8.3 V (RVSET=120k) CC/CV sync boost, 1 A charge (RISET=90k), input-power-adaptive. Auto-runs on VBUS (EN pin 12 left floating = enabled; VBATM/VBAT_GND 23/24 left floating = balance off, 2-pin pack OK). Keep the 8×8 mm GND pour from Group G (~0.9 W at 1 A charge). Hand-rework = hot-air only (QFN + EPAD). Symbol placed 2026-07-13 |
@@ -61,7 +61,7 @@
 | U7 | CN3722 MPPT buck charge controller | **TSSOP-16** | `Package_SO:TSSOP-16_4.4x5mm_P0.65mm` | CN3722 | **C77905** ✅ (**corrected 2026-07-14** — old C2690716 does not match) | VCC 7.5–28V operating, **abs max 30 V** (CSP/BAT 28 V); external P-FET buck; BAT-pin sleep current 10µA typ @ 12V; ~$0.50, in stock |
 | D6 | MBRS140 Schottky 1A 40V | SMB | `Diode_SMD:D_SMB` | MBRS140T3G | — ✅ | Solar backfeed block (MBRS140T3G is SMB, not SOD-123) |
 | D8 | **SMAJ24CA TVS 24V bidi** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ24CA | **C148223** ✅ (Littelfuse; sourced 2026-07-14) | At CN3722 VIN; same reel as D14. Was SMAJ28CA (zero margin vs CN3722 abs max). Panel Voc limit **24V**; VBR min 26.7 V, Vc 38.9 V |
-| **M_SOLAR** | **AO3407 P-ch MOSFET** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | AO3407 | C31417 ✅ | **NEW 2026-07-13** — buck high-side switch, gate driven by DRV (16). Ratings verified 2026-07-14: −30 V Vds / ±20 V Vgs / −4.1 A; DRV clamps |Vgs| to 5–8 V ✅; Vds ≈ −24.4 V worst normal-op → ~23 % margin (a −40 V SOT-23 P-FET, SI2319 class, is an optional robustness upgrade — review R-1); same reel as D5/Q3/Q5 |
+| **M_SOLAR** | **SI2319CDS P-ch MOSFET −40 V** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | **SI2319CDS-T1-GE3** (Vishay) | **C146287** ✅ (VBsemi clone **C558254** approved alternate) | **SWAPPED 2026-07-19** (alternatives review P-4, settles verification-sweep R-1): was AO3407 (−30 V, ~23 % Vds margin vs the 24 V-clamped panel + switch-node ringing). −40 V restores >60 % margin; same SOT-23 G/S/D pinout, gate driven by DRV (16), DRV clamps |Vgs| to 5–8 V ✅. D5/Q3/Q5 stay AO3407 |
 | **D16** | **SS34 Schottky 3A 40V** | DO-214AC | `Diode_SMD:D_SMA` | SS34 | C8678 ✅ | **NEW 2026-07-13** — series diode after M_SOLAR (datasheet Fig. 1): blocks night back-feed VBAT→L_SOLAR→M_SOLAR body diode→R20/R21 (≈45µA) |
 | **D_SOLAR** | **SS34 Schottky 3A 40V** | DO-214AC | `Diode_SMD:D_SMA` | SS34 | C8678 ✅ | **NEW 2026-07-13** — buck catch/freewheel diode (GND→SOLAR_FW) |
 | **L_SOLAR** | **47µH shielded** | 6×6×4.5mm SMD | `Inductor_SMD:L_Bourns-SRN6045TA` | SRN6045TA-470M ✅ **verified 2026-07-14** | — (JLCPCB **C5151734**) | Buck inductor; ΔI≈0.3A at 300kHz/17.5V→8.4V/0.5A → peak ≈0.65 A vs **Isat ≈1.3 A / Irms ≈1.1 A / DCR ≈0.2 Ω** — ≥2× margin ✅; AEC-Q200 |
@@ -115,7 +115,7 @@
 | C_BST | 100nF 16V | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | C14663 ✅ | Pin 6 ↔ SW. Pin 6 = NC **confirmed 2026-07-14** (KiCad official symbol) — cap is harmless; can be marked **DNF** at first article |
 | **D15** | **SS34 Schottky 3A 40V** | DO-214AC | `Diode_SMD:D_SMA` | SS34 | C8678 ✅ | **NEW** — boost rectifier SW→VLOOP (MT3608 is an async boost; there was no rectifier in the BOM) |
 | **Q3** | **AO3407 P-ch MOSFET** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | AO3407 | C31417 ✅ | **NEW** — VLOOP input disconnect (VBAT→Q3→L1); kills the permanent VBAT−0.4V leak through L1+D15 to the loop terminals during sleep |
-| **Q4** | **BSS123 N-ch MOSFET** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | BSS123 | — ✅ | **NEW** — Q3 gate driver, gate on VBOOST_EN (GPIO5) |
+| **Q4** | **AO3400A N-ch MOSFET** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | **AO3400A** (AOS) | **C20917** ✅ | Q3 gate driver, gate on VBOOST_EN (GPIO5). **SWAPPED 2026-07-19 from BSS123** (alternatives review P-1, settles O-3): Vgs(th) max 1.45 V vs 1.7 V — fully enhanced at 3.3 V drive; 2N7002 approved emergency second source (thinner 2.5 V-max threshold margin, fine at these µA loads) |
 | **R29** | **100kΩ** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — Q3 gate pull-up to VBAT (off by default) |
 | **R27** | **100kΩ** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — VBOOST_EN pull-down (GPIO5 floats in deep sleep) |
 | C19 | 10µF 16V | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | VIN bypass |
@@ -131,7 +131,7 @@
 
 | Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC | Notes |
 |-----|-------|---------|-------------------|-----|------|-------|
-| Q2 | BSS123 N-ch MOSFET | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | BSS123 | — ✅ | Gate=GPIO15; now drives Q5's gate (level shifter) |
+| Q2 | **AO3400A N-ch MOSFET** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | **AO3400A** (AOS) | **C20917** ✅ | Gate=GPIO15; drives Q5's gate (level shifter). **SWAPPED 2026-07-19 from BSS123** (alternatives review P-1) — see Q4; 2N7002 approved second source |
 | **Q5** | **AO3407 P-ch MOSFET** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | AO3407 | C31417 ✅ | **NEW** — high-side divider disconnect (old low-side switch leaked ~14µA into ADS1115 AIN2 during sleep) |
 | **R16** | **100kΩ** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — Q5 gate pull-up to VBAT |
 | R7 | 330kΩ 1% | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | Divider high-side (VBAT→midpoint) |
@@ -180,6 +180,8 @@
 |-----|-------|---------|-------------------|-----|------|-------|
 | D9 | **SMAJ5.0A TVS 5V uni** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ5.0A-TR (ST) | **C98802** ✅ | J4 SIG surge clamp. **CHANGED 2026-07-14 from SMAJ3.3CA** (blocker #6 FAIL: IR = 800 µA max at VRWM — un-guaranteeable at the 2.0 V node). VBR min 6.4 V → 2.0 V working point far below the knee; Vc 9.2 V; forward diode clamps negatives; R3/R5 + D1 still protect the ADS1115 pins. **Schematic value edit required** (blocker #9c) |
 | D10 | **SMAJ5.0A TVS 5V uni** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ5.0A-TR (ST) | **C98802** ✅ | J5 SIG surge clamp — see D9 |
+| **GDT1** | **GDT 90V DNF** | 8×6 mm SMD 2-pole | `WellD:GDT_BOURNS_2038_SM` ⚠️ draw in WellD.pretty (no standard lib footprint) | BOURNS 2038-09-SM class (e.g. 2038-09-SM-RPLF; Littelfuse GTCS23-900M-R05 alternate) | — ⚠️ | **NEW 2026-07-19 (DNF)** — alternatives review P-3: coarse kA-class stage of the industrial GDT → series-R → TVS 3-stage loop protection, LOOP_TERM_CH1 → GND. **Footprint only, do not fit by default** — populate per site only for long/buried/aerial transducer cable runs |
+| **GDT2** | **GDT 90V DNF** | 8×6 mm SMD 2-pole | `WellD:GDT_BOURNS_2038_SM` ⚠️ draw in WellD.pretty | same as GDT1 | — ⚠️ | **NEW 2026-07-19 (DNF)** — LOOP_TERM_CH2 → GND, see GDT1 |
 | D1 | PRTR5V0U2X dual ESD | SOT-143B | `Package_TO_SOT_SMD:SOT-143` | PRTR5V0U2X,215 | **C12333** ✅ (**corrected 2026-07-14** — old C2687116 is a UMW USBLC6-2SC6 clone) | ADS1115 AIN0/AIN1 input clamp. Pinout verified: **1=GND, 2=I/O1, 3=I/O2, 4=VCC** — welld 6-pin SOT-363 symbol must be redrawn (blocker #9b) |
 | R2 | 100Ω ±0.1% 0.25W | 0805 | `Resistor_SMD:R_0805_2012Metric` | RG2012N-101-W-T1 | — ⚠️ | CH1 shunt (AIN0 reads across this) |
 | R4 | 100Ω ±0.1% 0.25W | 0805 | `Resistor_SMD:R_0805_2012Metric` | RG2012N-101-W-T1 | — ⚠️ | CH2 shunt |
@@ -291,7 +293,8 @@ All test points use: `TestPoint:TestPoint_Pad_1.0x1.0mm`
 |-----------|--------|--------|
 | ESP32-C6-MINI-1U | In `WellD.pretty/` already, verify | Download Espressif KiCad libs as backup |
 | XT30PW-F right-angle | In `WellD.pretty/` already | Verify pad dimensions against AMASS datasheet |
-| USB4135-GF-A (J13) | Not in standard lib | Download from GCT website (they provide KiCad files) |
+| TYPE-C-31-M-12 (J13) | `Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12` expected in KiCad official lib | ⚠️ Verify the exact footprint name against the installed KiCad 10 `Connector_USB` library before layout (swapped from GCT USB4135-GF-A 2026-07-19; GCT KiCad files remain the fallback for the approved-alternate part) |
+| GDT1/GDT2 (BOURNS 2038-SM class) | Not in standard lib | Draw `WellD:GDT_BOURNS_2038_SM` (8×6 mm SMD 2-pole land pattern per Bourns 2038-SM datasheet) — pads required even though DNF |
 | CDRH4D22 inductors (L1, L2) | May need verification | Check `Inductor_SMD:L_4.0x4.0mm_H2.6mm` exists; if not, use KiCad footprint editor to create 4.0×4.0mm SMD pad |
 | L3 (IP2326 boost inductor) | ✅ MPN picked 2026-07-14: SWPA5040S2R2NT | Draw a 5.0×5.0 mm pad set (`WellD:L_5050`) per the Sunlord SWPA5040S land pattern |
 | L_SOLAR (CN3722 buck inductor) | ✅ SRN6045TA-470M verified 2026-07-14 (Isat ≈1.3 A ≥2× need) | `Inductor_SMD:L_Bourns-SRN6045TA` matches |

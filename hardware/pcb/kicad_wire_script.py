@@ -175,6 +175,7 @@ NETS = {
             "D9.2", "D10.2",
             "R2.2", "R4.2", "R8.2", "R26.2",
             "Q2.S", "J4.3", "J5.3", "J6.3", "J7.3",
+            "GDT1.2", "GDT2.2",   # GDT coarse surge stage returns (DNF)
         ],
         "+3V3": [
             "FB1.1", "R_DRDY.1", "R6.1", "R28.1",
@@ -187,11 +188,11 @@ NETS = {
         "ADS_DRDY": ["U9.2", "R_DRDY.2"],
         # CH1 4-20 mA chain
         "VLOOP": ["J4.1"],
-        "LOOP_TERM_CH1": ["J4.2", "D9.1", "R2.1", "C34.1", "R3.1"],
+        "LOOP_TERM_CH1": ["J4.2", "D9.1", "R2.1", "C34.1", "R3.1", "GDT1.1"],
         "ADC_CH0": ["U9.4", "R3.2", "C3.1", "C4.1", "D1.2"],
         # CH2 4-20 mA chain (loop power gated by SJ2 on interfaces sheet)
         "VLOOP_CH2": ["J5.1"],
-        "LOOP_TERM_CH2": ["J5.2", "D10.1", "R4.1", "C35.1", "R5.1"],
+        "LOOP_TERM_CH2": ["J5.2", "D10.1", "R4.1", "C35.1", "R5.1", "GDT2.1"],
         "ADC_CH1": ["U9.5", "R5.2", "C5.1", "C6.1", "D1.3"],
         # battery divider (high-side switch Q5/R16 on power sheet)
         "VBAT_SW": ["R7.1"],

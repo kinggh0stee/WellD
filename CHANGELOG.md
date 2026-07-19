@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Hardware
+- Applied the four user-approved swaps from `alternatives_review_2026-07-15.md`: Q2/Q4 BSS123 → AO3400A (C20917, 2N7002 second source), M_SOLAR AO3407 → SI2319CDS −40 V (C146287, new `welld:SI2319CDS` symbol), J13 GCT USB4135 → HRO TYPE-C-31-M-12 (C165948, footprint `Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12`), and DNF GDT footprints GDT1/GDT2 on the field loop lines (LOOP_TERM_CH1/CH2 → GND); netlist re-verified with zero mismatches.
 - `hardware/pcb/alternatives_review_2026-07-15.md`: "better options" review of every BOM position against community track record / LCSC multi-sourcing — all major ICs confirmed KEEP; proposed (not applied): Q2/Q4 BSS123→AO3400A, J13 GCT USB-C→HRO TYPE-C-31-M-12, optional GDT footprints on the field loop lines and −40 V SI2319CDS for M_SOLAR; 1S-vs-2S architecture trade documented.
 - `hardware/pcb/fab_checklist.md`: consolidated, ordered path-to-fabrication checklist (first KiCad session + ERC waivables, vendor question, layout constraints, verified order list, first-article bench checks, enclosure sequencing).
 - All eight required schematic edits from the component sweep applied (AP63203 renumber + BST bootstrap cap on new net AP_BST, USBLC6/PRTR5V0U2X pinout fixes, SMAJ5.0A clamps, QFN-24 IP2326 footprint, cap voltage uprates); netlist re-verified with zero mismatches.
