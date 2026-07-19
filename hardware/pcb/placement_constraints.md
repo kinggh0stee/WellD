@@ -96,7 +96,7 @@ These components must land on a specific board edge:
 
 ### Group H — Battery carrier + input protection (rewritten 2026-07-19)
 `BT1, U13, Q6, R_DW1, C_DW, R_CS_DW, D13, D5, R31`
-- **BT1 dominates the layout**: the carrier body is ≈78×21 mm on an 80×55 mm board. Options, in preference order: (1) mount on the **back side** (B.Cu) under the quiet analog half — keep it away from the antenna edge and off the MT3608B/CN3791 switching islands' via fields; (2) grow the outline (last resort — case doesn't exist yet, so this is still cheap). Decide at layout start.
+- **BT1 placement (resolved 2026-07-19 — board size is unconstrained per user)**: put the carrier on the **top side, its own band along one long edge**, and grow the outline to fit — working target ≈**100 × 60 mm** (final dims set at layout; the case consumes them afterwards). Single-sided assembly, no back-side reflow. Keep the carrier band away from the antenna edge and off the MT3608B/CN3791 switching islands.
 - Protection cluster (U13/Q6/R_DW1/C_DW/R_CS_DW) tight at BT1's **negative** terminal: the BATT_N → Q6 S1 → drains → S2 → GND path carries every load and charge ampere — short, wide copper (≥1 mm), no via detours if possible
 - R_CS_DW's GND end on the **system** side (P−), R_DW1/C_DW referenced to BATT_N — do not mix the two grounds around U13; the DW01A senses the FET-pair drop between them
 - D13 (SMAJ5.0A) within **5mm** of BT1 cell+ tab

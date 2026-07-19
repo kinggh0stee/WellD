@@ -9,7 +9,7 @@ You are a mechanical engineer working on the WellD enclosure (hardware/case/well
 Current variants:
 - Battery: single 18650 in the on-board carrier (BT1) — **no case battery bay**; the case only clears the carrier height (≈19–21 mm on whichever board side layout puts it)
 
-PCB is 80×55 mm. Always verify fit when PCB dimensions change.
+PCB outline is set at layout (working target ≈100×60 mm; unconstrained). Always take the final dims from the layout, and clear ≈19–21 mm over the top-side 18650 carrier.
 
 Constraints:
 - Outdoor/well-head deployment — target IP67 minimum

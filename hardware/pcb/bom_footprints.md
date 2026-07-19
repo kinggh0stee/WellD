@@ -1,6 +1,6 @@
 # WellD PCB — BOM with KiCad 10 Footprints
 
-**Board:** 80 × 55 mm (or your chosen size), 2-layer, 1.6 mm FR4, 1 oz Cu  
+**Board:** size unconstrained — drawn around the finished placement (working target ≈100 × 60 mm with the top-side 18650 carrier); 2-layer, 1.6 mm FR4, 1 oz Cu  
 **Assembler:** PCBWay PCBA  
 **Sourcing key:** ✅ LCSC (direct PCBWay) · ⚠️ PCBWay global sourcing · 📦 Customer-supply to PCBWay
 
