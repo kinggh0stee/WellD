@@ -58,7 +58,7 @@ NETS = {
             "C17.2", "C21.2", "C18.2", "C19.2", "C20.2", "C22.2",
             "C27.2", "C28.2", "C29.2",
             "D11.2", "D13.2", "D14.2", "D8.2",
-            "Q4.S", "J1.2", "J12.2", "J13.A1", "U11.2",
+            "Q4.S", "Q6.3", "R_CS_DW.2", "J12.2", "J13.A1", "U11.2",
         ],
         "+3V3": [
             "U1.2",                # HT7333-A VOUT
@@ -73,7 +73,14 @@ NETS = {
             "U12.5", "C29.1",
             "D5.2",
         ],
-        "VBAT_RAW": ["J1.1", "D13.1", "D5.3"],
+        "VBAT_RAW": ["BT1.1", "D13.1", "D5.3", "R_DW1.1"],
+        # --- 1S protection (DW01A + FS8205A) between cell- and system GND ---
+        "BATT_N": ["BT1.2", "Q6.1", "U13.6", "C_DW.2"],
+        "DW_VCC": ["R_DW1.2", "U13.5", "C_DW.1"],
+        "DW_OD": ["U13.1", "Q6.2"],
+        "DW_OC": ["U13.3", "Q6.4"],
+        "DW_CS": ["U13.2", "R_CS_DW.1"],
+        "DW_D": ["Q6.5", "Q6.6", "Q6.7", "Q6.8"],
         "D5_GATE": ["D5.1", "R31.1"],
         # --- MT3608B boost + Q3/Q4 disconnect ---
         "VLOOP_L": ["Q3.3", "L1.1"],
@@ -229,6 +236,7 @@ NC_PINS = {
         "U7.3",    # CN3791 /DONE — no spare GPIO (pad available for a TP)
         "U11.6", "U11.4",   # USBLC6 device-side line ends (DM/DP float)
         "U12.6",   # TP4056 /STDBY — unused (only /CHRG is monitored)
+        "U13.4",   # DW01A TD (test/delay pin — float per every reference design)
     ],
     "mcu": [
         "U6.19",   # GPIO4 — spare (TP4056 CE strapped high in hardware, no charger GPIO)

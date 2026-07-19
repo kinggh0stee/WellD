@@ -61,7 +61,7 @@ menu "WellD Sensor"
         default 4200
         range 3000 12000
         help
-            Voltage read at 100 % state of charge. 4200 = 1S2P 18650 (4.2 V).
+            Voltage read at 100 % state of charge. 4200 = 1S 18650 (4.2 V).
             Used by the Z2M converter to compute the battery percentage.
             (The low-battery send/NVS-skip guard uses WELLD_BATT_EMPTY_MV,
             not this option.)
@@ -71,7 +71,7 @@ menu "WellD Sensor"
         default 3000
         range 2000 10000
         help
-            Voltage read at 0 % state of charge. 3000 = 1S2P 18650 (3.0 V —
+            Voltage read at 0 % state of charge. 3000 = 1S 18650 (3.0 V —
             also the ESP32-C6 minimum supply through the HT7333 LDO passthrough).
             When battery voltage (from ADC divider) drops at or below this
             threshold, the device skips the Zigbee send and all NVS writes and

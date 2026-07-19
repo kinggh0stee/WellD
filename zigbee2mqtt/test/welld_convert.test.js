@@ -104,20 +104,20 @@ test('convertBattery returns undefined for null/NaN/Infinity', () => {
     assert.equal(convertBattery(Infinity), undefined);
 });
 
-test('1S2P 18650 battery at full charge (4200 mV) reports 100 %', () => {
+test('18650 battery at full charge (4200 mV) reports 100 %', () => {
     const out = convertBattery(4.2);
     assert.equal(out.battery_voltage, 4.2);
     assert.equal(out.battery, 100);
 });
 
-test('1S2P 18650 battery at midpoint (3600 mV) reports 50 %', () => {
+test('18650 battery at midpoint (3600 mV) reports 50 %', () => {
     /* (3600 - 3000) / (4200 - 3000) * 100 = 50 % */
     const out = convertBattery(3.6);
     assert.equal(out.battery_voltage, 3.6);
     assert.equal(out.battery, 50);
 });
 
-test('1S2P 18650 battery at minimum safe discharge (3000 mV) reports 0 %', () => {
+test('18650 battery at minimum safe discharge (3000 mV) reports 0 %', () => {
     const out = convertBattery(3.0);
     assert.equal(out.battery_voltage, 3);
     assert.equal(out.battery, 0);
