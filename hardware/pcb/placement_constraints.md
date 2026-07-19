@@ -34,13 +34,11 @@ These components must land on a specific board edge:
 - Keep the SW→L1→VOUT hot trace under **10mm**, min **0.5mm wide**
 - Surround this island with a GND via-stitch perimeter
 
-### Group B — AP63203 buck
-`U1 → L2 → C_BUCK`
-- L2 within **5mm** of U1 SW pin
-- C_BUCK (10µF 0805) on the output side of L2, within **3mm**
-- C9/C10/C16 on U1 VIN side, within **2mm** (C16 = 10µF bulk)
-- C11/C12 on +3V3 output rail, near L2 output
-- R_FBH/R_FBL are DNP (fixed-output U1); keep the pads near U1 FB in case the adjustable variant is fitted
+### Group B — HT7333-A LDO (1S conversion 2026-07-19 — was the AP63203 buck; L2/C_BUCK-at-L2/R_FBH/R_FBL rules obsolete)
+`U1, C9/C10/C16 (VIN), C_BUCK/C11/C12 (VOUT)`
+- C9/C10/C16 on U1 VIN (3) side, within **2mm** (C16 = 10µF bulk)
+- C_BUCK (10µF 0805) + C11/C12 on U1 VOUT (2), within **3mm** — LDO stability wants the output cap close
+- No switching node, no inductor, no pour restrictions — this group is now trivially quiet; placement is only about lead length
 
 ### Group C — ADS1115 analog island
 `U9, FB1, C23, C24, R9, R10, R_DRDY`
@@ -50,9 +48,9 @@ These components must land on a specific board edge:
 - Keep U9 away from L1 and L2 (inductor EMI)
 - R_DRDY (4.7kΩ pull-up for ADS_DRDY) can be anywhere near U9 or near GPIO12 trace
 
-### Group D — CN3722 solar charger thermal
-`U7, C17, C18, R19, R20, R21, R33, R34`
-- Place a **10×10mm solid copper pour on F.Cu** under and around U7, connected to GND via ≥4 thermal vias (0.6mm drill)
+### Group D — CN3791 solar charger thermal (1S conversion 2026-07-19 — was CN3722; R33/R34 deleted)
+`U7, C17, C18, R19, R20, R21`
+- Place a **10×10mm solid copper pour on F.Cu** under and around U7, connected to GND via ≥4 thermal vias (0.6mm drill) — the integrated switch now dissipates in-package (≈0.5–1 W worst case at 1.2 A), so the pour matters **more** than it did for the external-FET CN3722
 - Mirror the pour on B.Cu and stitch with the same vias
 - U7 must be **≥15mm from U6** (ESP32 module)
 - U7 and U8 must be **≥8mm apart**
@@ -71,35 +69,30 @@ These components must land on a specific board edge:
 - R15/C36 (EN reset RC) within **5mm** of the module EN pad, C36 ground via short
 - Keep a **15mm no-copper keep-out** zone around the module's on-chip antenna area (the far end from the U.FL pad) on both layers
 
-### Group G — IP2326 USB boost-charger cluster (rewritten 2026-07-13 for the TP5100→IP2326 swap)
-`J13, U11, F2, U12, L3, C27, C28, C_SYS1, C_SYS2, C29, C_BST2, R35, R_VSET, R38, R50, R51, RT1`
+### Group G — TP4056 USB linear-charger cluster (rewritten 2026-07-19 for the 1S conversion — no switching loop anymore)
+`J13, U11, F2, U12, C27, C28, C29, R_PROG, R_NTC, R38, R50, R51, RT1`
 
-**Hot loop (synchronous boost, input side):** `C28 (VIN cap) → L3 → U12 LX (15–17) → internal FETs → VSYS (19/20) → C_SYS1/C_SYS2 → PGND (18)`.
-- C28 (10µF) within **2mm** of U12 VIN (13); C27 (4.7µF) just behind it on VUSB
-- L3 (2.2µH, ≥3A Isat) within **3mm** of the LX pins; **no copper pour under L3 on either layer**
-- C_SYS1/C_SYS2 (2×22µF) within **3mm** of VSYS (19/20), ground ends short and direct to PGND (18) — this closes the switching loop; keep the LX→L3→VSYS-caps loop area minimal
-- C_BST2 (100nF) within **1mm** of BST (14), other end to the LX node
-- C29 (10µF) within **3mm** of VOUT (21/22) — output (VBAT) side
-- **EPAD (25) thermal**: solder the exposed pad to a GND pour; **8×8mm solid GND copper on F.Cu** under U12, ≥6 thermal vias (0.5–0.6mm drill) through to a matching B.Cu pour (boost at 1A charge dissipates ~1W)
-- R35 (ISET) and R_VSET within **3mm** of pins 11/3; their GND ends to quiet analog ground, not into the power loop
-- RT1 (pack NTC) — route the NTC pair away from LX; the thermistor body must be thermally coupled to the pack, so expect a wired stub or pack-adjacent placement
-- R50/R51 within **3mm** of J13 CC1/CC2 pins; U11 and F2 between J13 VBUS and U12 VIN — total VUSB trace under **15mm**
-- LX node copper: small — enough for ~2A but no larger (EMI); keep LX away from RT1, ISET, VSET sense nets
+**No hot loop** — the TP4056 is linear. The dominant constraint is **thermal**, not di/dt:
+- **EPAD thermal**: solder the exposed pad to a GND pour; **10×10mm solid GND copper on F.Cu** under U12, ≥6 thermal vias (0.5–0.6mm drill) through to a matching B.Cu pour — **1 A charge from 5 V dissipates ≈1.3 W at mid-charge** (worse than the old boost's ~1 W; the TP4056 thermally regulates at ≈120 °C die, so an undersized pour silently slows charging rather than failing)
+- U12 must be **≥10mm from U6** (ESP32) and away from RT1's pack-coupling path — a hot charger next to the pack NTC would false-trip the charge-temperature window
+- C28 (10µF) within **2mm** of U12 VCC (4); C27 (4.7µF) just behind it on VUSB
+- C29 (10µF) within **3mm** of BAT (5) — output (VBAT) side
+- R_PROG within **3mm** of PROG (2), GND end to quiet ground (it is the current-set sense — keep it off the EPAD pour's high-ripple return)
+- R_NTC + RT1: divider junction at TEMP (1); route the NTC pair away from the hot U12 area; thermistor body thermally coupled to the **pack**, so expect a wired stub or pack-adjacent placement
+- R50/R51 within **3mm** of J13 CC1/CC2 pins; U11 and F2 between J13 VBUS and U12 VCC — total VUSB trace under **15mm**
 
-### Group L — CN3722 external buck stage (added 2026-07-13, senior-review open item)
-`U7, M_SOLAR, D16, D_SOLAR, L_SOLAR, R19 (R_CS), C17, C21, C_VG, C_COM1, C_COM2, R_COM2, C_COM3, RT_SOLAR`
+### Group L — CN3791 integrated buck stage (rewritten 2026-07-19 for the 1S conversion — M_SOLAR/D16/compensation deleted)
+`U7, D_SOLAR, L_SOLAR, R19 (R_CS), C17, C21, C_VG, RT_SOLAR`
 
-**Hot loop (buck):** `C17/C21 (VIN caps) → M_SOLAR S→D → D16 → SOLAR_FW node ← D_SOLAR (catch, GND→FW)`; L_SOLAR carries the FW node to CN_CS.
-- C17 (10µF 35V) + C21 (100nF) within **3mm** of M_SOLAR source / U7 VCC (15); the C17-ground → D_SOLAR-anode-ground path must be short — this is the fast di/dt loop
-- M_SOLAR, D16, D_SOLAR within **5mm** of each other; SOLAR_SW / SOLAR_FW copper small
+**Hot loop (buck, internal switch):** `C17/C21 (VIN caps) → U7 VIN (6) → internal switch → SW (7) → SOLAR_SW node ← D_SOLAR (catch, GND→SW)`; L_SOLAR carries SOLAR_SW to CN_CS.
+- C17 (10µF 35V) + C21 (100nF) within **3mm** of U7 VIN (6); the C17-ground → D_SOLAR-anode-ground path must be short — this is the fast di/dt loop
+- D_SOLAR within **5mm** of U7 SW (7); SOLAR_SW copper small
 - D_SOLAR anode ground and C17 ground tied at one point into the pour (loop closure)
-- L_SOLAR after the FW node; no pour under it
-- **Kelvin current sense (datasheet):** R19 (R_CS 0.4Ω 1206) in the L_SOLAR→VBAT path; route **CSP (13) and BAT (14) as a paired sense track directly to the two R19 pads** — no shared copper with the power path, ≥0.2mm gap from the switching nodes
-- C_VG (100nF) within **2mm** of VG (1), returned to **VCC** (not GND)
-- Gate drive DRV (16) → M_SOLAR gate: short, ≤10mm
-- Compensation parts C_COM1 / C_COM2+R_COM2 / C_COM3 within **5mm** of pins 8/9/11, grounds to quiet analog ground
+- L_SOLAR after the SW node; no pour under it
+- **Kelvin current sense:** R19 (R_CS 0.1Ω 1206) in the L_SOLAR→VBAT path; route **CSP (9) and BAT (10) as a paired sense track directly to the two R19 pads** — no shared copper with the power path, ≥0.2mm gap from the switching nodes
+- C_VG (100nF) within **2mm** of VG (8), returned to **VIN** (not GND) — ⚠️ confirm arrangement when the CN3791 datasheet check (1S blocker #10b) lands
 - RT_SOLAR (pack NTC): same routing rule as RT1 — away from switching nodes, body thermally coupled to the pack
-- Keep the U7 thermal pour rules from Group D (10×10mm F.Cu+B.Cu, ≥4 vias)
+- Keep the U7 thermal pour rules from Group D (10×10mm F.Cu+B.Cu, ≥4 vias — the switch dissipates in-package now)
 
 ### Group H — Battery input protection
 `J1, D13, D5, R31`
@@ -119,9 +112,9 @@ These components must land on a specific board edge:
 
 ### Group J — Solar input protection
 `J12, D14, D6, D8, C17, C21`
-- D14 (SMAJ24CA) within **3mm** of J12 SOLAR+ pin (first TVS at the terminal)
+- D14 (SMAJ10CA) within **3mm** of J12 SOLAR+ pin (first TVS at the terminal)
 - D6 between D14 and U7 VIN (Schottky backfeed block)
-- D8 (SMAJ24CA) within **5mm** of C17 (second-stage TVS at CN3722 VIN)
+- D8 (SMAJ10CA) within **5mm** of C17 (second-stage TVS at CN3791 VIN)
 - C21 within **3mm** of D8
 
 ---
@@ -130,9 +123,9 @@ These components must land on a specific board edge:
 
 | Components | Minimum gap | Reason |
 |-----------|-------------|--------|
-| U7 (CN3722) and U6 (ESP32) | 15mm | CN3722 dissipates up to 0.35W; thermal and RF isolation |
+| U7 (CN3791) and U6 (ESP32) | 15mm | CN3791 dissipates in-package (≈0.5–1 W worst case); thermal and RF isolation |
 | U8 (MT3608B) and U9 (ADS1115) | 20mm | 1.2MHz switching noise corrupts ADC readings |
-| U8 (MT3608B) and U7 (CN3722) | 8mm | Thermal — both dissipate power simultaneously |
+| U8 (MT3608B) and U7 (CN3791) | 8mm | Thermal — both dissipate power simultaneously |
 | L1/L2 (inductors) and U9 (ADS1115) | 15mm | Inductor EMI fields |
 | J3 (SMA) and U6 (module) | Route W1 pigtail — keep coax away from other signals |
 
@@ -155,8 +148,8 @@ W1 is a hand-attached cable — it is NOT pick-and-place. PCBWay installs it man
 
 | Component | Pour size | Layer | Via stitching |
 |-----------|-----------|-------|---------------|
-| U7 CN3722 | 10×10mm | F.Cu + B.Cu, GND net | ≥4 vias, 0.6mm drill, through to B.Cu |
-| U12 IP2326 | 8×8mm | F.Cu + B.Cu, GND net (EPAD soldered) | ≥6 vias, 0.5–0.6mm drill (≈1W at 1A boost charge) |
+| U7 CN3791 | 10×10mm | F.Cu + B.Cu, GND net | ≥4 vias, 0.6mm drill, through to B.Cu |
+| U12 TP4056 | 10×10mm | F.Cu + B.Cu, GND net (EPAD soldered) | ≥6 vias, 0.5–0.6mm drill (≈1.3W at 1A linear charge — thermal regulation folds back if undersized) |
 
 ---
 

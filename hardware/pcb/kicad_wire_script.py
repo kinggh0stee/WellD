@@ -42,20 +42,17 @@ STUB = 2.54  # mm
 
 GLOBAL_NETS = {
     "GND", "+3V3", "+3V3_ADS", "VBAT", "VBAT_RAW", "VLOOP",
-    "VUSB", "VUSB_IN", "VSOLAR", "VSOLAR_IN", "VSYS_USB",
+    "VUSB", "VUSB_IN", "VSOLAR", "VSOLAR_IN",
 }
 
 NETS = {
     # =====================================================================
     "power": {
         "GND": [
-            "U1.4", "U7.2", "U7.3", "U8.2", "U12.18", "U12.25",
-            "R_VSET.2", "RT1.2", "RT_SOLAR.2",
-            "C_COM1.2", "R_COM2.2", "C_COM3.2",
+            "U1.1", "U7.2", "U8.2", "U12.3", "U12.9",
+            "RT1.2", "RT_SOLAR.2", "R_PROG.2",
             "D_SOLAR.2",           # catch Schottky anode
-            "C_SYS1.2", "C_SYS2.2",
-            "R_FBL.2",             # DNP
-            "R24.2", "R21.2", "R34.2", "R35.2", "R27.2", "R31.2",
+            "R24.2", "R21.2", "R27.2", "R31.2",
             "R50.2", "R51.2",
             "C9.2", "C10.2", "C16.2", "C11.2", "C12.2", "C_BUCK.2",
             "C17.2", "C21.2", "C18.2", "C19.2", "C20.2", "C22.2",
@@ -64,25 +61,20 @@ NETS = {
             "Q4.S", "J1.2", "J12.2", "J13.A1", "U11.2",
         ],
         "+3V3": [
-            "U1.1",                # FB tied to output (fixed 3.3 V part)
-            "R_FBH.1",             # DNP divider top (adjustable option)
-            "L2.2", "C_BUCK.1", "C11.1", "C12.1",
+            "U1.2",                # HT7333-A VOUT
+            "C_BUCK.1", "C11.1", "C12.1",
             "R25.1", "R38.1", "R22.1",
         ],
-        "AP_FB": ["R_FBH.2", "R_FBL.1"],  # DNP mid-point (see report note)
         "VBAT": [
-            "U1.3", "C9.1", "C10.1", "C16.1", "R11.1",
-            "U7.14", "R19.2", "C18.1",
+            "U1.3", "C9.1", "C10.1", "C16.1",
+            "U7.10", "R19.2", "C18.1",
             "U8.5", "C19.1",
-            "Q3.2", "Q5.2", "R29.1", "R16.1", "R33.1",
-            "U12.21", "U12.22", "C29.1",
+            "Q3.2", "Q5.2", "R29.1", "R16.1",
+            "U12.5", "C29.1",
             "D5.2",
         ],
         "VBAT_RAW": ["J1.1", "D13.1", "D5.3"],
         "D5_GATE": ["D5.1", "R31.1"],
-        "U1_EN": ["U1.2", "R11.2"],
-        "AP_SW": ["U1.5", "L2.1", "C_BST_AP.2"],
-        "AP_BST": ["U1.6", "C_BST_AP.1"],
         # --- MT3608B boost + Q3/Q4 disconnect ---
         "VLOOP_L": ["Q3.3", "L1.1"],
         "Q3_GATE": ["Q3.1", "R29.2", "Q4.D"],
@@ -91,40 +83,31 @@ NETS = {
         "MT_BST": ["U8.6", "C_BST.1"],   # pin 6 possibly NC — see report
         "MT_FB": ["U8.3", "R23.2", "R24.1"],
         "VLOOP": ["D15.1", "C20.1", "C22.1", "R23.1", "D11.1"],
-        # --- CN3722 solar charger + external buck stage ---
+        # --- CN3791 solar charger (integrated buck switch, 1S 4.2 V CV) ---
         "VSOLAR_IN": ["J12.1", "D14.1", "D6.2"],
         "VSOLAR": [
-            "D6.1", "D8.1", "U7.15", "C17.1", "C21.1", "R20.1",
-            "M_SOLAR.2", "C_VG.2",
+            "D6.1", "D8.1", "U7.6", "C17.1", "C21.1", "R20.1",
+            "C_VG.2",
         ],
-        "MPPT_REF": ["R20.2", "R21.1", "U7.7"],
-        "CN_VG": ["U7.1", "C_VG.1"],
-        "CN_DRV": ["U7.16", "M_SOLAR.1"],
-        "SOLAR_SW": ["M_SOLAR.3", "D16.2"],
-        "SOLAR_FW": ["D16.1", "D_SOLAR.1", "L_SOLAR.1"],
-        "CN_CS": ["L_SOLAR.2", "R19.1", "U7.13"],
-        "CN_FB": ["U7.10", "R33.2", "R34.1"],
-        "CN_COM1": ["U7.8", "C_COM1.1"],
-        "CN_COM2": ["U7.9", "C_COM2.1"],
-        "COM2_RC": ["C_COM2.2", "R_COM2.1"],
-        "CN_COM3": ["U7.11", "C_COM3.1"],
-        "TEMP_SOLAR": ["U7.6", "RT_SOLAR.1"],
+        "MPPT_REF": ["R20.2", "R21.1", "U7.1"],
+        "CN_VG": ["U7.8", "C_VG.1"],
+        "SOLAR_SW": ["U7.7", "D_SOLAR.1", "L_SOLAR.1"],
+        "CN_CS": ["L_SOLAR.2", "R19.1", "U7.9"],
+        "TEMP_SOLAR": ["U7.5", "RT_SOLAR.1"],
         "/CHRG_SOLAR": ["U7.4", "R25.2", "D7.1"],
         "D7_A": ["D7.2", "R22.2"],
-        # --- USB input + IP2326 boost charger ---
+        # --- USB input + TP4056 linear charger ---
         "VUSB_IN": ["J13.A4", "U11.5", "F2.1"],
         "USB_DP": ["J13.A6", "U11.3"],
         "USB_DM": ["J13.A7", "U11.1"],
         "CC1": ["J13.A5", "R50.1"],
         "CC2": ["J13.B5", "R51.1"],
-        "VUSB": ["F2.2", "C27.1", "U12.13", "C28.1", "L3.1"],
-        "USBCHG_SW": ["L3.2", "U12.15", "U12.16", "U12.17", "C_BST2.2"],
-        "USB_BST": ["U12.14", "C_BST2.1"],
-        "VSYS_USB": ["U12.19", "U12.20", "C_SYS1.1", "C_SYS2.1"],
-        "USB_VSET": ["U12.3", "R_VSET.1"],
-        "USB_NTC": ["U12.4", "RT1.1"],
-        "USB_ISET": ["U12.11", "R35.1"],
-        "/CHRG_USB": ["U12.5", "R38.2"],
+        "VUSB": ["F2.2", "C27.1", "C28.1", "U12.4",
+                 "U12.8",           # CE strapped high = charge whenever VBUS
+                 "R_NTC.1"],
+        "USB_NTC": ["U12.1", "RT1.1", "R_NTC.2"],
+        "USB_PROG": ["U12.2", "R_PROG.1"],
+        "/CHRG_USB": ["U12.7", "R38.2"],
         # --- battery divider high-side switch (rest of chain in sensors) ---
         "Q5_GATE": ["Q5.1", "R16.2"],
         "VBAT_SW": ["Q5.3"],
@@ -243,19 +226,12 @@ NETS = {
 # Explicit no-connects (see schematic_connections.md + wiring-pass decisions)
 NC_PINS = {
     "power": [
-        "U7.5",    # CN3722 /DONE — no spare GPIO
-        "U7.12",   # CN3722 NC
+        "U7.3",    # CN3791 /DONE — no spare GPIO (pad available for a TP)
         "U11.6", "U11.4",   # USBLC6 device-side line ends (DM/DP float)
-        "U12.1", "U12.2",   # IP2326 DM/DP — float (blocker 2h decision)
-        "U12.6",   # LED
-        "U12.7",   # TIME_SET (float = default timer)
-        "U12.8", "U12.9",   # VIN_UVSET / VIN_OVSET (float = defaults)
-        "U12.10",  # CON_SEL (float = 2S)
-        "U12.12",  # EN (float = auto-charge on VBUS)
-        "U12.23", "U12.24",  # VBATM / VBAT_GND (2-pin pack, balance unused)
+        "U12.6",   # TP4056 /STDBY — unused (only /CHRG is monitored)
     ],
     "mcu": [
-        "U6.19",   # GPIO4 — freed by IP2326 swap (spare)
+        "U6.19",   # GPIO4 — spare (TP4056 CE strapped high in hardware, no charger GPIO)
         "U6.26",   # GPIO18 — unused
         "U6.27",   # GPIO19 — unused
     ],
