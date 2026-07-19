@@ -39,8 +39,10 @@ static void IRAM_ATTR ads1115_drdy_isr(void *arg)
 
 /* Configure power-control GPIO outputs and drive them to their safe-idle state.
  * GPIO5 (VLOOP) and GPIO15 (BATT_DIV_EN) are driven LOW (peripherals off).
- * GPIO4 (USB_CHG CE) is driven LOW first for safe config, then HIGH to enable
- * USB-C charging via the TP5100 as soon as the firmware takes control. */
+ * GPIO4 (USB_CHG CE) is driven LOW first for safe config, then HIGH.  On the
+ * current 1S board (TP4056, CE strapped high in hardware) GPIO4 is unconnected
+ * and this drive is a harmless no-op; it is kept for older TP5100 boards where
+ * CE was GPIO-controlled. */
 static void power_gpio_init(void) {
     const int pins[] = {
         CONFIG_WELLD_VLOOP_GPIO,
@@ -58,9 +60,10 @@ static void power_gpio_init(void) {
         gpio_config(&cfg);
         gpio_set_level(pins[i], 0);
     }
-    /* Enable USB-C charging: TP5100 CE is active-HIGH. R37 (4.7 kΩ) pulls CE
-     * LOW when GPIO4 floats (deep-sleep); drive HIGH here to re-enable charging
-     * once the firmware is running. */
+    /* Legacy TP5100 boards: CE is active-HIGH, R37 pulls it LOW while GPIO4
+     * floats in deep sleep; drive HIGH here to re-enable charging while awake.
+     * On the current 1S board GPIO4 has no schematic connection (TP4056
+     * auto-charges) — this write lands on an open pad. */
     gpio_set_level(CONFIG_WELLD_USB_CHG_GPIO, 1);
 }
 
@@ -258,7 +261,11 @@ static int ads1115_read_mv_median(int ch)
 #define ADS1115_OS_START        (1U << 7)
 #define ADS1115_MUX_AIN0        (4U << 4)   /* AIN0 vs GND */
 #define ADS1115_MUX_AIN2        (6U << 4)   /* AIN2 vs GND */
-#define ADS1115_PGA_2V048       (2U << 1)   /* ±2.048 V */
+#define ADS1115_PGA_2V048       (2U << 1)   /* ±2.048 V (4-20 mA shunt, AIN0) */
+#define ADS1115_PGA_4V096       (1U << 1)   /* ±4.096 V (battery, AIN2 — the 1S
+                                             * ÷2 divider puts up to 2.1 V on
+                                             * AIN2; ±2.048 V would clip right
+                                             * at full charge) */
 #define ADS1115_MODE_SINGLE     (1U << 0)
 #define ADS1115_DR_860SPS       (7U << 5)
 /* COMP_QUE = 00: assert after one conversion — required for DRDY mode.
@@ -307,8 +314,9 @@ static esp_err_t ads1115_wait_conversion_done(void)
 }
 
 /* Read one ADS1115 channel in single-shot mode.
- * ch: 0 = AIN0/GND (4-20 mA shunt), 2 = AIN2/GND (battery divider)
- * PGA ±2.048 V, 860 SPS.  COMP_QUE = one-shot assert, required for DRDY.
+ * ch: 0 = AIN0/GND (4-20 mA shunt, PGA ±2.048 V),
+ *     2 = AIN2/GND (battery divider, PGA ±4.096 V — see define above).
+ * 860 SPS.  COMP_QUE = one-shot assert, required for DRDY.
  * Returns millivolts (signed), or INT_MIN on error. */
 static int ads1115_read_mv(int ch) {
     if (!s_ads_dev) return INT_MIN;
@@ -326,9 +334,10 @@ static int ads1115_read_mv(int ch) {
     }
 
     uint8_t mux = (ch == 2) ? ADS1115_MUX_AIN2 : ADS1115_MUX_AIN0;
+    uint8_t pga = (ch == 2) ? ADS1115_PGA_4V096 : ADS1115_PGA_2V048;
     uint8_t buf[3] = {
         ADS1115_REG_CONFIG,
-        ADS1115_OS_START | mux | ADS1115_PGA_2V048 | ADS1115_MODE_SINGLE | ADS1115_DR_860SPS,
+        ADS1115_OS_START | mux | pga | ADS1115_MODE_SINGLE | ADS1115_DR_860SPS,
         ADS1115_COMP_QUE_ONE   /* assert DRDY after 1 conversion */
     };
     if (i2c_master_transmit(s_ads_dev, buf, 3, 50) != ESP_OK) {
@@ -359,8 +368,9 @@ static int ads1115_read_mv(int ch) {
         return INT_MIN;
 
     int16_t raw = (int16_t)(uint16_t)((data[0] << 8) | data[1]);
-    /* ±2.048 V PGA: 1 LSB = 62.5 µV.  mv = raw * 2048 / 32768 */
-    return (int)(raw * 2048L / 32768);
+    /* mv = raw * FSR / 32768 (FSR in mV matches the PGA chosen above) */
+    long fsr_mv = (ch == 2) ? 4096L : 2048L;
+    return (int)(raw * fsr_mv / 32768);
 }
 
 /* Returns the current level offset in cm, loading it from NVS on first call.
@@ -591,7 +601,8 @@ float sensor_read_temperature(void)
 
 /* Read battery voltage via the gated resistor divider on ADS1115 AIN2.
  * Divider is the only voltage measurement path.
- * R7/R8 = 330 kΩ / 100 kΩ (ratio 4.3). Gate BATT_DIV_EN (GPIO15) for
+ * R7/R8 = 100 kΩ / 100 kΩ (ratio 2.0 on the 1S board; Kconfig-set). Gate
+ * BATT_DIV_EN (GPIO15) for
  * 1 ms before reading, then drive LOW to prevent quiescent divider drain.
  * Returns -1.0 if ADS1115 read fails. */
 float sensor_read_battery_v(void)

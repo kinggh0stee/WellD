@@ -8,7 +8,7 @@ Connect USB and open the serial monitor (`idf.py -p /dev/ttyUSB0 monitor`).
 
 ### 1. No serial output at all
 
-- **Check power:** The 2S1P 18650 pack has integrated PCM that cuts out below the cell minimum voltage. Charge the battery first.
+- **Check power:** The 1S2P 18650 pack has integrated PCM that cuts out below the cell minimum voltage. Charge the battery first.
 - **Check USB cable:** Some cables are charge-only (no data lines). Try a different cable.
 - **Check bootloader baud:** ESP32-C6 boots at 115200; ensure your terminal is set correctly.
 - **Brownout reset loop:** If you see `rst:0x1 (POWERON)` repeatedly, the USB port may not supply enough current for the 12 V boost + Zigbee TX spike. Power from a charged battery while keeping USB connected for serial.
@@ -37,7 +37,7 @@ Connect USB and open the serial monitor (`idf.py -p /dev/ttyUSB0 monitor`).
 ### 5. `battery critically low (X.XX V < 6.00 V) — skipping send`
 
 - **Battery genuinely flat:** Charge via USB or solar.
-- **Measurement error:** Verify the divider ratio in Kconfig matches R7/R8 (330 kΩ / 100 kΩ, ratio 430).
+- **Measurement error:** Verify the divider ratio in Kconfig matches R7/R8 (100 kΩ / 100 kΩ, ratio 200 on the 1S board; legacy 2S boards use 330 kΩ / 100 kΩ, ratio 430).
 
 ### 6. OTA issues
 
@@ -94,7 +94,7 @@ If your measurement is higher:
 
 ## Quick Checks Checklist
 
-- [ ] Battery voltage > 6.0 V (measure at BAT+ / BAT− terminals — 2S1P pack minimum safe discharge)
+- [ ] Battery voltage > 3.0 V (measure at BAT+ / BAT− terminals — 1S2P pack minimum safe discharge; legacy 2S boards: > 6.0 V)
 - [ ] Solar charging LED (if populated) is off or on as expected
 - [ ] `idf.py monitor` shows `BOOT` → `SENSOR_OK` → `ZB_SENT` within ~10 s
 - [ ] Zigbee2MQTT logs show `Device 'WellD-v1' joined` on first pairing

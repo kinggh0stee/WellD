@@ -293,16 +293,16 @@ CONFIG_WELLD_DS18B20_GPIO=4
 # Battery (DEV-BOARD EXAMPLE: 1S LiPo through a home-built 2:1 divider
 # into ADS1115 AIN2).
 #
-# ⚠ Do NOT copy these three values onto the WellD PCB. The PCB has a fixed
-# R7/R8 = 330 kΩ/100 kΩ divider and a 2S pack — its correct values are the
-# firmware defaults (RATIO=430, FULL=8400, EMPTY=6000). Using the 1S values
-# below on the PCB makes the reported voltage read ~2× low and defeats the
-# low-battery guard.
+# Since the 2026-07-19 1S conversion these dev-board values MATCH the WellD
+# PCB firmware defaults (the PCB is now 1S with a 100 kΩ/100 kΩ divider:
+# RATIO=200, FULL=4200, EMPTY=3000) — so on a current PCB you can simply
+# omit all three lines. Only legacy 2S boards (330 kΩ/100 kΩ divider,
+# 6.0–8.4 V pack) need overrides: RATIO=430, FULL=8400, EMPTY=6000.
 #
 # Set REPORT_ENABLED to n to drop the Zigbee battery endpoint (EP2); the
 # battery is still measured internally for the low-battery guard.
 CONFIG_WELLD_BATT_REPORT_ENABLED=y
-CONFIG_WELLD_BATT_DIVIDER_RATIO=200     # (100+100)/100 × 100 = 200 (1S example!)
+CONFIG_WELLD_BATT_DIVIDER_RATIO=200     # (100+100)/100 × 100 = 200
 CONFIG_WELLD_BATT_FULL_MV=4200          # 1S LiPo full charge in millivolts
 CONFIG_WELLD_BATT_EMPTY_MV=3000         # 1S LiPo cutoff in millivolts
 ```
