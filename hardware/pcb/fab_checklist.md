@@ -9,7 +9,7 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 - **HT7333-A** (#10d): SOT-23 pinout confirm (GND=1/VOUT=2/VIN=3), 250 mA ceiling vs worst-case 3.3 V rail draw.
 - **Firmware handoff** (#10c): ✅ done (AIN2 on ±4.096 V PGA; Kconfig 200 / 4200 / 3000 shipped in v1.1.0).
 - **DW01A + FS8205A** (#11a/b): pinouts and the 100 Ω / 100 nF / 1 kΩ values are the community TP4056-module topology — confirm both datasheets; check the FET pair's ≈60 mΩ in the discharge path against the DW01A over-current trip point.
-- **BT1 carrier** (#11c): pick the THT holder MPN, draw `WellD:BH-18650_THT`, and make the board-side placement call (the ≈78×21 mm body on an 80×55 mm board — back side preferred, or grow the outline).
+- **BT1 carrier** (#11c): pick the THT holder MPN and draw `WellD:BH-18650_THT`. Placement is resolved: board size is unconstrained (user, 2026-07-19) — carrier top-side along a long edge, outline grows (working target ≈100 × 60 mm, set at layout).
 
 ## 1. First interactive KiCad 10 session (~1 hour, needs a desktop)
 
@@ -30,7 +30,7 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 
 - `placement_constraints.md` is current (rewritten 2026-07-19): Group G = TP4056 **thermal** cluster (no switching loop — EPAD pour is the constraint, ≈1.3 W at 1 A), Group L = CN3791 integrated buck (C17→VIN→SW→D_SOLAR hot loop; **CSP/BAT Kelvin pair routed together to R19**), Group B = HT7333-A LDO (trivially quiet now).
 - `kicad_place_script.py` (PCB-editor scripting console) gives starting placements.
-- Board outline: 80 × 55 mm **if the BT1 carrier fits on the back side** (Group H) — otherwise it grows; decide at layout start. All 1S replacement parts are iron-friendly except the two EPADs (TP4056 SOP-8-EP, and the ESP32 module) — hot air preferred; the carrier is THT.
+- Board outline: **unconstrained** (user, 2026-07-19) — draw it around the finished placement; working target ≈100 × 60 mm with the BT1 carrier top-side along a long edge (Group H). All 1S replacement parts are iron-friendly except the two EPADs (TP4056 SOP-8-EP, and the ESP32 module) — hot air preferred; the carrier is THT.
 
 ## 4. Order (all LCSC numbers verified 2026-07-14)
 
@@ -55,4 +55,4 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 
 ## 6. Enclosure (after layout freezes connector positions)
 
-- `hardware/case/` does not exist yet; the README's case section describes the *old* 100 × 55 board (current: 80 × 55). Case work is deliberately last — it consumes final connector/TP positions from the layout (TP13 factory-reset pad must stay reachable with the lid off).
+- `hardware/case/` does not exist yet. Case work is deliberately last — the board outline is now free (set at layout, working target ≈100 × 60 mm), and the case consumes the final outline plus connector/TP positions (TP13 factory-reset pad must stay reachable with the lid off; ~19–21 mm clearance over the top-side 18650 carrier).

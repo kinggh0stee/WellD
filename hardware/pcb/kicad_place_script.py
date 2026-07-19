@@ -20,7 +20,8 @@ HOW TO USE:
 COORDINATE SYSTEM:
   Board origin = (0, 0) = top-left corner of Edge.Cuts rectangle
   X increases rightward, Y increases downward (standard KiCad PCB coords)
-  Positions assume an ~80×55mm board
+  Positions assume a ~100×60mm board (outline unconstrained — grown 2026-07-19
+  for the top-side BT1 18650 carrier band along the bottom long edge)
 """
 
 import pcbnew
@@ -43,7 +44,7 @@ print("=== WellD PCB placement script ===")
 print("Placing components at target positions...")
 
 # ── Group H — Battery carrier + protection (bottom band, 2026-07-19) ─────
-place("BT1",  40,  50, 0)       # 18650 carrier ≈78×21 mm — likely B side; decide at layout
+place("BT1",  48,  50, 0)       # 18650 carrier ≈78×21 mm, TOP side, bottom long-edge band
 place("U13",  10,  44, 0)       # DW01A supervisor (near BT1 − tab)
 place("Q6",   14,  44, 0)       # FS8205A dual FET (cell− → GND path, wide copper)
 place("R_DW1", 6,  44, 0)       # DW01A VCC filter R
@@ -206,7 +207,7 @@ print("  1. Review placement — move components to fine-tune")
 print("  2. Check placement_constraints.md for must-be-near/apart rules")
 print("  3. Ensure U8 (MT3608B) and U9 (ADS1115) are ≥20mm apart")
 print("  4. Ensure U7 (CN3791) and U6 (ESP32) are ≥15mm apart")
-print("  5. Draw Edge.Cuts board outline (~80×55mm)")
+print("  5. Draw Edge.Cuts board outline around the finished placement (~100x60mm working target; size unconstrained)")
 print("  6. Route traces (start with power planes, then signals)")
 print("  7. Add GND copper pours (press B to fill zones)")
 print("  8. Run DRC before generating Gerbers")

@@ -14,7 +14,7 @@ Battery-powered well-level monitor for the ESP32-C6. Each wakeup it reads a 4–
 
 ## Hardware — Custom PCB
 
-The current design is a purpose-built **100 × 55 mm** custom PCB. Design files, BOM, and assembly guide live in [`hardware/`](hardware/).
+The current design is a purpose-built custom PCB (outline set at layout — working target ≈100 × 60 mm, sized around the on-board 18650 carrier). Design files, BOM, and assembly guide live in [`hardware/`](hardware/).
 
 ### Key ICs
 
@@ -30,7 +30,7 @@ The current design is a purpose-built **100 × 55 mm** custom PCB. Design files,
 
 ### Test points (production / field debug)
 
-All 15 test point pads are 1.0 mm SMD, **DNF** (do not fit) — bare copper pads suitable for ICT fixture probes or a hook wire. No component is installed in production. Test points are placed scattered near their associated circuits rather than grouped in a single row, matching the 100 × 55 mm layout on a 1.0 mm grid.
+All 15 test point pads are 1.0 mm SMD, **DNF** (do not fit) — bare copper pads suitable for ICT fixture probes or a hook wire. No component is installed in production. Test points are placed scattered near their associated circuits rather than grouped in a single row.
 
 | Ref | Net | Ref | Net |
 |-----|-----|-----|-----|
@@ -77,10 +77,10 @@ The ESP32-C6-MINI-1U-H4 module exposes a U.FL RF port. A ~50 mm internal pigtail
 
 ### Assembly notes (PCBWay)
 
-Connector placement on the 100 × 55 mm board:
+Connector placement:
 
 - **Bottom edge (left to right):** J12 (solar, 2-pos), J4 (loop ch1, 3-pos), J5 (loop ch2, 3-pos), J6 (DS18B20, 3-pos), J7 (spare sensor, 3-pos), J10 (programming header, 6-pin 1.27 mm pitch)
-- **Left edge:** J13 (USB-C charging input, SMD); the BT1 18650 carrier occupies a long band of the board (likely back side — layout decision)
+- **Left edge:** J13 (USB-C charging input, SMD). The BT1 18650 carrier occupies its own top-side band along one long edge (board size is unconstrained, so the outline grows to fit)
 - **Top edge:** J3 (Amphenol 132289 SMA edge-launch)
 
 - **J4, J5, J6, J7, J12** — Phoenix Contact MC 1.5/x-G-3.5 THT terminal blocks, wave-soldered.
@@ -116,7 +116,7 @@ R31 (10 kΩ, 0402) connects D5's gate to GND. R31 holds Vgs = −Vbat so the MOS
 
 ### Enclosure
 
-The enclosure is designed in [`hardware/case/welld_case.scad`](hardware/case/welld_case.scad). **No separate battery bay is needed any more** — the single 18650 lives in the on-board carrier (BT1), so the case only has to clear the carrier height (≈19–21 mm above the board on whichever side it lands; layout decides). A USB-C slot on the left short wall accommodates the J13 charging connector (TP4056 USB-C charging). The case dimensions consume the final board layout, so case work stays last.
+The enclosure is designed in [`hardware/case/welld_case.scad`](hardware/case/welld_case.scad). **No separate battery bay is needed any more** — the single 18650 lives in the top-side on-board carrier (BT1), so the case only has to clear ≈19–21 mm above the board. The external footprint follows the final board outline (unconstrained; working target ≈100 × 60 mm) and is sized at layout time. A USB-C slot on the left short wall accommodates the J13 charging connector (TP4056 USB-C charging). The case dimensions consume the final board layout, so case work stays last.
 
 For concrete underside mounting, the lid grows four corner wings with M6 anchor-bolt clearance holes. The bolt pattern centre-to-centre span is **127 × 82 mm** (X × Y). Use the `drill_template()` module to print a 1:1 paper/card drill guide before installing anchor bolts.
 

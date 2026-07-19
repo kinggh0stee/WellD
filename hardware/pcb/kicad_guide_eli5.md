@@ -170,7 +170,7 @@ Click **OK**.
 3. Click one corner, drag to the opposite corner, click again
 4. The outline must be a **closed shape** — KiCad will warn you if it is not
 
-The current enclosure expects something around 80×55mm but you decide the final size.
+Board size is unconstrained — you decide the final outline at layout (working target ≈100×60mm with the top-side 18650 carrier); the enclosure gets designed around whatever you draw.
 
 ---
 
