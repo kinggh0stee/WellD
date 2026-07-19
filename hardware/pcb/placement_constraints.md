@@ -13,7 +13,7 @@ These components must land on a specific board edge:
 | J13 (USB-C) | Any short edge (55mm side) | Connector body extends off-board; case cutout is on this wall |
 | J3 (SMA edge-mount) | Any short or long edge | Antenna port must clear the board outline; RF port protrudes ~3mm past Edge.Cuts |
 | J4, J5, J6, J7, J12 (screw terminals) | One long edge (80mm side) | Field wiring exits through cable glands on this face of the enclosure |
-| J1 (XT30 battery) | Same long edge as terminals, or short edge | Right-angle body exits toward one wall; match the case battery slot |
+| BT1 (18650 carrier) | Body parallel to a long edge | ≈78×21 mm — dominates the board; see Group H. No case battery bay needed (cell lives on the PCB) |
 | J10 (programming header) | Any edge or interior — but keep accessible | Pogo-pin fixture needs vertical clearance; keep clear of large caps |
 
 > **J3 and J13 must be on different edges** — they cannot share the same short edge (connector bodies will clash).
@@ -94,10 +94,14 @@ These components must land on a specific board edge:
 - RT_SOLAR (pack NTC): same routing rule as RT1 — away from switching nodes, body thermally coupled to the pack
 - Keep the U7 thermal pour rules from Group D (10×10mm F.Cu+B.Cu, ≥4 vias — the switch dissipates in-package now)
 
-### Group H — Battery input protection
-`J1, D13, D5, R31`
-- D13 (SMAJ10CA) within **5mm** of J1 BAT+ pin
+### Group H — Battery carrier + input protection (rewritten 2026-07-19)
+`BT1, U13, Q6, R_DW1, C_DW, R_CS_DW, D13, D5, R31`
+- **BT1 dominates the layout**: the carrier body is ≈78×21 mm on an 80×55 mm board. Options, in preference order: (1) mount on the **back side** (B.Cu) under the quiet analog half — keep it away from the antenna edge and off the MT3608B/CN3791 switching islands' via fields; (2) grow the outline (last resort — case doesn't exist yet, so this is still cheap). Decide at layout start.
+- Protection cluster (U13/Q6/R_DW1/C_DW/R_CS_DW) tight at BT1's **negative** terminal: the BATT_N → Q6 S1 → drains → S2 → GND path carries every load and charge ampere — short, wide copper (≥1 mm), no via detours if possible
+- R_CS_DW's GND end on the **system** side (P−), R_DW1/C_DW referenced to BATT_N — do not mix the two grounds around U13; the DW01A senses the FET-pair drop between them
+- D13 (SMAJ5.0A) within **5mm** of BT1 cell+ tab
 - D5 and R31 between D13 and VBAT rail — R31 within **2mm** of D5 gate
+- RT1 and RT_SOLAR thermally coupled to the carrier/cell body (they are the charge-temperature cutoffs)
 
 ### Group K — Battery divider (gated)
 `Q5, R16, Q2, R26, R7, R8, C8`

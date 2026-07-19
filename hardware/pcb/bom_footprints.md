@@ -20,7 +20,12 @@
 
 | Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC | Notes |
 |-----|-------|---------|-------------------|-----|------|-------|
-| J1 | XT30PW-F right-angle | THT | `WellD:XT30PW-F_RightAngle` (custom, in WellD.pretty) | XT30PW-F | C601498 ✅ | Pin 1=BAT+, Pin 2=BAT− |
+| BT1 | **18650 battery carrier, THT** (replaced J1 XT30, 2026-07-19) | THT, body ≈78×21 mm | `WellD:BH-18650_THT` (custom — to draw, blocker #11c) | Keystone 1042 class / common MYOUNG-style hobby holder | LCSC TBD ⚠️ (order-time — any THT spring/leaf 18650 holder) | Pin 1=cell+, Pin 2=cell− (→ BATT_N, through protection). Single generic 18650, ≈3–3.4 Ah |
+| **U13** | **DW01A-G 1S protection supervisor** | SOT-23-6 | `Package_TO_SOT_SMD:SOT-23-6` | DW01A-G (Fortune) | LCSC TBD ⚠️ | **NEW 2026-07-19** — generic bare cells have no PCM. OD/OC drive Q6; trip ≈2.40 V over-discharge / ≈4.30 V over-charge. Pinout verify = blocker #11a |
+| **Q6** | **FS8205A dual N-FET** | TSSOP-8 | `Package_SO:TSSOP-8_4.4x3mm_P0.65mm` | FS8205A | LCSC TBD ⚠️ | **NEW 2026-07-19** — back-to-back pair in the cell−→GND path (drains tied). Pinout verify = blocker #11b |
+| **R_DW1** | 100Ω | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — DW01A VCC filter (with C_DW) |
+| **C_DW** | 100nF | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | **NEW** — DW01A VCC filter (to cell−/BATT_N) |
+| **R_CS_DW** | 1kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — DW01A CS series resistor to system GND |
 | D5 | AO3407 P-ch MOSFET | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | AO3407 | C31417 ✅ | Reverse-polarity protection |
 | R31 | 10kΩ 1% | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | C25741 ✅ | D5 gate pull-down to GND (holds load switch ON) |
 | D13 | **SMAJ5.0A TVS 5V uni** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ5.0A | **C98802** ✅ (same reel as D9/D10) | Battery terminal TVS, **re-rated 2026-07-19** (1S): 5 V standoff clears the 4.2 V full charge; unidirectional — the forward diode clamps negative transients (reverse-battery is D5's job) |
@@ -260,7 +265,7 @@ All test points use: `TestPoint:TestPoint_Pad_1.0x1.0mm`
 | TP8 | I2C_SDA | GPIO10 |
 | TP9 | I2C_SCL | GPIO11 |
 | TP10 | VSOLAR_IN | At J12 |
-| TP11 | VBAT_RAW | At J1 BAT+, before D5 |
+| TP11 | VBAT_RAW | At BT1 cell+, before D5 |
 | TP12 | ADS_DRDY | GPIO12 interrupt line |
 | TP13 | FACTORY_RESET | **NEW** — GPIO13; short to GND at power-on for NVS erase + rejoin |
 | TP14 | /CHRG_SOLAR | Solar charge status (present in interfaces sheet, was missing here) |
@@ -285,7 +290,8 @@ All test points use: `TestPoint:TestPoint_Pad_1.0x1.0mm`
 | Component | Status | Action |
 |-----------|--------|--------|
 | ESP32-C6-MINI-1U | In `WellD.pretty/` already, verify | Download Espressif KiCad libs as backup |
-| XT30PW-F right-angle | In `WellD.pretty/` already | Verify pad dimensions against AMASS datasheet |
+| ~~XT30PW-F~~ | Deleted 2026-07-19 with J1 (battery-carrier change) | — |
+| BT1 18650 carrier | **To draw** (`WellD:BH-18650_THT`, blocker #11c) | From the chosen holder's drawing — body ≈78×21 mm, two THT tabs |
 | TYPE-C-31-M-12 (J13) | `Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12` expected in KiCad official lib | ⚠️ Verify the exact footprint name against the installed KiCad 10 `Connector_USB` library before layout (swapped from GCT USB4135-GF-A 2026-07-19; GCT KiCad files remain the fallback for the approved-alternate part) |
 | GDT1/GDT2 (BOURNS 2038-SM class) | Not in standard lib | Draw `WellD:GDT_BOURNS_2038_SM` (8×6 mm SMD 2-pole land pattern per Bourns 2038-SM datasheet) — pads required even though DNF |
 | CDRH4D22 inductors (L1, L2) | May need verification | Check `Inductor_SMD:L_4.0x4.0mm_H2.6mm` exists; if not, use KiCad footprint editor to create 4.0×4.0mm SMD pad |

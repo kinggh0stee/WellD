@@ -46,10 +46,10 @@ const definition = {
     options: [
         numeric('battery_full_mv', ea.SET)
             .withValueMin(2500).withValueMax(4500)
-            .withDescription('Voltage (mV) at 100 % battery. Default 4200 (1S2P 18650 Li-ion full charge).'),
+            .withDescription('Voltage (mV) at 100 % battery. Default 4200 (18650 Li-ion full charge).'),
         numeric('battery_empty_mv', ea.SET)
             .withValueMin(2500).withValueMax(4500)
-            .withDescription('Voltage (mV) at 0 % battery. Default 3000 (1S2P 18650 minimum safe discharge).'),
+            .withDescription('Voltage (mV) at 0 % battery. Default 3000 (18650 minimum safe discharge).'),
     ],
 };
 

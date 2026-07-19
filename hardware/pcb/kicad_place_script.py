@@ -42,8 +42,13 @@ def place(ref, x_mm, y_mm, rotation_deg=0, flip=False):
 print("=== WellD PCB placement script ===")
 print("Placing components at target positions...")
 
-# ── Group H — Battery input (J1 bottom-left) ──────────────────────────────
-place("J1",   5,   50, 0)       # XT30 right-angle, long edge bottom
+# ── Group H — Battery carrier + protection (bottom band, 2026-07-19) ─────
+place("BT1",  40,  50, 0)       # 18650 carrier ≈78×21 mm — likely B side; decide at layout
+place("U13",  10,  44, 0)       # DW01A supervisor (near BT1 − tab)
+place("Q6",   14,  44, 0)       # FS8205A dual FET (cell− → GND path, wide copper)
+place("R_DW1", 6,  44, 0)       # DW01A VCC filter R
+place("C_DW",  8,  46, 0)       # DW01A VCC filter C (to BATT_N)
+place("R_CS_DW", 12, 46, 0)     # DW01A CS resistor (to system GND)
 place("D13",  14,  48, 0)       # SMAJ10CA battery TVS
 place("D5",   19,  48, 0)       # AO3407 P-MOS load switch
 place("R31",  23,  48, 0)       # D5 gate pull-down (holds switch ON)

@@ -9,11 +9,11 @@
 /* Sensor offset default */
 #define CONFIG_WELLD_SENSOR_OFFSET_CM        0
 
-/* Battery measurement — 1S2P 18650 pack (4.2 V full, 3.0 V empty).
+/* Battery measurement — single 18650 cell (4.2 V full, 3.0 V empty).
  * BATT_REPORT_ENABLED: gates Zigbee EP2 registration (default y); the battery
  * is always measured internally for the low-battery guard regardless.
  * BATT_DIVIDER_RATIO: PCB R7/R8 = 100 kΩ / 100 kΩ → ratio 200 (1S board).
- * BATT_FULL_MV / BATT_EMPTY_MV: pack voltage at 100 % / 0 % SoC. */
+ * BATT_FULL_MV / BATT_EMPTY_MV: cell voltage at 100 % / 0 % SoC. */
 #define CONFIG_WELLD_BATT_REPORT_ENABLED     1
 #define CONFIG_WELLD_BATT_DIVIDER_RATIO      200
 #define CONFIG_WELLD_BATT_FULL_MV            4200

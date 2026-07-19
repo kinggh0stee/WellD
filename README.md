@@ -3,7 +3,7 @@
 Battery-powered well-level monitor for the ESP32-C6. Each wakeup it reads a 4–20 mA submersible pressure transducer, a DS18B20 temperature probe, and battery voltage; reports them over Zigbee to Zigbee2MQTT; then deep-sleeps until the next cycle.
 
 - **Radio:** Zigbee 3.0 over the C6's built-in 802.15.4 — no extra modules
-- **Battery life:** months on a 1S2P 18650 pack at the default 5-minute interval (deep sleep between readings)
+- **Battery life:** months on a single 18650 cell at the default 5-minute interval (deep sleep between readings)
 - **Adaptive sleep:** sleep duration scales with how fast the level is changing — longer windows when stable, shorter during transients
 - **Rate-of-change reporting:** `water_level_rate` in cm/h; distinguishes "well recovering" from "well being drawn down"
 - **Self-healing:** wipes Zigbee NVS state and rejoins fresh after 5 consecutive send failures
@@ -26,6 +26,7 @@ The current design is a purpose-built **100 × 55 mm** custom PCB. Design files,
 | MT3608B | 12 V **asynchronous** boost for the 4–20 mA loop supply (VLOOP, GPIO5-gated). D15 (SS34 Schottky) rectifies the switch node; a Q3/Q4 load-disconnect switch in series with L1 blocks the permanent VBAT leak to the loop terminals during deep sleep |
 | CN3791 | 1S MPPT solar buck charger, integrated switch, fixed 4.2 V CV (2026-07-19 1S conversion — replaced the CN3722 2S controller + external buck stage). MPPT set ≈5.0 V for 6 V-nominal panels; panel Voc limited to **10 V** by the SMAJ10CA input TVS |
 | TP4056 | USB-C 1 A linear charger (2026-07-19 1S conversion — replaced the IP2326 boost selection, which itself replaced the non-functional TP5100). Auto-charges whenever VBUS is present (CE strapped high); charge-temperature NTC window ≈ +5…+44 °C |
+| DW01A + FS8205A | On-board 1S battery protection (supervisor + dual N-FET in the cell− path) — added 2026-07-19 with the generic-18650 carrier; a bare cell has no PCM |
 
 ### Test points (production / field debug)
 
@@ -67,7 +68,7 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 |----------|------|------------------------|
 | LOOP+ / LOOP− | 4–20 mA transducer, two-wire | D9 / D10 SMAJ3.3CA bidirectional TVS (200 W, DO-214AC); D11 SMAJ13A unidirectional TVS on VLOOP; D1 PRTR5V0U2X rail clamp at ADS1115 inputs |
 | 1W DATA / GND | DS18B20 data + ground | D12 PRTR5V0U2X dual-channel rail clamp (SOT-363) — 0.5 pF added capacitance, well below the 800 pF 1-Wire add limit |
-| BAT+ / BAT−   | 1S2P 18650 pack (3.0–4.2 V) via **AMASS XT30PW-F** right-angle THT connector (J1, LCSC C601498; pin 1 = BAT+, pin 2 = BAT−) | D13 SMAJ5.0A unidirectional TVS (400 W, DO-214AC) at terminal — 5 V standoff above 4.2 V full charge, forward diode clamps negative transients; D5 AO3407 P-ch MOSFET in series on BAT+ for reverse-polarity protection; R31 10 kΩ gate-to-GND pull-down holds D5 in a defined on-state |
+| Battery | Single generic 18650 (3.0–4.2 V) in the on-board THT carrier **BT1** — no cable, no connector (the XT30 was deleted 2026-07-19) | On-board 1S protection **DW01A + FS8205A** in the cell− path (generic bare cells have no PCM): over-discharge ≈2.4 V, over-charge ≈4.3 V, over-current. D13 SMAJ5.0A TVS at the cell+ tab; D5 AO3407 P-ch MOSFET in series on cell+ blocks a **reversed-inserted cell**; R31 10 kΩ gate pull-down holds D5 on |
 | SOLAR+/−      | Solar panel, ≤ **10 V Voc** (6 V-nominal panels — 1S conversion 2026-07-19; the 2S design accepted 12 V panels) | D14 SMAJ10CA bidirectional TVS (400 W, DO-214AC) at the terminal, plus second-stage D8 SMAJ10CA at the CN3791 VIN |
 
 ### RF / antenna
@@ -79,7 +80,7 @@ The ESP32-C6-MINI-1U-H4 module exposes a U.FL RF port. A ~50 mm internal pigtail
 Connector placement on the 100 × 55 mm board:
 
 - **Bottom edge (left to right):** J12 (solar, 2-pos), J4 (loop ch1, 3-pos), J5 (loop ch2, 3-pos), J6 (DS18B20, 3-pos), J7 (spare sensor, 3-pos), J10 (programming header, 6-pin 1.27 mm pitch)
-- **Left edge:** J1 (XT30PW-F battery connector, right-angle THT) and J13 (USB-C charging input, SMD)
+- **Left edge:** J13 (USB-C charging input, SMD); the BT1 18650 carrier occupies a long band of the board (likely back side — layout decision)
 - **Top edge:** J3 (Amphenol 132289 SMA edge-launch)
 
 - **J4, J5, J6, J7, J12** — Phoenix Contact MC 1.5/x-G-3.5 THT terminal blocks, wave-soldered.
@@ -115,7 +116,7 @@ R31 (10 kΩ, 0402) connects D5's gate to GND. R31 holds Vgs = −Vbat so the MOS
 
 ### Enclosure
 
-The enclosure is designed in [`hardware/case/welld_case.scad`](hardware/case/welld_case.scad). External footprint is **105 × 60 mm** (2.5 mm wall on each side of the 100 × 55 mm PCB). The battery bay is sized for a Sinowatt 3350 mAh 18650 pack — now **1S2P** (two cells side-by-side, ≈37 × 70 × 19 mm; confirm the vendor drawing before cutting the bay) with corner locating posts and hook-and-loop strap slots through the side walls. A USB-C slot on the left short wall accommodates the J13 charging connector (TP4056 USB-C charging, functional on the 1S board).
+The enclosure is designed in [`hardware/case/welld_case.scad`](hardware/case/welld_case.scad). **No separate battery bay is needed any more** — the single 18650 lives in the on-board carrier (BT1), so the case only has to clear the carrier height (≈19–21 mm above the board on whichever side it lands; layout decides). A USB-C slot on the left short wall accommodates the J13 charging connector (TP4056 USB-C charging). The case dimensions consume the final board layout, so case work stays last.
 
 For concrete underside mounting, the lid grows four corner wings with M6 anchor-bolt clearance holes. The bolt pattern centre-to-centre span is **127 × 82 mm** (X × Y). Use the `drill_template()` module to print a 1:1 paper/card drill guide before installing anchor bolts.
 
@@ -427,7 +428,7 @@ W (sensor): DS18B20 ROM changed: stored=28ff1234ab000002 active=28ff5678cd000003
 
 ## Power
 
-The device spends nearly all of its time in deep sleep. Each wakeup is typically 6–12 seconds of active current (I²C reads, Zigbee send, 1-Wire conversion), followed by a sleep window of 1–30 minutes depending on rate-of-change. At the default 5-minute interval, average current is well under 1 mA — months of runtime on the 1S2P 18650 pack (3.6 V nominal, ≈6.7 Ah). The HT7333-A LDO's ≈4 µA quiescent current keeps the standby draw negligible, and the Q3/Q5 high-side disconnect switches leave no DC path from VBAT during sleep except the LDO and IC quiescents. Charging is dual-path: solar via the CN3791 MPPT charger and USB-C via the TP4056 (both autonomous — they charge whenever their input is present).
+The device spends nearly all of its time in deep sleep. Each wakeup is typically 6–12 seconds of active current (I²C reads, Zigbee send, 1-Wire conversion), followed by a sleep window of 1–30 minutes depending on rate-of-change. At the default 5-minute interval, average current is well under 1 mA — months of runtime on a single 18650 (3.6 V nominal, ≈3–3.4 Ah for a quality generic cell). The HT7333-A LDO's ≈4 µA quiescent current keeps the standby draw negligible, and the Q3/Q5 high-side disconnect switches leave no DC path from VBAT during sleep except the LDO and IC quiescents. Charging is dual-path: solar via the CN3791 MPPT charger and USB-C via the TP4056 (both autonomous — they charge whenever their input is present).
 
 Both power-control GPIOs (VLOOP, BATT_DIV_EN) are driven low and the GPIO matrix is isolated (`esp_sleep_gpio_isolate()`) before every `esp_deep_sleep()` call to eliminate leakage through partially-driven outputs during sleep.
 
@@ -444,7 +445,7 @@ components/zigbee/       esp-zigbee-lib wrapper, OTA client, BDB commissioning t
 components/welld_core/   pure helpers (rate-of-change, adaptive sleep, ZCL encoding)
 zigbee2mqtt/welld.js     external converter for Zigbee2MQTT
 hardware/pcb/            PCB design reference, BOM, Gerber generation script
-hardware/case/           OpenSCAD parametric enclosure (1S2P 18650 battery bay)
+hardware/case/           OpenSCAD parametric enclosure (cell lives on the PCB — no battery bay)
 test/sensor/             on-device Unity tests (1-Wire, NVS round-trips)
 test/welld_core/         on-device Unity tests (rate, sleep, ZCL helpers)
 test/host/               host CMake test project — no ESP-IDF required
