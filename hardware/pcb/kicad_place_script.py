@@ -78,7 +78,11 @@ place("D_SOLAR", 42, 12, 0)     # SS34 catch diode (GND→SW)
 place("L_SOLAR", 46, 12, 0)     # 47µH buck inductor (SW→CN_CS); no pour under
 place("R19",  32,  14, 0)       # R_CS 0.1Ω CSP–BAT sense (1.2A)
 place("C_VG", 44, 16, 0)        # VG↔VCC bypass 100nF
-place("RT_SOLAR", 36, 14, 0)    # TEMP NTC (thermally couple to pack)
+place("M_SOLAR", 36, 14, 0)     # SI2319CDS buck P-FET (restored — CN3791 is a controller)
+place("D16", 38, 16, 0)         # SS34 series diode (night back-feed block)
+place("R_DRV", 34, 16, 0)       # 300k gate-source pull-off at M_SOLAR
+place("C_COM", 36, 20, 0)       # COM compensation 220nF (series R_COM)
+place("R_COM", 38, 20, 0)       # COM compensation 120R to GND
 place("R20",  32,  18, 0)       # MPPT divider top (VSOLAR side) 316k
 place("R21",  38,  12, 0)       # MPPT divider bottom (GND side) 100k
 place("R25",  48,  10, 0)       # /CHRG_SOLAR pull-up to +3V3
