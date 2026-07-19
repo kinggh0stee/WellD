@@ -1,15 +1,17 @@
 # Path to fabrication — ordered checklist (updated 2026-07-19 for the 1S conversion + battery carrier)
 
-Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_verification_2026-07-14.md`, and the blocker list in `schematic_connections.md`. The schematic is fully wired (stub+label) and machine-verified (**357 pins / 69 nets / 0 mismatches** after the 1S conversion + battery carrier, `netlist_check_output.txt`), but the 1S conversion introduced three new parts whose datasheets were not fetchable at conversion time — **blockers #10 (a–e) and #11 (a–c) in `schematic_connections.md` are now the top of this list**. Everything below is what still stands between this repo and ordering boards.
+Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_verification_2026-07-14.md`, and the blocker list in `schematic_connections.md`. The schematic is fully wired (stub+label) and machine-verified (**366 pins / 72 nets / 0 mismatches** after the 1S conversion + battery carrier + CN3791 correction pass, `netlist_check_output.txt`), but the 1S conversion introduced three new parts whose datasheets were not fetchable at conversion time — **blockers #10 (a–e) and #11 (a–c) in `schematic_connections.md` are now the top of this list**. Everything below is what still stands between this repo and ordering boards.
 
-## 0. 1S-conversion datasheet checks (NEW 2026-07-19 — before anything else)
+## 0. Datasheet checks — ✅ DONE 2026-07-19 (web-verification pass; see blockers #10–#11 for details)
 
-- **CN3791** (#10b): pin numbering, VG cap arrangement, I_CH sense formula (0.1 Ω assumed → 1.2 A), VIN range, TEMP thresholds; L_SOLAR saturation margin at 1.2 A (Isat ≈1.3 A — tight, may need a 2 A-class part).
-- **TP4056** (#10a): SOP-8+EPAD pinout confirm, I_CH = 1200/R_PROG formula, TEMP window math (R_NTC 5.6 k / RT1 10 k → target ≈ +5…+44 °C), LCSC part pick (EPAD variant).
-- **HT7333-A** (#10d): SOT-23 pinout confirm (GND=1/VOUT=2/VIN=3), 250 mA ceiling vs worst-case 3.3 V rail draw.
-- **Firmware handoff** (#10c): ✅ done (AIN2 on ±4.096 V PGA; Kconfig 200 / 4200 / 3000 shipped in v1.1.0).
-- **DW01A + FS8205A** (#11a/b): pinouts and the 100 Ω / 100 nF / 1 kΩ values are the community TP4056-module topology — confirm both datasheets; check the FET pair's ≈60 mΩ in the discharge path against the DW01A over-current trip point.
-- **BT1 carrier** (#11c): pick the THT holder MPN and draw `WellD:BH-18650_THT`. Placement is resolved: board size is unconstrained (user, 2026-07-19) — carrier top-side along a long edge, outline grows (working target ≈100 × 60 mm, set at layout).
+- **CN3791** (#10b): ✅ verified **with major corrections applied** — it is a *controller* (external P-FET restored: M_SOLAR/D16/R_DRV; COM network added; **no TEMP pin → RT_SOLAR deleted, see #10f**); pin map + 120 mV/R_CS formula + VG cap confirmed; symbol redrawn, netlist re-verified.
+- **TP4056** (#10a): ✅ pinout + TEMP window (45–80 % VIN) confirmed; R_PROG 1.2 k → 0.9–1.0 A depending on DS revision; LCSC **C16581** (ESOP-8).
+- **HT7333-A** (#10d): ✅ pinout confirmed (GND=1/VOUT=2/VIN=3); LCSC **C21583**.
+- **DW01A** (#11a): ✅ pinout + thresholds + app values confirmed (LCSC candidate C351410).
+- **FS8205A** (#11b): ✅ verified **with correction** — real map D=1&8/S1=2&3/G1=4/G2=5/S2=6&7; symbol redrawn (LCSC candidates C14212/C908265).
+- **BT1 carrier** (#11c): MPNs picked — **recommended MY-18650-02 THT clip pair (C2979182 ×2)**, alt BH-18650-B1BA002 one-piece (C2988620); draw the footprint from the LCSC drawing at order time (drawing PDFs proxy-blocked here). Placement already resolved: top-side along a long edge, board ≈100 × 60 mm.
+- **⚠️ NEW open item (#10f)**: solar path has **no cold-charge cutoff** (CN3791 lacks a TEMP pin) — decide before winter deployment (accept, or add a discrete NTC cutoff). RT1 guards only the USB path.
+- Remaining bench-math: TP4056 TEMP window for R_NTC 5.6 k/RT1 10 k; L_SOLAR Isat margin at 1.2 A (prefer a 2 A-class 33–47 µH part at order time).
 
 ## 1. First interactive KiCad 10 session (~1 hour, needs a desktop)
 
@@ -46,7 +48,7 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 | 3 | TP4056 1 A charge without thermal fold-back in the enclosure (or accept fold-back / drop R_PROG to 2.4 k) | ≈1.3 W linear dissipation at mid-charge; pour sizing is a guess until measured |
 | 4 | Sleep floor < 15 µA total: HT7333 Iq + TP4056 BAT leak + CN3791 BAT dark current + TVS at 4.2 V | nightly battery budget (1S blocker #10e) |
 | 5 | Charger CV agreement: CN3791 vs TP4056, both nominally 4.2 V, under co-charge | verify no oscillation / one-charger-hogging at the overlap |
-| 6 | NTC cutoffs: both chargers stop outside their windows (RT1 ≈ +5…+44 °C, RT_SOLAR per CN3791 DS) | outdoor Li-ion; thresholds computed, not measured |
+| 6 | NTC cutoff: TP4056 stops outside RT1's ≈ +5…+44 °C window; **solar path has NO cutoff (#10f)** — log winter cell temperature | outdoor Li-ion; thresholds computed, not measured |
 | 7 | MT3608B EN-low shutdown current < 1 µA; boost still makes 12 V from VBAT = 3.0 V (ratio 4×, higher input current) | sleep-budget + low-battery loop-read assumptions |
 | 8 | CN3791 charge current ≈ 1.2 A at R_CS 0.1 Ω (sense-formula assumption); L_SOLAR stays out of saturation | 1S blocker #10b — formula and Isat margin both assumed |
 | 9 | Loop reading sanity vs known pressure; SMAJ5.0A leakage invisible on the shunt | D9/D10 substitution validation |
