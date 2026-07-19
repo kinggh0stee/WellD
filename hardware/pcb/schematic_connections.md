@@ -171,7 +171,7 @@
 | D12 PRTR5V0U2X | VCC | 1-Wire clamp rail |
 | TP3 | pad | +3V3 test point |
 
-> **CE network removed (2026-07-05, finally moot 2026-07-19):** R36/R37 belonged to the TP5100 CE pin. The TP4056 (1S conversion) has its CE (pin 8) strapped high to VUSB in hardware — it charges whenever VBUS is present. **GPIO4 is spare with no schematic connection**; firmware's USB_CHG drive is a no-op against an unconnected pad until firmware retires it.
+> **CE network removed (2026-07-05, finally moot 2026-07-19):** R36/R37 belonged to the TP5100 CE pin. The TP4056 (1S conversion) has its CE (pin 8) strapped high to VUSB in hardware — it charges whenever VBUS is present. **GPIO4 is spare with no schematic connection**; the firmware's charger-CE drive was removed with the 1S conversion (no charger GPIO exists).
 
 ### +3V3_ADS
 
@@ -338,7 +338,7 @@ The IP2326 boost charger (and its L3 / C_BST2 / C_SYS1 / C_SYS2 / R_VSET / R35 s
 
 ### ~~USB_CE~~ — deleted 2026-07-05, moot 2026-07-19
 
-R36/R37 were removed with the TP5100; the TP4056's CE is strapped high in hardware. **GPIO4 is spare** with no schematic connection; coordinate with the firmware agent before re-tasking it.
+R36/R37 were removed with the TP5100; the TP4056's CE is strapped high in hardware. **GPIO4 is spare** with no schematic connection and no firmware driver — free for future use.
 
 ### /CHRG_USB
 

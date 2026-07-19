@@ -50,9 +50,9 @@ test('battery percentage clamps to 100 above full threshold', () => {
     assert.equal(out.battery, 100);
 });
 
-test('battery percentage honours custom full/empty options (legacy 2S board)', () => {
-    /* Legacy 2S range via options: empty 6.0 V, full 8.4 V → 7.2 V → 50 % */
-    const out = convertBattery(7.2, {battery_full_mv: 8400, battery_empty_mv: 6000});
+test('battery percentage honours custom full/empty options', () => {
+    /* Custom conservative range: empty 3.2 V, full 4.0 V → 3.6 V → 50 % */
+    const out = convertBattery(3.6, {battery_full_mv: 4000, battery_empty_mv: 3200});
     assert.equal(out.battery, 50);
 });
 
@@ -82,7 +82,7 @@ test('inverted thresholds (full < empty): voltage still reported, percentage omi
 });
 
 test('battery options arriving as strings (YAML config) are coerced', () => {
-    const out = convertBattery(7.2, {battery_full_mv: '8400', battery_empty_mv: '6000'});
+    const out = convertBattery(3.6, {battery_full_mv: '4000', battery_empty_mv: '3200'});
     assert.equal(out.battery, 50);
 });
 

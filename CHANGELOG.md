@@ -15,11 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All eight required schematic edits from the component sweep applied (AP63203 renumber + BST bootstrap cap on new net AP_BST, USBLC6/PRTR5V0U2X pinout fixes, SMAJ5.0A clamps, QFN-24 IP2326 footprint, cap voltage uprates); netlist re-verified with zero mismatches.
 - Full BOM component-verification sweep against vendor datasheets (`hardware/pcb/component_verification_2026-07-14.md`): AP63203 buck requires a previously-missing 100 nF BST–SW bootstrap cap (new C_BST_AP row — the 3.3 V rail could not start) and its symbol pin numbering was wrong; IP2326 package resolved (QFN24 4×4 mm); D9/D10 loop clamps changed SMAJ3.3CA → SMAJ5.0A (leakage); F2 PTC, L3, L_SOLAR and NTC MPNs fixed; wrong LCSC numbers corrected (PRTR5V0U2X, CN3722, ESP32-C6-MINI-1U-H4); USBLC6/PRTR5V0U2X/MT3608B pinouts verified.
 
-### Changed (1S conversion — firmware/converter side, requires the 1S board or config overrides on 2S boards)
-- Battery Kconfig defaults now match the 1S board: `CONFIG_WELLD_BATT_DIVIDER_RATIO` 430 → **200** (R7/R8 = 100 k/100 k), `CONFIG_WELLD_BATT_FULL_MV` 8400 → **4200**, `CONFIG_WELLD_BATT_EMPTY_MV` 6000 → **3000**. Legacy 2S boards must set the old values in `sdkconfig.defaults.local`.
+### Changed (1S conversion — firmware/converter side)
+- Battery Kconfig defaults now match the 1S board: `CONFIG_WELLD_BATT_DIVIDER_RATIO` 430 → **200** (R7/R8 = 100 k/100 k), `CONFIG_WELLD_BATT_FULL_MV` 8400 → **4200**, `CONFIG_WELLD_BATT_EMPTY_MV` 6000 → **3000**. (No 2S boards were ever fabricated — no migration path is provided or needed.)
 - The ADS1115 battery read (AIN2) now uses the **±4.096 V PGA** (the loop shunt read keeps ±2.048 V): the 1S ÷2 divider puts up to 2.1 V on AIN2, which the previous ±2.048 V range clipped exactly at full charge.
-- Z2M converter battery defaults follow the firmware: `battery_full_mv`/`battery_empty_mv` defaults 8400/6000 → **4200/3000**, option range widened to 2500–10000 mV so legacy 2S boards can still configure 8400/6000. Converter tests rewritten for the 1S range (47 tests green).
-- GPIO4 (`CONFIG_WELLD_USB_CHG_GPIO`) is documented as spare on the 1S board — the TP4056 charges autonomously (CE strapped high in hardware); the firmware keeps the legacy TP5100 CE drive as a harmless no-op against the unconnected pad.
+- Z2M converter battery defaults follow the firmware: `battery_full_mv`/`battery_empty_mv` defaults 8400/6000 → **4200/3000**, option range now 2500–4500 mV (1S). Converter tests rewritten for the 1S range (47 tests green).
+- **Removed** `CONFIG_WELLD_USB_CHG_GPIO` and the GPIO4 charger-CE drive entirely: the TP4056 charges autonomously (CE strapped high in hardware) and GPIO4 has no schematic connection. GPIO4 is fully spare.
 
 ### Fixed
 - OTA rollback can no longer flip a healthy image to the old slot during a coordinator outage: the boot-attempt counter is armed only while the running image is unproven (NVS marker `img_ok` stores the version string of the last image that completed a successful send), and low-battery-skip wakeups no longer count as failed boot attempts.

@@ -37,7 +37,7 @@ Connect USB and open the serial monitor (`idf.py -p /dev/ttyUSB0 monitor`).
 ### 5. `battery critically low (X.XX V < 6.00 V) — skipping send`
 
 - **Battery genuinely flat:** Charge via USB or solar.
-- **Measurement error:** Verify the divider ratio in Kconfig matches R7/R8 (100 kΩ / 100 kΩ, ratio 200 on the 1S board; legacy 2S boards use 330 kΩ / 100 kΩ, ratio 430).
+- **Measurement error:** Verify the divider ratio in Kconfig matches R7/R8 (100 kΩ / 100 kΩ, ratio 200).
 
 ### 6. OTA issues
 
@@ -94,7 +94,7 @@ If your measurement is higher:
 
 ## Quick Checks Checklist
 
-- [ ] Battery voltage > 3.0 V (measure at BAT+ / BAT− terminals — 1S2P pack minimum safe discharge; legacy 2S boards: > 6.0 V)
+- [ ] Battery voltage > 3.0 V (measure at BAT+ / BAT− terminals — 1S2P pack minimum safe discharge)
 - [ ] Solar charging LED (if populated) is off or on as expected
 - [ ] `idf.py monitor` shows `BOOT` → `SENSOR_OK` → `ZB_SENT` within ~10 s
 - [ ] Zigbee2MQTT logs show `Device 'WellD-v1' joined` on first pairing

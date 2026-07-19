@@ -8,7 +8,7 @@ You are a mechanical engineer working on the WellD enclosure (hardware/case/well
 
 Current variants:
 - Default: 1S2P 18650 pack (two cells side-by-side)
-- Legacy 2S variant: USE_2S_BATTERY=true, 73×40×22 mm bay with corner posts and strap slots (current boards are 1S2P — similar bay footprint, confirm pack drawing)
+- Battery bay: 1S2P 18650 pack, corner posts and strap slots (confirm pack drawing before cutting)
 
 PCB is 80×55 mm. Always verify fit when PCB dimensions change.
 

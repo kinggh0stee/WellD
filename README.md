@@ -54,7 +54,7 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 | 11 | SCL | I²C bus (ADS1115 only) |
 | 12 | Input  | ADS1115 ALERT/DRDY |
 | 5  | Output | MT3608B EN + Q4 gate — 12 V loop supply (`VLOOP`), with Q3/Q4 load-disconnect; R27 pull-down holds it off during deep sleep |
-| 4  | Output | Spare on the current 1S board — the TP4056 auto-charges (CE strapped high in hardware) and GPIO4 has no schematic connection. The firmware still drives it for legacy TP5100 boards (harmless no-op on an open pad) |
+| 4  | —      | Spare — no schematic connection (the TP4056 USB charger is autonomous, CE strapped high in hardware) |
 | 6  | Input  | Solar charger /CHRG (CN3791) — solar-charging-active detect (active-low: LOW = charging; R25 external pull-up) |
 | 7  | 1-Wire | DS18B20 data |
 | 13 | Input  | Factory reset only (hold LOW at boot → NVS erase + rejoin; field-accessible via TP13 pad) |
@@ -168,9 +168,9 @@ All options have sensible defaults. Only change what differs from your hardware.
 | Option | Default | Description |
 |--------|---------|-------------|
 | `CONFIG_WELLD_BATT_REPORT_ENABLED` | `y` | Report battery voltage over Zigbee (EP2, Analog Input). The battery is always measured internally via ADS1115 AIN2 (R7/R8 divider) for the low-battery guard; disabling this only removes the Zigbee endpoint |
-| `CONFIG_WELLD_BATT_DIVIDER_RATIO` | `200` | Divider ratio × 100 — matches the 1S board's 100 kΩ / 100 kΩ divider (R7/R8): (100+100)/100 = 2.00. Legacy 2S boards (330 k/100 k): 430 |
-| `CONFIG_WELLD_BATT_FULL_MV` | `4200` | Voltage (mV) reported as 100 % by the Z2M converter (1S full charge; legacy 2S boards: 8400) |
-| `CONFIG_WELLD_BATT_EMPTY_MV` | `3000` | Voltage (mV) at or below which the device skips the Zigbee send and all NVS writes to protect flash (1S minimum safe discharge; legacy 2S boards: 6000) |
+| `CONFIG_WELLD_BATT_DIVIDER_RATIO` | `200` | Divider ratio × 100 — matches the 100 kΩ / 100 kΩ divider (R7/R8): (100+100)/100 = 2.00 |
+| `CONFIG_WELLD_BATT_FULL_MV` | `4200` | Voltage (mV) reported as 100 % by the Z2M converter (1S full charge) |
+| `CONFIG_WELLD_BATT_EMPTY_MV` | `3000` | Voltage (mV) at or below which the device skips the Zigbee send and all NVS writes to protect flash (1S minimum safe discharge) |
 
 ### Sleep
 
@@ -196,7 +196,6 @@ All options have sensible defaults. Only change what differs from your hardware.
 | `CONFIG_WELLD_I2C_SCL_GPIO` | `11` | I²C SCL pin |
 | `CONFIG_WELLD_VLOOP_GPIO` | `5` | MT3608B EN + Q3/Q4 load-disconnect — 12 V loop supply enable. Held HIGH ≥ 10 ms before any 4–20 mA read (rail settles through the Q3 P-FET into C20/C22) |
 | `CONFIG_WELLD_SOLAR_DETECT_GPIO` | `6` | Solar charger /CHRG (CN3791) — solar-charging-active detect (active-low) |
-| `CONFIG_WELLD_USB_CHG_GPIO` | `4` | Legacy TP5100 CE drive — spare/unconnected on the current 1S board (TP4056 auto-charges); harmless no-op |
 | `CONFIG_WELLD_BATT_DIV_EN_GPIO` | `15` | Battery-divider enable — Q2 level-shifter gate, switching the Q5 high-side P-FET |
 | `CONFIG_WELLD_ADS1115_DRDY_GPIO` | `12` | ADS1115 ALERT/DRDY interrupt input (open-drain, falling edge = conversion complete) |
 
@@ -264,7 +263,7 @@ The device publishes to `zigbee2mqtt/<friendly_name>` on each wakeup:
 - `water_level_rate` is signed cm/h. Positive = recovering, negative = drawing down. Omitted on the first valid wakeup after a cold boot and during open-loop cycles.
 - `temperature` is omitted when the DS18B20 is not detected.
 - `battery_voltage` comes from the ADS1115 AIN2 voltage divider (R7/R8 100 kΩ / 100 kΩ, switched high-side by Q5 under GPIO15 control).
-- `battery` is a percentage derived from `battery_voltage` using the device options `battery_full_mv` / `battery_empty_mv`. Options are coerced to numbers (YAML strings like `"4200"` are accepted) and fall back to the defaults 4200 / 3000 mV (1S board, firmware ≥ 1.1.0; legacy 2S boards set 8400 / 6000 via options) for anything missing or non-numeric. If the thresholds are misconfigured (`battery_full_mv <= battery_empty_mv`), the voltage is still published but the percentage is omitted.
+- `battery` is a percentage derived from `battery_voltage` using the device options `battery_full_mv` / `battery_empty_mv`. Options are coerced to numbers (YAML strings like `"4200"` are accepted) and fall back to the defaults 4200 / 3000 mV for anything missing or non-numeric. If the thresholds are misconfigured (`battery_full_mv <= battery_empty_mv`), the voltage is still published but the percentage is omitted.
 - `zb_fails` counts consecutive Zigbee send failures since the last success (0 = healthy; the device auto-rejoins at 5).
 - `device_lqi` is the link quality measured on the device side (EP6, 1–255) — the LQI of the device's parent entry in its own neighbor table. It is distinct from Zigbee2MQTT's own `linkquality` field, which comes from the coordinator side of the link. A value of 0 means "unknown" (no parent entry found) and is not published. Firmware ≤ 1.0.2 always sent 0, so the key only appears from firmware 1.0.3 onwards.
 - `solar_charging` is a **boolean** (binary expose): `true` = the solar MPPT charger (CN3791) is actively charging, `false` = not charging.
@@ -430,7 +429,7 @@ W (sensor): DS18B20 ROM changed: stored=28ff1234ab000002 active=28ff5678cd000003
 
 The device spends nearly all of its time in deep sleep. Each wakeup is typically 6–12 seconds of active current (I²C reads, Zigbee send, 1-Wire conversion), followed by a sleep window of 1–30 minutes depending on rate-of-change. At the default 5-minute interval, average current is well under 1 mA — months of runtime on the 1S2P 18650 pack (3.6 V nominal, ≈6.7 Ah). The HT7333-A LDO's ≈4 µA quiescent current keeps the standby draw negligible, and the Q3/Q5 high-side disconnect switches leave no DC path from VBAT during sleep except the LDO and IC quiescents. Charging is dual-path: solar via the CN3791 MPPT charger and USB-C via the TP4056 (both autonomous — they charge whenever their input is present).
 
-All power-control GPIOs (VLOOP, BATT_DIV_EN, USB_CHG CE) are driven low and the GPIO matrix is isolated (`esp_sleep_gpio_isolate()`) before every `esp_deep_sleep()` call to eliminate leakage through partially-driven outputs during sleep.
+Both power-control GPIOs (VLOOP, BATT_DIV_EN) are driven low and the GPIO matrix is isolated (`esp_sleep_gpio_isolate()`) before every `esp_deep_sleep()` call to eliminate leakage through partially-driven outputs during sleep.
 
 ---
 

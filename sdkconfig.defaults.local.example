@@ -15,13 +15,13 @@
 # drop the endpoint; the battery is still measured internally for the
 # low-battery guard either way.
 # CONFIG_WELLD_BATT_REPORT_ENABLED=y
-# CONFIG_WELLD_BATT_DIVIDER_RATIO=200  # R7/R8 = 100 kΩ / 100 kΩ (1S board; 430 on legacy 2S boards)
+# CONFIG_WELLD_BATT_DIVIDER_RATIO=200  # R7/R8 = 100 kΩ / 100 kΩ
 
 # Battery percentage thresholds — these set the defaults shown in the Z2M
 # converter. Override per-device in the Zigbee2MQTT device options UI instead
 # of changing these, since they are not read by the firmware at runtime.
-# CONFIG_WELLD_BATT_FULL_MV=4200   # 1S2P 18650: 4200 (legacy 2S boards: 8400)
-# CONFIG_WELLD_BATT_EMPTY_MV=3000  # 1S2P 18650: 3000 (legacy 2S boards: 6000)
+# CONFIG_WELLD_BATT_FULL_MV=4200   # 1S2P 18650 full charge
+# CONFIG_WELLD_BATT_EMPTY_MV=3000  # 1S2P 18650 minimum safe discharge
 
 # DS18B20 temperature sensor GPIO
 # CONFIG_WELLD_DS18B20_GPIO=4
@@ -47,9 +47,6 @@
 
 # Battery resistor-divider enable — Q2 gate, pulsed before AIN2 read
 # CONFIG_WELLD_BATT_DIV_EN_GPIO=15
-
-# USB-C charger enable — legacy TP5100 CE (GPIO4); unconnected/spare on 1S TP4056 boards
-# CONFIG_WELLD_USB_CHG_GPIO=4
 
 # ---------- Secure boot (local signing machine only) ----------
 # Uncomment on the machine that holds secure_boot_signing_key.pem.

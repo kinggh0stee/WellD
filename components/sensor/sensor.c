@@ -39,15 +39,11 @@ static void IRAM_ATTR ads1115_drdy_isr(void *arg)
 
 /* Configure power-control GPIO outputs and drive them to their safe-idle state.
  * GPIO5 (VLOOP) and GPIO15 (BATT_DIV_EN) are driven LOW (peripherals off).
- * GPIO4 (USB_CHG CE) is driven LOW first for safe config, then HIGH.  On the
- * current 1S board (TP4056, CE strapped high in hardware) GPIO4 is unconnected
- * and this drive is a harmless no-op; it is kept for older TP5100 boards where
- * CE was GPIO-controlled. */
+ * The chargers (TP4056, CN3791) are autonomous — no charger-enable GPIO. */
 static void power_gpio_init(void) {
     const int pins[] = {
         CONFIG_WELLD_VLOOP_GPIO,
         CONFIG_WELLD_BATT_DIV_EN_GPIO,
-        CONFIG_WELLD_USB_CHG_GPIO,
     };
     gpio_config_t cfg = {
         .mode         = GPIO_MODE_OUTPUT,
@@ -60,11 +56,6 @@ static void power_gpio_init(void) {
         gpio_config(&cfg);
         gpio_set_level(pins[i], 0);
     }
-    /* Legacy TP5100 boards: CE is active-HIGH, R37 pulls it LOW while GPIO4
-     * floats in deep sleep; drive HIGH here to re-enable charging while awake.
-     * On the current 1S board GPIO4 has no schematic connection (TP4056
-     * auto-charges) — this write lands on an open pad. */
-    gpio_set_level(CONFIG_WELLD_USB_CHG_GPIO, 1);
 }
 
 /* ADS1115 comparator / DRDY registers */

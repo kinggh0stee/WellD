@@ -53,7 +53,6 @@ menu "WellD Sensor"
             VBAT range 3.0–4.2 V. Reported voltage = ADC voltage * ratio / 100.
             The AIN2 read uses the ADS1115 ±4.096 V PGA, so the 2.1 V divider
             maximum at full charge fits with margin (±2.048 V would clip).
-            Older 2S boards used 330 kΩ / 100 kΩ = ratio 430 with an 8.4 V pack.
             Used for the ADS1115 AIN2 battery divider read (the only battery
             measurement path on this hardware).
 
@@ -62,8 +61,7 @@ menu "WellD Sensor"
         default 4200
         range 3000 12000
         help
-            Voltage read at 100 % state of charge. 4200 = 1S2P 18650 (4.2 V);
-            older 2S boards use 8400.
+            Voltage read at 100 % state of charge. 4200 = 1S2P 18650 (4.2 V).
             Used by the Z2M converter to compute the battery percentage.
             (The low-battery send/NVS-skip guard uses WELLD_BATT_EMPTY_MV,
             not this option.)
@@ -74,8 +72,7 @@ menu "WellD Sensor"
         range 2000 10000
         help
             Voltage read at 0 % state of charge. 3000 = 1S2P 18650 (3.0 V —
-            also the ESP32-C6 minimum supply through the HT7333 LDO passthrough);
-            older 2S boards use 6000.
+            also the ESP32-C6 minimum supply through the HT7333 LDO passthrough).
             When battery voltage (from ADC divider) drops at or below this
             threshold, the device skips the Zigbee send and all NVS writes and
             sleeps for the maximum interval to conserve charge.
@@ -106,19 +103,6 @@ menu "WellD Sensor"
         default 11
         help
             GPIO number for the I2C SCL line.
-
-    config WELLD_USB_CHG_GPIO
-        int "USB charger CE GPIO (legacy TP5100 boards, active-HIGH)"
-        range 0 21
-        default 4
-        help
-            On the current 1S board (TP4056 with CE strapped high in hardware,
-            2026-07-19) GPIO4 has no schematic connection — the drive is a
-            harmless no-op against an open pad and this option is vestigial.
-            On legacy TP5100 boards this GPIO drives the CE (chip-enable) pin
-            via R36/R37: HIGH enables USB-C charging, and isolating the pad
-            before deep-sleep lets R37 passively hold CE LOW. See
-            hardware/pcb/schematic_connections.md.
 
     config WELLD_VLOOP_GPIO
         int "VLOOP 12 V boost enable GPIO (MT3608B EN)"
@@ -161,10 +145,9 @@ menu "WellD Sensor"
         range 0 21
         default 6
         help
-            Input. Active-low: LOW means the solar MPPT charger (CN3791 on the
-            1S board; CN3722 on older revisions) is actively charging. HIGH
-            means no solar charging. Reported to the Zigbee
-            coordinator as part of the status payload.
+            Input. Active-low: LOW means the CN3791 solar MPPT charger is
+            actively charging. HIGH means no solar charging. Reported to the
+            Zigbee coordinator as part of the status payload.
 
     config WELLD_ADC_OVERSAMPLE_ENABLED
         bool "ADC oversampling (median-of-three)"

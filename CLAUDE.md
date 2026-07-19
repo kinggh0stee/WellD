@@ -74,7 +74,7 @@ One `app_main()` = one report. The order matters and is load-bearing:
 13. **Post-send bookkeeping** via `welld_post_send_action()` — the fail counter is written only on change (an in-RAM cache skips redundant NVS commits; flash has limited write cycles). On failure the reading is pushed into the 8-entry RTC store-and-forward buffer; on success the buffer and boot-attempt counter are cleared.
 14. **Update RTC history** — only when this wakeup's reading was valid (`level_m >= 0`). On an open-loop reading the previous `last_level_m` is kept and elapsed time keeps accumulating so the next valid reading spans the full gap.
 15. **Pick next sleep duration** via `welld_adaptive_sleep_sec()` when `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED` and a rate is available; otherwise `CONFIG_WELLD_SLEEP_DURATION_SEC`. Stored in `s_history.pending_sleep_sec` so the next wakeup knows how long it slept.
-16. **`enter_deep_sleep()`** — every exit path goes through this helper: `sensor_pre_sleep_cleanup()` (removes the DRDY ISR, deletes the I²C bus), drives VLOOP / BATT_DIV_EN / USB_CHG LOW, then `esp_sleep_config_gpio_isolate()` and `esp_deep_sleep()`. Never call `esp_deep_sleep()` directly.
+16. **`enter_deep_sleep()`** — every exit path goes through this helper: `sensor_pre_sleep_cleanup()` (removes the DRDY ISR, deletes the I²C bus), drives VLOOP / BATT_DIV_EN LOW, then `esp_sleep_config_gpio_isolate()` and `esp_deep_sleep()`. Never call `esp_deep_sleep()` directly.
 
 ### RTC-memory state (survives deep sleep, zeroed on cold boot)
 
@@ -93,7 +93,7 @@ All in `main/main.c`, each guarded by its own magic constant:
 
   | GPIO | PCB function |
   |------|---------------|
-  | 4 | Spare on the current 1S board (TP4056 auto-charges, CE strapped high in hardware — no schematic connection). Firmware still drives it for legacy TP5100 boards where it was the charger CE; harmless no-op on an open pad |
+  | 4 | Spare — no schematic connection (TP4056 auto-charges, CE strapped high in hardware) |
   | 5 | MT3608B VLOOP boost enable — HIGH → 12 V VLOOP active |
   | 6 | Solar charging detect input (/CHRG from the CN3791 MPPT charger, active-low — LOW = solar charging in progress) |
   | 7 | DS18B20 1-Wire data (external power mode required; parasite power unsupported) |
