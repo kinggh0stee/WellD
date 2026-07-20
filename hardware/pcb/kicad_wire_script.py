@@ -50,7 +50,7 @@ NETS = {
     "power": {
         "GND": [
             "U1.1", "U7.2", "U8.2", "U12.3", "U12.9",
-            "RT1.2", "RT_SOLAR.2", "R_PROG.2",
+            "RT1.2", "R_PROG.2", "R_COM.2", "RT_SOLAR.2", "R_NT3.2", "U14.4", "U14.5", "C_NTC.2", "Q7.S",
             "D_SOLAR.2",           # catch Schottky anode
             "R24.2", "R21.2", "R27.2", "R31.2",
             "R50.2", "R51.2",
@@ -58,7 +58,7 @@ NETS = {
             "C17.2", "C21.2", "C18.2", "C19.2", "C20.2", "C22.2",
             "C27.2", "C28.2", "C29.2",
             "D11.2", "D13.2", "D14.2", "D8.2",
-            "Q4.S", "Q6.3", "R_CS_DW.2", "J12.2", "J13.A1", "U11.2",
+            "Q4.S", "Q6.6", "Q6.7", "R_CS_DW.2", "J12.2", "J13.A1", "U11.2",
         ],
         "+3V3": [
             "U1.2",                # HT7333-A VOUT
@@ -67,7 +67,7 @@ NETS = {
         ],
         "VBAT": [
             "U1.3", "C9.1", "C10.1", "C16.1",
-            "U7.10", "R19.2", "C18.1",
+            "U7.7", "R19.2", "C18.1",
             "U8.5", "C19.1",
             "Q3.2", "Q5.2", "R29.1", "R16.1",
             "U12.5", "C29.1",
@@ -75,12 +75,12 @@ NETS = {
         ],
         "VBAT_RAW": ["BT1.1", "D13.1", "D5.3", "R_DW1.1"],
         # --- 1S protection (DW01A + FS8205A) between cell- and system GND ---
-        "BATT_N": ["BT1.2", "Q6.1", "U13.6", "C_DW.2"],
+        "BATT_N": ["BT1.2", "Q6.2", "Q6.3", "U13.6", "C_DW.2"],
         "DW_VCC": ["R_DW1.2", "U13.5", "C_DW.1"],
-        "DW_OD": ["U13.1", "Q6.2"],
-        "DW_OC": ["U13.3", "Q6.4"],
+        "DW_OD": ["U13.1", "Q6.4"],
+        "DW_OC": ["U13.3", "Q6.5"],
         "DW_CS": ["U13.2", "R_CS_DW.1"],
-        "DW_D": ["Q6.5", "Q6.6", "Q6.7", "Q6.8"],
+        "DW_D": ["Q6.1", "Q6.8"],
         "D5_GATE": ["D5.1", "R31.1"],
         # --- MT3608B boost + Q3/Q4 disconnect ---
         "VLOOP_L": ["Q3.3", "L1.1"],
@@ -93,15 +93,23 @@ NETS = {
         # --- CN3791 solar charger (integrated buck switch, 1S 4.2 V CV) ---
         "VSOLAR_IN": ["J12.1", "D14.1", "D6.2"],
         "VSOLAR": [
-            "D6.1", "D8.1", "U7.6", "C17.1", "C21.1", "R20.1",
-            "C_VG.2",
+            "D6.1", "D8.1", "U7.9", "C17.1", "C21.1", "R20.1",
+            "C_VG.2", "M_SOLAR.2", "R_DRV.1",
+            "R_NT1.1", "R_NT2.1", "R_PU.1", "U14.8", "C_NTC.1",
         ],
-        "MPPT_REF": ["R20.2", "R21.1", "U7.1"],
-        "CN_VG": ["U7.8", "C_VG.1"],
-        "SOLAR_SW": ["U7.7", "D_SOLAR.1", "L_SOLAR.1"],
-        "CN_CS": ["L_SOLAR.2", "R19.1", "U7.9"],
-        "TEMP_SOLAR": ["U7.5", "RT_SOLAR.1"],
-        "/CHRG_SOLAR": ["U7.4", "R25.2", "D7.1"],
+        "MPPT_REF": ["R20.2", "R21.1", "U7.6", "Q7.D"],
+        # --- solar cold-charge cutoff (LM393, solar-powered, zero night draw) ---
+        "NTC_T": ["R_NT1.2", "RT_SOLAR.1", "U14.3", "R_HYS.2"],
+        "NTC_REF": ["R_NT2.2", "R_NT3.1", "U14.2", "U14.6"],
+        "NTC_OUT": ["U14.1", "R_PU.2", "R_HYS.1", "Q7.G"],
+        "CN_VG": ["U7.1", "C_VG.1"],
+        "CN_DRV": ["U7.10", "M_SOLAR.1", "R_DRV.2"],
+        "SOLAR_SW": ["M_SOLAR.3", "D16.2"],
+        "SOLAR_FW": ["D16.1", "D_SOLAR.1", "L_SOLAR.1"],
+        "CN_CS": ["L_SOLAR.2", "R19.1", "U7.8"],
+        "CN_COM": ["U7.5", "C_COM.1"],
+        "COM_RC": ["C_COM.2", "R_COM.1"],
+        "/CHRG_SOLAR": ["U7.3", "R25.2", "D7.1"],
         "D7_A": ["D7.2", "R22.2"],
         # --- USB input + TP4056 linear charger ---
         "VUSB_IN": ["J13.A4", "U11.5", "F2.1"],
@@ -233,10 +241,11 @@ NETS = {
 # Explicit no-connects (see schematic_connections.md + wiring-pass decisions)
 NC_PINS = {
     "power": [
-        "U7.3",    # CN3791 /DONE — no spare GPIO (pad available for a TP)
+        "U7.4",    # CN3791 /DONE — no spare GPIO (pad available for a TP)
         "U11.6", "U11.4",   # USBLC6 device-side line ends (DM/DP float)
         "U12.6",   # TP4056 /STDBY — unused (only /CHRG is monitored)
         "U13.4",   # DW01A TD (test/delay pin — float per every reference design)
+        "U14.7",   # LM393 OUT2 — second comparator unused (inputs tied to NTC_REF/GND)
     ],
     "mcu": [
         "U6.19",   # GPIO4 — spare (TP4056 CE strapped high in hardware, no charger GPIO)

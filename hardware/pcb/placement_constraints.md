@@ -48,9 +48,9 @@ These components must land on a specific board edge:
 - Keep U9 away from L1 and L2 (inductor EMI)
 - R_DRDY (4.7kΩ pull-up for ADS_DRDY) can be anywhere near U9 or near GPIO12 trace
 
-### Group D — CN3791 solar charger thermal (1S conversion 2026-07-19 — was CN3722; R33/R34 deleted)
+### Group D — CN3791 solar charger thermal (corrected 2026-07-19 — controller, external FET carries the heat)
 `U7, C17, C18, R19, R20, R21`
-- Place a **10×10mm solid copper pour on F.Cu** under and around U7, connected to GND via ≥4 thermal vias (0.6mm drill) — the integrated switch now dissipates in-package (≈0.5–1 W worst case at 1.2 A), so the pour matters **more** than it did for the external-FET CN3722
+- A modest GND pour under U7 suffices (the controller itself dissipates little); the real heat is in M_SOLAR / D16 / D_SOLAR (Group L) — spread copper there
 - Mirror the pour on B.Cu and stitch with the same vias
 - U7 must be **≥15mm from U6** (ESP32 module)
 - U7 and U8 must be **≥8mm apart**
@@ -81,18 +81,27 @@ These components must land on a specific board edge:
 - R_NTC + RT1: divider junction at TEMP (1); route the NTC pair away from the hot U12 area; thermistor body thermally coupled to the **pack**, so expect a wired stub or pack-adjacent placement
 - R50/R51 within **3mm** of J13 CC1/CC2 pins; U11 and F2 between J13 VBUS and U12 VCC — total VUSB trace under **15mm**
 
-### Group L — CN3791 integrated buck stage (rewritten 2026-07-19 for the 1S conversion — M_SOLAR/D16/compensation deleted)
-`U7, D_SOLAR, L_SOLAR, R19 (R_CS), C17, C21, C_VG, RT_SOLAR`
+### Group L — CN3791 external buck stage (re-corrected 2026-07-19 — the CN3791 is a controller; FET stage restored)
+`U7, M_SOLAR, D16, D_SOLAR, L_SOLAR, R19 (R_CS), R_DRV, C17, C21, C_VG, C_COM, R_COM`
 
-**Hot loop (buck, internal switch):** `C17/C21 (VIN caps) → U7 VIN (6) → internal switch → SW (7) → SOLAR_SW node ← D_SOLAR (catch, GND→SW)`; L_SOLAR carries SOLAR_SW to CN_CS.
-- C17 (10µF 35V) + C21 (100nF) within **3mm** of U7 VIN (6); the C17-ground → D_SOLAR-anode-ground path must be short — this is the fast di/dt loop
-- D_SOLAR within **5mm** of U7 SW (7); SOLAR_SW copper small
+**Hot loop (buck, external P-FET):** `C17/C21 (VIN caps) → M_SOLAR S→D → SOLAR_SW → D16 → SOLAR_FW ← D_SOLAR (catch, GND→FW)`; L_SOLAR carries SOLAR_FW to CN_CS.
+- C17 (10µF 35V) + C21 (100nF) within **3mm** of M_SOLAR source / U7 VCC (9); the C17-ground → D_SOLAR-anode-ground path must be short — this is the fast di/dt loop
+- M_SOLAR, D16, D_SOLAR within **5mm** of each other; SOLAR_SW / SOLAR_FW copper small
 - D_SOLAR anode ground and C17 ground tied at one point into the pour (loop closure)
-- L_SOLAR after the SW node; no pour under it
-- **Kelvin current sense:** R19 (R_CS 0.1Ω 1206) in the L_SOLAR→VBAT path; route **CSP (9) and BAT (10) as a paired sense track directly to the two R19 pads** — no shared copper with the power path, ≥0.2mm gap from the switching nodes
-- C_VG (100nF) within **2mm** of VG (8), returned to **VIN** (not GND) — ⚠️ confirm arrangement when the CN3791 datasheet check (1S blocker #10b) lands
-- RT_SOLAR (pack NTC): same routing rule as RT1 — away from switching nodes, body thermally coupled to the pack
-- Keep the U7 thermal pour rules from Group D (10×10mm F.Cu+B.Cu, ≥4 vias — the switch dissipates in-package now)
+- L_SOLAR after the FW node; no pour under it
+- **Kelvin current sense:** R19 (R_CS 0.1Ω 1206) in the L_SOLAR→VBAT path; route **CSP (8) and BAT (7) as a paired sense track directly to the two R19 pads** — no shared copper with the power path, ≥0.2mm gap from the switching nodes
+- C_VG (100nF) within **2mm** of VG (1), returned to **VCC** (✅ datasheet-verified)
+- Gate drive DRV (10) → M_SOLAR gate: short, ≤10mm; R_DRV (300k) gate–source at the FET
+- C_COM (220nF) + R_COM (120Ω) within **5mm** of COM (5), ground end to quiet analog ground
+- RT_SOLAR (revived for the LM393 cutoff): thermistor body thermally coupled to the **cell/carrier**, wired stub or cell-adjacent placement — same rule as RT1; keep the NTC pair away from switching nodes
+- The heat now lives in M_SOLAR/D16/D_SOLAR, not U7 — the Group D pour under U7 shrinks in importance; give M_SOLAR a modest copper spread instead
+
+### Group N — Solar cold-charge cutoff (NEW 2026-07-19)
+`U14 (LM393), RT_SOLAR, R_NT1, R_NT2, R_NT3, R_PU, R_HYS, C_NTC, Q7`
+- Small-signal analog: place near U7's MPPT corner (Q7 drain lands on the MPPT_REF node — keep that trace short)
+- C_NTC within **2mm** of U14 VCC (8)
+- Divider nodes NTC_T / NTC_REF away from SOLAR_SW/SOLAR_FW switching copper (≥2 mm)
+- RT_SOLAR body couples to the cell, not to this cluster — expect a routed pair out to the carrier area
 
 ### Group H — Battery carrier + input protection (rewritten 2026-07-19)
 `BT1, U13, Q6, R_DW1, C_DW, R_CS_DW, D13, D5, R31`
@@ -101,7 +110,7 @@ These components must land on a specific board edge:
 - R_CS_DW's GND end on the **system** side (P−), R_DW1/C_DW referenced to BATT_N — do not mix the two grounds around U13; the DW01A senses the FET-pair drop between them
 - D13 (SMAJ5.0A) within **5mm** of BT1 cell+ tab
 - D5 and R31 between D13 and VBAT rail — R31 within **2mm** of D5 gate
-- RT1 and RT_SOLAR thermally coupled to the carrier/cell body (they are the charge-temperature cutoffs)
+- RT1 thermally coupled to the carrier/cell body (it is the **only** charge-temperature cutoff — the solar path has none, blocker #10f)
 
 ### Group K — Battery divider (gated)
 `Q5, R16, Q2, R26, R7, R8, C8`
@@ -127,7 +136,7 @@ These components must land on a specific board edge:
 
 | Components | Minimum gap | Reason |
 |-----------|-------------|--------|
-| U7 (CN3791) and U6 (ESP32) | 15mm | CN3791 dissipates in-package (≈0.5–1 W worst case); thermal and RF isolation |
+| U7 (CN3791) and U6 (ESP32) | 15mm | Switching-stage noise (M_SOLAR/D16) and RF isolation |
 | U8 (MT3608B) and U9 (ADS1115) | 20mm | 1.2MHz switching noise corrupts ADC readings |
 | U8 (MT3608B) and U7 (CN3791) | 8mm | Thermal — both dissipate power simultaneously |
 | L1/L2 (inductors) and U9 (ADS1115) | 15mm | Inductor EMI fields |
@@ -152,7 +161,7 @@ W1 is a hand-attached cable — it is NOT pick-and-place. PCBWay installs it man
 
 | Component | Pour size | Layer | Via stitching |
 |-----------|-----------|-------|---------------|
-| U7 CN3791 | 10×10mm | F.Cu + B.Cu, GND net | ≥4 vias, 0.6mm drill, through to B.Cu |
+| M_SOLAR / D16 / D_SOLAR (solar buck) | copper spread at each part | F.Cu, GND/net pours as routing allows | the CN3791 controller itself needs no special pour |
 | U12 TP4056 | 10×10mm | F.Cu + B.Cu, GND net (EPAD soldered) | ≥6 vias, 0.5–0.6mm drill (≈1.3W at 1A linear charge — thermal regulation folds back if undersized) |
 
 ---
