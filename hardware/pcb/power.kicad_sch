@@ -10782,7 +10782,7 @@
 				)
 			)
 		)
-		(property "Value" "47uH"
+		(property "Value" "22uH"
 			(at 167.64 129 0)
 			(show_name no)
 			(do_not_autoplace no)

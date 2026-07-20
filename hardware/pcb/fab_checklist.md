@@ -11,7 +11,7 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 - **FS8205A** (#11b): ✅ verified **with correction** — real map D=1&8/S1=2&3/G1=4/G2=5/S2=6&7; symbol redrawn (LCSC candidates C14212/C908265).
 - **BT1 carrier** (#11c): MPNs picked — **recommended MY-18650-02 THT clip pair (C2979182 ×2)**, alt BH-18650-B1BA002 one-piece (C2988620); draw the footprint from the LCSC drawing at order time (drawing PDFs proxy-blocked here). Placement already resolved: top-side along a long edge, board ≈100 × 60 mm.
 - **#10f — ✅ RESOLVED (user decision)**: discrete **LM393 cold-charge cutoff added** — solar-powered (zero night draw), ratiometric NTC threshold, clamps the CN3791 MPPT pin below ≈+2 °C (release ≈+4 °C). Bench-verify trip/release and zero charge current while clamped.
-- Remaining bench-math: TP4056 TEMP window for R_NTC 5.6 k/RT1 10 k; L_SOLAR Isat margin at 1.2 A (prefer a 2 A-class 33–47 µH part at order time).
+- ✅ **Bench-math done 2026-07-19**: TP4056 TEMP window computed **+8…+44 °C** (R_NTC 5.6 k / RT1 10 k B3950 — conservative-safe, kept). L_SOLAR resized to **SRN6045TA-220M** (22 µH, Isat 3.3 A) — peak ≈1.24 A gives 1.7× margin, same footprint.
 
 ## 1. First interactive KiCad 10 session (~1 hour, needs a desktop)
 
@@ -48,7 +48,7 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 | 3 | TP4056 1 A charge without thermal fold-back in the enclosure (or accept fold-back / drop R_PROG to 2.4 k) | ≈1.3 W linear dissipation at mid-charge; pour sizing is a guess until measured |
 | 4 | Sleep floor < 15 µA total: HT7333 Iq + TP4056 BAT leak + CN3791 BAT dark current + TVS at 4.2 V | nightly battery budget (1S blocker #10e) |
 | 5 | Charger CV agreement: CN3791 vs TP4056, both nominally 4.2 V, under co-charge | verify no oscillation / one-charger-hogging at the overlap |
-| 6 | NTC cutoffs: TP4056 stops outside RT1's ≈ +5…+44 °C window; **LM393 cutoff clamps solar charge below ≈+2 °C (release ≈+4 °C) and passes zero charge current while clamped** | outdoor Li-ion; thresholds computed, not measured |
+| 6 | NTC cutoffs: TP4056 stops outside RT1's **computed +8…+44 °C** window; **LM393 cutoff clamps solar charge below ≈+2 °C (release ≈+4 °C), zero charge current while clamped** | outdoor Li-ion; thresholds computed — confirm on bench |
 | 7 | MT3608B EN-low shutdown current < 1 µA; boost still makes 12 V from VBAT = 3.0 V (ratio 4×, higher input current) | sleep-budget + low-battery loop-read assumptions |
 | 8 | CN3791 charge current ≈ 1.2 A at R_CS 0.1 Ω (sense-formula assumption); L_SOLAR stays out of saturation | 1S blocker #10b — formula and Isat margin both assumed |
 | 9 | Loop reading sanity vs known pressure; SMAJ5.0A leakage invisible on the shunt | D9/D10 substitution validation |
