@@ -37,7 +37,7 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 ## 4. Order (all LCSC numbers verified 2026-07-14)
 
 - BOM: `bom_footprints.md` — updated 2026-07-19 for the 1S conversion. Verified numbers carried over: PRTR5V0U2X **C12333**, SMAJ5.0A **C98802** (now also D13), PTC C210838, AO3400A C20917, HRO USB-C C165948.
-- **Order-time checks (grew with the 1S conversion + carrier)**: TP4056 EPAD variant (LCSC TBD), CN3791 (C124423 verify), HT7333-A (C21583 verify), SMAJ10CA for D8/D14 (C2836474 unconfirmed), D11 (C8057 / alternate C110519), DW01A-G (TBD), FS8205A (TBD), BT1 18650 THT holder (TBD).
+- **LCSC numbers — ✅ locked 2026-07-21**: LM393 **C7955** (onsemi, JLCPCB Basic), CN3791 **C154992** (Consonance), TP4056 **C16581** (ESOP-8), HT7333-A **C21583**, DW01A **C351410** (PUOLOP, JLCPCB), FS8205A **C14212** (Fortune, JLCPCB), SMAJ10CA D8/D14 **C320526** (LGE), SMAJ13A D11 **C110519** (Diodes Inc), BT1 **C2979182** (MY-18650-02 clip ×2). Only footprint draws remain (BT1 carrier, HRO USB-C name verify, GDT land pattern).
 
 ## 5. First-article bench-verify list (before enclosure sealing)
 
