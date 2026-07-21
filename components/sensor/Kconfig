@@ -91,18 +91,21 @@ menu "WellD Sensor"
 
     config WELLD_I2C_SDA_GPIO
         int "I2C SDA GPIO (ADS1115)"
-        range 0 21
-        default 10
+        range 0 23
+        default 18
         help
             GPIO number for the I2C SDA line. Used by ADS1115 (16-bit ADC,
-            0x48). MAX17048 removed in an earlier hardware redesign.
+            0x48). GPIO18 on the WellD PCB: GPIO10/11 are NOT bonded out on the
+            ESP32-C6-MINI-1 module, so I2C moved to GPIO18/19 (2026-07-21).
+            MAX17048 removed in an earlier hardware redesign.
 
     config WELLD_I2C_SCL_GPIO
         int "I2C SCL GPIO (ADS1115)"
-        range 0 21
-        default 11
+        range 0 23
+        default 19
         help
-            GPIO number for the I2C SCL line.
+            GPIO number for the I2C SCL line. GPIO19 on the WellD PCB (see
+            WELLD_I2C_SDA_GPIO — GPIO10/11 are unavailable on the MINI-1 module).
 
     config WELLD_VLOOP_GPIO
         int "VLOOP 12 V boost enable GPIO (MT3608B EN)"

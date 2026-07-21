@@ -20,9 +20,9 @@
 
 | Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC | Notes |
 |-----|-------|---------|-------------------|-----|------|-------|
-| BT1 | **18650 battery carrier** (replaced J1 XT30, 2026-07-19) | THT clip pair (recommended) or SMD holder | `WellD:BH-18650_THT` (custom — draw from the chosen part's LCSC drawing at order time) | **Recommended: MYOUNG MY-18650-02 clip ×2 (THT, strongest retention)**; alt: MYOUNG BH-18650-B1BA002 one-piece holder (SMD); alt: Keystone 1042/1042P | MY-18650-02 = **C2979182**; BH-18650-B1BA002 = **C2988620** (both in stock, found 2026-07-19) | Pin 1=cell+, Pin 2=cell− (→ BATT_N, through protection). Single generic 18650, ≈3–3.4 Ah |
-| **U13** | **DW01A-G 1S protection supervisor** | SOT-23-6 | `Package_TO_SOT_SMD:SOT-23-6` | DW01A (Fortune / PUOLOP et al.) | **C351410** (PUOLOP) or equivalent ✅ candidates found | **✅ verified 2026-07-19** (blocker #11a): OD=1/CS=2/OC=3/TD=4/VCC=5/GND=6; trip 2.40 V (release 3.0) / 4.30 V (release 4.1); 100Ω+100nF+1kΩ = datasheet typical app |
-| **Q6** | **FS8205A dual N-FET** | TSSOP-8 | `Package_SO:TSSOP-8_4.4x3mm_P0.65mm` | FS8205A (Fortune) | **C14212** (Fortune) / C908265 (clone) ✅ candidates found | **✅ verified + symbol corrected 2026-07-19** (blocker #11b): D=1&8 (internally common), S1=2&3, G1=4, G2=5, S2=6&7; 20 V, ~6 A |
+| BT1 | **18650 battery carrier** (replaced J1 XT30, 2026-07-19) | SMD holder, ~78 mm terminal span + 2 alignment posts | **`Battery:BatteryHolder_Keystone_1042_1x18650`** ✅ (KiCad **standard** footprint — confirmed present 2026-07-21; no custom draw needed) | **Keystone 1042** (exact footprint match; Digi-Key/Mouser or PCBWay global-source); **LCSC single-source alt: MYOUNG BH-18650-B1BA002 (SMD, C2988620)** — same ~78 mm SMD form, verify its terminals land on the Keystone pads before ordering | Keystone 1042 = off-LCSC; BH-18650-B1BA002 = **C2988620**; MY-18650-02 clip pair = C2979182 | Pin 1=cell+ (−39.33), Pin 2=cell− (+39.33) → BATT_N through protection. Single generic 18650, ≈3–3.4 Ah |
+| **U13** | **DW01A-G 1S protection supervisor** | SOT-23-6 | `Package_TO_SOT_SMD:SOT-23-6` | DW01A (PUOLOP) | **C351410** ✅ (PUOLOP, JLCPCB, in-stock $0.014, confirmed 2026-07-21) | **✅ verified 2026-07-19** (blocker #11a): OD=1/CS=2/OC=3/TD=4/VCC=5/GND=6; trip 2.40 V (release 3.0) / 4.30 V (release 4.1); 100Ω+100nF+1kΩ = datasheet typical app |
+| **Q6** | **FS8205A dual N-FET** | TSSOP-8 | `Package_SO:TSSOP-8_4.4x3mm_P0.65mm` | FS8205A (Fortune) | **C14212** ✅ (Fortune Semicon, JLCPCB, confirmed 2026-07-21; LCSC alt C16052) | **✅ verified + symbol corrected 2026-07-19** (blocker #11b): D=1&8 (internally common), S1=2&3, G1=4, G2=5, S2=6&7; 20 V, ~6 A |
 | **R_DW1** | 100Ω | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — DW01A VCC filter (with C_DW) |
 | **C_DW** | 100nF | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | **NEW** — DW01A VCC filter (to cell−/BATT_N) |
 | **R_CS_DW** | 1kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — DW01A CS series resistor to system GND |
@@ -38,7 +38,7 @@
 
 | Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC | Notes |
 |-----|-------|---------|-------------------|-----|------|-------|
-| J13 | USB-C 2.0 power-only | 16-pin SMD + 4 THT shell legs | `Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12` ⚠️ verify exact footprint name in installed KiCad 10 lib before layout | **HRO TYPE-C-31-M-12** | **C165948** ✅ (order the Korean Hroparts listing specifically — part is endlessly cloned) | **SWAPPED 2026-07-19** (alternatives review P-2): was GCT USB4135-GF-A (~$1+, global sourcing) — GCT demoted to approved alternate (needs its own land pattern back). 16-pin USB-2.0 subset; symbol pins A1/A4/A5/A6/A7/B5 unchanged. ⚠️ Layout note: B-side mirror pins (B1/B4/B6/B7/B9/B12 etc.) tie to the same nets inside the footprint (GND/VBUS/D±) — check pad-to-net map when the footprint lands |
+| J13 | USB-C 2.0 power-only | 16-pin SMD + 4 THT shell legs | `Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12` ✅ (confirmed present in KiCad standard lib 2026-07-21 — descr matches the krhro.com part; pads A1/A4/A5/A6/A7/A8/A9/A12/B-mirror/S1 all present) | **HRO TYPE-C-31-M-12** | **C165948** ✅ (order the Korean Hroparts listing specifically — part is endlessly cloned) | **SWAPPED 2026-07-19** (alternatives review P-2): was GCT USB4135-GF-A (~$1+, global sourcing) — GCT demoted to approved alternate (needs its own land pattern back). 16-pin USB-2.0 subset; symbol pins A1/A4/A5/A6/A7/B5 unchanged. ⚠️ Layout note: B-side mirror pins (B1/B4/B6/B7/B9/B12 etc.) tie to the same nets inside the footprint (GND/VBUS/D±) — check pad-to-net map when the footprint lands |
 | U11 | USBLC6-2SC6 ESD | SOT-23-6 | `Package_TO_SOT_SMD:SOT-23-6` | USBLC6-2SC6 | C7519 ✅ | VBUS + D+/D− clamp. Pinout verified 2026-07-14: 1=I/O1, 2=GND, 3=I/O2, 4=I/O2, 5=VBUS, 6=I/O1 — **welld symbol must be renumbered** (blocker #9) |
 | F2 | **MF-MSMF250/16X-2 PTC 2.5A hold** | **1812** | `Fuse:Fuse_1812_4532Metric` | MF-MSMF250/16X-2 | C210838 ✅ | **Resolved 2026-07-14** (blocker #8): 2.5 A hold / 5.0 A trip / 16 V / 100 A max / 15 mΩ, −40…+85 °C. Series with J13 VBUS; TP4056 draws ≈1 A charge (linear — no boost input multiplication), comfortable inside the derated 1.75–2 A hold at 60 °C. Schematic footprint field fixed 1206 → 1812 (2026-07-19) |
 | U12 | **TP4056 1S linear charger 1A** | **SOP-8 + EPAD** | `Package_SO:SOIC-8-1EP_3.9x4.9mm_P1.27mm_EP2.29x2.29mm` (KiCad standard) | TP4056-42-ESOP8 (TopPower/NanJing) | **C16581** ✅ (found 2026-07-19 — the ESOP-8/EPAD variant) | **1S CONVERSION 2026-07-19** (replaced IP2326): 5 V VBUS → 4.2 V CC/CV linear, 1 A (R_PROG 1.2 k). CE (8) strapped to VUSB = auto-charge; /CHRG (7) open-drain → R38/TP15; /STDBY (6) NC. **EPAD GND pour required** (≈1.3 W at mid-charge; thermal regulation folds back at ≈120 °C die — drop R_PROG to 2.4 k → 0.5 A if the enclosure runs hot). Pinout confirm = 1S blocker #10a |
@@ -63,13 +63,13 @@
 
 | Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC | Notes |
 |-----|-------|---------|-------------------|-----|------|-------|
-| U7 | **CN3791 1S MPPT buck charge CONTROLLER** | **SSOP-10** | `Package_SO:SSOP-10_3.9x4.9mm_P1.00mm` | CN3791 | C124423 ⚠️ verify listing | **✅ datasheet-verified 2026-07-19** (blocker #10b, with corrections): external-P-FET controller (DRV pin, 8 V gate clamp), fixed 4.2 V ±1 % CV, MPPT ref 1.205 V ✅, VCC 4.5–28 V, I_CH = 120 mV/R_CS ✅ → **1.2 A** at R19 = 0.1 Ω, 300 kHz, BAT+CSP sleep ≈9 µA @ 4.2 V. **No TEMP pin** (→ blocker #10f) |
+| U7 | **CN3791 1S MPPT buck charge CONTROLLER** | **SSOP-10** | `Package_SO:SSOP-10_3.9x4.9mm_P1.00mm` | CN3791 | **C154992** ✅ (Consonance, confirmed in-stock LCSC 2026-07-21; supersedes the earlier C124423 guess) | **✅ datasheet-verified 2026-07-19** (blocker #10b, with corrections): external-P-FET controller (DRV pin, 8 V gate clamp), fixed 4.2 V ±1 % CV, MPPT ref 1.205 V ✅, VCC 4.5–28 V, I_CH = 120 mV/R_CS ✅ → **1.2 A** at R19 = 0.1 Ω, 300 kHz, BAT+CSP sleep ≈9 µA @ 4.2 V. **No TEMP pin** (→ blocker #10f) |
 | **M_SOLAR** | **SI2319CDS P-ch MOSFET −40 V** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | SI2319CDS-T1-GE3 (Vishay) | **C146287** ✅ (clone alt C558254) | **RESTORED 2026-07-19** — the CN3791 is a controller; external buck P-FET is required after all (same part the alternatives review picked for the CN3722 stage) |
 | **D16** | **SS34 Schottky 3A 40V** | DO-214AC | `Diode_SMD:D_SMA` | SS34 | C8678 ✅ | **RESTORED 2026-07-19** — series diode after M_SOLAR: blocks night back-feed VBAT→L_SOLAR→FET body diode→MPPT divider/VCC |
 | **R_DRV** | 300kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW 2026-07-19** — M_SOLAR gate–source pull-off (per the Soldered Electronics CN3791 reference design) |
 | **C_COM** | 220nF | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | **NEW 2026-07-19** — CN3791 COM (5) compensation, series with R_COM (datasheet-required) |
 | **R_COM** | 120Ω | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW 2026-07-19** — COM network low side to GND |
-| **U14** | **LM393 dual comparator** | SOIC-8 | `Package_SO:SOIC-8_3.9x4.9mm_P1.27mm` | LM393DR (TI/onsemi/second sources) | LCSC TBD ⚠️ (ubiquitous — e.g. C7955-class, pick at order) | **NEW 2026-07-19** — solar cold-charge cutoff (#10f resolved): powered from VSOLAR (zero night draw), ratiometric NTC threshold, clamps CN3791 MPPT via Q7 when < ≈+2 °C |
+| **U14** | **LM393 dual comparator** | SOIC-8 | `Package_SO:SOIC-8_3.9x4.9mm_P1.27mm` | LM393DR (TI/onsemi/second sources) | **C7955** ✅ (onsemi LM393DR2G, JLCPCB **Basic** — no setup fee; confirmed in stock 2026-07-21) | **NEW 2026-07-19** — solar cold-charge cutoff (#10f resolved): powered from VSOLAR (zero night draw), ratiometric NTC threshold, clamps CN3791 MPPT via Q7 when < ≈+2 °C |
 | RT_SOLAR | **10kΩ NTC B3950 1%** | 0603 | `Resistor_SMD:R_0603_1608Metric` | **SDNT1608X103F3950FTF** (Sunlord) ✅ | — ✅ (same reel as RT1) | **REVIVED 2026-07-19** for the LM393 cutoff (was deleted when the CN3791 turned out to have no TEMP pin) — thermally couple to the **cell** |
 | **R_NT1** | **30kΩ 1%** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — cutoff temp divider top; 30 k ≈ NTC B3950 at +2 °C → trip threshold |
 | **R_NT2, R_NT3** | **100kΩ 1% ×2** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — cutoff reference divider (0.5·VSOLAR, ratiometric) |
@@ -78,7 +78,7 @@
 | **C_NTC** | 100nF | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | **NEW** — U14 supply bypass |
 | **Q7** | **AO3400A N-FET** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | AO3400A | **C20917** ✅ (same reel as Q2/Q4) | **NEW** — MPPT clamp switch (small-signal; Vgs ≈ VSOLAR ≤10 V vs ±12 V abs max — OK for ≤6 V-nominal panels) |
 | D6 | MBRS140 Schottky 1A 40V | SMB | `Diode_SMD:D_SMB` | MBRS140T3G | — ✅ | Solar backfeed block (MBRS140T3G is SMB, not SOD-123) |
-| D8 | **SMAJ10CA TVS 10V bidi** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ10CA | C2836474 ⚠️ (unconfirmed listing — verify at order time; Littelfuse/MDD SMAJ10CA variants stocked) | **Re-rated 2026-07-19** (1S conversion): at CN3791 VIN; same reel as D14. Panel is now 6 V-nominal → Voc limit **10 V** (was SMAJ24CA / 24 V for the 12 V-panel 2S design) |
+| D8 | **SMAJ10CA TVS 10V bidi** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ10CA | **C320526** ✅ (LGE, confirmed in-stock LCSC 2026-07-21; was the unconfirmed C2836474) | **Re-rated 2026-07-19** (1S conversion): at CN3791 VIN; same reel as D14. Panel is now 6 V-nominal → Voc limit **10 V** (was SMAJ24CA / 24 V for the 12 V-panel 2S design) |
 | ~~M_SOLAR, D16, C_COM1, C_COM2, C_COM3, R_COM2, R33, R34~~ | — | — | — | — | — | **DELETED 2026-07-19** (1S conversion) — the CN3791's integrated switch needs no external P-FET/series diode/compensation, and its fixed 4.2 V CV needs no divider. (M_SOLAR had been swapped to SI2319CDS earlier the same day — the swap died young; C146287 is simply not ordered) |
 | **D_SOLAR** | **SS34 Schottky 3A 40V** | DO-214AC | `Diode_SMD:D_SMA` | SS34 | C8678 ✅ | Catch/freewheel diode (GND → SOLAR_SW), kept for the CN3791 stage — sanity-check against the CN3791 typical application (1S blocker #10b) |
 | **L_SOLAR** | **22µH shielded** | 6×6×4.5mm SMD (same footprint) | `Inductor_SMD:L_Bourns-SRN6045TA` | **SRN6045TA-220M** | — ✅ (Isat 3.3 A) | **Resized 2026-07-19** (was 47µH SRN6045TA-470M, Isat 1.3 A ≈ 5 % margin). Computed peak ≈1.24 A; the 220M gives **Isat 3.3 A / Irms 2.3 A / DCR 96 mΩ**, 1.7× margin. Same 6045 footprint — no redraw. Ripple 182 mApp at 300 kHz, trivial |
@@ -132,7 +132,7 @@
 | C19 | 10µF 16V | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | VIN bypass |
 | C20 | 22µF 25V X5R | 1206 | `Capacitor_SMD:C_1206_3216Metric` | — | ✅ | VOUT filter |
 | C22 | 10µF 25V X5R | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | VOUT parallel with C20 |
-| D11 | SMAJ13A TVS 13V uni | DO-214AC | `Diode_SMD:D_SMA` | SMAJ13A | C8057 ⚠️ | VLOOP terminal clamp. ⚠️ C8057 could not be confirmed as SMAJ13A (2026-07-14) — known-good alternate: **C110519** (SMAJ13A-13-F, Diodes Inc) |
+| D11 | SMAJ13A TVS 13V uni | DO-214AC | `Diode_SMD:D_SMA` | SMAJ13A | **C110519** ✅ | VLOOP terminal clamp. Confirmed 2026-07-21: **C110519** (SMAJ13A-13-F, Diodes Inc, in stock); earlier C8057 stays unconfirmed, C110519 now primary |
 | SJ1 | Solder jumper NO | — | `Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm` | — | — | MT3608B EN permanent tie, DNF |
 | SJ2 | Solder jumper NC | — | `Jumper:SolderJumper-2_P1.3mm_Bridged_RoundedPad1.0x1.5mm` | — | — | J4/J5 VLOOP bus share |
 
@@ -223,7 +223,7 @@
 
 | Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC | Notes |
 |-----|-------|---------|-------------------|-----|------|-------|
-| D14 | **SMAJ10CA TVS 10V bidi** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ10CA | C2836474 ⚠️ (verify at order time) | At J12 SOLAR+ terminal; same reel as D8. **Re-rated 2026-07-19** (1S, 6 V-nominal panel — was SMAJ24CA for 12 V panels) |
+| D14 | **SMAJ10CA TVS 10V bidi** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ10CA | **C320526** ✅ (LGE, confirmed 2026-07-21) | At J12 SOLAR+ terminal; same reel as D8. **Re-rated 2026-07-19** (1S, 6 V-nominal panel — was SMAJ24CA for 12 V panels) |
 
 ---
 
@@ -258,7 +258,7 @@
 
 | Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC |
 |-----|-------|---------|-------------------|-----|------|
-| D8 | SMAJ10CA 10V bidi | DO-214AC | `Diode_SMD:D_SMA` | SMAJ10CA | C2836474 ⚠️ |
+| D8 | SMAJ10CA 10V bidi | DO-214AC | `Diode_SMD:D_SMA` | SMAJ10CA | **C320526** ✅ |
 
 ---
 
@@ -304,7 +304,7 @@ All test points use: `TestPoint:TestPoint_Pad_1.0x1.0mm`
 |-----------|--------|--------|
 | ESP32-C6-MINI-1U | In `WellD.pretty/` already, verify | Download Espressif KiCad libs as backup |
 | ~~XT30PW-F~~ | Deleted 2026-07-19 with J1 (battery-carrier change) | — |
-| BT1 18650 carrier | **To draw** (`WellD:BH-18650_THT`, blocker #11c) | From the chosen holder's drawing — body ≈78×21 mm, two THT tabs |
+| BT1 18650 carrier | ✅ **Resolved 2026-07-21** — `Battery:BatteryHolder_Keystone_1042_1x18650` (KiCad standard, no draw) | Exact ~78 mm SMD match; populate Keystone 1042 or LCSC MYOUNG BH-18650-B1BA002 (verify terminal fit) |
 | TYPE-C-31-M-12 (J13) | `Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12` expected in KiCad official lib | ⚠️ Verify the exact footprint name against the installed KiCad 10 `Connector_USB` library before layout (swapped from GCT USB4135-GF-A 2026-07-19; GCT KiCad files remain the fallback for the approved-alternate part) |
 | GDT1/GDT2 (BOURNS 2038-SM class) | Not in standard lib | Draw `WellD:GDT_BOURNS_2038_SM` (8×6 mm SMD 2-pole land pattern per Bourns 2038-SM datasheet) — pads required even though DNF |
 | CDRH4D22 inductors (L1, L2) | May need verification | Check `Inductor_SMD:L_4.0x4.0mm_H2.6mm` exists; if not, use KiCad footprint editor to create 4.0×4.0mm SMD pad |

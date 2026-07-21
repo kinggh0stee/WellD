@@ -151,8 +151,8 @@ NETS = {
         "VBOOST_EN": ["U6.20"],
         "/CHRG_SOLAR": ["U6.21"],
         "1WIRE": ["U6.22"],
-        "I2C_SDA": ["U6.23"],
-        "I2C_SCL": ["U6.24"],
+        "I2C_SDA": ["U6.26"],   # GPIO18 (moved off GPIO10 — not bonded on MINI-1)
+        "I2C_SCL": ["U6.27"],   # GPIO19 (moved off GPIO11 — not bonded on MINI-1)
         "ADS_DRDY": ["U6.25"],
         "BATT_DIV_EN": ["U6.30"],
         "UART_TX": ["U6.31"],
@@ -249,8 +249,8 @@ NC_PINS = {
     ],
     "mcu": [
         "U6.19",   # GPIO4 — spare (TP4056 CE strapped high in hardware, no charger GPIO)
-        "U6.26",   # GPIO18 — unused
-        "U6.27",   # GPIO19 — unused
+        "U6.23",   # GPIO10 — NOT bonded out on ESP32-C6-MINI-1 (phantom pin in the custom symbol; vanishes at the official-symbol swap)
+        "U6.24",   # GPIO11 — NOT bonded out on ESP32-C6-MINI-1 (ditto)
     ],
     "sensors": [
         "U9.7",    # ADS1115 AIN3 unused

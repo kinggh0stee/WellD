@@ -36,8 +36,8 @@
 
 # ---------- Hardware I/O (custom PCB) ----------
 # I2C bus — ADS1115 only
-# CONFIG_WELLD_I2C_SDA_GPIO=10
-# CONFIG_WELLD_I2C_SCL_GPIO=11
+# CONFIG_WELLD_I2C_SDA_GPIO=18   # GPIO10/11 not bonded on ESP32-C6-MINI-1
+# CONFIG_WELLD_I2C_SCL_GPIO=19
 
 # 12 V VLOOP boost enable — MT3608B EN, gated by firmware before transducer read
 # CONFIG_WELLD_VLOOP_GPIO=5

@@ -97,8 +97,8 @@ All in `main/main.c`, each guarded by its own magic constant:
   | 5 | MT3608B VLOOP boost enable — HIGH → 12 V VLOOP active |
   | 6 | Solar charging detect input (/CHRG from the CN3791 MPPT charger, active-low — LOW = solar charging in progress) |
   | 7 | DS18B20 1-Wire data (external power mode required; parasite power unsupported) |
-  | 10 | I2C SDA (ADS1115 only) |
-  | 11 | I2C SCL (ADS1115 only) |
+  | 18 | I2C SDA (ADS1115 only) — moved off GPIO10, which is **not bonded out on the ESP32-C6-MINI-1 module** (2026-07-21) |
+  | 19 | I2C SCL (ADS1115 only) — moved off GPIO11 (also unavailable on the MINI-1 module) |
   | 12 | ADS1115 ALERT/DRDY (open-drain conversion-ready output, external 4.7 kΩ pull-up) |
   | 13 | Factory reset (hold LOW at boot → NVS erase + rejoin) |
   | 14 | Status LED (D4, optional — no firmware support yet) |
