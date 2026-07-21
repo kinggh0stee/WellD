@@ -13,7 +13,7 @@ These components must land on a specific board edge:
 | J13 (USB-C) | Any short edge (55mm side) | Connector body extends off-board; case cutout is on this wall |
 | J3 (SMA edge-mount) | Any short or long edge | Antenna port must clear the board outline; RF port protrudes ~3mm past Edge.Cuts |
 | J4, J5, J6, J7, J12 (screw terminals) | One long edge (80mm side) | Field wiring exits through cable glands on this face of the enclosure |
-| BT1 (18650 carrier) | Body parallel to a long edge | ≈78×21 mm — dominates the board; see Group H. No case battery bay needed (cell lives on the PCB) |
+| BT1 (18650 carrier) | Body parallel to a long edge | ≈78×21 mm SMD holder (`Battery:BatteryHolder_Keystone_1042_1x18650`, terminal span 78.66 mm) — dominates the board; see Group H. No case battery bay needed (cell lives on the PCB) |
 | J10 (programming header) | Any edge or interior — but keep accessible | Pogo-pin fixture needs vertical clearance; keep clear of large caps |
 
 > **J3 and J13 must be on different edges** — they cannot share the same short edge (connector bodies will clash).

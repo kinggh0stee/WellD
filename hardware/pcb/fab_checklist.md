@@ -9,7 +9,7 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 - **HT7333-A** (#10d): ✅ pinout confirmed (GND=1/VOUT=2/VIN=3); LCSC **C21583**.
 - **DW01A** (#11a): ✅ pinout + thresholds + app values confirmed (LCSC candidate C351410).
 - **FS8205A** (#11b): ✅ verified **with correction** — real map D=1&8/S1=2&3/G1=4/G2=5/S2=6&7; symbol redrawn (LCSC candidates C14212/C908265).
-- **BT1 carrier** (#11c): MPNs picked — **recommended MY-18650-02 THT clip pair (C2979182 ×2)**, alt BH-18650-B1BA002 one-piece (C2988620); draw the footprint from the LCSC drawing at order time (drawing PDFs proxy-blocked here). Placement already resolved: top-side along a long edge, board ≈100 × 60 mm.
+- **BT1 carrier** (#11c): ✅ **footprint resolved 2026-07-21** — use the KiCad-standard `Battery:BatteryHolder_Keystone_1042_1x18650` (exact match, no draw). Populate with the Keystone 1042 (off-LCSC) or MYOUNG BH-18650-B1BA002 (C2988620, LCSC) if its terminals match the Keystone pads. Placement: top-side along a long edge, board ≈100 × 60 mm.
 - **#10f — ✅ RESOLVED (user decision)**: discrete **LM393 cold-charge cutoff added** — solar-powered (zero night draw), ratiometric NTC threshold, clamps the CN3791 MPPT pin below ≈+2 °C (release ≈+4 °C). Bench-verify trip/release and zero charge current while clamped.
 - ✅ **Bench-math done 2026-07-19**: TP4056 TEMP window computed **+8…+44 °C** (R_NTC 5.6 k / RT1 10 k B3950 — conservative-safe, kept). L_SOLAR resized to **SRN6045TA-220M** (22 µH, Isat 3.3 A) — peak ≈1.24 A gives 1.7× margin, same footprint.
 
@@ -32,12 +32,12 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 
 - `placement_constraints.md` is current (rewritten 2026-07-19): Group G = TP4056 **thermal** cluster (no switching loop — EPAD pour is the constraint, ≈1.3 W at 1 A), Group L = CN3791 integrated buck (C17→VIN→SW→D_SOLAR hot loop; **CSP/BAT Kelvin pair routed together to R19**), Group B = HT7333-A LDO (trivially quiet now).
 - `kicad_place_script.py` (PCB-editor scripting console) gives starting placements.
-- Board outline: **unconstrained** (user, 2026-07-19) — draw it around the finished placement; working target ≈100 × 60 mm with the BT1 carrier top-side along a long edge (Group H). All 1S replacement parts are iron-friendly except the two EPADs (TP4056 SOP-8-EP, and the ESP32 module) — hot air preferred; the carrier is THT.
+- Board outline: **unconstrained** (user, 2026-07-19) — draw it around the finished placement; working target ≈100 × 60 mm with the BT1 carrier top-side along a long edge (Group H). All 1S replacement parts are iron-friendly except the two EPADs (TP4056 SOP-8-EP, and the ESP32 module) — hot air preferred; the carrier is an SMD holder (Keystone 1042 footprint: SMD terminals + 2 alignment posts).
 
 ## 4. Order (all LCSC numbers verified 2026-07-14)
 
 - BOM: `bom_footprints.md` — updated 2026-07-19 for the 1S conversion. Verified numbers carried over: PRTR5V0U2X **C12333**, SMAJ5.0A **C98802** (now also D13), PTC C210838, AO3400A C20917, HRO USB-C C165948.
-- **LCSC numbers — ✅ locked 2026-07-21**: LM393 **C7955** (onsemi, JLCPCB Basic), CN3791 **C154992** (Consonance), TP4056 **C16581** (ESOP-8), HT7333-A **C21583**, DW01A **C351410** (PUOLOP, JLCPCB), FS8205A **C14212** (Fortune, JLCPCB), SMAJ10CA D8/D14 **C320526** (LGE), SMAJ13A D11 **C110519** (Diodes Inc), BT1 **C2979182** (MY-18650-02 clip ×2). Only footprint draws remain (BT1 carrier, HRO USB-C name verify, GDT land pattern).
+- **LCSC numbers — ✅ locked 2026-07-21**: LM393 **C7955** (onsemi, JLCPCB Basic), CN3791 **C154992** (Consonance), TP4056 **C16581** (ESOP-8), HT7333-A **C21583**, DW01A **C351410** (PUOLOP, JLCPCB), FS8205A **C14212** (Fortune, JLCPCB), SMAJ10CA D8/D14 **C320526** (LGE), SMAJ13A D11 **C110519** (Diodes Inc), BT1 **C2979182** (MY-18650-02 clip ×2). ✅ **Footprints resolved 2026-07-21**: BT1 → `Battery:BatteryHolder_Keystone_1042_1x18650` (KiCad standard, no draw); HRO USB-C → `Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12` (confirmed present in KiCad standard lib). **Only the GDT land pattern remains** — and it is gated: GDT1/GDT2 are DNF with no chosen MPN (site-dependent populate), so the pattern is drawn only if/when a specific 2-electrode GDT is selected.
 
 ## 5. First-article bench-verify list (before enclosure sealing)
 

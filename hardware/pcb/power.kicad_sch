@@ -10056,7 +10056,7 @@
 				)
 			)
 		)
-		(property "Footprint" "WellD:BH-18650_THT"
+		(property "Footprint" "Battery:BatteryHolder_Keystone_1042_1x18650"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
