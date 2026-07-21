@@ -9,7 +9,7 @@
 - **power rails** (`GND`, `+3V3`, `+3V3_ADS`, `VBAT`, `VBAT_RAW`, `VLOOP`, `VUSB`, `VUSB_IN`, `VSOLAR`, `VSOLAR_IN`) → **global labels** (the decorative corner power symbols were removed; `PWR_FLAG` symbols drive ERC on GND / +3V3 / +3V3_ADS / VUSB / VSOLAR);
 - **cross-sheet signals** → **hierarchical labels** + matching sheet pins on `welld.kicad_sch`, joined at the root by stubs + local labels;
 - **sheet-local nets** → local labels;
-- **unused pins** → explicit `(no_connect)` markers. Currently 11: **DW01A TD**, **CN3791 /DONE** (no spare GPIO; pad available for a future TP), **TP4056 /STDBY** (only /CHRG is monitored), U11 USBLC6 device-side line ends (power-only USB port — D± go nowhere), ESP32 **GPIO4 / GPIO18 / GPIO19**, ADS1115 AIN3, D12 IO2, J3 RF pin.
+- **unused pins** → explicit `(no_connect)` markers. Currently 11: **DW01A TD**, **CN3791 /DONE** (no spare GPIO; pad available for a future TP), **TP4056 /STDBY** (only /CHRG is monitored), U11 USBLC6 device-side line ends (power-only USB port — D± go nowhere), ESP32 **GPIO4** (spare) and the phantom **GPIO10 / GPIO11** custom-symbol pins (**not bonded on the MINI-1 module** — they vanish at the official-symbol swap; I²C moved to GPIO18/19), ADS1115 AIN3, D12 IO2, J3 RF pin.
 
 **Convention:** connections below are given by **pin name** (as printed on the symbol), not pin number. Several custom symbols have unverified pin *numbers* — see [Symbol pin-number verification](#symbol-pin-number-verification) before assigning footprints.
 
@@ -74,8 +74,8 @@
 | NTC_REF | 0.5·VSOLAR | Cold-cutoff reference node: R_NT2/R_NT3 (100 k/100 k) → U14 IN1− (also parks unused IN2−) |
 | NTC_OUT | 0/VSOLAR | U14 OUT1 (o.c., R_PU 100 k) → Q7 gate; R_HYS 330 k back to NTC_T gives ≈2 °C hysteresis |
 | ADS_DRDY | signal | ADS1115 ALERT/RDY open-drain → GPIO12 (R_DRDY pull-up) |
-| I2C_SDA | signal | I²C SDA → GPIO10 (R9 pull-up) |
-| I2C_SCL | signal | I²C SCL → GPIO11 (R10 pull-up) |
+| I2C_SDA | signal | I²C SDA → **GPIO18** (R9 pull-up) — moved off GPIO10 (not bonded on MINI-1, 2026-07-21) |
+| I2C_SCL | signal | I²C SCL → **GPIO19** (R10 pull-up) — moved off GPIO11 |
 | ADC_CH0 | 0–2.0V | ADS1115 AIN0 (CH1 4-20mA after protection chain) |
 | ADC_CH1 | 0–2.0V | ADS1115 AIN1 (CH2 4-20mA after protection chain) |
 | ADC_CH2 | 0–2.1V | ADS1115 AIN2 (battery divider mid-point, ÷2) — firmware must use the ±4.096 V PGA range |
@@ -438,7 +438,7 @@ The AP63203WU buck (VIN min 3.8 V — fails at 1S empty) is **deleted** along wi
 | Component | Pin | Note |
 |-----------|-----|------|
 | U9 ADS1115 | SDA (pin 9) / SCL (pin 10) | True TI MSOP-10 numbering: ADDR=1, ALERT=2, GND=3, AIN0=4, AIN1=5, AIN2=6, AIN3=7, VDD=8, SDA=9, SCL=10 |
-| U6 ESP32-C6 | GPIO10 (SDA) / GPIO11 (SCL) | |
+| U6 ESP32-C6 | **GPIO18** (SDA) / **GPIO19** (SCL) | Moved off GPIO10/11 — **not available on the ESP32-C6-MINI-1 module** (verified against the official Espressif KiCad symbol, 2026-07-21) |
 | R9 / R10 (4.7k) | pin 2 | Pull-ups to +3V3 |
 | J8 | SDA/SCL pins | I²C header (DNF): 3V3 / GND / SDA / SCL |
 | TP8 / TP9 | pads | Test points |
@@ -577,7 +577,7 @@ Wiring above uses **pin names**. Before assigning footprints / generating a netl
 | welld:TP4056 (U12) | ✅ **verified 2026-07-19** (blocker #10a): SOP-8+EPAD, TEMP=1, PROG=2, GND=3, VCC=4, BAT=5, /STDBY=6, /CHRG=7, CE=8, EPAD=9 confirmed (datasheet sources). TEMP window 45–80 % of VIN (>0.15 s); LCSC **C16581** (TP4056-42-ESOP8, TopPower/NanJing) |
 | welld:CN3791 (U7) | ✅ **verified + REDRAWN 2026-07-19** (blocker #10b — first draw was wrong in numbering AND function set): SSOP-10, **VG=1, GND=2, /CHRG=3, /DONE=4, COM=5, MPPT=6, BAT=7, CSP=8, VCC=9, DRV=10** (datasheet extractions + the Soldered Electronics open-hardware KiCad design). It is a **controller** (external P-FET on DRV) with **no TEMP pin** |
 | welld:PRTR5V0U2X | ❌ **verified WRONG 2026-07-14** — real part is SOT-143B, 4 pins: **1=GND, 2=I/O1, 3=I/O2, 4=VCC** (Nexperia DS + KiCad official lib; footprint `Package_TO_SOT_SMD:SOT-143`). ✅ **redrawn 2026-07-14 follow-up** as 4-pin SOT-143B (phantom VCC2/GND2 pins + stubs removed), footprint `Package_TO_SOT_SMD:SOT-143`. LCSC is **C12333** (PRTR5V0U2X,215) — the BOM's old C2687116 was a UMW USBLC6-2SC6 clone |
-| welld:ESP32_C6_MINI_1U | ⚠️ custom numbering — replace with the official Espressif KiCad symbol/footprint before layout |
+| welld:ESP32_C6_MINI_1U | ⚠️ **custom pin numbering is WRONG throughout** (verified 2026-07-21 against the official Espressif `ESP32-C6-MINI-1/U` KiCad symbol) — replace with the official symbol/footprint before layout. **Critical finding**: the module does **not bond out GPIO10 or GPIO11** (present on the bare chip only); the design's I²C bus was on those pins and has been **moved to GPIO18/GPIO19** (firmware + schematic + docs updated). Official signal-pin map for the swap: EN=8, IO0=12, IO1=13, IO2=5, IO3=6, IO4=9, IO5=10, IO6=15, IO7=16, IO8=22, IO9=23, IO12=17, IO13=18, IO14=19, IO15=20, IO16=31(U0TXD), IO17=30(U0RXD), IO18=24, IO19=25, IO20=26, IO21=27, IO22=28, IO23=29; 3V3=3, GND=1 (+ multiple GND pads + EPAD) |
 
 ---
 

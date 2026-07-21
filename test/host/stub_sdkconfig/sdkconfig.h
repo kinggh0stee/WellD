@@ -20,8 +20,8 @@
 #define CONFIG_WELLD_BATT_EMPTY_MV           3000
 
 /* Rev 2 GPIO defaults (stub values for host build) */
-#define CONFIG_WELLD_I2C_SDA_GPIO            10
-#define CONFIG_WELLD_I2C_SCL_GPIO            11
+#define CONFIG_WELLD_I2C_SDA_GPIO            18
+#define CONFIG_WELLD_I2C_SCL_GPIO            19
 #define CONFIG_WELLD_VLOOP_GPIO              5
 #define CONFIG_WELLD_SOLAR_DETECT_GPIO       6
 #define CONFIG_WELLD_BATT_DIV_EN_GPIO        15

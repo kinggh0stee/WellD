@@ -51,8 +51,8 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 
 | GPIO | Direction | Function |
 |------|-----------|----------|
-| 10 | SDA | I²C bus (ADS1115 only) |
-| 11 | SCL | I²C bus (ADS1115 only) |
+| 18 | SDA | I²C bus (ADS1115 only) — GPIO10/11 are not bonded out on the ESP32-C6-MINI-1 module, so I²C is on GPIO18/19 |
+| 19 | SCL | I²C bus (ADS1115 only) |
 | 12 | Input  | ADS1115 ALERT/DRDY |
 | 5  | Output | MT3608B EN + Q4 gate — 12 V loop supply (`VLOOP`), with Q3/Q4 load-disconnect; R27 pull-down holds it off during deep sleep |
 | 4  | —      | Spare — no schematic connection (the TP4056 USB charger is autonomous, CE strapped high in hardware) |
@@ -193,8 +193,8 @@ All options have sensible defaults. Only change what differs from your hardware.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `CONFIG_WELLD_I2C_SDA_GPIO` | `10` | I²C SDA pin (ADS1115) |
-| `CONFIG_WELLD_I2C_SCL_GPIO` | `11` | I²C SCL pin |
+| `CONFIG_WELLD_I2C_SDA_GPIO` | `18` | I²C SDA pin (ADS1115). GPIO10/11 unavailable on the MINI-1 module |
+| `CONFIG_WELLD_I2C_SCL_GPIO` | `19` | I²C SCL pin (ADS1115) |
 | `CONFIG_WELLD_VLOOP_GPIO` | `5` | MT3608B EN + Q3/Q4 load-disconnect — 12 V loop supply enable. Held HIGH ≥ 10 ms before any 4–20 mA read (rail settles through the Q3 P-FET into C20/C22) |
 | `CONFIG_WELLD_SOLAR_DETECT_GPIO` | `6` | Solar charger /CHRG (CN3791) — solar-charging-active detect (active-low) |
 | `CONFIG_WELLD_BATT_DIV_EN_GPIO` | `15` | Battery-divider enable — Q2 level-shifter gate, switching the Q5 high-side P-FET |
@@ -372,7 +372,7 @@ On every boot, `sensor_i2c_init()` checks whether SDA is stuck LOW (a common sym
 
 ### Pre-sleep GPIO and I2C cleanup
 
-Before every `esp_deep_sleep()` call, `sensor_pre_sleep_cleanup()` is invoked automatically. It removes the ADS1115 DRDY ISR (GPIO12), deletes the I2C semaphore, and releases the I2C bus handles for GPIO10 (SDA) and GPIO11 (SCL). Without this step the I2C driver retains ownership of those GPIOs across the sleep boundary; the driver context is invalid after wakeup and the bus can be left in a partially-driven state. Combined with `esp_sleep_gpio_isolate()`, all GPIOs are in a defined low-leakage state before the core powers down.
+Before every `esp_deep_sleep()` call, `sensor_pre_sleep_cleanup()` is invoked automatically. It removes the ADS1115 DRDY ISR (GPIO12), deletes the I2C semaphore, and releases the I2C bus handles for GPIO18 (SDA) and GPIO19 (SCL). Without this step the I2C driver retains ownership of those GPIOs across the sleep boundary; the driver context is invalid after wakeup and the bus can be left in a partially-driven state. Combined with `esp_sleep_gpio_isolate()`, all GPIOs are in a defined low-leakage state before the core powers down.
 
 ### Low-battery protection
 

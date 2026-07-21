@@ -21,7 +21,7 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
    - "input pin not driven" on passive-driven analog inputs (ADS1115 AINx, FB pins);
    - style-grade label/wire overlaps from generated placement.
 3. Re-run `python3 hardware/pcb/netlist_check.py` after the resave — it must still report zero mismatches (guards against the migration moving anything).
-4. Replace the custom `welld:ESP32_C6_MINI_1U` symbol with the official Espressif library part (pin numbering of the custom one was never verified) and re-run ERC + `netlist_check.py`.
+4. Replace the custom `welld:ESP32_C6_MINI_1U` symbol with the official Espressif library part and re-run ERC + `netlist_check.py`. **The custom pin numbering was verified WRONG (2026-07-21)** — the official signal-pin map is recorded in the symbol-verification table in `schematic_connections.md`; map the existing nets to it. The one behavioural consequence is already applied: **GPIO10/GPIO11 are not bonded out on the MINI-1**, so I²C was moved to **GPIO18/GPIO19** across firmware + schematic + docs.
 5. Swap SJ2–SJ5 to the *Bridged* solder-jumper variants (currently Open).
 
 ## 2. Cell choice (no vendor question any more)

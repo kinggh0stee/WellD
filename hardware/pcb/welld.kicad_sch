@@ -51,7 +51,7 @@
 		)
 		(pin "/CHRG_SOLAR" bidirectional
 			(at 152.4 25.4 0)
-			(uuid "78a0c83b-7dbe-466d-8201-56b9f607a20a")
+			(uuid "71c3b4a7-90a6-4511-bb9f-664d390f456f")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -61,7 +61,7 @@
 		)
 		(pin "/CHRG_USB" bidirectional
 			(at 152.4 31.75 0)
-			(uuid "74e010e4-a289-44be-b685-dc8a5da7cd45")
+			(uuid "04ba9a20-e9c6-4191-badd-ecd81e3d006e")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -71,7 +71,7 @@
 		)
 		(pin "Q5_GATE" bidirectional
 			(at 152.4 38.1 0)
-			(uuid "f3dca751-7a7d-46f0-a13c-2a0c263b9d85")
+			(uuid "7b21e0cd-2b12-44d0-a379-260ab1df6d56")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -81,7 +81,7 @@
 		)
 		(pin "VBAT_SW" bidirectional
 			(at 152.4 44.45 0)
-			(uuid "9674a8e1-41a3-4180-b163-e0e14c65c281")
+			(uuid "bc9d3495-7d1c-422c-b6d0-18abf75c660d")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -91,7 +91,7 @@
 		)
 		(pin "VBOOST_EN" bidirectional
 			(at 152.4 50.8 0)
-			(uuid "5af7a660-9233-4660-97d6-43ada5184395")
+			(uuid "ef43e519-1554-42f0-a94a-6be680c7f4b0")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -140,7 +140,7 @@
 		)
 		(pin "/CHRG_SOLAR" bidirectional
 			(at 177.8 228.6 180)
-			(uuid "1b7842ef-d590-41da-b22c-df95012eab2f")
+			(uuid "9752a777-98b8-459d-aea0-a63075abe795")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -150,7 +150,7 @@
 		)
 		(pin "/CHRG_USB" bidirectional
 			(at 177.8 234.95 180)
-			(uuid "6da2ba8b-17aa-4f68-a882-eeb4bfbefe0e")
+			(uuid "cb7b8544-7b7a-4cc8-9a09-087d09624eca")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -160,7 +160,7 @@
 		)
 		(pin "1WIRE" bidirectional
 			(at 177.8 241.3 180)
-			(uuid "fe3a5fe7-9bf0-46fa-bd84-13bc31e44478")
+			(uuid "ed06af71-2c8c-44fe-a779-c3e11a817593")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -170,7 +170,7 @@
 		)
 		(pin "ADS_DRDY" bidirectional
 			(at 177.8 247.65 180)
-			(uuid "33d255dc-b42d-434d-b5dc-e6b3f30821e5")
+			(uuid "0f4433b1-e94c-424b-b74c-58502652395f")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -180,7 +180,7 @@
 		)
 		(pin "BOOT" bidirectional
 			(at 177.8 254 180)
-			(uuid "b6b1cd46-b54a-4b9f-83cf-089f6b509909")
+			(uuid "4506a441-2c3a-4889-9307-33d3066c3fcc")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -190,7 +190,7 @@
 		)
 		(pin "EN" bidirectional
 			(at 177.8 260.35 180)
-			(uuid "b3b3d253-56dd-492d-b6f0-5042721d9485")
+			(uuid "6e4a2a8e-7d04-4eb3-9071-0032582f18a5")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -200,7 +200,7 @@
 		)
 		(pin "GPIO0" bidirectional
 			(at 177.8 266.7 180)
-			(uuid "93aa95dd-1a1d-4e11-b55c-2f56084b0812")
+			(uuid "61fc3004-650e-44da-ad1c-c19a97d77fc2")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -210,7 +210,7 @@
 		)
 		(pin "GPIO1" bidirectional
 			(at 177.8 273.05 180)
-			(uuid "d57209f0-f391-489d-976b-df0ac1f28182")
+			(uuid "c447ae5a-47c5-480f-b62b-8da7c7a86d88")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -220,7 +220,7 @@
 		)
 		(pin "GPIO2" bidirectional
 			(at 177.8 279.4 180)
-			(uuid "2840de3c-0611-44e7-935f-9b6c75d1d61e")
+			(uuid "cdd9429a-35ea-46e9-8424-e914c7ba1a73")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -230,7 +230,7 @@
 		)
 		(pin "GPIO20" bidirectional
 			(at 177.8 285.75 180)
-			(uuid "a9973165-85d4-4246-a0e6-534c5ed47686")
+			(uuid "cc97762f-423a-4fc4-ac25-163768a7eb0a")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -240,7 +240,7 @@
 		)
 		(pin "GPIO21" bidirectional
 			(at 177.8 292.1 180)
-			(uuid "d9f3528e-269d-4eb5-b301-1a6705417af5")
+			(uuid "48aa22b0-faa9-4b87-8b4c-72b244b24b19")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -250,7 +250,7 @@
 		)
 		(pin "GPIO3" bidirectional
 			(at 177.8 298.45 180)
-			(uuid "7a6d849c-283a-4f89-a88c-cc0c0bd5c5ea")
+			(uuid "303f0fe2-c101-4b6b-8270-83b45428695a")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -260,7 +260,7 @@
 		)
 		(pin "I2C_SCL" bidirectional
 			(at 177.8 304.8 180)
-			(uuid "1ee1b446-9379-4c2a-bbd4-a7b8697eb67a")
+			(uuid "614748ab-5c47-4454-8044-382e3a2f6c2f")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -270,7 +270,7 @@
 		)
 		(pin "I2C_SDA" bidirectional
 			(at 177.8 311.15 180)
-			(uuid "70095e6b-f480-46ed-ace2-ab332aa85227")
+			(uuid "ea122931-4dd6-453a-94aa-fdcc334eade3")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -280,7 +280,7 @@
 		)
 		(pin "LED_K" bidirectional
 			(at 177.8 317.5 180)
-			(uuid "eef0e70c-3f24-470d-844c-6d43016b3f00")
+			(uuid "2115e531-d305-41c6-a05f-970a50cbea4a")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -290,7 +290,7 @@
 		)
 		(pin "LOOP_TERM_CH1" bidirectional
 			(at 177.8 323.85 180)
-			(uuid "cab4565d-263e-4d40-b55d-0ef7ab068a38")
+			(uuid "3ff3fab5-7e37-4568-a363-3ffa92d2ca9c")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -300,7 +300,7 @@
 		)
 		(pin "LOOP_TERM_CH2" bidirectional
 			(at 177.8 330.2 180)
-			(uuid "a56e7746-1ad8-4e6a-88ea-ea8b7972c9a3")
+			(uuid "1cff4db0-f81d-4e37-b79f-2fdee5e23295")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -310,7 +310,7 @@
 		)
 		(pin "UART_RX" bidirectional
 			(at 177.8 336.55 180)
-			(uuid "b26b897d-cc2c-4685-902f-fa9733bb1ff8")
+			(uuid "58f1e63a-a88e-4290-9be7-3d9354cddeaf")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -320,7 +320,7 @@
 		)
 		(pin "UART_TX" bidirectional
 			(at 177.8 342.9 180)
-			(uuid "9b41a22f-cccb-4917-a6cc-8ce065b72296")
+			(uuid "37d7ba20-147b-442f-a06d-0321f701b5f1")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -330,7 +330,7 @@
 		)
 		(pin "VBOOST_EN" bidirectional
 			(at 177.8 349.25 180)
-			(uuid "05222474-d2ad-49b6-91c8-3b07cc2ad283")
+			(uuid "8296eeb0-0315-435c-9117-2aa41f94a712")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -340,7 +340,7 @@
 		)
 		(pin "VLOOP_CH2" bidirectional
 			(at 177.8 355.6 180)
-			(uuid "5dadb850-3793-4429-ac1f-01f9a843dccf")
+			(uuid "74f46dbd-866c-4ef2-9641-215c7a7b90b1")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -389,7 +389,7 @@
 		)
 		(pin "/CHRG_SOLAR" bidirectional
 			(at 177.8 25.4 180)
-			(uuid "d485cc1d-4f01-4364-b0d5-fccac82e4383")
+			(uuid "a82808be-a5d2-4723-a221-87057b5f3684")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -399,7 +399,7 @@
 		)
 		(pin "1WIRE" bidirectional
 			(at 177.8 31.75 180)
-			(uuid "642876d8-8d8e-4739-98ac-a3016199dfa9")
+			(uuid "d592ac25-d237-445b-8b44-6ee6b970ab8f")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -409,7 +409,7 @@
 		)
 		(pin "ADS_DRDY" bidirectional
 			(at 177.8 38.1 180)
-			(uuid "a7208f33-f842-4836-b4a0-0958b654ce84")
+			(uuid "686997fd-2e0e-41f4-b611-540869771b36")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -419,7 +419,7 @@
 		)
 		(pin "BATT_DIV_EN" bidirectional
 			(at 177.8 44.45 180)
-			(uuid "c6c9d716-bbfc-4532-b3ea-68840a93590e")
+			(uuid "e159c337-765f-427c-9c9d-c110bf361aa9")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -429,7 +429,7 @@
 		)
 		(pin "BOOT" bidirectional
 			(at 177.8 50.8 180)
-			(uuid "cac1d9d7-1274-4814-8b70-40f00045353b")
+			(uuid "b3687e8b-73df-488c-8a86-12c8be665a1d")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -439,7 +439,7 @@
 		)
 		(pin "EN" bidirectional
 			(at 177.8 57.15 180)
-			(uuid "990fc606-0e18-4713-8ea6-dd6cdac0924b")
+			(uuid "a962b526-b6f3-422b-a89b-c1a000fe4025")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -449,7 +449,7 @@
 		)
 		(pin "GPIO0" bidirectional
 			(at 177.8 63.5 180)
-			(uuid "5b64e2d4-7094-4b10-9ecf-cf40594b6dac")
+			(uuid "2bf8f137-da1b-452d-803a-e47ec1edb121")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -459,7 +459,7 @@
 		)
 		(pin "GPIO1" bidirectional
 			(at 177.8 69.85 180)
-			(uuid "f7a0c820-5886-4d51-bb84-29e3f423fbf2")
+			(uuid "d9c2ba92-f64c-41f2-8b79-7c4ac816ec02")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -469,7 +469,7 @@
 		)
 		(pin "GPIO2" bidirectional
 			(at 177.8 76.2 180)
-			(uuid "3f9d719f-bb12-431d-a4bf-07894dccc9c7")
+			(uuid "afb1ce80-be00-4992-a148-f0a16acf16df")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -479,7 +479,7 @@
 		)
 		(pin "GPIO20" bidirectional
 			(at 177.8 82.55 180)
-			(uuid "860291c1-e9cf-47cf-b87b-f171b3e2cb98")
+			(uuid "6caf49b9-bc2d-48f0-ab2d-3e3f6ffdcc14")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -489,7 +489,7 @@
 		)
 		(pin "GPIO21" bidirectional
 			(at 177.8 88.9 180)
-			(uuid "7062d982-d450-4187-b5c0-56ad8eef1e40")
+			(uuid "68f04502-ad3f-430c-b41b-a80e53b6d822")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -499,7 +499,7 @@
 		)
 		(pin "GPIO3" bidirectional
 			(at 177.8 95.25 180)
-			(uuid "388b9314-e918-4be4-b231-d761ae4f4044")
+			(uuid "539d7109-2022-40c6-87a9-aa0b7b244d51")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -509,7 +509,7 @@
 		)
 		(pin "I2C_SCL" bidirectional
 			(at 177.8 101.6 180)
-			(uuid "908a25df-53a3-4c5c-adf8-dc9d25ef3e0f")
+			(uuid "9c6367f0-5e1b-4613-a845-928c6982a87c")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -519,7 +519,7 @@
 		)
 		(pin "I2C_SDA" bidirectional
 			(at 177.8 107.95 180)
-			(uuid "d9abe60e-680c-4398-a575-9e62eaa335ad")
+			(uuid "1dd3e464-9bcb-47be-8db1-6eeaa1062602")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -529,7 +529,7 @@
 		)
 		(pin "LED_K" bidirectional
 			(at 177.8 114.3 180)
-			(uuid "e9192860-1e34-42bd-8564-ffa024eeecdb")
+			(uuid "3305fd1a-946b-404f-9338-08b1ad355136")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -539,7 +539,7 @@
 		)
 		(pin "UART_RX" bidirectional
 			(at 177.8 120.65 180)
-			(uuid "3413b312-978c-4a35-9302-fe6cb5df0aa1")
+			(uuid "7abfdf16-f23a-430b-8db9-05ec8d12798b")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -549,7 +549,7 @@
 		)
 		(pin "UART_TX" bidirectional
 			(at 177.8 127 180)
-			(uuid "1aa0ff07-7ca0-4a9c-bcd4-3a7ecb5e46d3")
+			(uuid "bb0aecee-59f1-480a-81c6-be8ec58d2c54")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -559,7 +559,7 @@
 		)
 		(pin "VBOOST_EN" bidirectional
 			(at 177.8 133.35 180)
-			(uuid "a564ee0f-e213-45c0-a533-2aef7e78674f")
+			(uuid "89e46fa9-8045-4ccf-b86b-9cb52ebc23ed")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -608,7 +608,7 @@
 		)
 		(pin "1WIRE" bidirectional
 			(at 152.4 228.6 0)
-			(uuid "1ead62df-d888-4686-9e3a-e20b47955878")
+			(uuid "47c905a6-e0cf-4e83-978a-9bef659a41a8")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -618,7 +618,7 @@
 		)
 		(pin "ADS_DRDY" bidirectional
 			(at 152.4 234.95 0)
-			(uuid "429d01b6-27b7-4c27-9d70-ddae625c39d1")
+			(uuid "6e6c89a5-ef05-40bc-a315-86386dd0725d")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -628,7 +628,7 @@
 		)
 		(pin "BATT_DIV_EN" bidirectional
 			(at 152.4 241.3 0)
-			(uuid "46a1111c-4c0c-4fb7-86f9-85f6782ec993")
+			(uuid "63cfed21-ded5-403f-8e85-13be570deb32")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -638,7 +638,7 @@
 		)
 		(pin "GPIO3" bidirectional
 			(at 152.4 247.65 0)
-			(uuid "c366bc3f-1746-4007-a81b-7afe824e4030")
+			(uuid "27ed6179-24e8-4e60-98bf-e455f906d33a")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -648,7 +648,7 @@
 		)
 		(pin "I2C_SCL" bidirectional
 			(at 152.4 254 0)
-			(uuid "6b70338a-05b6-4f37-95e1-38fb3a92c576")
+			(uuid "e30e904e-4ce6-4bbe-9775-8ab51a2b6f8c")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -658,7 +658,7 @@
 		)
 		(pin "I2C_SDA" bidirectional
 			(at 152.4 260.35 0)
-			(uuid "2eebeb97-180d-4352-9e13-2f4c51e502c4")
+			(uuid "4e460480-4911-46f2-b677-28791034453c")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -668,7 +668,7 @@
 		)
 		(pin "LOOP_TERM_CH1" bidirectional
 			(at 152.4 266.7 0)
-			(uuid "d658b8d3-d145-4a6b-9e7f-178595b80d9b")
+			(uuid "d778c7d0-0893-4c17-a3b2-7c64e1c75ce2")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -678,7 +678,7 @@
 		)
 		(pin "LOOP_TERM_CH2" bidirectional
 			(at 152.4 273.05 0)
-			(uuid "d9a405ae-2426-46ae-a2eb-fdc3dcf2f3da")
+			(uuid "538cbee5-ba39-4957-accd-132df50c53fc")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -688,7 +688,7 @@
 		)
 		(pin "Q5_GATE" bidirectional
 			(at 152.4 279.4 0)
-			(uuid "e7b9c70f-321a-4408-8542-0f3bc2bc6e51")
+			(uuid "a5d1cdb6-a083-4406-9387-80c99c7732b2")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -698,7 +698,7 @@
 		)
 		(pin "VBAT_SW" bidirectional
 			(at 152.4 285.75 0)
-			(uuid "b181869f-e735-4c1c-b1b9-8f1bfc0eaf34")
+			(uuid "5464d1b9-f40d-49ac-9a35-15b95fde6220")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -708,7 +708,7 @@
 		)
 		(pin "VLOOP_CH2" bidirectional
 			(at 152.4 292.1 0)
-			(uuid "c08beda0-a49a-45d9-8e1c-114861d024ae")
+			(uuid "dd733076-1a73-4971-8f96-c079483251cc")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -725,7 +725,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "753d0720-e8c9-408f-97d9-c9b3e28d1b08")
+		(uuid "028181e8-08db-4169-962e-79542677f6dd")
 	)
 	(label "1WIRE"
 		(at 154.94 228.6 0)
@@ -735,7 +735,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "da9fe043-503c-40ec-be56-72b6e2918e37")
+		(uuid "82e7076a-200f-4108-a653-128fc85c927d")
 	)
 	(wire
 		(pts
@@ -745,7 +745,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "4227741e-8be5-4387-b497-be1e787747fe")
+		(uuid "5a98bd53-49a5-4cab-be76-c684d188ce36")
 	)
 	(label "ADS_DRDY"
 		(at 154.94 234.95 0)
@@ -755,7 +755,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "2becfd55-8f4e-467e-b332-1ee1de44183f")
+		(uuid "182f78bb-06bd-4d0e-a517-da80b4d4a022")
 	)
 	(wire
 		(pts
@@ -765,7 +765,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "53811c00-fff4-420f-abd8-1226230d9c32")
+		(uuid "ef8dfe32-ed7b-4bdf-9d6b-9d8efea29c09")
 	)
 	(label "BATT_DIV_EN"
 		(at 154.94 241.3 0)
@@ -775,7 +775,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "95bb0cb6-193b-43ad-a3de-bebece621892")
+		(uuid "91c9f1a7-9edd-4959-853e-a6393045c3a9")
 	)
 	(wire
 		(pts
@@ -785,7 +785,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "25ff4421-44a1-47db-a88a-28a7cc2cb968")
+		(uuid "2775758d-3d60-4f85-af55-e88d8b2d1e6d")
 	)
 	(label "GPIO3"
 		(at 154.94 247.65 0)
@@ -795,7 +795,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "de9fd6ea-3841-4f75-9123-d22e47e0c733")
+		(uuid "0e4fd180-8074-4e2e-9864-db7846e77b89")
 	)
 	(wire
 		(pts
@@ -805,7 +805,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "2258535c-0f39-4a50-9f44-ecf2164e6e9f")
+		(uuid "53100e9a-f773-4aef-a289-971f1b2236d5")
 	)
 	(label "I2C_SCL"
 		(at 154.94 254 0)
@@ -815,7 +815,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "45e13f28-0683-4cf4-a3c1-12c2088fe3e7")
+		(uuid "ff17d758-5176-40de-9fb5-3d013236ce51")
 	)
 	(wire
 		(pts
@@ -825,7 +825,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "b1b70374-abea-4c37-b583-0bf67c09391c")
+		(uuid "e3e19d1c-8524-4e6f-9970-e30a0a1dbc1c")
 	)
 	(label "I2C_SDA"
 		(at 154.94 260.35 0)
@@ -835,7 +835,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "eeb38baf-0b47-4a61-b366-647805fdd65a")
+		(uuid "a41c2672-cba0-4bae-86cd-34abc5f139b1")
 	)
 	(wire
 		(pts
@@ -845,7 +845,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "c0ab93af-54ca-4673-94c6-e608bd10870f")
+		(uuid "a613ebb5-84ed-4ddc-ba9f-16a8ffc18b7e")
 	)
 	(label "LOOP_TERM_CH1"
 		(at 154.94 266.7 0)
@@ -855,7 +855,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "4417ddcd-a289-4597-a761-4286fa377776")
+		(uuid "71b02bad-dd79-410b-b507-7fa6f1c17faa")
 	)
 	(wire
 		(pts
@@ -865,7 +865,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "ecbde3ac-7220-4158-93e9-c38ea9928a76")
+		(uuid "d5092364-0eb6-4b3a-99af-d8dcb93dd6bf")
 	)
 	(label "LOOP_TERM_CH2"
 		(at 154.94 273.05 0)
@@ -875,7 +875,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "d2189ccf-baf0-4dfd-85e7-15057627fc24")
+		(uuid "f8b638fe-e10f-49eb-a6fe-8931f0e7440d")
 	)
 	(wire
 		(pts
@@ -885,7 +885,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "fcd40e22-bb6e-4974-b4ba-376d5142515f")
+		(uuid "491efd21-faa2-4ce4-85c5-093388964036")
 	)
 	(label "Q5_GATE"
 		(at 154.94 279.4 0)
@@ -895,7 +895,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "c3e39a4d-0a55-471e-b5c7-ff84fe792d98")
+		(uuid "3af1beb4-24ed-457b-81b3-87827fc10d92")
 	)
 	(wire
 		(pts
@@ -905,7 +905,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "f5dbaab5-2de9-48b5-a9b6-95299487aed1")
+		(uuid "c4451fd5-8547-4738-8167-f2c05bd2ee86")
 	)
 	(label "VBAT_SW"
 		(at 154.94 285.75 0)
@@ -915,7 +915,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "929a0d12-28e5-4d78-bc89-533738455006")
+		(uuid "54cbd5d8-9281-4e85-8ee6-4bfbb486a856")
 	)
 	(wire
 		(pts
@@ -925,7 +925,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "708c96b9-4b45-4251-ac59-7ea9e11ca782")
+		(uuid "9a046233-f117-4726-abd3-b99dfab0c89e")
 	)
 	(label "VLOOP_CH2"
 		(at 154.94 292.1 0)
@@ -935,7 +935,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "1c8cdefd-009c-4192-89ee-a1d821fb675a")
+		(uuid "dd4ee1cc-3f93-4fd6-8e60-363f52ddbcc8")
 	)
 	(wire
 		(pts
@@ -945,7 +945,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "3e8b186d-f654-4e39-910f-2a27dd2ec68a")
+		(uuid "65b7ca81-ea5f-4694-8e54-966ddd693388")
 	)
 	(label "/CHRG_SOLAR"
 		(at 175.26 25.4 180)
@@ -955,7 +955,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "aaed7e52-77cc-4d0f-9c33-4d9aaa71f885")
+		(uuid "6875dd2d-2595-4817-9978-f30b90b544d0")
 	)
 	(wire
 		(pts
@@ -965,7 +965,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "480a1795-b84e-4351-9fbc-a7fcbffe95db")
+		(uuid "bea3cc90-1b1e-433f-9ba5-efa3ab28a31a")
 	)
 	(label "1WIRE"
 		(at 175.26 31.75 180)
@@ -975,7 +975,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "1af59440-7f34-4331-99c0-45699bb7d5f8")
+		(uuid "93e4ea02-1f25-4d05-aa13-301f12dc6320")
 	)
 	(wire
 		(pts
@@ -985,7 +985,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "cb1f2782-b56d-4921-bc34-3b44da33ffdb")
+		(uuid "cc3444e4-b803-4e80-aea4-ea20d1618119")
 	)
 	(label "ADS_DRDY"
 		(at 175.26 38.1 180)
@@ -995,7 +995,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "99ab36c0-e94a-459f-9f34-0a6db5cba5cb")
+		(uuid "0aa91dcc-a35a-49ca-8668-eb12d1d88486")
 	)
 	(wire
 		(pts
@@ -1005,7 +1005,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "a1d70265-72d7-4e40-96fe-804606e592dd")
+		(uuid "b4681d79-06cb-4789-b132-76fb16869646")
 	)
 	(label "BATT_DIV_EN"
 		(at 175.26 44.45 180)
@@ -1015,7 +1015,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "013e5984-fd84-495d-a946-95676fe5888e")
+		(uuid "1ba45b41-7b19-4df6-b6b8-855ab65ec3e6")
 	)
 	(wire
 		(pts
@@ -1025,7 +1025,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "e2fe6b90-5f58-4a32-af46-60b52300bc6d")
+		(uuid "fafaeb6e-10d8-4d34-b04c-6e25cd8155be")
 	)
 	(label "BOOT"
 		(at 175.26 50.8 180)
@@ -1035,7 +1035,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "a51735ad-84d8-4ce9-a0fc-43e5fb740c84")
+		(uuid "ad626019-cfd7-46e3-8587-571686edb31e")
 	)
 	(wire
 		(pts
@@ -1045,7 +1045,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "2b3ef489-5427-467c-ad25-6801f975a025")
+		(uuid "460feefa-d025-49a7-b367-cb95cc8d438f")
 	)
 	(label "EN"
 		(at 175.26 57.15 180)
@@ -1055,7 +1055,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "42adfa3a-70c7-4250-92b6-cdb60f659118")
+		(uuid "26ca322a-be35-4a38-926a-b7d581361a48")
 	)
 	(wire
 		(pts
@@ -1065,7 +1065,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "416059d4-e9bb-4eb4-8528-585af453e4ad")
+		(uuid "d0ea641e-9165-4e7d-8a65-4c1c5c2e6ee4")
 	)
 	(label "GPIO0"
 		(at 175.26 63.5 180)
@@ -1075,7 +1075,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "fb788980-df0d-4d72-97cd-0e1a1d697118")
+		(uuid "883f02a8-018c-402d-986d-d2f852bdfa3f")
 	)
 	(wire
 		(pts
@@ -1085,7 +1085,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "9a0fb3ce-aa45-4c45-b5cb-faf862b78ec8")
+		(uuid "2b72a630-c571-49cf-9ac6-280ca6e968a7")
 	)
 	(label "GPIO1"
 		(at 175.26 69.85 180)
@@ -1095,7 +1095,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "78f38971-3996-470d-bd87-a0c41b45acc8")
+		(uuid "c94444a9-d6e2-4d4b-8073-11a9631bc881")
 	)
 	(wire
 		(pts
@@ -1105,7 +1105,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "19032e18-6258-4079-96d5-0f80a4ecee60")
+		(uuid "6ef511af-3cd4-4e68-894e-795cd7179617")
 	)
 	(label "GPIO2"
 		(at 175.26 76.2 180)
@@ -1115,7 +1115,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "5c7ae6e3-2282-4ad0-b1c0-6867b2ab9422")
+		(uuid "9586f4bd-f023-4f66-88dc-f1e559f5c95d")
 	)
 	(wire
 		(pts
@@ -1125,7 +1125,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "425b8af5-d86b-4dd7-bbdd-e0c0798c914c")
+		(uuid "beb6ce31-5a56-4a64-a9ef-52e0ea7cc231")
 	)
 	(label "GPIO20"
 		(at 175.26 82.55 180)
@@ -1135,7 +1135,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "49140658-d9a1-49e4-a27a-aeaf18a50031")
+		(uuid "4c042804-e32e-4f90-a379-a0cc10f58a59")
 	)
 	(wire
 		(pts
@@ -1145,7 +1145,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "78295380-aee3-4e47-a84e-609a9249f5f1")
+		(uuid "f319f121-b919-4805-9533-9340b61367de")
 	)
 	(label "GPIO21"
 		(at 175.26 88.9 180)
@@ -1155,7 +1155,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "262b77cd-c696-4433-b8ee-effd3a6ffc56")
+		(uuid "80a77fcf-a3bc-4081-be87-9fd4f0c104dc")
 	)
 	(wire
 		(pts
@@ -1165,7 +1165,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "0cb91b07-880f-4e86-a74f-6341b2b600d3")
+		(uuid "f86db18b-91cb-4728-abf1-5446c2978a11")
 	)
 	(label "GPIO3"
 		(at 175.26 95.25 180)
@@ -1175,7 +1175,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "90b11a8f-2503-4cbd-8183-ac01d2d4c187")
+		(uuid "8e4073c3-8e2b-41c1-835f-7b6f7f071b4f")
 	)
 	(wire
 		(pts
@@ -1185,7 +1185,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "82440a0f-1c9b-4a9e-a5cf-43508cbda747")
+		(uuid "fa477605-1b10-45b2-95a9-d87f3b901246")
 	)
 	(label "I2C_SCL"
 		(at 175.26 101.6 180)
@@ -1195,7 +1195,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "6151483a-d6c3-4fa0-ab9d-f63b45d22fdc")
+		(uuid "22f5754d-9d86-482a-9c9f-cb44915a005d")
 	)
 	(wire
 		(pts
@@ -1205,7 +1205,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "9aa3f6cf-f647-459a-8188-1f48725dfa07")
+		(uuid "d9350006-6c4c-4340-8ebf-ee79f5fb8d9c")
 	)
 	(label "I2C_SDA"
 		(at 175.26 107.95 180)
@@ -1215,7 +1215,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "f7b76bfa-b638-4556-b083-2352341862da")
+		(uuid "2fb9e5a1-e228-4145-8b91-dd388d6e8c14")
 	)
 	(wire
 		(pts
@@ -1225,7 +1225,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "57f40aac-fce2-46eb-a27c-99dcc209e370")
+		(uuid "867ffb26-bc6c-43d4-8494-74776dbacb89")
 	)
 	(label "LED_K"
 		(at 175.26 114.3 180)
@@ -1235,7 +1235,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "673683b7-6103-4472-92dc-346a11d1f293")
+		(uuid "30f7df4c-5b4e-4f3f-a611-ebc637ce9c91")
 	)
 	(wire
 		(pts
@@ -1245,7 +1245,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "e5bdefeb-fb1b-4c2e-80b9-949d32e06852")
+		(uuid "aff33c52-7082-4034-83b2-1135c6b3cef1")
 	)
 	(label "UART_RX"
 		(at 175.26 120.65 180)
@@ -1255,7 +1255,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "7d597cb8-9339-4b15-b931-d438effbd373")
+		(uuid "83ed3b40-6f3f-460a-9f49-681f5d41369a")
 	)
 	(wire
 		(pts
@@ -1265,7 +1265,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "a6ae4d52-9781-470e-bcc5-81f28f6e76fe")
+		(uuid "ee30aba1-50e0-4637-ad48-c43d21f1e64d")
 	)
 	(label "UART_TX"
 		(at 175.26 127 180)
@@ -1275,7 +1275,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "1b28347b-c5af-4253-bc10-bd839b5d6d20")
+		(uuid "3631ef07-4729-48c7-8c9a-905afeaa8845")
 	)
 	(wire
 		(pts
@@ -1285,7 +1285,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "26c5d6eb-550f-4562-925d-2676e4f78aeb")
+		(uuid "7bd78c75-dc69-46c1-9506-73f1159a6458")
 	)
 	(label "VBOOST_EN"
 		(at 175.26 133.35 180)
@@ -1295,7 +1295,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "a926dee9-6d98-4914-8063-e64ea71beada")
+		(uuid "117dec0c-6b1b-4249-af06-3eba5cf451fb")
 	)
 	(wire
 		(pts
@@ -1305,7 +1305,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "47251425-3f0f-44e1-a769-6f3d2b84360f")
+		(uuid "ca93591b-2a92-47a8-a232-e157c2b83c72")
 	)
 	(label "/CHRG_SOLAR"
 		(at 175.26 228.6 180)
@@ -1315,7 +1315,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "45889732-1965-4622-b8a4-d2c1af8561eb")
+		(uuid "a3462f81-ec1d-4091-a9ab-128eb57f461b")
 	)
 	(wire
 		(pts
@@ -1325,7 +1325,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "46566a3e-1965-4dc8-94c2-4de17bc5ca6e")
+		(uuid "66d70a7d-afab-4c27-9873-4a1a317d61b8")
 	)
 	(label "/CHRG_USB"
 		(at 175.26 234.95 180)
@@ -1335,7 +1335,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "dc720eb4-f71d-4de6-b6c1-4b603ed16db3")
+		(uuid "2a15f14a-01f8-4744-b790-144a499a0b40")
 	)
 	(wire
 		(pts
@@ -1345,7 +1345,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "f3f799c1-5ed3-4eee-93a8-1fc989eccce1")
+		(uuid "05785d6e-4453-473a-95aa-38c545d9de56")
 	)
 	(label "1WIRE"
 		(at 175.26 241.3 180)
@@ -1355,7 +1355,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "cc9e2f22-e00e-4327-af2b-f83b6edd141b")
+		(uuid "a9a7201b-1a46-4ecc-97d9-28f1698b432a")
 	)
 	(wire
 		(pts
@@ -1365,7 +1365,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "639d4cc5-f516-4d03-9d90-a631b8685fa5")
+		(uuid "6740aacd-dd2f-42d0-b1c5-8141a9acddfb")
 	)
 	(label "ADS_DRDY"
 		(at 175.26 247.65 180)
@@ -1375,7 +1375,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "db5d54e1-b06d-497d-9a2c-17ecc217c8f0")
+		(uuid "defe63f7-4c81-4bb6-8bf5-c6450011f120")
 	)
 	(wire
 		(pts
@@ -1385,7 +1385,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "c43cab18-3b08-4773-bbe1-5ba4fba01b6e")
+		(uuid "4f7055ec-642e-4440-8211-9f36ade4c34c")
 	)
 	(label "BOOT"
 		(at 175.26 254 180)
@@ -1395,7 +1395,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "4e026e5a-e55b-479c-9bdd-ea035cca684c")
+		(uuid "136ba60c-7453-42f2-ac53-cb946c87af4f")
 	)
 	(wire
 		(pts
@@ -1405,7 +1405,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "60f3106f-f93a-4f78-8b24-17cbda1d4dc4")
+		(uuid "d85b6cf1-54e7-4278-92b5-803318dc0313")
 	)
 	(label "EN"
 		(at 175.26 260.35 180)
@@ -1415,7 +1415,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "f4ebb9e6-783f-4605-9661-3605bedc35b9")
+		(uuid "671f9b43-8e2d-4406-975d-35e983234ef1")
 	)
 	(wire
 		(pts
@@ -1425,7 +1425,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "f7779e7c-76e0-499b-b8fd-d9c3a0b7761e")
+		(uuid "be007343-a1ee-4021-8faf-61f3f5f51051")
 	)
 	(label "GPIO0"
 		(at 175.26 266.7 180)
@@ -1435,7 +1435,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "40a30893-7827-421e-ad3e-028ecdf01727")
+		(uuid "e60cda7b-4480-4a5c-9f2e-635924dae943")
 	)
 	(wire
 		(pts
@@ -1445,7 +1445,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "125f5630-79b7-47e1-9ba0-5df9d6dfa01d")
+		(uuid "1d0f50bc-d599-42e8-a647-848628dfe8ac")
 	)
 	(label "GPIO1"
 		(at 175.26 273.05 180)
@@ -1455,7 +1455,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "4bb98328-d75c-48db-b2b1-feeb10a42c39")
+		(uuid "db3bfc7a-8419-4718-a1ef-c33a1909b277")
 	)
 	(wire
 		(pts
@@ -1465,7 +1465,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "b7274737-1d45-41b3-bb40-22aaa5787e2f")
+		(uuid "9e6c2ddf-9b46-4bcc-b20c-ebe46488dc20")
 	)
 	(label "GPIO2"
 		(at 175.26 279.4 180)
@@ -1475,7 +1475,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "afa0cb82-89d9-4c2a-9173-aa7264976767")
+		(uuid "89958687-2077-4efa-b9db-d51f38f9c9a9")
 	)
 	(wire
 		(pts
@@ -1485,7 +1485,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "80b949bf-99ff-4b0d-b8b8-82b0da818054")
+		(uuid "c2b0d94e-18d2-4f9c-b3ea-23acc4de88dd")
 	)
 	(label "GPIO20"
 		(at 175.26 285.75 180)
@@ -1495,7 +1495,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "ecf5bdfe-d625-4e06-b49b-701e167068f6")
+		(uuid "313e0320-16f2-4ca1-a2c7-39e1788c3ec3")
 	)
 	(wire
 		(pts
@@ -1505,7 +1505,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "ac1341aa-c90f-4e0d-aaee-aee576dceb6e")
+		(uuid "4de6f54c-962d-4989-8f34-ad6fc20a6aec")
 	)
 	(label "GPIO21"
 		(at 175.26 292.1 180)
@@ -1515,7 +1515,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "2ea8453a-7f25-4cc4-9feb-e1a60b6f13d0")
+		(uuid "87b92712-7edd-4994-ba83-2ee8db8179ef")
 	)
 	(wire
 		(pts
@@ -1525,7 +1525,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "4ff2e955-b6d0-40b9-a674-a2e7cda6671a")
+		(uuid "f7dd7376-77c0-4e31-b407-e428e7a567f2")
 	)
 	(label "GPIO3"
 		(at 175.26 298.45 180)
@@ -1535,7 +1535,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "eaf77d94-2db5-477d-b0c7-5f3ba0995b8a")
+		(uuid "c182e7a1-5834-4d7c-9de2-de152ddbab06")
 	)
 	(wire
 		(pts
@@ -1545,7 +1545,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "e53574aa-b9aa-43bc-aeab-5fa8602bd494")
+		(uuid "1e6cd2d7-e8ec-4a4a-9330-abd7bdf099b2")
 	)
 	(label "I2C_SCL"
 		(at 175.26 304.8 180)
@@ -1555,7 +1555,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "9d6e96c1-9b15-48a6-bedd-4d9c2451ba45")
+		(uuid "e5d9eb5b-df02-49c7-9ca3-f98faebb858e")
 	)
 	(wire
 		(pts
@@ -1565,7 +1565,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "aabd5cf3-3c32-4187-8655-6288cfc1f585")
+		(uuid "634e0a21-430f-421c-a354-4a8b0791aa20")
 	)
 	(label "I2C_SDA"
 		(at 175.26 311.15 180)
@@ -1575,7 +1575,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "f1c06beb-63a1-4d3c-bb37-38c6c31655df")
+		(uuid "5fc9576f-b8c4-4a97-9168-2291f915a254")
 	)
 	(wire
 		(pts
@@ -1585,7 +1585,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "d9216863-bf3d-466d-812b-e2b334c47ff8")
+		(uuid "20d63729-25c1-4fcf-b18b-297854e89fd3")
 	)
 	(label "LED_K"
 		(at 175.26 317.5 180)
@@ -1595,7 +1595,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "dccbbf0a-d56b-47e9-9c47-05ec371205a2")
+		(uuid "6734218d-4361-4685-9337-cd2bfa86a57a")
 	)
 	(wire
 		(pts
@@ -1605,7 +1605,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "6059e6ae-5ced-49ea-bca1-9088ab92fa81")
+		(uuid "adb00008-5030-4090-a642-710348e8cbd8")
 	)
 	(label "LOOP_TERM_CH1"
 		(at 175.26 323.85 180)
@@ -1615,7 +1615,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "dd4fb3de-ae71-4377-9b63-7d8128ad7032")
+		(uuid "0f9a2ee7-619b-47f6-a51f-144264d34f9f")
 	)
 	(wire
 		(pts
@@ -1625,7 +1625,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "a9e3b079-c473-4796-9af5-b3cd52f116a6")
+		(uuid "bab30c66-bf78-4602-8b03-8c1b0be83cf2")
 	)
 	(label "LOOP_TERM_CH2"
 		(at 175.26 330.2 180)
@@ -1635,7 +1635,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "5ce3c629-7169-4d0a-9201-ef124e38c2af")
+		(uuid "cd2b3944-994b-4774-8c8f-06b6ef679803")
 	)
 	(wire
 		(pts
@@ -1645,7 +1645,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "4892a6e7-083b-423e-8a11-9bd076b3ed68")
+		(uuid "cbd704e2-0091-456b-90be-e75a2a8c089b")
 	)
 	(label "UART_RX"
 		(at 175.26 336.55 180)
@@ -1655,7 +1655,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "aef989dc-1848-4f50-b83c-5d4258ffd593")
+		(uuid "7238bcdd-53b1-4981-a512-eef02c736916")
 	)
 	(wire
 		(pts
@@ -1665,7 +1665,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "57ad2fa2-441f-4258-aa37-b176a5bba797")
+		(uuid "4ea1f02d-0262-4f05-9cd2-761b04037468")
 	)
 	(label "UART_TX"
 		(at 175.26 342.9 180)
@@ -1675,7 +1675,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "d961a21e-fc73-4c37-aac0-a93ae932966f")
+		(uuid "2fdd1b90-08c6-4d65-89ea-f93d868e3c2d")
 	)
 	(wire
 		(pts
@@ -1685,7 +1685,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "dbe2ef5a-f7b4-43aa-be6c-e3385799617b")
+		(uuid "ca218ecd-8ea0-47ca-9cdc-4b5de4d09404")
 	)
 	(label "VBOOST_EN"
 		(at 175.26 349.25 180)
@@ -1695,7 +1695,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "8194d8be-cea7-464e-b6f3-34b4a2941079")
+		(uuid "331cc086-186c-4b7c-91b2-5fa6dd21fef5")
 	)
 	(wire
 		(pts
@@ -1705,7 +1705,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "2e0bb4d3-b3dc-4eef-b042-4ed13798ad58")
+		(uuid "0d4f54f3-d4d3-4378-8531-a041901453ee")
 	)
 	(label "VLOOP_CH2"
 		(at 175.26 355.6 180)
@@ -1715,7 +1715,7 @@
 			)
 			(justify right bottom)
 		)
-		(uuid "b7ab7841-17a4-46ad-bf55-dee06d5a0892")
+		(uuid "d3fbd24c-d1e8-44aa-81e1-ba81e5155921")
 	)
 	(wire
 		(pts
@@ -1725,7 +1725,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "2ac31ea6-c47c-4ad6-9b05-e390ca8f4b2c")
+		(uuid "1210fccc-6f1c-43e6-8104-d733fff74605")
 	)
 	(label "/CHRG_SOLAR"
 		(at 154.94 25.4 0)
@@ -1735,7 +1735,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "5bb1ac1a-d755-4d2d-ad73-c91dac2de418")
+		(uuid "15240af2-66b5-4d30-b565-cbdabd31a584")
 	)
 	(wire
 		(pts
@@ -1745,7 +1745,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "ed16195b-c686-42dc-8be3-c141f6c4bc47")
+		(uuid "f64a1803-852b-46fc-8e82-150ca32afa22")
 	)
 	(label "/CHRG_USB"
 		(at 154.94 31.75 0)
@@ -1755,7 +1755,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "925d902c-be35-4441-9447-7bda7411c4ca")
+		(uuid "9c063e89-e35d-49c4-92ed-283a3468cd67")
 	)
 	(wire
 		(pts
@@ -1765,7 +1765,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "a346781a-957a-441b-bc99-e43cebdfc1c5")
+		(uuid "75aec0f6-af8e-4ebf-82f1-92be8e9379f9")
 	)
 	(label "Q5_GATE"
 		(at 154.94 38.1 0)
@@ -1775,7 +1775,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "3d85231f-653f-44e6-b344-3cecdb84ef7a")
+		(uuid "fbc55cee-7975-497b-a5c4-f0803ab92fbe")
 	)
 	(wire
 		(pts
@@ -1785,7 +1785,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "b6cf3a67-49f0-45f6-b106-57abb6058400")
+		(uuid "9906cea5-8d9d-4fa7-8504-74bbf87a1057")
 	)
 	(label "VBAT_SW"
 		(at 154.94 44.45 0)
@@ -1795,7 +1795,7 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "889d101d-ac70-4a93-a3da-528ad828cb60")
+		(uuid "09dd3e63-eeec-4150-a001-082955f962f9")
 	)
 	(wire
 		(pts
@@ -1805,7 +1805,7 @@
 			(width 0)
 			(type default)
 		)
-		(uuid "8034b2c2-8c2c-42b4-ba35-b3f8b2ebda24")
+		(uuid "3b5175a8-e236-4258-ae46-58184f7ae9bf")
 	)
 	(label "VBOOST_EN"
 		(at 154.94 50.8 0)
@@ -1815,6 +1815,6 @@
 			)
 			(justify left bottom)
 		)
-		(uuid "918c9c91-1ce4-4c8a-81ef-86bd74d39dea")
+		(uuid "a06b669b-129a-4f0b-a207-d4cdc764e6da")
 	)
 )
