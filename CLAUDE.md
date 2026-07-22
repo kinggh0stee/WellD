@@ -89,7 +89,7 @@ All in `main/main.c`, each guarded by its own magic constant:
 
 - `main/` — orchestration only; owns the NVS fail counter and all RTC-memory state.
 - `components/welld_core/` — pure decision/math helpers (`welld_should_wipe_nvs`, `welld_post_send_action`, `welld_rate_cm_per_hour`, `welld_adaptive_sleep_sec`, ZCL encoding helpers) with zero ESP-IDF dependencies, plus `welld_nvs.h` (shared NVS namespace/key defines).
-- `components/sensor/` — ADS1115 (I²C addr 0x48) + DS18B20 + power-control GPIOs. AIN0 reads the 4–20 mA shunt, AIN2 the gated battery divider. Conversions run single-shot with the ALERT/DRDY pin in conversion-ready mode: a falling-edge ISR on GPIO12 releases a semaphore (10 ms timeout fallback). Owns NVS keys `"offset_cm"` and `"ds18b20_rom"`. `sensor_level_from_mv()` / `sensor_battery_from_mv()` / `sensor_temp_in_range()` are the pure functions exposed for host tests. Optional median-of-three oversampling (`CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED`) and a peripheral self-test (`CONFIG_WELLD_SELFTEST_ENABLED`). PCB GPIO assignments (all configurable via `WellD Sensor` Kconfig):
+- `components/sensor/` — ADS1115 (I²C addr 0x48) + DS18B20 + power-control GPIOs. AIN0 reads the 4–20 mA shunt, AIN2 the gated battery divider. Conversions run single-shot with the ALERT/DRDY pin in conversion-ready mode: a falling-edge ISR on GPIO22 releases a semaphore (10 ms timeout fallback). Owns NVS keys `"offset_cm"` and `"ds18b20_rom"`. `sensor_level_from_mv()` / `sensor_battery_from_mv()` / `sensor_temp_in_range()` are the pure functions exposed for host tests. Optional median-of-three oversampling (`CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED`) and a peripheral self-test (`CONFIG_WELLD_SELFTEST_ENABLED`). PCB GPIO assignments (all configurable via `WellD Sensor` Kconfig):
 
   | GPIO | PCB function |
   |------|---------------|
@@ -99,10 +99,12 @@ All in `main/main.c`, each guarded by its own magic constant:
   | 7 | DS18B20 1-Wire data (external power mode required; parasite power unsupported) |
   | 18 | I2C SDA (ADS1115 only) — moved off GPIO10, which is **not bonded out on the ESP32-C6-MINI-1 module** (2026-07-21) |
   | 19 | I2C SCL (ADS1115 only) — moved off GPIO11 (also unavailable on the MINI-1 module) |
-  | 12 | ADS1115 ALERT/DRDY (open-drain conversion-ready output, external 4.7 kΩ pull-up) |
-  | 13 | Factory reset (hold LOW at boot → NVS erase + rejoin) |
+  | 12 | Native USB **D−** → USB-C (console/programming); routed from U11 USBLC6 (2026-07-22) |
+  | 13 | Native USB **D+** → USB-C (console/programming) |
   | 14 | Status LED (D4, optional — no firmware support yet) |
   | 15 | Battery divider enable (Q2 gate; pulse HIGH ≥1 ms before AIN2 read) |
+  | 22 | ADS1115 ALERT/DRDY (open-drain conversion-ready, external 4.7 kΩ pull-up) — moved off GPIO12 (now USB D−), 2026-07-22 |
+  | 23 | Factory reset (hold LOW at boot → NVS erase + rejoin) — moved off GPIO13 (now USB D+) |
 - `components/zigbee/` — esp-zigbee-lib wrapper. Spawns `zb_task` which runs the BDB commissioning state machine and the stack main loop, with a randomised steering backoff (`CONFIG_WELLD_ZIGBEE_BACKOFF_MAX_MS`) to avoid steer storms after a power outage. Synchronisation back to the caller uses a FreeRTOS event group with `SENT_BIT` / `FAIL_BIT` / `STOPPED_BIT`. The caller must wait for `STOPPED_BIT` before deep-sleep so the radio is fully released.
 
 ### Zigbee endpoints
@@ -168,7 +170,7 @@ espressif/ds18b20:        "==0.3.1"
 - Pressure-loop current < 3.5 mA → `water_level = -1.0` reported (converter forwards as `null`, HA marks unavailable).
 - Battery at/below `CONFIG_WELLD_BATT_EMPTY_MV` → send and NVS writes skipped entirely; device sleeps the maximum interval.
 - Task watchdog (30 s) and brownout detection are enabled in `sdkconfig.defaults`; the reset reason is logged into the RTC event ring on the next boot.
-- Field recovery without tools: hold GPIO13 LOW at boot for a factory reset (NVS erase + rejoin).
+- Field recovery without tools: hold GPIO23 LOW at boot for a factory reset (NVS erase + rejoin).
 
 ## Conventions
 

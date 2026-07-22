@@ -9,7 +9,7 @@
 - **power rails** (`GND`, `+3V3`, `+3V3_ADS`, `VBAT`, `VBAT_RAW`, `VLOOP`, `VUSB`, `VUSB_IN`, `VSOLAR`, `VSOLAR_IN`) → **global labels** (the decorative corner power symbols were removed; `PWR_FLAG` symbols drive ERC on GND / +3V3 / +3V3_ADS / VUSB / VSOLAR);
 - **cross-sheet signals** → **hierarchical labels** + matching sheet pins on `welld.kicad_sch`, joined at the root by stubs + local labels;
 - **sheet-local nets** → local labels;
-- **unused pins** → explicit `(no_connect)` markers. Currently 11: **DW01A TD**, **CN3791 /DONE** (no spare GPIO; pad available for a future TP), **TP4056 /STDBY** (only /CHRG is monitored), U11 USBLC6 device-side line ends (power-only USB port — D± go nowhere), ESP32 **GPIO4** (spare) and the phantom **GPIO10 / GPIO11** custom-symbol pins (**not bonded on the MINI-1 module** — they vanish at the official-symbol swap; I²C moved to GPIO18/19), ADS1115 AIN3, D12 IO2, J3 RF pin.
+- **unused pins** → explicit `(no_connect)` markers. Currently 11: **DW01A TD**, **CN3791 /DONE** (no spare GPIO; pad available for a future TP), **TP4056 /STDBY** (only /CHRG is monitored), ESP32 **GPIO4** (spare) and the phantom **GPIO10 / GPIO11** custom-symbol pins (**not bonded on the MINI-1 module** — they vanish at the official-symbol swap; I²C moved to GPIO18/19), ADS1115 AIN3, D12 IO2, J3 RF pin.
 
 **Convention:** connections below are given by **pin name** (as printed on the symbol), not pin number. Several custom symbols have unverified pin *numbers* — see [Symbol pin-number verification](#symbol-pin-number-verification) before assigning footprints.
 
@@ -21,7 +21,7 @@
 |---|--------|--------|
 | 1 | **U1 changed AP63205WU → AP63203WU** (fixed 3.3 V); R_FBH/R_FBL marked **DNP** | AP63205 is the **5 V fixed** variant of the Diodes AP6320x family; AP63203 is the 3.3 V fixed variant. The previously specified divider math (0.6 V ref) matches no part in this family (adjustable AP63200 uses a 0.8 V reference). Any of the previous combinations would have put 4.4–8 V on the 3V3 rail and destroyed the ESP32. **Verify against the Diodes datasheet before ordering** (see verification blockers). |
 | 2 | **MT3608B topology corrected** (boost: VBAT→L1→SW, not SW→L1→VOUT) and **D15 rectifier + Q3/Q4 load-disconnect added** | The MT3608 family is an async boost: the inductor goes from VIN to SW and an external Schottky (D15) carries SW→VLOOP. Without a disconnect switch, VBAT−0.4 V leaks through L1+D15 to the loop terminals permanently, powering the transmitter during deep sleep and killing the battery. |
-| 3 | **Status LED moved GPIO13 → GPIO14** (net renamed `GPIO14_LED`) | Firmware uses GPIO13 as the factory-reset strap (hold LOW at boot → NVS erase). A green LED + 1 kΩ to GND holds the pin below V_IH at boot → factory reset on **every** boot. GPIO14 was spare. TP13 added as the factory-reset pad. |
+| 3 | **Status LED moved GPIO13 → GPIO14** (net renamed `GPIO14_LED`) | At the time, firmware used GPIO13 as the factory-reset strap (a green LED + 1 kΩ to GND would hold it below V_IH → factory reset on every boot). GPIO14 was spare. TP13 added as the factory-reset pad. *(Factory reset later moved to GPIO23 with the 2026-07-22 USB-C change; the LED stays on GPIO14.)* |
 | 4 | **Battery divider switched to high-side disconnect** (Q5 P-FET added, Q2 becomes its gate driver); **C8 100 nF → 1 nF** | With the old low-side Q2, the mid node was pulled to VBAT through R7 when disabled, biasing ADS1115 AIN2 above VDD via its ESD diode (~14 µA continuous sleep drain — defeating the purpose of the switch). C8 at 100 nF gave τ ≈ 7.7 ms, far too slow for the firmware's ≥1 ms enable window; 1 nF settles in <1 ms. |
 | 5 | **R25 pull-up added on /CHRG_SOLAR** | Gate rule: open-drain outputs need external pull-ups; GPIO6 previously relied on the ESP32 internal ~45 kΩ pull-up only. |
 | 6 | **R27 pull-down added on VBOOST_EN** | GPIO5 is isolated (floats) in deep sleep; a floating MT3608B EN (and Q4 gate) could randomly enable the 12 V boost while asleep. |
@@ -73,7 +73,7 @@
 | NTC_T | 0–0.5·VSOLAR | Cold-cutoff temperature node: R_NT1 (30 k) / RT_SOLAR (10 k B3950) divider → U14 IN1+ (ratiometric — threshold independent of panel voltage) |
 | NTC_REF | 0.5·VSOLAR | Cold-cutoff reference node: R_NT2/R_NT3 (100 k/100 k) → U14 IN1− (also parks unused IN2−) |
 | NTC_OUT | 0/VSOLAR | U14 OUT1 (o.c., R_PU 100 k) → Q7 gate; R_HYS 330 k back to NTC_T gives ≈2 °C hysteresis |
-| ADS_DRDY | signal | ADS1115 ALERT/RDY open-drain → GPIO12 (R_DRDY pull-up) |
+| ADS_DRDY | signal | ADS1115 ALERT/RDY open-drain → GPIO22 (R_DRDY pull-up); moved off GPIO12 = USB D− |
 | I2C_SDA | signal | I²C SDA → **GPIO18** (R9 pull-up) — moved off GPIO10 (not bonded on MINI-1, 2026-07-21) |
 | I2C_SCL | signal | I²C SCL → **GPIO19** (R10 pull-up) — moved off GPIO11 |
 | ADC_CH0 | 0–2.0V | ADS1115 AIN0 (CH1 4-20mA after protection chain) |
@@ -92,7 +92,7 @@
 | BATT_DIV_EN | signal | GPIO15 → Q2 gate (HIGH enables battery divider via Q5) |
 | VBOOST_EN | signal | GPIO5 → MT3608B EN + Q4 gate (HIGH = 12V loop on); R27 pull-down |
 | GPIO14_LED | signal | Status LED (GPIO14 → R14 → D4 → SJ3 → GND) |
-| FACTORY_RESET | signal | GPIO13 → TP13 pad (hold LOW at boot = NVS erase) |
+| FACTORY_RESET | signal | GPIO23 → TP13 pad (hold LOW at boot = NVS erase); moved off GPIO13 = USB D+ |
 | UART_TX / UART_RX | signal | Debug UART GPIO16/GPIO17 → SJ4/SJ5 → J10 |
 | EN | signal | ESP32-C6 EN (R15 pull-up, C36, SW1, J10) |
 | BOOT | signal | ESP32-C6 GPIO9 (R12 pull-up, SW2, J10) |
@@ -369,7 +369,7 @@ Design notes: the clamp is small-signal (through R20 316 k from VSOLAR) — no p
 |-----------|-----|------|
 | J13 USB-C | VBUS (A4/B4/A9/B9) | VUSB_IN |
 | U11 USBLC6-2SC6 | VBUS | ESD clamp on VUSB_IN |
-| U11 | IO1/IO2 pairs | To J13 D+/D− stubs (power-only port; D± go nowhere else) |
+| U11 | IO1 (1/6) / IO2 (3/4) | J13 D− → IO1 (pin 1); IO1' (pin 6) → **ESP32 GPIO12 (USB D−)**. J13 D+ → IO2 (pin 3); IO2' (pin 4) → **ESP32 GPIO13 (USB D+)**. USB-C now carries data (console/programming), not just power |
 | F2 polyfuse (2A hold) | pin 1 / pin 2 | VUSB_IN → VUSB (TP4056 draws ≈1 A charge + margin; linear, no boost input multiplication) |
 | C27 (4.7µF) | pin 1 | VUSB after F2 |
 | U12 TP4056 | VCC (4) | VUSB; C28 (10µF) pin 1 at pin |
@@ -430,7 +430,7 @@ The AP63203WU buck (VIN min 3.8 V — fails at 1S empty) is **deleted** along wi
 |-----------|-----|------|
 | U9 ADS1115 | ALERT (pin 2) | Open-drain conversion-ready |
 | R_DRDY (4.7k) | pin 2 | Pull-up to +3V3 |
-| U6 ESP32-C6 | GPIO12 | Falling-edge interrupt |
+| U6 ESP32-C6 | **GPIO22** | Falling-edge interrupt (moved off GPIO12 = native USB D−, 2026-07-22) |
 | TP12 | pad | Test point |
 
 ### I2C_SDA / I2C_SCL
@@ -527,7 +527,7 @@ GPIO8 strapping: R13 (10k) pull-up to +3V3, no other connection.
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U6 ESP32-C6 | GPIO13 | Internal pull-up at boot; hold LOW ≥ boot = NVS erase + rejoin |
+| U6 ESP32-C6 | **GPIO23** | Internal pull-up at boot; hold LOW ≥ boot = NVS erase + rejoin (moved off GPIO13 = native USB D+, 2026-07-22) |
 | TP13 (**new**) | pad | Field-accessible pad — short to TP4/GND while powering on |
 
 ### UART_TX / UART_RX
@@ -596,8 +596,8 @@ When replacing `welld:ESP32_C6_MINI_1U` with Espressif's official `ESP32-C6-MINI
 | 13 | `GPIO1` (header) | 1 | XTAL_32K_N |
 | 15 | `/CHRG_SOLAR` | 6 | solar-charge detect input |
 | 16 | `1WIRE` | 7 | DS18B20 |
-| 17 | `ADS_DRDY` | 12 | native USB_D− (used as GPIO — WellD has no native USB) |
-| 18 | `FACTORY_RESET` | 13 | native USB_D+ (used as GPIO; firmware-timed read, not a strap) |
+| 17 | `USB_DM` | 12 | **native USB D−** ← U11.6 (USB-C console/programming) |
+| 18 | `USB_DP` | 13 | **native USB D+** ← U11.4 (USB-C console/programming) |
 | 19 | `GPIO14_LED` | 14 | status LED |
 | 20 | `BATT_DIV_EN` | 15 | JTAG-source strap, held low by R26 — harmless (output; no JTAG used) |
 | 22 | `GPIO8` | 8 | boot strapping pin, R13 pull-up |
@@ -606,10 +606,12 @@ When replacing `welld:ESP32_C6_MINI_1U` with Espressif's official `ESP32-C6-MINI
 | 25 | `I2C_SCL` | 19 | moved off GPIO11 (not bonded on MINI-1) |
 | 26 | `GPIO20` (header) | 20 | — |
 | 27 | `GPIO21` (header) | 21 | — |
+| 28 | `ADS_DRDY` | 22 | **moved off GPIO12** (now USB D−) — DRDY interrupt input |
+| 29 | `FACTORY_RESET` | 23 | **moved off GPIO13** (now USB D+) — hold LOW at boot |
 | 30 | `UART_RX` | 17 | U0RXD |
 | 31 | `UART_TX` | 16 | U0TXD |
 
-Pins 28/29 (GPIO22/23) are unconnected spares. **Optional enhancement (not applied):** GPIO12/13 are the module's native USB D−/D+; the USB-C connector is power-only today (D± dead-end at U11 USBLC6). Routing USB-C D± to GPIO13/12 and relocating `ADS_DRDY`→GPIO22 / `FACTORY_RESET`→GPIO23 would add USB-C programming/console/DFU — a convenience, not required (UART header J10 + Zigbee OTA already cover it).
+**USB-C console/programming — APPLIED 2026-07-22 (user decision):** the USB-C data lines (D±), previously dead-ended at U11 USBLC6, are now routed through to the module's native USB pins — U11.6 → GPIO12 (D−), U11.4 → GPIO13 (D+). This gives programming + serial console + USB-DFU over the same USB-C used for charging. To free the USB pins, `ADS_DRDY` moved GPIO12→**GPIO22** and `FACTORY_RESET` moved GPIO13→**GPIO23** (both clean pins: no strap, no USB, no JTAG). Firmware defaults updated (`WELLD_ADS1115_DRDY_GPIO`=22, `WELLD_FACTORY_RESET_GPIO`=23). No spare GPIOs remain unused except pin 9 (GPIO4).
 
 ---
 
@@ -657,7 +659,7 @@ Pins 28/29 (GPIO22/23) are unconnected spares. **Optional enhancement (not appli
 | R25, R27 | ~~Pull-up/pull-down~~ | ✅ **Placed 2026-07-13** (power sheet: R25 4.7k, R27 100k) |
 | Q5, R16 | ~~Battery divider high-side switch~~ | ✅ **Placed 2026-07-13** (power sheet: Q5=AO3407, R16=100k); ✅ Q2 (sensors sheet) wired as its gate driver per ADC_CH2 section — nets `Q5_GATE`/`VBAT_SW` cross the power↔sensors boundary as hierarchical nets |
 | R15, C36 | ~~ESP32 EN RC~~ | ✅ **Placed 2026-07-13** (mcu sheet: 10k 0402, 1µF 0402) |
-| TP13 | ~~Factory-reset pad~~ | ✅ **Placed 2026-07-13** (mcu sheet, TestPoint_Pad, net GPIO13/FACTORY_RESET) |
+| TP13 | ~~Factory-reset pad~~ | ✅ **Placed 2026-07-13** (mcu sheet, TestPoint_Pad, net FACTORY_RESET — GPIO23 since 2026-07-22) |
 | C8 | ~~Value change 100nF → 1nF~~ | ✅ **Edited 2026-07-13** (sensors sheet) |
 | D8, D14 | ~~SMAJ28CA → SMAJ24CA~~ | ✅ **Edited 2026-07-13** (power sheet) |
 | C17 | ~~25 V → 35 V rating (footprint 0805 → 1206)~~ | ✅ **Edited 2026-07-13** (power sheet: "10uF 35V", C_1206) |

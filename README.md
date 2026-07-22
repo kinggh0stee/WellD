@@ -37,8 +37,8 @@ All 15 test point pads are 1.0 mm SMD, **DNF** (do not fit) — bare copper pads
 | TP1 | VBAT (3.0–4.2 V, 1S range) | TP9 | I2C SCL |
 | TP2 | VLOOP (12 V boost) | TP10 | VSOLAR_IN |
 | TP3 | +3V3 | TP11 | VBAT_RAW (before D5 reverse-polarity MOSFET) |
-| TP4 | GND | TP12 | ADS1115 DRDY |
-| TP5 | LOOP+ (LOOP_TERM_CH1) | TP13 | FACTORY_RESET (GPIO13 — short to GND while powering on) |
+| TP4 | GND | TP12 | ADS1115 DRDY (GPIO22) |
+| TP5 | LOOP+ (LOOP_TERM_CH1) | TP13 | FACTORY_RESET (GPIO23 — short to GND while powering on) |
 | TP6 | LOOP- (LOOP_TERM_CH2) | TP14 | /CHRG_SOLAR (CN3791 charge status) |
 | TP7 | 1WIRE | TP15 | /CHRG_USB (TP4056 charge status, with R38 pull-up) |
 | TP8 | I2C SDA | | |
@@ -53,12 +53,14 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 |------|-----------|----------|
 | 18 | SDA | I²C bus (ADS1115 only) — GPIO10/11 are not bonded out on the ESP32-C6-MINI-1 module, so I²C is on GPIO18/19 |
 | 19 | SCL | I²C bus (ADS1115 only) |
-| 12 | Input  | ADS1115 ALERT/DRDY |
+| 12 | USB    | Native USB D− → USB-C (console/programming); from U11 USBLC6 |
 | 5  | Output | MT3608B EN + Q4 gate — 12 V loop supply (`VLOOP`), with Q3/Q4 load-disconnect; R27 pull-down holds it off during deep sleep |
 | 4  | —      | Spare — no schematic connection (the TP4056 USB charger is autonomous, CE strapped high in hardware) |
 | 6  | Input  | Solar charger /CHRG (CN3791) — solar-charging-active detect (active-low: LOW = charging; R25 external pull-up) |
 | 7  | 1-Wire | DS18B20 data |
-| 13 | Input  | Factory reset only (hold LOW at boot → NVS erase + rejoin; field-accessible via TP13 pad) |
+| 13 | USB    | Native USB D+ → USB-C (console/programming) |
+| 22 | Input  | ADS1115 ALERT/DRDY (moved off GPIO12) |
+| 23 | Input  | Factory reset (hold LOW at boot → NVS erase + rejoin; via TP13; moved off GPIO13) |
 | 15 | Output | Battery-divider enable (`BATT_DIV_EN`) — drives the Q2 level-shifter that switches the Q5 high-side P-FET |
 | 14 | —      | Status LED (D4 via R14/SJ3 — moved off GPIO13, which is reserved for factory reset; no firmware support yet) |
 
@@ -80,7 +82,7 @@ The ESP32-C6-MINI-1U-H4 module exposes a U.FL RF port. A ~50 mm internal pigtail
 Connector placement:
 
 - **Bottom edge (left to right):** J12 (solar, 2-pos), J4 (loop ch1, 3-pos), J5 (loop ch2, 3-pos), J6 (DS18B20, 3-pos), J7 (spare sensor, 3-pos), J10 (programming header, 6-pin 1.27 mm pitch)
-- **Left edge:** J13 (USB-C charging input, SMD). The BT1 18650 carrier occupies its own top-side band along one long edge (board size is unconstrained, so the outline grows to fit)
+- **Left edge:** J13 (USB-C — charging **and** console/programming, SMD; D± wired to the ESP32 native USB pins). The BT1 18650 carrier occupies its own top-side band along one long edge (board size is unconstrained, so the outline grows to fit)
 - **Top edge:** J3 (Amphenol 132289 SMA edge-launch)
 
 - **J4, J5, J6, J7, J12** — Phoenix Contact MC 1.5/x-G-3.5 THT terminal blocks, wave-soldered.
@@ -116,7 +118,7 @@ R31 (10 kΩ, 0402) connects D5's gate to GND. R31 holds Vgs = −Vbat so the MOS
 
 ### Enclosure
 
-The enclosure is designed in [`hardware/case/welld_case.scad`](hardware/case/welld_case.scad). **No separate battery bay is needed any more** — the single 18650 lives in the top-side on-board carrier (BT1), so the case only has to clear ≈19–21 mm above the board. The external footprint follows the final board outline (unconstrained; working target ≈100 × 60 mm) and is sized at layout time. A USB-C slot on the left short wall accommodates the J13 charging connector (TP4056 USB-C charging). The case dimensions consume the final board layout, so case work stays last.
+The enclosure is designed in [`hardware/case/welld_case.scad`](hardware/case/welld_case.scad). **No separate battery bay is needed any more** — the single 18650 lives in the top-side on-board carrier (BT1), so the case only has to clear ≈19–21 mm above the board. The external footprint follows the final board outline (unconstrained; working target ≈100 × 60 mm) and is sized at layout time. A USB-C slot on the left short wall accommodates the J13 connector (TP4056 charging **and** USB console/programming via the ESP32 native USB). The case dimensions consume the final board layout, so case work stays last.
 
 For concrete underside mounting, the lid grows four corner wings with M6 anchor-bolt clearance holes. The bolt pattern centre-to-centre span is **127 × 82 mm** (X × Y). Use the `drill_template()` module to print a 1:1 paper/card drill guide before installing anchor bolts.
 
@@ -198,7 +200,7 @@ All options have sensible defaults. Only change what differs from your hardware.
 | `CONFIG_WELLD_VLOOP_GPIO` | `5` | MT3608B EN + Q3/Q4 load-disconnect — 12 V loop supply enable. Held HIGH ≥ 10 ms before any 4–20 mA read (rail settles through the Q3 P-FET into C20/C22) |
 | `CONFIG_WELLD_SOLAR_DETECT_GPIO` | `6` | Solar charger /CHRG (CN3791) — solar-charging-active detect (active-low) |
 | `CONFIG_WELLD_BATT_DIV_EN_GPIO` | `15` | Battery-divider enable — Q2 level-shifter gate, switching the Q5 high-side P-FET |
-| `CONFIG_WELLD_ADS1115_DRDY_GPIO` | `12` | ADS1115 ALERT/DRDY interrupt input (open-drain, falling edge = conversion complete) |
+| `CONFIG_WELLD_ADS1115_DRDY_GPIO` | `22` | ADS1115 ALERT/DRDY interrupt input (moved off GPIO12, now native USB D−) |
 
 ### Advanced / diagnostics
 
@@ -208,7 +210,7 @@ All options have sensible defaults. Only change what differs from your hardware.
 | `CONFIG_WELLD_TEMP_COMPENSATION_ENABLED` | `y` | Apply water-density correction to the level reading: `level / (1 + alpha * (temp - 20))`. Suppressed automatically when DS18B20 fails (temp ≤ −127 °C) |
 | `CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C` | `207` | Water density coefficient in ppm/°C. Depends on `WELLD_TEMP_COMPENSATION_ENABLED`. Typical value for fresh water is 207 ppm/°C; range 0–500 |
 | `CONFIG_WELLD_DS18B20_RESOLUTION_BITS` | `11` | DS18B20 conversion resolution: 9 / 10 / 11 / 12 bit. Conversion time: 94 / 188 / 375 / 750 ms. 11-bit gives 0.0625 °C steps — adequate for well water monitoring and saves 375 ms per wakeup vs 12-bit |
-| `CONFIG_WELLD_FACTORY_RESET_GPIO` | `13` | If this GPIO is held LOW at boot, NVS is erased and the device rejoins Zigbee fresh. Internal pull-up enabled; leave unconnected for normal operation |
+| `CONFIG_WELLD_FACTORY_RESET_GPIO` | `23` | If this GPIO is held LOW at boot, NVS is erased and the device rejoins Zigbee fresh (moved off GPIO13, now native USB D+). Internal pull-up enabled; leave unconnected for normal operation |
 | `CONFIG_WELLD_SELFTEST_ENABLED` | `n` | Exercise all peripherals on every boot and log PASS/FAIL. Adds ~200 ms to boot time; useful for factory QA and PCB bring-up |
 | `CONFIG_WELLD_DIAGNOSTIC_MODE_ENABLED` | `n` | Stay awake for `WELLD_DIAGNOSTIC_STAY_AWAKE_SEC` after each sensor read, printing verbose logs. Deep sleep is still entered after the window expires |
 | `CONFIG_WELLD_DIAGNOSTIC_STAY_AWAKE_SEC` | `60` | Stay-awake window when diagnostic mode is enabled (seconds, 10–300). Depends on `WELLD_DIAGNOSTIC_MODE_ENABLED` |
@@ -364,7 +366,7 @@ Set `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED=n` for a fixed reporting cadence.
 
 ### Factory reset
 
-Hold `CONFIG_WELLD_FACTORY_RESET_GPIO` (default GPIO13) LOW during boot to erase NVS and force a clean Zigbee rejoin. On the custom PCB, short the TP13 pad to GND (TP4) while powering on. The internal pull-up is enabled; leaving the pin unconnected causes normal operation. This is the same NVS erase that occurs automatically after 5 consecutive Zigbee send failures.
+Hold `CONFIG_WELLD_FACTORY_RESET_GPIO` (default GPIO23) LOW during boot to erase NVS and force a clean Zigbee rejoin. On the custom PCB, short the TP13 pad to GND (TP4) while powering on. The internal pull-up is enabled; leaving the pin unconnected causes normal operation. This is the same NVS erase that occurs automatically after 5 consecutive Zigbee send failures.
 
 ### I2C bus recovery
 
@@ -372,7 +374,7 @@ On every boot, `sensor_i2c_init()` checks whether SDA is stuck LOW (a common sym
 
 ### Pre-sleep GPIO and I2C cleanup
 
-Before every `esp_deep_sleep()` call, `sensor_pre_sleep_cleanup()` is invoked automatically. It removes the ADS1115 DRDY ISR (GPIO12), deletes the I2C semaphore, and releases the I2C bus handles for GPIO18 (SDA) and GPIO19 (SCL). Without this step the I2C driver retains ownership of those GPIOs across the sleep boundary; the driver context is invalid after wakeup and the bus can be left in a partially-driven state. Combined with `esp_sleep_gpio_isolate()`, all GPIOs are in a defined low-leakage state before the core powers down.
+Before every `esp_deep_sleep()` call, `sensor_pre_sleep_cleanup()` is invoked automatically. It removes the ADS1115 DRDY ISR (GPIO22), deletes the I2C semaphore, and releases the I2C bus handles for GPIO18 (SDA) and GPIO19 (SCL). Without this step the I2C driver retains ownership of those GPIOs across the sleep boundary; the driver context is invalid after wakeup and the bus can be left in a partially-driven state. Combined with `esp_sleep_gpio_isolate()`, all GPIOs are in a defined low-leakage state before the core powers down.
 
 ### Low-battery protection
 

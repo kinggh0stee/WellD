@@ -23,4 +23,4 @@ Key constraints:
 GPIO map (do not change without PCB agent sign-off):
 - GPIO10 SDA, GPIO11 SCL (I²C — ADS1115 only)
 - GPIO5 VLOOP enable (MT3608B EN), GPIO6 solar detect (/CHRG); GPIO4 spare
-- GPIO7 DS18B20 one-wire, GPIO15 BATT_DIV_EN, GPIO12 ADS1115 ALERT/DRDY
+- GPIO7 DS18B20 one-wire, GPIO15 BATT_DIV_EN, GPIO22 ADS1115 ALERT/DRDY (GPIO12/13 are native USB D∓ → USB-C console); factory reset GPIO23
