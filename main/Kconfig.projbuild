@@ -96,9 +96,11 @@ menu "WellD Configuration"
 
     config WELLD_FACTORY_RESET_GPIO
         int "Factory reset GPIO (hold LOW at boot)"
-        range 0 21
-        default 13
+        range 0 23
+        default 23
         help
+            GPIO23 on the WellD PCB — moved off GPIO13 (2026-07-22) so the
+            native USB D+ pin can serve the USB-C console/programming path.
             If this GPIO is held LOW during boot, NVS is erased and the
             device reboots for a clean Zigbee join. Internal pull-up is
             enabled; leave unconnected for normal operation.

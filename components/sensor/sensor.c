@@ -27,7 +27,7 @@ static i2c_master_dev_handle_t  s_ads_dev = NULL;
  * Created in ads1115_drdy_init(); NULL means DRDY GPIO is not configured. */
 static SemaphoreHandle_t s_ads_drdy_sem = NULL;
 
-/* ISR handler: DRDY (GPIO12) fell — conversion complete. */
+/* ISR handler: DRDY (GPIO22) fell — conversion complete. */
 static void IRAM_ATTR ads1115_drdy_isr(void *arg)
 {
     BaseType_t woken = pdFALSE;
@@ -270,7 +270,7 @@ static int ads1115_read_mv_median(int ch)
 /* Wait for an ADS1115 single-shot conversion to complete.
  *
  * Primary path (s_ads_drdy_sem != NULL): blocks on the binary semaphore
- * that the GPIO12 falling-edge ISR releases when DRDY asserts.  The
+ * that the GPIO22 falling-edge ISR releases when DRDY asserts.  The
  * semaphore is drained before starting every conversion so a stale token
  * from a previous cycle cannot produce a false-ready.
  *
@@ -615,7 +615,7 @@ float sensor_read_battery_v(void)
 /* Remove the ADS1115 DRDY ISR and delete the I2C master bus before deep sleep.
  *
  * Without this:
- *   - The ADS1115 DRDY GPIO12 ISR remains installed.  If DRDY happens to
+ *   - The ADS1115 DRDY GPIO22 ISR remains installed.  If DRDY happens to
  *     glitch during the deep-sleep entry window the ISR fires, waking the
  *     CPU before it has entered sleep.
  *   - The I2C master bus handle (s_i2c_bus) is left open.  On the next
@@ -626,7 +626,7 @@ float sensor_read_battery_v(void)
  * Call this from every path that leads to esp_deep_sleep(). */
 void sensor_pre_sleep_cleanup(void)
 {
-    /* Remove ADS1115 DRDY ISR so GPIO12 cannot wake us prematurely. */
+    /* Remove ADS1115 DRDY ISR so GPIO22 cannot wake us prematurely. */
     if (s_ads_drdy_sem) {
         gpio_isr_handler_remove(CONFIG_WELLD_ADS1115_DRDY_GPIO);
         vSemaphoreDelete(s_ads_drdy_sem);

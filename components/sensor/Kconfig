@@ -131,10 +131,13 @@ menu "WellD Sensor"
 
     config WELLD_ADS1115_DRDY_GPIO
         int "ADS1115 ALERT/DRDY GPIO"
-        range 0 21
-        default 12
+        range 0 23
+        default 22
         help
-            GPIO connected to the ADS1115 ALERT/DRDY open-drain output. The
+            GPIO connected to the ADS1115 ALERT/DRDY open-drain output.
+            GPIO22 on the WellD PCB — moved off GPIO12 (2026-07-22) so the
+            native USB D− pin can serve the USB-C console/programming path.
+            The
             sensor component configures the ADS1115 in conversion-ready mode
             (Lo_thresh = 0x8000, Hi_thresh = 0x7FFF per datasheet) so the pin
             pulses LOW when each single-shot conversion completes. The GPIO is

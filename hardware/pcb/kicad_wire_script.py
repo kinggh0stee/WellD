@@ -113,8 +113,8 @@ NETS = {
         "D7_A": ["D7.2", "R22.2"],
         # --- USB input + TP4056 linear charger ---
         "VUSB_IN": ["J13.A4", "U11.5", "F2.1"],
-        "USB_DP": ["J13.A6", "U11.3"],
-        "USB_DM": ["J13.A7", "U11.1"],
+        "USB_DP": ["J13.A6", "U11.3", "U11.4"],   # device side (U11.4) crosses to ESP32 on the mcu sheet
+        "USB_DM": ["J13.A7", "U11.1", "U11.6"],   # device side (U11.6) crosses to ESP32 on the mcu sheet
         "CC1": ["J13.A5", "R50.1"],
         "CC2": ["J13.B5", "R51.1"],
         "VUSB": ["F2.2", "C27.1", "C28.1", "U12.4",
@@ -153,11 +153,13 @@ NETS = {
         "1WIRE": ["U6.22"],
         "I2C_SDA": ["U6.26"],   # GPIO18 (moved off GPIO10 — not bonded on MINI-1)
         "I2C_SCL": ["U6.27"],   # GPIO19 (moved off GPIO11 — not bonded on MINI-1)
-        "ADS_DRDY": ["U6.25"],
+        "ADS_DRDY": ["U6.35"],   # GPIO22 (moved off GPIO12, now USB D−)
+        "USB_DM": ["U6.25"],    # GPIO12 = native USB D− ← U11.6 (power sheet)
+        "USB_DP": ["U6.28"],    # GPIO13 = native USB D+ ← U11.4 (power sheet)
         "BATT_DIV_EN": ["U6.30"],
         "UART_TX": ["U6.31"],
         "UART_RX": ["U6.32"],
-        "FACTORY_RESET": ["U6.28", "TP13.1"],
+        "FACTORY_RESET": ["U6.36", "TP13.1"],   # GPIO23 (moved off GPIO13, now USB D+)
         "GPIO14_LED": ["U6.29", "R14.1"],
         "LED_A": ["R14.2", "D4.2"],
         "LED_K": ["D4.1"],
@@ -242,7 +244,6 @@ NETS = {
 NC_PINS = {
     "power": [
         "U7.4",    # CN3791 /DONE — no spare GPIO (pad available for a TP)
-        "U11.6", "U11.4",   # USBLC6 device-side line ends (DM/DP float)
         "U12.6",   # TP4056 /STDBY — unused (only /CHRG is monitored)
         "U13.4",   # DW01A TD (test/delay pin — float per every reference design)
         "U14.7",   # LM393 OUT2 — second comparator unused (inputs tied to NTC_REF/GND)

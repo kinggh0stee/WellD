@@ -152,7 +152,7 @@ static void boot_attempts_uncount(void)
     }
 }
 
-/* Factory reset: hold GPIO13 LOW at boot to erase NVS and force rejoin.
+/* Factory reset: hold GPIO23 LOW at boot to erase NVS and force rejoin.
  * Internal pull-up keeps it HIGH by default; short to GND for reset. */
 static bool factory_reset_check(void)
 {
@@ -363,7 +363,7 @@ static void write_fail_count(uint32_t count)
  *
  * Sequence:
  *  1. sensor_pre_sleep_cleanup() — removes ADS1115 DRDY ISR (prevents a
- *     spurious GPIO12 edge from waking the CPU during sleep entry) and
+ *     spurious GPIO22 edge from waking the CPU during sleep entry) and
  *     deletes the I2C master bus (prevents port 0 staying claimed across
  *     wakeups).
  *  2. Drive power-control outputs LOW: GPIO5 (VLOOP), GPIO15 (BATT_DIV_EN).
