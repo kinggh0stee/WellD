@@ -577,7 +577,39 @@ Wiring above uses **pin names**. Before assigning footprints / generating a netl
 | welld:TP4056 (U12) | ✅ **verified 2026-07-19** (blocker #10a): SOP-8+EPAD, TEMP=1, PROG=2, GND=3, VCC=4, BAT=5, /STDBY=6, /CHRG=7, CE=8, EPAD=9 confirmed (datasheet sources). TEMP window 45–80 % of VIN (>0.15 s); LCSC **C16581** (TP4056-42-ESOP8, TopPower/NanJing) |
 | welld:CN3791 (U7) | ✅ **verified + REDRAWN 2026-07-19** (blocker #10b — first draw was wrong in numbering AND function set): SSOP-10, **VG=1, GND=2, /CHRG=3, /DONE=4, COM=5, MPPT=6, BAT=7, CSP=8, VCC=9, DRV=10** (datasheet extractions + the Soldered Electronics open-hardware KiCad design). It is a **controller** (external P-FET on DRV) with **no TEMP pin** |
 | welld:PRTR5V0U2X | ❌ **verified WRONG 2026-07-14** — real part is SOT-143B, 4 pins: **1=GND, 2=I/O1, 3=I/O2, 4=VCC** (Nexperia DS + KiCad official lib; footprint `Package_TO_SOT_SMD:SOT-143`). ✅ **redrawn 2026-07-14 follow-up** as 4-pin SOT-143B (phantom VCC2/GND2 pins + stubs removed), footprint `Package_TO_SOT_SMD:SOT-143`. LCSC is **C12333** (PRTR5V0U2X,215) — the BOM's old C2687116 was a UMW USBLC6-2SC6 clone |
-| welld:ESP32_C6_MINI_1U | ⚠️ **custom pin numbering is WRONG throughout** (verified 2026-07-21 against the official Espressif `ESP32-C6-MINI-1/U` KiCad symbol) — replace with the official symbol/footprint before layout. **Critical finding**: the module does **not bond out GPIO10 or GPIO11** (present on the bare chip only); the design's I²C bus was on those pins and has been **moved to GPIO18/GPIO19** (firmware + schematic + docs updated). Official signal-pin map for the swap: EN=8, IO0=12, IO1=13, IO2=5, IO3=6, IO4=9, IO5=10, IO6=15, IO7=16, IO8=22, IO9=23, IO12=17, IO13=18, IO14=19, IO15=20, IO16=31(U0TXD), IO17=30(U0RXD), IO18=24, IO19=25, IO20=26, IO21=27, IO22=28, IO23=29; 3V3=3, GND=1 (+ multiple GND pads + EPAD) |
+| welld:ESP32_C6_MINI_1U | ⚠️ **custom pin numbering is WRONG throughout** (verified 2026-07-21 against the official Espressif `ESP32-C6-MINI-1/U` KiCad symbol) — replace with the official symbol/footprint before layout. **Critical finding**: the module does **not bond out GPIO10 or GPIO11** (present on the bare chip only); the design's I²C bus was on those pins and has been **moved to GPIO18/GPIO19** (firmware + schematic + docs updated). Full net→pin map for the swap is in the table below. |
+
+### ESP32-C6-MINI-1 net → official pin map (for the symbol swap)
+
+When replacing `welld:ESP32_C6_MINI_1U` with Espressif's official `ESP32-C6-MINI-1` symbol, attach each net to the pin below (sorted by official module pin number). Verified 2026-07-21 against Espressif's KiCad symbol; nets read from `kicad_wire_script.py`.
+
+| Official pin | Net | GPIO | Note |
+|--------------|-----|------|------|
+| 1 (+ 2, 4, 7, 11, 14, 21, EPAD) | `GND` | — | all module GND pads + thermal pad |
+| 3 | `+3V3` | — | module supply |
+| 5 | `GPIO2` (header J7/J9) | 2 | ADC1_CH2 |
+| 6 | `GPIO3` (header, spare ADC) | 3 | ADC1_CH3 |
+| 8 | `EN` | — | CHIP_PU; R15 pull-up + C36 |
+| 9 | *(unconnected — spare)* | 4 | — |
+| 10 | `VBOOST_EN` | 5 | MT3608B EN + Q4 |
+| 12 | `GPIO0` (header) | 0 | strapping / XTAL_32K_P |
+| 13 | `GPIO1` (header) | 1 | XTAL_32K_N |
+| 15 | `/CHRG_SOLAR` | 6 | solar-charge detect input |
+| 16 | `1WIRE` | 7 | DS18B20 |
+| 17 | `ADS_DRDY` | 12 | native USB_D− (used as GPIO — WellD has no native USB) |
+| 18 | `FACTORY_RESET` | 13 | native USB_D+ (used as GPIO; firmware-timed read, not a strap) |
+| 19 | `GPIO14_LED` | 14 | status LED |
+| 20 | `BATT_DIV_EN` | 15 | JTAG-source strap, held low by R26 — harmless (output; no JTAG used) |
+| 22 | `GPIO8` | 8 | boot strapping pin, R13 pull-up |
+| 23 | `BOOT` | 9 | boot strapping pin, R12 pull-up + SW2 |
+| 24 | `I2C_SDA` | 18 | moved off GPIO10 (not bonded on MINI-1) |
+| 25 | `I2C_SCL` | 19 | moved off GPIO11 (not bonded on MINI-1) |
+| 26 | `GPIO20` (header) | 20 | — |
+| 27 | `GPIO21` (header) | 21 | — |
+| 30 | `UART_RX` | 17 | U0RXD |
+| 31 | `UART_TX` | 16 | U0TXD |
+
+Pins 28/29 (GPIO22/23) are unconnected spares. **Optional enhancement (not applied):** GPIO12/13 are the module's native USB D−/D+; the USB-C connector is power-only today (D± dead-end at U11 USBLC6). Routing USB-C D± to GPIO13/12 and relocating `ADS_DRDY`→GPIO22 / `FACTORY_RESET`→GPIO23 would add USB-C programming/console/DFU — a convenience, not required (UART header J10 + Zigbee OTA already cover it).
 
 ---
 
