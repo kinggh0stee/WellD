@@ -15,7 +15,7 @@ cp sdkconfig.defaults.local.example sdkconfig.defaults.local
 
 # Build / flash / monitor
 idf.py build
-idf.py -p /dev/ttyUSB0 flash monitor
+idf.py -p /dev/ttyACM0 flash monitor  # PCB USB-C = native USB; dev-board UART ports are usually /dev/ttyUSB0
 idf.py menuconfig          # WellD Configuration submenu
 idf.py fullclean           # nukes build/ and managed_components/
 

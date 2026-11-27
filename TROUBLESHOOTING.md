@@ -4,7 +4,7 @@ This guide helps diagnose common issues in the field and during bench testing.
 
 ## Serial Log Decision Tree
 
-Connect USB and open the serial monitor (`idf.py -p /dev/ttyUSB0 monitor`).
+Connect USB and open the serial monitor: `idf.py -p /dev/ttyACM0 monitor` for the PCB's USB-C (the ESP32-C6's native USB — Windows shows a COM port, macOS `/dev/cu.usbmodem…`). A dev board's separate UART port is usually `/dev/ttyUSB0`. The native USB port drops off the bus while the chip deep-sleeps; `idf.py monitor` waits and reconnects at the next wakeup.
 
 ### 1. No serial output at all
 
@@ -15,8 +15,8 @@ Connect USB and open the serial monitor (`idf.py -p /dev/ttyUSB0 monitor`).
 
 ### 2. `I2C init failed — aborting wakeup`
 
-- **SDA/SCL shorted:** Check GPIO10/11 for solder bridges or debris.
-- **ADS1115 absent:** Verify U2 is seated correctly and its I²C address jumper is open (0x48).
+- **SDA/SCL shorted:** Check GPIO18/19 (and the U9 SDA/SCL pins) for solder bridges or debris.
+- **ADS1115 not answering:** Check U9's MSOP-10 solder joints and its 3V3 supply. Its ADDR pin is tied to GND on the PCB (address 0x48 — there is no jumper). On a dev-board build, see [`docs/wiring.md`](docs/wiring.md).
 - **Pull-ups missing:** The firmware enables internal I²C pull-ups, but if the bus capacitance is high, add external 4.7 kΩ pull-ups to 3V3.
 
 ### 3. `transducer open loop (voltage=... mV, < 3.5 mA)`
@@ -24,7 +24,7 @@ Connect USB and open the serial monitor (`idf.py -p /dev/ttyUSB0 monitor`).
 - **Wiring fault:** Check LOOP+ / LOOP− terminals. A disconnected transducer reads near 0 mV.
 - **Transducer polarity reversed:** Some two-wire transducers are polarity-sensitive.
 - **Shunt resistor missing:** Verify R2/R4 (100 Ω) are populated.
-- **TVS conducting:** If the SMAJ3.3CA (D9/D10) is damaged short, the loop current bypasses the shunt.
+- **TVS conducting:** If D9/D10 (SMAJ5.0A) has failed short, the loop current bypasses the shunt.
 
 ### 4. `Zigbee send failed (N consecutive)` repeatedly
 
@@ -43,7 +43,7 @@ Connect USB and open the serial monitor (`idf.py -p /dev/ttyUSB0 monitor`).
 
 The device read under 2.0 V on the battery divider, which a running device cannot have, so it treats this as a measurement fault. The reading is dropped (no `battery_voltage` / `battery` published) and the low-battery guard is skipped, so reports keep flowing.
 
-- **Dev board without a divider:** expected — set `CONFIG_WELLD_BATT_REPORT_ENABLED=n` to drop the EP2 endpoint entirely.
+- **Dev board without a divider:** expected, provided AIN2 is tied to GND — set `CONFIG_WELLD_BATT_REPORT_ENABLED=n` to drop the EP2 endpoint entirely. Never leave AIN2 floating: a floating input can read like a flat cell and trip the low-battery guard instead.
 - **WellD PCB:** check R7/R8, the Q5 high-side P-FET and its Q2 driver on GPIO15 (TP for VBAT and the divider mid-point), and the AIN2 trace.
 
 ### 6. OTA issues
@@ -56,15 +56,15 @@ The device read under 2.0 V on the battery divider, which a running device canno
 
 ## Reading the RTC Event Log
 
-On every cold boot, the firmware prints the last 16 events from RTC memory:
+With `CONFIG_WELLD_RTC_LOG_PRINT_ENABLED=y` (WellD Configuration menu; off by default because it adds up to 17 lines to every wakeup), each wakeup prints the last 16 events kept in RTC memory:
 
 ```
-I (main): RTC event log (last 5 entries):
-I (main):   [0] t=1234s  BOOT
-I (main):   [1] t=1250s  SENSOR_OK
-I (main):   [2] t=1255s  ZB_FAIL
-I (main):   [3] t=1560s  BOOT
-I (main):   [4] t=1575s  LOW_BATT_SKIP
+I (35) main: RTC event log (last 5 entries):
+I (35) main:   [0] t=1234s  BOOT
+I (35) main:   [1] t=1250s  SENSOR_OK
+I (36) main:   [2] t=1255s  ZB_FAIL
+I (36) main:   [3] t=1560s  BOOT
+I (36) main:   [4] t=1575s  LOW_BATT_SKIP
 ```
 
 This is invaluable for diagnosing devices that failed in the field and are later retrieved. The `t=` value is seconds since the most recent cold boot, from the RTC-backed system clock, which keeps counting through deep sleep (a power loss resets it).
@@ -94,19 +94,19 @@ Use this to verify sensor readings, Zigbee join behavior, and OTA query/response
 
 ## Power Measurements
 
-Target deep-sleep current: **< 50 µA** (typical ~20 µA with all GPIOs isolated).
+Target deep-sleep current: **< 50 µA**. The PCB's budget is ≈25–30 µA at 4.2 V — ESP32-C6 ≈7 µA, HT7333 ≈4 µA, CN3791 ≈9 µA, DW01A ≈3 µA plus small leakages (fab blocker 10e in [`hardware/pcb/schematic_connections.md`](hardware/pcb/schematic_connections.md)); flag anything above ≈35 µA.
 
 If your measurement is higher:
 
-1. **GPIO leakage:** Ensure VLOOP (GPIO5), BATT_DIV_EN (GPIO15), and CHARGER_CE (GPIO4) are all driven LOW before `esp_deep_sleep()`. The firmware does this automatically in `enter_deep_sleep()`.
-2. **I²C pull-ups:** Internal pull-ups are enabled on SDA/SCL. If external pull-ups are also present, the combined resistance may leak current. Remove one set.
-3. **ADS1115 power-down:** The ADS1115 enters power-down after each single-shot conversion. If DRDY is stuck low, the device may not sleep. Check GPIO12.
+1. **Loop or divider switch left on:** VLOOP (GPIO5) and BATT_DIV_EN (GPIO15) must be LOW in sleep — `enter_deep_sleep()` drives them LOW before isolating the pads, and the R27/R26 pull-downs hold the switches off. Measure TP2 (VLOOP): it should be 0 V while the device sleeps.
+2. **I²C or ALERT held low:** the pull-ups on SDA/SCL (GPIO18/19) and ALERT/RDY (GPIO22) only draw current while something holds a line LOW. If one measures LOW during sleep, a stuck device is holding it — power-cycle and check for a solder bridge.
+3. **ADS1115 power-down:** it powers down after each single-shot conversion (≈0.5 µA typical); a higher figure points at a damaged part or a leaking input-protection diode.
 
 ## Quick Checks Checklist
 
 - [ ] Cell voltage > 3.2 V (measure across the BT1 carrier tabs — the firmware's reporting floor; DW01A protection trips at ≈2.4 V)
 - [ ] Solar charging LED (if populated) is off or on as expected
-- [ ] `idf.py monitor` shows `BOOT` → `SENSOR_OK` → `ZB_SENT` within ~10 s
+- [ ] `idf.py monitor` shows the sensor lines and `zigbee: joined; reporting level=…` (or `rejoined; …`) within ~10 s of the wakeup
 - [ ] Zigbee2MQTT logs show `Device 'WellD-v1' joined` on first pairing
 - [ ] MQTT payload contains `water_level`, `battery_voltage`, `temperature`
 - [ ] OTA `.zigbee` file is picked up by Z2M (`z2m/OTA` log shows query response)

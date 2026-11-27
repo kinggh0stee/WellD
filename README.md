@@ -62,7 +62,7 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 | 22 | Input  | ADS1115 ALERT/DRDY (moved off GPIO12) |
 | 23 | Input  | Factory reset (hold LOW at boot → NVS + Zigbee network erase, re-pair with permit-join; via TP13; moved off GPIO13) |
 | 15 | Output | Battery-divider enable (`BATT_DIV_EN`) — drives the Q2 level-shifter that switches the Q5 high-side P-FET |
-| 14 | —      | Status LED (D4 via R14/SJ3 — moved off GPIO13, which is reserved for factory reset; no firmware support yet) |
+| 14 | —      | Status LED (D4 via R14/SJ3 — moved off GPIO13, now native USB D+; no firmware support yet) |
 
 ### Connections (screw terminals)
 
@@ -149,7 +149,7 @@ idf.py set-target esp32c6
 
 # build and flash
 idf.py build
-idf.py -p /dev/ttyUSB0 flash monitor
+idf.py -p /dev/ttyACM0 flash monitor   # PCB USB-C (native USB); a dev board's UART port is usually /dev/ttyUSB0
 ```
 
 Or use the interactive menu: `idf.py menuconfig` → **WellD Configuration**.
@@ -496,6 +496,6 @@ CI builds these to catch compile breaks but cannot execute them (real hardware n
 
 ---
 
-## Legacy: dev board wiring
+## Dev-board build (without the PCB)
 
-The firmware has no ESP32-C6 internal-ADC path — every analog reading goes through the ADS1115. To build on an off-the-shelf ESP32-C6 dev board instead of the custom PCB, add an ADS1115 breakout (address 0x48) on the `CONFIG_WELLD_I2C_SDA_GPIO` / `SCL_GPIO` pins, wire the transducer shunt to its AIN0 and power the loop externally, and set `CONFIG_WELLD_BATT_REPORT_ENABLED=n` unless you also build the AIN2 battery divider (without it EP2 would only report read errors). The power-control GPIO options (`VLOOP`, `BATT_DIV_EN`) are still compiled in and can be left disconnected.
+The firmware has no ESP32-C6 internal-ADC path — every analog reading goes through the ADS1115. To build on an off-the-shelf ESP32-C6 dev board, follow **[`docs/wiring.md`](docs/wiring.md)**: an ADS1115 breakout on GPIO18/19 (address 0x48, ALERT on GPIO22), the transducer shunt into AIN0 through a 4.7 kΩ protection resistor with an externally powered loop, the DS18B20 on GPIO7, and either a 100 kΩ/100 kΩ battery divider on AIN2 or **AIN2 tied to GND** with `CONFIG_WELLD_BATT_REPORT_ENABLED=n` (a floating AIN2 can read like a flat cell and trip the low-battery guard). Leave the PCB-only GPIOs (5, 6, 15, 23) unconnected. The guide includes a wiring diagram, a net-by-net checklist and the log lines to expect on first boot.

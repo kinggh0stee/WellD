@@ -1,14 +1,25 @@
 #!/usr/bin/env python3
-"""WellD wiring diagram — ESP32-C6-DevKitC-1 actual pinout."""
+"""WellD dev-board wiring diagram (ADS1115 path) -> docs/wiring_diagram.png.
 
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+Draws the hand-wired build described in docs/wiring.md: an ESP32-C6
+development board, an ADS1115 breakout on I2C (GPIO18/19, ALERT on GPIO22),
+the 4-20 mA transducer loop into ADS1115 A0, an optional battery divider into
+A2 and a DS18B20 on GPIO7. Pin names are the silkscreen labels; header order
+differs between boards, so the board is drawn generically.
+
+Regenerate after editing:  python3 docs/gen_wiring_diagram.py
+"""
+
 import os
 
+import matplotlib
+
+matplotlib.use('Agg')
+import matplotlib.patches as mpatches  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+
 # ── Canvas ────────────────────────────────────────────────────────────────────
-FIG_W, FIG_H = 26, 17
+FIG_W, FIG_H = 24, 17
 fig, ax = plt.subplots(figsize=(FIG_W, FIG_H))
 ax.set_xlim(0, FIG_W)
 ax.set_ylim(0, FIG_H)
@@ -18,491 +29,330 @@ fig.patch.set_facecolor('#ffffff')
 ax.set_facecolor('#ffffff')
 
 # ── Palette ───────────────────────────────────────────────────────────────────
-C_PWR   = '#b71c1c'   # +3.3 V
-C_GND   = '#1a237e'   # ground
-C_SIG   = '#0277bd'   # ADC / 1-Wire signal
-C_LOOP  = '#bf360c'   # raw/unregulated voltage (battery input to divider)
-C_BATT  = '#1b5e20'   # battery ADC (optional)
-C_PCB   = '#2e7d32'   # board fill
-C_ANN   = '#546e7a'   # annotation text
-C_FADE  = '#b0bec5'   # unused-pin colour
+C_PWR = '#b71c1c'    # +3.3 V
+C_GND = '#1a237e'    # ground
+C_I2C = '#6a1b9a'    # I2C bus + ALERT
+C_SIG = '#0277bd'    # analog / 1-Wire signal
+C_LOOP = '#bf360c'   # loop supply (12-24 V) — never reaches the ADC side
+C_BATT = '#1b5e20'   # battery divider (optional)
+C_ANN = '#546e7a'    # annotation text
+C_FADE = '#b0bec5'   # unused / leave-open pin
 
-LW   = 2.2
-STUB = 0.45   # board pin stub beyond edge
+LW = 2.2
+STUB = 0.45          # pin stub length outside a box
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def box(x, y, w, h, fc='#fafafa', ec='#455a64', lw=1.8, zo=3):
-    ax.add_patch(mpatches.Rectangle((x, y), w, h,
-        lw=lw, ec=ec, fc=fc, zorder=zo))
+    ax.add_patch(mpatches.Rectangle((x, y), w, h, lw=lw, ec=ec, fc=fc, zorder=zo))
+
 
 def rbox(x, y, w, h, fc='#fafafa', ec='#455a64', lw=1.8, zo=3, r=0.1):
-    ax.add_patch(mpatches.FancyBboxPatch((x, y), w, h,
-        boxstyle=f'round,pad={r}', lw=lw, ec=ec, fc=fc, zorder=zo))
+    ax.add_patch(mpatches.FancyBboxPatch((x, y), w, h, boxstyle=f'round,pad={r}',
+                                         lw=lw, ec=ec, fc=fc, zorder=zo))
+
 
 def wire(pts, c, lw=LW, zo=2):
     xs, ys = zip(*pts)
-    ax.plot(xs, ys, color=c, lw=lw,
-            solid_capstyle='round', solid_joinstyle='round', zorder=zo)
+    ax.plot(xs, ys, color=c, lw=lw, solid_capstyle='round',
+            solid_joinstyle='round', zorder=zo)
+
 
 def dot(x, y, c, sz=80, zo=6):
     ax.scatter([x], [y], s=sz, color=c, zorder=zo)
 
-def t(x, y, s, ha='center', va='center', sz=9, c='#212121',
-      bold=False, italic=False, zo=8):
+
+def t(x, y, s, ha='center', va='center', sz=9, c='#212121', bold=False,
+      italic=False, zo=8):
     ax.text(x, y, s, ha=ha, va=va, fontsize=sz, color=c, zorder=zo,
             fontweight='bold' if bold else 'normal',
-            fontstyle='italic'  if italic else 'normal')
+            fontstyle='italic' if italic else 'normal')
 
-def ann(x, y, s, ha='center'):
-    """Annotation with white background so it reads over any wire beneath."""
-    ax.text(x, y, s, ha=ha, va='center', fontsize=8, color=C_ANN,
+
+def ann(x, y, s, ha='center', c=C_ANN, sz=8):
+    """Annotation on a white background so it reads over any wire beneath."""
+    ax.text(x, y, s, ha=ha, va='center', fontsize=sz, color=c,
             fontstyle='italic', zorder=9,
-            bbox=dict(fc='white', ec='none', alpha=0.90, pad=2.0))
+            bbox=dict(fc='white', ec='none', alpha=0.92, pad=2.0))
 
-def resistor_v(cx, cy, val, zo=5):
-    """Vertical resistor body; value label to the right, clear of body."""
-    W, H = 0.42, 0.90
-    box(cx - W/2, cy - H/2, W, H, fc='#fff9c4', ec='#f57f17', lw=1.5, zo=zo)
-    t(cx + W/2 + 0.14, cy, val, ha='left', sz=8, c='#4e342e', bold=True, zo=zo+1)
+
+def resistor_v(cx, cy, val, zo=5, side='right'):
+    """Vertical resistor body (0.9 tall) with its value beside it."""
+    w, h = 0.42, 0.90
+    box(cx - w / 2, cy - h / 2, w, h, fc='#fff9c4', ec='#f57f17', lw=1.5, zo=zo)
+    if side == 'right':
+        t(cx + w / 2 + 0.14, cy, val, ha='left', sz=8, c='#4e342e', bold=True, zo=zo + 1)
+    else:
+        t(cx - w / 2 - 0.14, cy, val, ha='right', sz=8, c='#4e342e', bold=True, zo=zo + 1)
+
 
 def resistor_h(cx, cy, val, zo=5):
-    """Horizontal resistor body; value label above, clear of body."""
-    W, H = 0.90, 0.42
-    box(cx - W/2, cy - H/2, W, H, fc='#fff9c4', ec='#f57f17', lw=1.5, zo=zo)
-    t(cx, cy + H/2 + 0.18, val, ha='center', sz=8, c='#4e342e', bold=True, zo=zo+1)
+    """Horizontal resistor body (0.9 wide) with its value above it."""
+    w, h = 0.90, 0.42
+    box(cx - w / 2, cy - h / 2, w, h, fc='#fff9c4', ec='#f57f17', lw=1.5, zo=zo)
+    t(cx, cy + h / 2 + 0.2, val, ha='center', sz=8, c='#4e342e', bold=True, zo=zo + 1)
+
+
+def cap_v(cx, cy, val, c=C_SIG, zo=5):
+    """Vertical capacitor: two plates centred on (cx, cy), leads 0.45 each way."""
+    gap, pw = 0.09, 0.30
+    wire([(cx, cy + 0.45), (cx, cy + gap)], c, zo=zo)
+    wire([(cx, cy - gap), (cx, cy - 0.45)], C_GND, zo=zo)
+    for yy in (cy + gap, cy - gap):
+        ax.plot([cx - pw, cx + pw], [yy, yy], color='#37474f', lw=2.6, zorder=zo + 1)
+    t(cx + pw + 0.12, cy, val, ha='left', sz=8, c='#4e342e', bold=True, zo=zo + 1)
+
 
 def gnd_sym(x, y, zo=5):
-    """IEC earth symbol: three decreasing horizontal bars."""
+    """Ground symbol hanging below (x, y): three shrinking bars."""
     for i, hw in enumerate([0.28, 0.18, 0.09]):
-        ax.plot([x - hw, x + hw], [y - i*0.13, y - i*0.13],
-                color=C_GND, lw=2.0, zorder=zo)
+        ax.plot([x - hw, x + hw], [y - i * 0.13, y - i * 0.13], color=C_GND,
+                lw=2.0, zorder=zo)
+
 
 def vcc_sym(x, y, lbl='+3.3V', zo=5):
-    """VCC rail symbol: upward arrow + label.  Connection point is at (x, y)."""
+    """+3.3 V rail arrow pointing up from (x, y)."""
     ax.annotate('', xy=(x, y + 0.40), xytext=(x, y),
                 arrowprops=dict(arrowstyle='->', color=C_PWR, lw=2.1), zorder=zo)
-    t(x, y + 0.65, lbl, sz=8.5, c=C_PWR, bold=True, zo=zo+1)
+    t(x, y + 0.62, lbl, sz=8.5, c=C_PWR, bold=True, zo=zo + 1)
+
+
+def pin_right(x_edge, y, lbl, c, used=True, lc=None):
+    """Stub leaving a box's right edge; label inside the box (colour lc)."""
+    cc = c if used else C_FADE
+    ax.plot([x_edge, x_edge + STUB], [y, y], color=cc, lw=2.4 if used else 1.2, zorder=4)
+    t(x_edge - 0.12, y, lbl, ha='right', sz=8.5 if used else 7.5,
+      c=lc or cc, bold=used)
+
+
+def pin_left(x_edge, y, lbl, c, used=True):
+    """Stub leaving a box's left edge; label inside the box."""
+    cc = c if used else C_FADE
+    ax.plot([x_edge - STUB, x_edge], [y, y], color=cc, lw=2.4 if used else 1.2, zorder=4)
+    t(x_edge + 0.12, y, lbl, ha='left', sz=8.5 if used else 7.5, c=cc, bold=used)
+
+
+# ── Title ─────────────────────────────────────────────────────────────────────
+t(FIG_W / 2, FIG_H - 0.45, 'WellD — Dev-Board Wiring (ADS1115)', sz=17,
+  c='#0d1b4b', bold=True)
+t(FIG_W / 2, FIG_H - 0.98,
+  'ESP32-C6 dev board  ·  ADS1115 16-bit ADC on I²C (0x48)  ·  4–20 mA transducer '
+  'on A0  ·  battery divider on A2 (optional)  ·  DS18B20 on GPIO7',
+  sz=9.5, c=C_ANN)
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  ESP32-C6-DevKitC-1  pinout
-#
-#  J1 (left, top → bottom, USB at board bottom):
-#    GND, 3V3, EN, GPIO4, GPIO5, GPIO6, GPIO7,
-#    GPIO0, GPIO1, GPIO2, GPIO3, GPIO8–GPIO11, GND
-#
-#  J3 (right, top → bottom):
-#    GND, 5V, GPIO23–GPIO12, GND
+#  Pin rows shared by the board's right edge and the ADS1115's left edge, so
+#  every board-to-ADS1115 wire is a straight horizontal line.
 # ─────────────────────────────────────────────────────────────────────────────
-BX, BY, BW, BH = 10.8, 2.2, 3.6, 10.8
-BTOP = BY + BH    # 13.0
-BBOT = BY         # 2.2
-LPX  = BX         # left  edge  10.8
-RPX  = BX + BW    # right edge  14.4
+Y_VDD, Y_GND, Y_SCL, Y_SDA, Y_ADDR, Y_ALRT = 11.9, 11.2, 10.5, 9.8, 9.1, 8.4
+Y_GPIO7 = 6.0
 
-# (label, highlight-colour or None, used-bool)
-L_PINS = [
-    ('GND',    C_GND,  True ),   # 0  — shunt / battery ground
-    ('3V3',    C_PWR,  True ),   # 1  — +3.3 V rail (shown via rail symbols)
-    ('EN',     None,   False),
-    ('GPIO4',  C_SIG,  True ),   # 3  — DS18B20 1-Wire data
-    ('GPIO5',  None,   False),
-    ('GPIO6',  None,   False),
-    ('GPIO7',  None,   False),
-    ('GPIO0',  C_SIG,  True ),   # 7  — pressure ADC  (ADC1_CH0)
-    ('GPIO1',  C_BATT, True ),   # 8  — battery ADC   (ADC1_CH1, optional)
-    ('GPIO2',  None,   False),
-    ('GPIO3',  None,   False),
-    ('GPIO8',  None,   False),
-    ('GPIO9',  None,   False),
-    ('GPIO10', None,   False),
-    ('GPIO11', None,   False),
-    ('GND',    C_GND,  True ),   # 15 — shunt / battery ground
-]
+# ── ESP32-C6 development board ────────────────────────────────────────────────
+BX, BY, BW, BH = 2.2, 3.3, 3.8, 9.6
+BR = BX + BW                     # right edge
+rbox(BX, BY, BW, BH, fc='#2e7d32', ec='#1b5e20', lw=3.0, zo=3, r=0.18)
+box(BX + 0.9, BY + BH - 3.0, 2.0, 2.2, fc='#1c1c1c', ec='#424242', lw=1.2, zo=4)
+t(BX + 1.9, BY + BH - 1.55, 'ESP32-C6', sz=9, c='white', bold=True, zo=5)
+t(BX + 1.9, BY + BH - 2.05, 'module', sz=7, c='#9e9e9e', zo=5)
+t(BX + 1.6, BY + 2.25, 'ESP32-C6', sz=10, c='#e8f5e9', bold=True)
+t(BX + 1.6, BY + 1.8, 'dev board', sz=10, c='#e8f5e9', bold=True)
+t(BX + 1.6, BY + 1.25, 'pins as printed on\nthe board (header\norder varies)',
+  sz=6.8, c='#a5d6a7', italic=True)
 
-R_PINS = [
-    ('GND',       None,   False),  # 0  — shown via GND symbol at DS18B20
-    ('5V',        C_LOOP, True ),  # 1  — 5 V board input from buck converter
-    ('GPIO23',    None,  False),
-    ('GPIO22',    None,  False),
-    ('GPIO21',    None,  False),
-    ('GPIO20',    None,  False),
-    ('GPIO19',    None,  False),
-    ('GPIO18',    None,  False),
-    ('GPIO17/RX', None,  False),
-    ('GPIO16/TX', None,  False),
-    ('GPIO15',    None,  False),
-    ('GPIO14',    None,  False),
-    ('GPIO13',    None,  False),
-    ('GPIO12',    None,  False),
-    ('GND',       None,  False),
-]
+# USB connector on the bottom edge
+ax.add_patch(mpatches.FancyBboxPatch((BX + 1.2, BY - 0.45), 1.0, 0.45,
+                                     boxstyle='round,pad=0.05', lw=1.5,
+                                     ec='#78909c', fc='#eceff1', zorder=4))
+t(BX + 1.7, BY - 0.22, 'USB', sz=7, c='#607d8b')
+ann(BX + 1.7, BY - 0.85, 'power + serial monitor')
 
-NL = len(L_PINS)   # 16
-NR = len(R_PINS)   # 15
+# Used pins (right edge)
+pin_right(BR, Y_VDD, '3V3', C_PWR, lc='white')
+pin_right(BR, Y_GND, 'GND', C_GND, lc='white')
+pin_right(BR, Y_SCL, 'GPIO19', C_I2C, lc='white')
+pin_right(BR, Y_SDA, 'GPIO18', C_I2C, lc='white')
+pin_right(BR, Y_ALRT, 'GPIO22', C_I2C, lc='white')
+pin_right(BR, Y_GPIO7, 'GPIO7', C_SIG, lc='white')
 
-L_TOP_Y = BTOP - 0.55   # 12.45
-L_BOT_Y = BBOT + 0.55   # 2.75
-L_STEP  = (L_TOP_Y - L_BOT_Y) / (NL - 1)   # 0.647
-L_YS    = [L_TOP_Y - i * L_STEP for i in range(NL)]
+# Firmware-owned PCB pins (left edge) — leave unconnected on a dev board
+LEAVE = [('GPIO5', 'loop-boost enable (output)'),
+         ('GPIO15', 'divider enable (output)'),
+         ('GPIO6', 'solar status (pull-up)'),
+         ('GPIO23', 'factory reset (pull-up)')]
+for i, (lbl, why) in enumerate(LEAVE):
+    y = 11.3 - i * 0.75
+    ax.plot([BX - STUB, BX], [y, y], color=C_FADE, lw=1.4, zorder=4)
+    t(BX + 0.12, y, lbl, ha='left', sz=7.5, c='#c8e6c9', bold=True)
+    t(BX - STUB - 0.1, y, why, ha='right', sz=7, c=C_ANN, italic=True)
+t(BX - 1.55, 12.05, 'leave unconnected', sz=8, c='#78909c', bold=True)
+t(BX - 1.55, 11.75, '(PCB-only functions)', sz=7, c='#78909c', italic=True)
 
-R_TOP_Y = BTOP - 0.55
-R_BOT_Y = BBOT + 0.55
-R_STEP  = (R_TOP_Y - R_BOT_Y) / (NR - 1)
-R_YS    = [R_TOP_Y - i * R_STEP for i in range(NR)]
+# ── ① ADS1115 breakout ────────────────────────────────────────────────────────
+AX, AY, AW, AH = 9.4, 7.8, 3.0, 4.75
+AR = AX + AW
+box(AX, AY, AW, AH, fc='#ede7f6', ec='#4527a0', lw=2.2, zo=3)
+t(AX + AW / 2, AY + AH - 0.35, 'ADS1115', sz=10.5, c='#4527a0', bold=True)
+t(AX + AW / 2, AY + 0.32, '16-bit ADC breakout', sz=7.5, c='#5e35b1', italic=True)
+t(AX + AW / 2, AY + AH + 0.55, '① ADS1115 ADC module', sz=10, c='#4527a0', bold=True)
 
-# ── Board body ────────────────────────────────────────────────────────────────
-ax.add_patch(mpatches.FancyBboxPatch((BX, BY), BW, BH,
-    boxstyle='round,pad=0.18', lw=3.0, ec='#1b5e20', fc=C_PCB, zorder=3))
+for y, lbl, c in [(Y_VDD, 'VDD', C_PWR), (Y_GND, 'GND', C_GND), (Y_SCL, 'SCL', C_I2C),
+                  (Y_SDA, 'SDA', C_I2C), (Y_ADDR, 'ADDR', C_GND), (Y_ALRT, 'ALRT', C_I2C)]:
+    pin_left(AX, y, lbl, c)
 
-# USB connector
-USB_W, USB_H = 1.0, 0.45
-ax.add_patch(mpatches.FancyBboxPatch(
-    (BX + BW/2 - USB_W/2, BBOT - USB_H), USB_W, USB_H,
-    boxstyle='round,pad=0.05', lw=1.5, ec='#78909c', fc='#eceff1', zorder=4))
-t(BX + BW/2, BBOT - USB_H/2, 'USB', sz=7, c='#607d8b')
+Y_A0, Y_A1, Y_A2, Y_A3 = 11.5, 10.7, 9.9, 9.1
+pin_right(AR, Y_A0, 'A0', C_SIG)
+pin_right(AR, Y_A1, 'A1', C_FADE, used=False)
+pin_right(AR, Y_A2, 'A2', C_BATT)
+pin_right(AR, Y_A3, 'A3', C_FADE, used=False)
 
-# Module silkscreen
-MX = BX + BW*0.25
-MY = BY + BH*0.52
-MW, MH = BW*0.50, BH*0.28
-box(MX, MY, MW, MH, fc='#1c1c1c', ec='#424242', lw=1.2, zo=4)
-t(BX + BW/2, MY + MH*0.62, 'ESP32-C6', sz=8.5, c='white', bold=True, zo=5)
-t(BX + BW/2, MY + MH*0.25, 'module',   sz=7,   c='#9e9e9e',           zo=5)
+# Board → ADS1115: straight wires
+for y, c in [(Y_VDD, C_PWR), (Y_GND, C_GND), (Y_SCL, C_I2C), (Y_SDA, C_I2C),
+             (Y_ALRT, C_I2C)]:
+    wire([(BR + STUB, y), (AX - STUB, y)], c)
+ann((BR + AX) / 2, Y_SCL + 0.33, 'SCL')
+ann((BR + AX) / 2, Y_SDA + 0.33, 'SDA')
+ann((BR + AX) / 2, Y_ALRT + 0.33, 'ALERT / data-ready (recommended)')
 
-t(BX + BW/2, BY + BH*0.18, 'DevKitC-1', sz=9, c='#a5d6a7')
-t(BX + BW/2, BY + BH*0.10,
-  'J1 ← left  |  right → J3', sz=6.5, c='#66bb6a', italic=True)
+# ADDR → GND selects address 0x48
+wire([(AX - STUB, Y_ADDR), (AX - 0.95, Y_ADDR), (AX - 0.95, Y_ADDR - 0.15)], C_GND)
+gnd_sym(AX - 0.95, Y_ADDR - 0.15)
+t(AX - 1.35, Y_ADDR + 0.02, '0x48', ha='right', sz=7.5, c=C_GND, bold=True)
 
-# ── Pin stubs ─────────────────────────────────────────────────────────────────
-PAD = 0.065
+# ── ② Pressure transducer loop → A0 ─────────────────────────────────────────
+CAP_X = 13.75          # 100 nF filter cap (A0 side of the series resistor)
+RS_X = 15.15           # 4.7 kΩ series resistor centre
+SH_X = 16.75           # shunt node
+TRX, TRY, TRW, TRH = 18.6, 10.4, 2.9, 2.1     # transducer box
+LSX, LSY, LSW, LSH = 18.6, 13.35, 2.9, 1.15   # loop supply box
 
-def draw_left_pin(idx):
-    lbl, col, used = L_PINS[idx]
-    y  = L_YS[idx]
-    c  = col if used else C_FADE
-    lw_pin = 2.4 if used else 1.2
-    ax.plot([LPX - STUB, LPX], [y, y], color=c, lw=lw_pin, zorder=4)
-    sp = PAD if used else PAD*0.7
-    ax.add_patch(mpatches.Rectangle(
-        (LPX - STUB - sp, y - sp), sp*2, sp*2,
-        fc=c, ec='white', lw=0.6, zorder=5))
-    t(LPX - STUB - 0.14, y, lbl,
-      ha='right', sz=8 if used else 7, c=c, bold=used, zo=8)
+wire([(AR + STUB, Y_A0), (RS_X - 0.45, Y_A0)], C_SIG)
+dot(CAP_X, Y_A0, C_SIG)
+cap_v(CAP_X, Y_A0 - 0.75, '100 nF')
+gnd_sym(CAP_X, Y_A0 - 1.20)
+resistor_h(RS_X, Y_A0, '4.7 kΩ')
+ann(RS_X, Y_A0 + 0.8, 'protects A0 if the cable shorts', sz=7.3)
+wire([(RS_X + 0.45, Y_A0), (TRX, Y_A0)], C_SIG)
+dot(SH_X, Y_A0, C_SIG)
+wire([(SH_X, Y_A0), (SH_X, Y_A0 - 0.55)], C_SIG)
+resistor_v(SH_X, Y_A0 - 1.0, '100 Ω shunt\n0.1–1 %')
+wire([(SH_X, Y_A0 - 1.45), (SH_X, Y_A0 - 1.85)], C_GND)
+gnd_sym(SH_X, Y_A0 - 1.85)
+ann(SH_X + 0.05, Y_A0 + 0.42, 'shunt node 0.4–2.0 V')
 
-def draw_right_pin(idx):
-    lbl, col, used = R_PINS[idx]
-    y  = R_YS[idx]
-    c  = col if used else C_FADE
-    lw_pin = 2.4 if used else 1.2
-    ax.plot([RPX, RPX + STUB], [y, y], color=c, lw=lw_pin, zorder=4)
-    sp = PAD if used else PAD*0.7
-    ax.add_patch(mpatches.Rectangle(
-        (RPX + STUB - sp, y - sp), sp*2, sp*2,
-        fc=c, ec='white', lw=0.6, zorder=5))
-    t(RPX + STUB + 0.14, y, lbl,
-      ha='left', sz=8 if used else 7, c=c, bold=used, zo=8)
+box(TRX, TRY, TRW, TRH, fc='#e3f2fd', ec='#0d47a1', lw=2.2, zo=3)
+t(TRX + TRW / 2 + 0.2, TRY + TRH / 2 + 0.2, 'Pressure', sz=10, c='#0d47a1', bold=True)
+t(TRX + TRW / 2 + 0.2, TRY + TRH / 2 - 0.2, 'transducer', sz=10, c='#0d47a1', bold=True)
+t(TRX + TRW / 2 + 0.2, TRY + TRH / 2 - 0.6, '4–20 mA, 2-wire', sz=8, c='#1565c0')
+t(TRX + 0.15, Y_A0, '(−)', ha='left', sz=9, c='#37474f', bold=True)
+PLUS_X = TRX + TRW - 0.55
+t(PLUS_X, TRY + TRH - 0.25, '(+)', sz=9, c=C_LOOP, bold=True)
 
-for i in range(NL): draw_left_pin(i)
-for i in range(NR): draw_right_pin(i)
+rbox(LSX, LSY, LSW, LSH, fc='#fff3e0', ec=C_LOOP, lw=1.8, zo=3, r=0.07)
+t(LSX + LSW / 2, LSY + 0.78, 'Loop supply', sz=9, c=C_LOOP, bold=True)
+t(LSX + LSW / 2, LSY + 0.38, '12–24 V DC, current-limited', sz=7.5, c=C_LOOP)
+t(PLUS_X, LSY + 0.13, '+', sz=9, c=C_LOOP, bold=True)
+t(LSX + 0.2, LSY + LSH / 2 - 0.02, '−', ha='left', sz=10, c=C_GND, bold=True)
+wire([(PLUS_X, LSY), (PLUS_X, TRY + TRH)], C_LOOP, zo=4)
+LSG_X = LSX - 0.8
+wire([(LSX, LSY + LSH / 2), (LSG_X, LSY + LSH / 2), (LSG_X, LSY - 0.05)], C_GND)
+gnd_sym(LSG_X, LSY - 0.05)
+ann(LSG_X - 0.15, LSY + LSH / 2 + 0.38, '(−) to board GND!', ha='right', c=C_GND)
+t(LSX + LSW / 2, LSY + LSH + 0.5, '② 4–20 mA pressure transducer', sz=10,
+  c='#0d47a1', bold=True)
 
-# Named y-coords for wired pins
-Y_GND_L_TOP = L_YS[0]    # 12.45
-Y_3V3       = L_YS[1]    # 11.80
-Y_GPIO4     = L_YS[3]    # 10.51
-Y_GPIO0     = L_YS[7]    #  7.92
-Y_GPIO1     = L_YS[8]    #  7.28
-Y_GND_L_BOT = L_YS[15]   #  2.75
+# ── ④ Battery divider (optional) → A2 ───────────────────────────────────────
+BAX, BAY, BAW, BAH = 19.8, 4.5, 2.4, 1.6
+BAT_P_Y = BAY + BAH - 0.4
+BAT_N_Y = BAY + 0.4
+MID_X = 16.9
+R1_X = 18.45
+A2_RISE_X = 13.25
 
-LSTUB_END = LPX - STUB   # 10.35  — outer end of left  stubs
-RSTUB_END = RPX + STUB   # 14.85  — outer end of right stubs
+box(BAX, BAY, BAW, BAH, fc='#fafafa', ec='#607d8b', lw=2.0, zo=3)
+t(BAX + BAW / 2 + 0.15, BAY + BAH / 2 + 0.2, 'Battery', sz=9.5, c='#37474f', bold=True)
+t(BAX + BAW / 2 + 0.15, BAY + BAH / 2 - 0.22, '1S Li-ion', sz=8, c='#546e7a')
+t(BAX + 0.15, BAT_P_Y, '(+)', ha='left', sz=9, c=C_LOOP, bold=True)
+t(BAX + 0.15, BAT_N_Y, '(−)', ha='left', sz=9, c='#37474f', bold=True)
 
-# 3V3 annotation: rail symbol represents this board pin
-ann(LPX - STUB - 1.18, Y_3V3,
-    '+3.3V rail symbols', ha='right')
+wire([(BAX, BAT_P_Y), (R1_X + 0.45, BAT_P_Y)], C_LOOP)
+resistor_h(R1_X, BAT_P_Y, 'R1 100 kΩ')
+wire([(R1_X - 0.45, BAT_P_Y), (MID_X, BAT_P_Y)], C_BATT)
+dot(MID_X, BAT_P_Y, C_BATT)
+wire([(MID_X, BAT_P_Y), (MID_X, BAT_P_Y - 0.5)], C_BATT)
+resistor_v(MID_X, BAT_P_Y - 0.95, 'R2 100 kΩ', side='left')
+wire([(MID_X, BAT_P_Y - 1.4), (MID_X, BAT_P_Y - 1.75)], C_GND)
+gnd_sym(MID_X, BAT_P_Y - 1.75)
+BN_X = BAX - 0.45
+wire([(BAX, BAT_N_Y), (BN_X, BAT_N_Y), (BN_X, BAT_N_Y - 0.35)], C_GND)
+gnd_sym(BN_X, BAT_N_Y - 0.35)
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  ① Pressure transducer (4–20 mA current loop)
-# ─────────────────────────────────────────────────────────────────────────────
-TX, TY, TW, TH = 0.6, 8.8, 2.8, 2.0
-box(TX, TY, TW, TH, fc='#e3f2fd', ec='#0d47a1', lw=2.2, zo=3)
-t(TX+TW/2, TY+TH/2+0.30, 'Pressure',   sz=10, c='#0d47a1', bold=True)
-t(TX+TW/2, TY+TH/2-0.12, 'Transducer', sz=10, c='#0d47a1', bold=True)
-t(TX+TW/2, TY+TH/2-0.54, '(4–20 mA)', sz=8.5, c='#1565c0')
-t(TX+0.18, TY+TH-0.30,   '(+)', ha='left', sz=9, c=C_LOOP, bold=True)
-t(TX+0.18, TY+0.30,       '(−)', ha='left', sz=9, c='#37474f', bold=True)
+wire([(MID_X, BAT_P_Y), (A2_RISE_X, BAT_P_Y), (A2_RISE_X, Y_A2),
+      (AR + STUB, Y_A2)], C_BATT)
+ann((A2_RISE_X + MID_X) / 2, BAT_P_Y + 0.36, '≈2.1 V at 4.2 V (half the cell)')
 
-# Loop supply sits above-right of the transducer box, centred on LS_CX.
-# Output wire exits the loop supply BOTTOM and the transducer RIGHT WALL —
-# neither wire ever enters a box interior.
-TRANS_POS_Y = TY + TH - 0.30    # 10.50 — transducer (+) terminal level
-LS_CX  = TX + TW + 0.60         # 4.00  — loop supply centre x
-LS_BOT = TRANS_POS_Y + 0.50     # 11.00 — loop supply box bottom
-LS_TOP = LS_BOT + 0.85          # 11.85 — loop supply box top
-rbox(LS_CX-1.0, LS_BOT, 2.0, 0.85, fc='#fff3e0', ec=C_LOOP, lw=1.8, zo=3, r=0.07)
-t(LS_CX, LS_BOT+0.57, 'Loop Supply',  sz=8.5, c=C_LOOP, bold=True)
-t(LS_CX, LS_BOT+0.22, '10–30 V DC',  sz=8,   c=C_LOOP)
+rbox(BAX - 0.6, BAY - 1.55, 3.6, 0.95, fc='#fff8e1', ec='#f9a825', lw=1.5, zo=4, r=0.06)
+t(BAX + 1.2, BAY - 0.85, 'OPTIONAL', sz=8.5, c='#e65100', bold=True)
+t(BAX + 1.2, BAY - 1.22, 'No battery? Wire A2 straight to GND', sz=7.5, c='#e65100')
+t(BAX + 1.2, BAY + BAH + 0.45, '④ Battery divider', sz=10, c='#37474f', bold=True)
 
-# Loop supply output → transducer (+): down from box bottom, left to right wall.
-wire([(LS_CX,    LS_BOT),
-      (LS_CX,    TRANS_POS_Y),
-      (TX + TW,  TRANS_POS_Y)], C_LOOP, zo=4)
+# ── ③ DS18B20 on GPIO7 ───────────────────────────────────────────────────────
+DSX, DSY, DSW, DSH = 9.4, 2.6, 3.0, 2.5
+DS_VCC_Y, DS_DATA_Y, DS_GND_Y = DSY + DSH - 0.5, DSY + DSH / 2, DSY + 0.5
+DS_CONN_X = DSX - 0.65
+PU_X = 8.1
+DROP_X = 7.2
 
-t(TX+TW/2, TY+TH+1.42, '① Pressure Transducer', sz=10, c='#0d47a1', bold=True)
-
-# ── Signal junction: transducer −, shunt top, GPIO0 ──────────────────────────
-# This node sits at 0.4–2.0 V (loop current × 100 Ω). It is NOT ground.
-JX = 8.0
-JY = TY + 0.30   # 9.10
-
-wire([(TX+TW, JY), (JX, JY)], C_SIG)   # transducer − → junction (left to right)
-dot(JX, JY, C_SIG)
-
-# Shunt 100 Ω → GND — goes STRAIGHT DOWN from junction at x=JX
-SHUNT_GND_Y = JY - 2.4   # 6.70
-wire([(JX, JY),       (JX, JY - 0.52)], C_GND)
-resistor_v(JX, JY - 1.02, '100 Ω  ±1 %')
-wire([(JX, JY - 1.52), (JX, SHUNT_GND_Y)], C_GND)
-gnd_sym(JX, SHUNT_GND_Y)
-
-# GPIO0 route: junction → RIGHT at JY level → down → right to board stub.
-# Exits right so it never overlaps the vertical shunt wire.
-GPIO0_TURN_X = 9.4   # between JX (8.0) and board stub (10.35)
-wire([(JX,           JY),
-      (GPIO0_TURN_X, JY),
-      (GPIO0_TURN_X, Y_GPIO0),
-      (LSTUB_END,    Y_GPIO0)], C_SIG)
-ann((GPIO0_TURN_X + LSTUB_END)/2, Y_GPIO0 + 0.48,
-    '0.4 – 2.0 V  (shunt voltage → ADC)')
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  ② DS18B20 Temperature Probe
-#
-#  Pin connections are on the LEFT side via short external stubs.
-#  No wire ever enters the DS18B20 box interior — all wires terminate
-#  at the stub endpoints which sit just outside the box left edge.
-#
-#  Pull-up topology (correct):
-#       +3.3V        +3.3V
-#         │            │
-#       4.7 kΩ       (stub)
-#         │            │
-#  GPIO4 ─┤── DATA stub ── VCC stub
-#     junction             │
-#         │               DS18B20
-#        GND stub
-#         │
-#        GND
-# ─────────────────────────────────────────────────────────────────────────────
-DSX, DSY, DSW, DSH = 18.5, 8.0, 3.4, 2.8
-
-# Pin y-levels (where each signal enters/exits the component left edge)
-DS_VCC_Y  = DSY + DSH - 0.45   # 10.35
-DS_DATA_Y = DSY + DSH / 2       # 9.40
-DS_GND_Y  = DSY + 0.45          # 8.45
-
-DS_STUB   = 0.65                          # stub length beyond box left wall
-DS_CONN_X = DSX - DS_STUB                # 17.85 — external connection x
-
-# DS18B20 box
 box(DSX, DSY, DSW, DSH, fc='#e8f5e9', ec='#1b5e20', lw=2.2, zo=3)
-t(DSX+DSW/2, DSY+DSH*0.72, 'DS18B20',      sz=10, c='#1b5e20', bold=True)
-t(DSX+DSW/2, DSY+DSH*0.50, 'Temperature',  sz=9,  c='#2e7d32')
-t(DSX+DSW/2, DSY+DSH*0.30, 'Probe',        sz=9,  c='#2e7d32')
+t(DSX + DSW / 2 + 0.35, DSY + DSH * 0.66, 'DS18B20', sz=10, c='#1b5e20', bold=True)
+t(DSX + DSW / 2 + 0.35, DSY + DSH * 0.42, 'temperature', sz=8.5, c='#2e7d32')
+t(DSX + DSW / 2 + 0.35, DSY + DSH * 0.24, 'probe', sz=8.5, c='#2e7d32')
+t(DSX + 0.15, DS_VCC_Y, 'VCC (red)', ha='left', sz=8, c=C_PWR, bold=True)
+t(DSX + 0.15, DS_DATA_Y, 'DATA', ha='left', sz=8, c=C_SIG, bold=True)
+t(DSX + 0.15, DS_GND_Y, 'GND (black)', ha='left', sz=8, c=C_GND, bold=True)
+t(DSX + DSW / 2, DSY - 0.4, '③ DS18B20 temperature probe', sz=10, c='#1b5e20', bold=True)
 
-# Pin labels inside box, flush left
-t(DSX+0.22, DS_VCC_Y,  'VCC',  ha='left', sz=9, c=C_PWR, bold=True)
-t(DSX+0.22, DS_DATA_Y, 'DATA', ha='left', sz=9, c=C_SIG, bold=True)
-t(DSX+0.22, DS_GND_Y,  'GND',  ha='left', sz=9, c=C_GND, bold=True)
-
-# External stubs: connection point → box left wall.
-# zo=4 so stubs are visible over the box border line.
-wire([(DS_CONN_X, DS_VCC_Y),  (DSX, DS_VCC_Y)],  C_PWR, zo=4)
-wire([(DS_CONN_X, DS_DATA_Y), (DSX, DS_DATA_Y)],  C_SIG, zo=4)
-wire([(DS_CONN_X, DS_GND_Y),  (DSX, DS_GND_Y)],   C_GND, zo=4)
-
-# VCC: +3.3V rail symbol directly at the VCC stub connection point.
-# Arrow points UP from DS_CONN_X; stub wire goes RIGHT into box.
+wire([(DS_CONN_X, DS_VCC_Y), (DSX, DS_VCC_Y)], C_PWR, zo=4)
+wire([(DS_CONN_X, DS_DATA_Y), (DSX, DS_DATA_Y)], C_SIG, zo=4)
+wire([(DS_CONN_X, DS_GND_Y), (DSX, DS_GND_Y)], C_GND, zo=4)
 vcc_sym(DS_CONN_X, DS_VCC_Y)
+gnd_sym(DS_CONN_X, DS_GND_Y - 0.05)
 
-# GND: earth symbol directly at the GND stub connection point, pointing DOWN.
-gnd_sym(DS_CONN_X, DS_GND_Y - 0.08)
+# GPIO7 → drop → DATA; 4.7 kΩ pull-up from the DATA line to +3.3 V
+wire([(BR + STUB, Y_GPIO7), (DROP_X, Y_GPIO7), (DROP_X, DS_DATA_Y),
+      (DS_CONN_X, DS_DATA_Y)], C_SIG)
+ann((BR + STUB + DROP_X) / 2 + 0.05, Y_GPIO7 + 0.33, '1-Wire data')
+dot(PU_X, DS_DATA_Y, C_SIG)
+wire([(PU_X, DS_DATA_Y), (PU_X, DS_DATA_Y + 0.5)], C_PWR)
+resistor_v(PU_X, DS_DATA_Y + 0.95, '4.7 kΩ', side='left')
+wire([(PU_X, DS_DATA_Y + 1.4), (PU_X, DS_DATA_Y + 1.6)], C_PWR)
+vcc_sym(PU_X, DS_DATA_Y + 1.6)
 
-# Pull-up resistor: sits on the DATA wire between GPIO4 drop and DS18B20 DATA stub.
-# Junction at (PU_JX, DS_DATA_Y); pull-up branch goes UP to +3.3V.
-PU_JX = 16.8   # between GPIO4 drop column and DS_CONN_X (17.85)
-PU_JY = DS_DATA_Y
+# ── Colour key ────────────────────────────────────────────────────────────────
+KX, KY = 0.5, 0.2
+KEY = [(C_PWR, '+3.3 V (board 3V3 pin)'),
+       (C_GND, 'Ground — all GND symbols are one net'),
+       (C_I2C, 'I²C bus + ALERT'),
+       (C_SIG, 'Signal: shunt → A0, 1-Wire'),
+       (C_LOOP, 'Loop supply / battery (+)'),
+       (C_BATT, 'Divided battery → A2'),
+       (C_FADE, 'Unused / leave open')]
+rbox(KX, KY, 6.9, 1.85, fc='#fafafa', ec='#b0bec5', lw=1.4, zo=3, r=0.12)
+for i, (c, lbl) in enumerate(KEY):
+    col, row = divmod(i, 4)
+    kx = KX + 0.2 + col * 3.55
+    ky = KY + 1.6 - row * 0.42
+    ax.plot([kx, kx + 0.55], [ky, ky], color=c, lw=3.0, solid_capstyle='round', zorder=5)
+    t(kx + 0.7, ky, lbl, ha='left', sz=7.3, c='#212121')
 
-dot(PU_JX, PU_JY, C_SIG)
-wire([(PU_JX, PU_JY), (PU_JX, PU_JY + 0.52)], C_PWR)
-resistor_v(PU_JX, PU_JY + 1.05, '4.7 kΩ')
-wire([(PU_JX, PU_JY + 1.58), (PU_JX, PU_JY + 1.95)], C_PWR)
-vcc_sym(PU_JX, PU_JY + 1.95, '+3.3V')
+# ── Footer ────────────────────────────────────────────────────────────────────
+t(FIG_W / 2 + 2.5, 0.75,
+  '+3.3V arrows and GND symbols are the board 3V3 / GND pins — connect each to the '
+  'nearest one.  Default GPIOs shown; change them in sdkconfig.defaults.local '
+  '(see docs/wiring.md).', sz=7.8, c='#78909c', italic=True)
+t(FIG_W / 2 + 2.5, 0.38,
+  'The WellD PCB has all of this on board — this drawing is for hand-wired '
+  'dev-board builds only.', sz=7.8, c='#78909c', italic=True)
 
-# GPIO4 wire:
-#   board left stub (10.35, Y_GPIO4)
-#   → left to routing channel at x=ROUTE_X
-#   → UP to above-board channel at OVER_Y
-#   → RIGHT across top of board
-#   → DROP at PU_JX down to DATA level
-#   → RIGHT along DATA wire to DS18B20 DATA stub connection
-ROUTE_X = 8.8
-OVER_Y  = BTOP + 1.2   # 14.2
-
-wire([(LSTUB_END, Y_GPIO4),
-      (ROUTE_X,   Y_GPIO4),
-      (ROUTE_X,   OVER_Y),
-      (PU_JX,     OVER_Y),
-      (PU_JX,     DS_DATA_Y),
-      (DS_CONN_X, DS_DATA_Y)], C_SIG, lw=2.5)
-ann((ROUTE_X + PU_JX)/2, OVER_Y + 0.35,
-    'GPIO4  /  1-Wire data  (routed over board top)')
-
-t(DSX+DSW/2, DSY+DSH+1.25, '② DS18B20 Temperature Probe',
-  sz=10, c='#1b5e20', bold=True)
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  ③ Battery Voltage Divider  (optional)
-# ─────────────────────────────────────────────────────────────────────────────
-BAT_X, BAT_Y, BAT_W, BAT_H = 0.6, 4.0, 2.6, 1.55
-box(BAT_X, BAT_Y, BAT_W, BAT_H, fc='#fafafa', ec='#607d8b', lw=2.0, zo=3)
-t(BAT_X+BAT_W/2, BAT_Y+BAT_H/2+0.22, 'Battery',     sz=9.5, c='#37474f', bold=True)
-t(BAT_X+BAT_W/2, BAT_Y+BAT_H/2-0.24, '(LiPo / AA)', sz=8,   c='#546e7a')
-
-BAT_POS_Y = BAT_Y + BAT_H - 0.30   # 5.25
-BAT_NEG_Y = BAT_Y + 0.30           # 4.30
-BAT_RX    = BAT_X + BAT_W          # 3.20
-
-t(BAT_RX-0.16, BAT_POS_Y, '(+)', ha='right', sz=9, c=C_LOOP,    bold=True)
-t(BAT_RX-0.16, BAT_NEG_Y, '(−)', ha='right', sz=9, c='#37474f', bold=True)
-
-# Battery (+) → R1 → midpoint
-R1_CX  = 4.55
-MID_X  = 5.60
-MID_Y  = BAT_POS_Y   # 5.25
-
-wire([(BAT_RX, BAT_POS_Y), (R1_CX-0.48, BAT_POS_Y)], C_LOOP)
-resistor_h(R1_CX, BAT_POS_Y, 'R1  100 kΩ')
-wire([(R1_CX+0.48, BAT_POS_Y), (MID_X, MID_Y)], C_LOOP)
-dot(MID_X, MID_Y, C_BATT)
-
-# Midpoint → R2 → GND
-DIV_GND_Y = BAT_NEG_Y - 0.50   # 3.80
-wire([(MID_X, MID_Y), (MID_X, MID_Y - 0.50)], C_GND)
-resistor_v(MID_X, MID_Y - 1.00, 'R2  100 kΩ')
-wire([(MID_X, MID_Y - 1.50), (MID_X, DIV_GND_Y)], C_GND)
-gnd_sym(MID_X, DIV_GND_Y)
-
-# Battery (−) → GND
-BAT_GND_X = BAT_RX + 0.30
-wire([(BAT_RX,    BAT_NEG_Y),
-      (BAT_GND_X, BAT_NEG_Y),
-      (BAT_GND_X, DIV_GND_Y - 0.05)], C_GND)
-gnd_sym(BAT_GND_X, DIV_GND_Y - 0.05)
-
-# Midpoint → GPIO1:  RIGHT at MID_Y, then UP to GPIO1 row, then RIGHT to board stub
-GPIO1_TURN_X = LSTUB_END   # 10.35
-wire([(MID_X,        MID_Y),
-      (GPIO1_TURN_X, MID_Y),
-      (GPIO1_TURN_X, Y_GPIO1)], C_BATT)
-ann((MID_X + GPIO1_TURN_X)/2, MID_Y + 0.48,
-    '~2.1 V at full charge  (divided battery → ADC)')
-
-rbox(BAT_X-0.06, BAT_Y-0.54, 2.72, 0.38,
-     fc='#fff8e1', ec='#f9a825', lw=1.5, zo=4, r=0.06)
-t(BAT_X+BAT_W/2, BAT_Y-0.35,      'OPTIONAL',         sz=8.5, c='#e65100', bold=True)
-t(BAT_X+BAT_W/2, BAT_Y+BAT_H+0.32, '③ Battery Divider', sz=10, c='#37474f', bold=True)
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Title
-# ─────────────────────────────────────────────────────────────────────────────
-t(FIG_W/2, FIG_H-0.50,
-  'WellD — Sensor Wiring Diagram', sz=17, c='#0d1b4b', bold=True)
-t(FIG_W/2, FIG_H-1.05,
-  'ESP32-C6-DevKitC-1  ·  4–20 mA Pressure Transducer (10–30 V loop)  ·'
-  '  DS18B20 Temperature Probe  ·  Buck Converter (24 V → 5 V)  ·  Battery Monitor (optional)',
-  sz=9, c='#546e7a')
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  ④ Buck converter (24 V → 5 V)  +  shared 24 V supply rail
-#
-#  Single external 24 V DC supply feeds both the current loop and the
-#  ESP32 power input (via a buck converter), eliminating the need for a
-#  USB power bank and its auto-shutoff problem.
-#
-#  5V pin is on J3 right side (R_PINS[1]).  All three GND nodes are the
-#  same net (see footer).
-# ─────────────────────────────────────────────────────────────────────────────
-# Buck converter box — placed above the DS18B20, right of the board.
-# Width kept to 2.0 so the right edge (18.0) clears DS18B20 left edge (18.5).
-BUCK_X, BUCK_Y, BUCK_W, BUCK_H = 16.0, 12.5, 2.0, 1.2
-BUCK_CX  = BUCK_X + BUCK_W / 2    # 17.0
-BUCK_CY  = BUCK_Y + BUCK_H / 2    # 13.1
-BUCK_TOP = BUCK_Y + BUCK_H         # 13.7
-
-rbox(BUCK_X, BUCK_Y, BUCK_W, BUCK_H,
-     fc='#f3e5f5', ec='#6a1b9a', lw=2.0, zo=3, r=0.09)
-t(BUCK_CX, BUCK_CY + 0.24, 'Buck Converter', sz=9,   c='#6a1b9a', bold=True)
-t(BUCK_CX, BUCK_CY - 0.20, '24 V → 5 V',    sz=8.5, c='#7b1fa2')
-
-t(BUCK_CX, BUCK_Y - 0.55, '④ Buck Converter', sz=10, c='#6a1b9a', bold=True)
-
-# 5V output: exits left wall at mid-height, jogs left then drops to board 5V pin.
-# Route stays right of board edge (14.4) so it never crosses the board body.
-Y_5V = R_YS[1]    # ≈ 11.76 — board 5V pin level
-wire([(BUCK_X,    BUCK_CY),    # left-wall midpoint
-      (15.0,      BUCK_CY),    # jog left (above board top)
-      (15.0,      Y_5V),       # drop to 5V pin level
-      (RSTUB_END, Y_5V)],      # reach board stub end
-     C_LOOP, zo=4)
-ann((15.0 + RSTUB_END) / 2, Y_5V + 0.38, '5 V → board 5V pin  (J3)')
-
-# 24V input stub: top-centre of buck converter → shared bus
-BUS_Y = OVER_Y + 0.55    # 14.75 — clears the GPIO4 over-board wire at 14.2
-wire([(BUCK_CX, BUCK_TOP), (BUCK_CX, BUS_Y)], C_LOOP, zo=4)
-dot(BUCK_CX, BUS_Y, C_LOOP)
-
-# 24V input stub: top of loop supply → same bus.
-# x = LS_CX = 4.0, which is left of GPIO4's routing column (8.8) — no crossing.
-wire([(LS_CX, LS_TOP), (LS_CX, BUS_Y)], C_LOOP, zo=4)
-dot(LS_CX, BUS_Y, C_LOOP)
-
-# Shared 24 V DC bus rail — horizontal, above everything
-wire([(LS_CX, BUS_Y), (BUCK_CX, BUS_Y)], C_LOOP, lw=3.0, zo=3)
-ann((LS_CX + BUCK_CX) / 2, BUS_Y + 0.30,
-    '24 V DC supply rail  (shared — one external PSU powers loop supply + buck converter)')
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Colour key
-# ─────────────────────────────────────────────────────────────────────────────
-KX, KY = 18.6, 2.0
-rbox(KX-0.3, KY-0.3, 7.3, 5.6, fc='#fafafa', ec='#b0bec5', lw=1.4, zo=3, r=0.15)
-t(KX+3.35, KY+5.1, 'Colour Key', sz=11, c='#0d1b4b', bold=True)
-
-KEY_ITEMS = [
-    (C_PWR,  '+3.3 V power rail  (ESP32 3V3 pin)'),
-    (C_SIG,  'Signal / 1-Wire / ADC node'),
-    (C_GND,  'Ground  (all GND symbols = same net)'),
-    (C_LOOP, 'External supply rail  (loop supply · 5V board input)'),
-    (C_BATT, 'Battery ADC signal  (optional)'),
-    (C_FADE, 'Unused board pin'),
-]
-for i, (c, lbl) in enumerate(KEY_ITEMS):
-    ky = KY + 4.52 - i * 0.72
-    ax.plot([KX+0.12, KX+1.10], [ky, ky],
-            color=c, lw=3.0, solid_capstyle='round', zorder=5)
-    dot(KX+1.10, ky, c, sz=40, zo=6)
-    t(KX+1.28, ky, lbl, ha='left', sz=8.5, c='#212121')
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Footer
-# ─────────────────────────────────────────────────────────────────────────────
-t(FIG_W/2, 0.40,
-  '+3.3V / GND symbols represent the board 3V3 and GND pins respectively — '
-  'connect each symbol to the nearest available board pin.  '
-  'Default GPIO assignments; override in sdkconfig.defaults.local.',
-  sz=7.5, c='#90a4ae', italic=True)
-
-# ─────────────────────────────────────────────────────────────────────────────
-out = os.path.join(os.path.dirname(__file__), 'wiring_diagram.png')
+out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wiring_diagram.png')
 plt.savefig(out, dpi=150, bbox_inches='tight', facecolor='white')
 print(f'Saved → {out}')

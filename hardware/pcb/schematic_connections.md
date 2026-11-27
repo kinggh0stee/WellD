@@ -9,7 +9,7 @@
 - **power rails** (`GND`, `+3V3`, `+3V3_ADS`, `VBAT`, `VBAT_RAW`, `VLOOP`, `VUSB`, `VUSB_IN`, `VSOLAR`, `VSOLAR_IN`) → **global labels** (the decorative corner power symbols were removed; `PWR_FLAG` symbols drive ERC on GND / +3V3 / +3V3_ADS / VUSB / VSOLAR);
 - **cross-sheet signals** → **hierarchical labels** + matching sheet pins on `welld.kicad_sch`, joined at the root by stubs + local labels;
 - **sheet-local nets** → local labels;
-- **unused pins** → explicit `(no_connect)` markers. Currently 11: **DW01A TD**, **CN3791 /DONE** (no spare GPIO; pad available for a future TP), **TP4056 /STDBY** (only /CHRG is monitored), ESP32 **GPIO4** (spare) and the phantom **GPIO10 / GPIO11** custom-symbol pins (**not bonded on the MINI-1 module** — they vanish at the official-symbol swap; I²C moved to GPIO18/19), ADS1115 AIN3, D12 IO2, J3 RF pin.
+- **unused pins** → explicit `(no_connect)` markers. Currently 10 (as counted by `netlist_check.py`): **DW01A TD**, **CN3791 /DONE** (no spare GPIO; pad available for a future TP), **TP4056 /STDBY** (only /CHRG is monitored), **LM393 (U14) OUT2** (second comparator unused; its inputs are parked), ESP32 **GPIO4** (spare) and the phantom **GPIO10 / GPIO11** custom-symbol pins (**not bonded on the MINI-1 module** — they vanish at the official-symbol swap; I²C moved to GPIO18/19), ADS1115 AIN3, D12 IO2, J3 RF pin.
 
 **Convention:** connections below are given by **pin name** (as printed on the symbol), not pin number. Several custom symbols have unverified pin *numbers* — see [Symbol pin-number verification](#symbol-pin-number-verification) before assigning footprints.
 
@@ -479,7 +479,7 @@ Path: `VBAT → Q5 (P-FET) → R7 (100k) → mid (ADC_CH2) → R8 (100k) → GND
 | R7 | pin 2 | ADC_CH2 (mid) |
 | R8 | pin 1 / pin 2 | mid / GND |
 | C8 (**1 nF**) | pins 1–2 | across R8 — τ ≈ 50 µs (R7‖R8 = 50 k), settles well inside the 1 ms firmware enable window |
-| U9 ADS1115 | AIN2 | 4.2 V × 100/200 = **2.1 V max — exceeds the ±2.048 V PGA range**; ❗ firmware must select the **±4.096 V PGA** for the AIN2 read (1S firmware-handoff item, with `CONFIG_WELLD_BATT_DIVIDER_RATIO` 430 → 200) |
+| U9 ADS1115 | AIN2 | 4.2 V × 100/200 = **2.1 V max — exceeds the ±2.048 V PGA range**; ✅ firmware reads AIN2 on the **±4.096 V PGA** (1S firmware-handoff item, done together with `CONFIG_WELLD_BATT_DIVIDER_RATIO` 430 → 200) |
 
 > With Q5 off, the divider is fully dead: AIN2 rests at 0 V through R8 and there is no sneak path into the ADS1115 ESD diodes (the old low-side switch leaked ~14 µA into AIN2 during sleep).
 
