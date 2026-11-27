@@ -1,6 +1,7 @@
 #pragma once
 
-/* Shared NVS namespace and keys used across main/ and components/sensor/.
+/* Shared NVS namespace, keys and partition labels used across main/ and
+ * components/.
  * Centralised here so a typo in one file is caught at compile time. */
 
 #define WELLD_NVS_NAMESPACE     "welld"
@@ -14,3 +15,10 @@
  * rolled back. Storing the version string — not a bool — self-invalidates
  * the marker whenever a new image boots. */
 #define WELLD_NVS_KEY_IMG_OK    "img_ok"
+
+/* Label of the dedicated NVS partition (partitions.csv) holding the Zigbee
+ * stack's network datasets. Separate from the default "nvs" partition that
+ * holds the keys above, so erasing WellD's own keys never touches the
+ * Zigbee join state and vice versa. app_main initialises it; zigbee.c
+ * passes it to esp_zigbee_init(). */
+#define WELLD_ZB_STORAGE_PARTITION  "zb_storage"

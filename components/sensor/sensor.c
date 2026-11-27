@@ -4,6 +4,8 @@
 #include "onewire_bus.h"
 #include "ds18b20.h"
 #include "esp_log.h"
+#include "esp_rom_sys.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -14,6 +16,23 @@
 #include <limits.h>
 
 static const char *TAG = "sensor";
+
+/* Ticks that guarantee AT LEAST `ms` milliseconds when passed to vTaskDelay()
+ * or used as a blocking timeout. pdMS_TO_TICKS() rounds down and the first
+ * tick of a delay can be almost zero long, so at the default
+ * CONFIG_FREERTOS_HZ=100 pdMS_TO_TICKS(1) is 0 (no delay at all) and
+ * pdMS_TO_TICKS(10) is 1 tick (anywhere from ~0 to 10 ms). Round up and add
+ * one tick so every settle time and timeout below is a real minimum whatever
+ * the tick rate. */
+static TickType_t ticks_at_least_ms(uint32_t ms)
+{
+    return (TickType_t)(((uint64_t)ms * configTICK_RATE_HZ + 999U) / 1000U) + 1U;
+}
+
+static void delay_at_least_ms(uint32_t ms)
+{
+    vTaskDelay(ticks_at_least_ms(ms));
+}
 
 /* INT32_MIN is used as a sentinel meaning "not yet loaded from NVS".
    Avoids an NVS read on every call after the first wakeup. */
@@ -65,26 +84,29 @@ static void power_gpio_init(void) {
 /* Configure the ADS1115 ALERT/DRDY pin as a conversion-ready signal and
  * install a falling-edge ISR on GPIO CONFIG_WELLD_ADS1115_DRDY_GPIO.
  *
- * Per the ADS1115 datasheet §9.4.4: writing Lo_thresh = 0x8000 and
- * Hi_thresh = 0x7FFF overrides the comparator and makes ALERT/DRDY pulse
- * low for one conversion period when a single-shot conversion completes.
+ * ADS1115 datasheet (SBAS444, "Conversion Ready Pin"): set the MSB of
+ * Hi_thresh to 1 and the MSB of Lo_thresh to 0, with COMP_QUE != 11, and
+ * ALERT/RDY asserts (low, COMP_POL = 0) at the end of each single-shot
+ * conversion. The reset values (Lo_thresh 0x8000, Hi_thresh 0x7FFF) are the
+ * opposite — they leave the pin in plain comparator mode with the thresholds
+ * at the rails, so it never asserts.
  *
  * The GPIO is open-drain so the internal pull-up must be enabled. */
 static esp_err_t ads1115_drdy_init(void)
 {
-    /* Write Lo_thresh = 0x8000 — MSB = 1 enables DRDY mode */
-    uint8_t lo_buf[3] = { ADS1115_REG_LO_THRESH, 0x80, 0x00 };
-    esp_err_t ret = i2c_master_transmit(s_ads_dev, lo_buf, 3, 50);
+    /* Hi_thresh = 0x8000 — MSB = 1 */
+    uint8_t hi_buf[3] = { ADS1115_REG_HI_THRESH, 0x80, 0x00 };
+    esp_err_t ret = i2c_master_transmit(s_ads_dev, hi_buf, 3, 50);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "ADS1115 Lo_thresh write failed: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "ADS1115 Hi_thresh write failed: %s", esp_err_to_name(ret));
         return ret;
     }
 
-    /* Write Hi_thresh = 0x7FFF — MSB = 0 (paired with Lo_thresh MSB = 1) */
-    uint8_t hi_buf[3] = { ADS1115_REG_HI_THRESH, 0x7F, 0xFF };
-    ret = i2c_master_transmit(s_ads_dev, hi_buf, 3, 50);
+    /* Lo_thresh = 0x0000 — MSB = 0 */
+    uint8_t lo_buf[3] = { ADS1115_REG_LO_THRESH, 0x00, 0x00 };
+    ret = i2c_master_transmit(s_ads_dev, lo_buf, 3, 50);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "ADS1115 Hi_thresh write failed: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "ADS1115 Lo_thresh write failed: %s", esp_err_to_name(ret));
         return ret;
     }
 
@@ -134,20 +156,24 @@ static esp_err_t ads1115_drdy_init(void)
 }
 
 /* I2C bus recovery: if SDA is stuck LOW, clock out 9 pulses on SCL
- * (GPIO open-drain mode) to release any peripheral holding the bus. */
+ * (GPIO open-drain mode) to release any peripheral holding the bus.
+ *
+ * The pins must be INPUT_OUTPUT_OD: with plain OUTPUT_OD the input buffer is
+ * off and gpio_get_level() always reads 0, so every wakeup "saw" a stuck bus,
+ * logged a warning and clocked recovery pulses that could never detect the
+ * release. Half-periods are 5 µs (100 kHz standard-mode timing). */
 static void i2c_bus_recover(void)
 {
     int sda = CONFIG_WELLD_I2C_SDA_GPIO;
     int scl = CONFIG_WELLD_I2C_SCL_GPIO;
 
     gpio_config_t cfg = {
-        .mode         = GPIO_MODE_OUTPUT_OD,
+        .mode         = GPIO_MODE_INPUT_OUTPUT_OD,
         .pull_up_en   = GPIO_PULLUP_ENABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .intr_type    = GPIO_INTR_DISABLE,
     };
 
-    /* Configure SDA as input to sample its level */
     cfg.pin_bit_mask = 1ULL << sda;
     gpio_config(&cfg);
     cfg.pin_bit_mask = 1ULL << scl;
@@ -155,15 +181,15 @@ static void i2c_bus_recover(void)
 
     gpio_set_level(scl, 1);
     gpio_set_level(sda, 1);
-    vTaskDelay(pdMS_TO_TICKS(1));
+    esp_rom_delay_us(10);
 
     if (gpio_get_level(sda) == 0) {
         ESP_LOGW(TAG, "SDA stuck LOW — performing I2C bus recovery");
         for (int i = 0; i < 9; i++) {
             gpio_set_level(scl, 0);
-            vTaskDelay(pdMS_TO_TICKS(1));
+            esp_rom_delay_us(5);
             gpio_set_level(scl, 1);
-            vTaskDelay(pdMS_TO_TICKS(1));
+            esp_rom_delay_us(5);
             if (gpio_get_level(sda)) {
                 ESP_LOGI(TAG, "SDA released after %d clock pulses", i + 1);
                 break;
@@ -171,11 +197,11 @@ static void i2c_bus_recover(void)
         }
         /* Send STOP condition: SDA LOW → SCL HIGH → SDA HIGH */
         gpio_set_level(sda, 0);
-        vTaskDelay(pdMS_TO_TICKS(1));
+        esp_rom_delay_us(5);
         gpio_set_level(scl, 1);
-        vTaskDelay(pdMS_TO_TICKS(1));
+        esp_rom_delay_us(5);
         gpio_set_level(sda, 1);
-        vTaskDelay(pdMS_TO_TICKS(1));
+        esp_rom_delay_us(5);
     }
 }
 
@@ -248,66 +274,75 @@ static int ads1115_read_mv_median(int ch)
 }
 #endif /* CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED */
 
-/* Config register bitfields */
-#define ADS1115_OS_START        (1U << 7)
-#define ADS1115_MUX_AIN0        (4U << 4)   /* AIN0 vs GND */
-#define ADS1115_MUX_AIN2        (6U << 4)   /* AIN2 vs GND */
-#define ADS1115_PGA_2V048       (2U << 1)   /* ±2.048 V (4-20 mA shunt, AIN0) */
-#define ADS1115_PGA_4V096       (1U << 1)   /* ±4.096 V (battery, AIN2 — the 1S
-                                             * ÷2 divider puts up to 2.1 V on
-                                             * AIN2; ±2.048 V would clip right
-                                             * at full charge) */
-#define ADS1115_MODE_SINGLE     (1U << 0)
-#define ADS1115_DR_860SPS       (7U << 5)
-/* COMP_QUE = 00: assert after one conversion — required for DRDY mode.
- * COMP_POL = 0 (active-low), COMP_LAT = 0 (non-latching). */
+/* Config register bitfields. The register is written MSB first, so the two
+ * bytes are built separately:
+ *   MSB (bits 15:8): OS | MUX[2:0] | PGA[2:0] | MODE
+ *   LSB (bits 7:0):  DR[2:0] | COMP_MODE | COMP_POL | COMP_LAT | COMP_QUE[1:0] */
+#define ADS1115_OS_START        (1U << 7)   /* MSB: start / conversion done */
+#define ADS1115_MUX_AIN0        (4U << 4)   /* MSB: AIN0 vs GND */
+#define ADS1115_MUX_AIN2        (6U << 4)   /* MSB: AIN2 vs GND */
+/* MSB: ±4.096 V for both channels. AIN2: the 1S ÷2 divider reaches 2.1 V at
+ * full charge (±2.048 V would clip there). AIN0: 20 mA × 100 Ω = 2.0 V sits at
+ * the very top of ±2.048 V, which clips at 20.47 mA and made the >21 mA
+ * short-circuit check unreachable. Inputs still may not exceed VDD (3.3 V);
+ * the shunt Kconfig range keeps 21 mA well below it. */
+#define ADS1115_PGA_4V096       (1U << 1)
+#define ADS1115_FSR_MV          4096L
+#define ADS1115_MODE_SINGLE     (1U << 0)   /* MSB */
+#define ADS1115_DR_860SPS       (7U << 5)   /* LSB: 860 SPS, ~1.16 ms/conversion */
+/* LSB: COMP_QUE = 00 (assert after one conversion — anything but 11 keeps
+ * ALERT/RDY enabled), COMP_POL = 0 (active-low), COMP_LAT = 0. */
 #define ADS1115_COMP_QUE_ONE    (0U << 0)
 
-/* Maximum time to wait for an ADS1115 conversion-complete signal (ms).
+/* Maximum time to wait for an ADS1115 conversion to complete (ms).
  * At 860 SPS one conversion takes ~1.16 ms; 10 ms gives an 8× safety margin. */
 #define ADS1115_CONV_TIMEOUT_MS 10
 
-/* Wait for an ADS1115 single-shot conversion to complete.
- *
- * Primary path (s_ads_drdy_sem != NULL): blocks on the binary semaphore
- * that the GPIO22 falling-edge ISR releases when DRDY asserts.  The
- * semaphore is drained before starting every conversion so a stale token
- * from a previous cycle cannot produce a false-ready.
- *
- * Fallback path (semaphore NULL or ISR not configured): poll the OS bit in
- * the config register, 2 ms per iteration, up to ADS1115_CONV_TIMEOUT_MS.
- *
- * Returns ESP_OK on success, ESP_ERR_TIMEOUT if the edge never arrives. */
-static esp_err_t ads1115_wait_conversion_done(void)
+/* Poll the config register's OS bit (1 = no conversion in progress) until
+ * the deadline. Returns ESP_OK, ESP_ERR_TIMEOUT or ESP_ERR_INVALID_RESPONSE. */
+static esp_err_t ads1115_poll_os(int64_t deadline_us)
 {
-    if (s_ads_drdy_sem) {
-        /* Block until the ISR fires or the timeout expires. */
-        if (xSemaphoreTake(s_ads_drdy_sem,
-                           pdMS_TO_TICKS(ADS1115_CONV_TIMEOUT_MS)) == pdTRUE) {
-            return ESP_OK;
-        }
-        ESP_LOGW(TAG, "ADS1115 DRDY timeout (%d ms) — DRDY edge not received",
-                 ADS1115_CONV_TIMEOUT_MS);
-        return ESP_ERR_TIMEOUT;
-    }
-
-    /* Polling fallback: read OS bit from config register. */
     uint8_t reg = ADS1115_REG_CONFIG;
     uint8_t cfg[2];
-    for (uint32_t waited = 0; waited < ADS1115_CONV_TIMEOUT_MS; waited += 2) {
+    for (;;) {
         if (i2c_master_transmit_receive(s_ads_dev, &reg, 1, cfg, 2, 50) != ESP_OK)
             return ESP_ERR_INVALID_RESPONSE;
         if (cfg[0] & ADS1115_OS_START)
             return ESP_OK;
-        vTaskDelay(pdMS_TO_TICKS(2));
+        if (esp_timer_get_time() >= deadline_us)
+            return ESP_ERR_TIMEOUT;
+        esp_rom_delay_us(200);
     }
-    return ESP_ERR_TIMEOUT;
+}
+
+/* Wait for an ADS1115 single-shot conversion to complete.
+ *
+ * Primary path (s_ads_drdy_sem != NULL): blocks on the binary semaphore
+ * that the DRDY falling-edge ISR releases. The semaphore is drained before
+ * every conversion; the OS bit is then confirmed over I2C, so a stray edge
+ * (or a token from the previous conversion) can never hand back the previous
+ * channel's result.
+ *
+ * Fallback path (semaphore NULL): poll the OS bit every 200 µs.
+ *
+ * Both paths use a tick-rate-independent deadline of at least
+ * ADS1115_CONV_TIMEOUT_MS. Returns ESP_OK, or ESP_ERR_TIMEOUT /
+ * ESP_ERR_INVALID_RESPONSE. */
+static esp_err_t ads1115_wait_conversion_done(void)
+{
+    int64_t deadline_us = esp_timer_get_time() + ADS1115_CONV_TIMEOUT_MS * 1000LL;
+    if (s_ads_drdy_sem &&
+        xSemaphoreTake(s_ads_drdy_sem, ticks_at_least_ms(ADS1115_CONV_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGW(TAG, "ADS1115 DRDY edge not received within %d ms — polling",
+                 ADS1115_CONV_TIMEOUT_MS);
+    }
+    return ads1115_poll_os(deadline_us);
 }
 
 /* Read one ADS1115 channel in single-shot mode.
- * ch: 0 = AIN0/GND (4-20 mA shunt, PGA ±2.048 V),
- *     2 = AIN2/GND (battery divider, PGA ±4.096 V — see define above).
- * 860 SPS.  COMP_QUE = one-shot assert, required for DRDY.
+ * ch: 0 = AIN0/GND (4-20 mA shunt), 2 = AIN2/GND (battery divider); both on
+ * the ±4.096 V range (see ADS1115_PGA_4V096). 860 SPS. COMP_QUE = one-shot
+ * assert, required for DRDY.
  * Returns millivolts (signed), or INT_MIN on error. */
 static int ads1115_read_mv(int ch) {
     if (!s_ads_dev) return INT_MIN;
@@ -325,11 +360,10 @@ static int ads1115_read_mv(int ch) {
     }
 
     uint8_t mux = (ch == 2) ? ADS1115_MUX_AIN2 : ADS1115_MUX_AIN0;
-    uint8_t pga = (ch == 2) ? ADS1115_PGA_4V096 : ADS1115_PGA_2V048;
     uint8_t buf[3] = {
         ADS1115_REG_CONFIG,
-        ADS1115_OS_START | mux | pga | ADS1115_MODE_SINGLE | ADS1115_DR_860SPS,
-        ADS1115_COMP_QUE_ONE   /* assert DRDY after 1 conversion */
+        /* MSB */ ADS1115_OS_START | mux | ADS1115_PGA_4V096 | ADS1115_MODE_SINGLE,
+        /* LSB */ ADS1115_DR_860SPS | ADS1115_COMP_QUE_ONE
     };
     if (i2c_master_transmit(s_ads_dev, buf, 3, 50) != ESP_OK) {
         if (s_ads_drdy_sem) gpio_intr_enable(CONFIG_WELLD_ADS1115_DRDY_GPIO);
@@ -359,9 +393,8 @@ static int ads1115_read_mv(int ch) {
         return INT_MIN;
 
     int16_t raw = (int16_t)(uint16_t)((data[0] << 8) | data[1]);
-    /* mv = raw * FSR / 32768 (FSR in mV matches the PGA chosen above) */
-    long fsr_mv = (ch == 2) ? 4096L : 2048L;
-    return (int)(raw * fsr_mv / 32768);
+    /* mv = raw * FSR / 32768 (FSR matches ADS1115_PGA_4V096) */
+    return (int)(raw * ADS1115_FSR_MV / 32768);
 }
 
 /* Returns the current level offset in cm, loading it from NVS on first call.
@@ -424,7 +457,7 @@ float sensor_read_level(void)
      * the shunt (PCB review 2026-07: raised from 5 ms for Q3 + C20/C22).
      * Constraint from CLAUDE.md: GPIO5 must be HIGH ≥ 10 ms before any read. */
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 1);
-    vTaskDelay(pdMS_TO_TICKS(10));  /* MT3608B soft-start + Q3/C20/C22 rail settle */
+    delay_at_least_ms(10);  /* MT3608B soft-start + Q3/C20/C22 rail settle */
 
     int volt_mv;
 #if CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED
@@ -443,7 +476,8 @@ float sensor_read_level(void)
 
     int current_ua = (int)(((int64_t)volt_mv * 1000000LL) / CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS);
 
-    /* Short-circuit detection: >21 mA (2100 mV on 100 Ω shunt) */
+    /* Short-circuit detection: >21 mA (2100 mV on 100 Ω shunt — measurable
+     * now that AIN0 uses the ±4.096 V range) */
     if (current_ua > 21000) {
         ESP_LOGE(TAG, "transducer short-circuit (voltage=%d mV, %d µA > 21 mA)",
                  volt_mv, current_ua);
@@ -566,18 +600,24 @@ float sensor_read_temperature(void)
     }
 
     float temp = -127.0f;
-    /* Set resolution; default is 12-bit (750 ms). 9-bit = 94 ms, saves battery. */
-    ds18b20_set_resolution(ds18b20, (ds18b20_resolution_t)CONFIG_WELLD_DS18B20_RESOLUTION_BITS);
-    if (ds18b20_trigger_temperature_conversion_for_all(bus) == ESP_OK) {
-        uint32_t conv_ms;
-        switch (CONFIG_WELLD_DS18B20_RESOLUTION_BITS) {
-            case 9:  conv_ms = 94;  break;
-            case 10: conv_ms = 188; break;
-            case 11: conv_ms = 375; break;
-            default: conv_ms = 750; break;
-        }
-        vTaskDelay(pdMS_TO_TICKS(conv_ms));
-        ds18b20_get_temperature(ds18b20, &temp);
+    /* ds18b20_resolution_t is an index (DS18B20_RESOLUTION_9B = 0 … _12B = 3),
+     * not a bit count: passing the raw Kconfig value (11) indexed past the
+     * driver's 4-entry resolution table. */
+    _Static_assert(CONFIG_WELLD_DS18B20_RESOLUTION_BITS >= 9 &&
+                   CONFIG_WELLD_DS18B20_RESOLUTION_BITS <= 12,
+                   "DS18B20 resolution must be 9..12 bits");
+    if (ds18b20_set_resolution(ds18b20, (ds18b20_resolution_t)(DS18B20_RESOLUTION_9B +
+                               (CONFIG_WELLD_DS18B20_RESOLUTION_BITS - 9))) != ESP_OK) {
+        ESP_LOGW(TAG, "DS18B20 resolution write failed — converting at 12-bit timing");
+    }
+    /* The per-device trigger blocks for the conversion time of the resolution
+     * the driver last set successfully (100/200/400/800 ms for 9–12 bit), so
+     * no extra delay is needed here. (The _for_all variant always blocks a
+     * fixed 800 ms whatever the resolution — with the old extra wait on top
+     * that was ~1.2 s of awake time per wakeup at 11-bit.) */
+    if (ds18b20_trigger_temperature_conversion(ds18b20) == ESP_OK &&
+        ds18b20_get_temperature(ds18b20, &temp) != ESP_OK) {
+        temp = -127.0f;   /* CRC error or the 85 °C power-on value */
     }
     ds18b20_del_device(ds18b20);
     onewire_bus_del(bus);
@@ -599,7 +639,11 @@ float sensor_read_temperature(void)
 float sensor_read_battery_v(void)
 {
     gpio_set_level(CONFIG_WELLD_BATT_DIV_EN_GPIO, 1);
-    vTaskDelay(pdMS_TO_TICKS(1));
+    /* ≥1 ms for Q2/Q5 to switch and the divider node (τ = 50 kΩ × C8 1 nF)
+     * to settle. Busy-wait: vTaskDelay(pdMS_TO_TICKS(1)) is no delay at all
+     * at the default 100 Hz tick, which started the conversion on a still-
+     * rising node and read the battery low. */
+    esp_rom_delay_us(1000);
 #if CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED
     int mv = ads1115_read_mv_median(2);
 #else
@@ -673,7 +717,7 @@ void sensor_selftest(void)
     bool vloop_ok = true;
     gpio_set_direction(CONFIG_WELLD_VLOOP_GPIO, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 1);
-    vTaskDelay(pdMS_TO_TICKS(1));
+    esp_rom_delay_us(100);
     if (gpio_get_level(CONFIG_WELLD_VLOOP_GPIO) != 1) vloop_ok = false;
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
     gpio_set_direction(CONFIG_WELLD_VLOOP_GPIO, GPIO_MODE_OUTPUT);

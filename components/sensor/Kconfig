@@ -1,19 +1,16 @@
 menu "WellD Sensor"
 
-    config WELLD_SENSOR_ADC_CHANNEL
-        int "ADC1 channel for 4-20 mA sensor"
-        default 0
-        range 0 6
-
     config WELLD_SENSOR_SHUNT_MILLIOHMS
         int "Shunt resistor value (milliohms)"
         default 100000
-        range 1000 155000
+        range 1000 130000
         help
-            Value in milliohms. 100000 = 100 Ω → 4 mA gives 0.40 V, 20 mA gives 2.00 V.
-            Upper bound is 155 Ω (155000 mΩ): at 20 mA full scale that produces 3.1 V,
-            the top of the ADC linear range. Higher values exceed the ESP32-C6 ADC
-            absolute-maximum input of 3.6 V and will damage the GPIO pin.
+            Value in milliohms. 100000 = 100 Ω (PCB R2, 0.1 %) → 4 mA gives
+            0.40 V, 20 mA gives 2.00 V at ADS1115 AIN0 (read on the ±4.096 V
+            range). Upper bound 130 Ω keeps 21 mA — the short-circuit
+            threshold — at 2.73 V, inside the ADS1115 input range even when
+            the 3.3 V rail sags to ~2.9 V in HT7333 dropout near battery-empty
+            (analog inputs cannot be measured above VDD).
 
     config WELLD_SENSOR_MAX_DEPTH_CM
         int "Maximum well depth (centimeters)"
@@ -137,14 +134,15 @@ menu "WellD Sensor"
             GPIO connected to the ADS1115 ALERT/DRDY open-drain output.
             GPIO22 on the WellD PCB — moved off GPIO12 (2026-07-22) so the
             native USB D− pin can serve the USB-C console/programming path.
-            The
-            sensor component configures the ADS1115 in conversion-ready mode
-            (Lo_thresh = 0x8000, Hi_thresh = 0x7FFF per datasheet) so the pin
-            pulses LOW when each single-shot conversion completes. The GPIO is
-            configured as input with the ESP32-C6 internal pull-up enabled
-            (ADS1115 ALERT/DRDY is open-drain). A falling-edge ISR releases a
-            binary semaphore so the sensor task can block instead of polling.
-            Timeout fallback of 10 ms protects against a missing edge.
+            The sensor component puts the ADS1115 in conversion-ready mode
+            (Hi_thresh = 0x8000, Lo_thresh = 0x0000: Hi MSB = 1, Lo MSB = 0
+            per the datasheet) so the pin asserts LOW when each single-shot
+            conversion completes. The GPIO is an input with the internal
+            pull-up enabled (ALERT/DRDY is open-drain; the PCB adds R_DRDY
+            4.7 kΩ). A falling-edge ISR releases a binary semaphore so the
+            sensor task can block instead of polling; the conversion is then
+            confirmed via the config register's OS bit, and a missing edge
+            falls back to polling after 10 ms.
 
     config WELLD_SOLAR_DETECT_GPIO
         int "Solar charging detect GPIO (/CHRG, active-low)"
@@ -160,9 +158,10 @@ menu "WellD Sensor"
         default n
         help
             Take 3 ADS1115 samples per channel and report the median.
-            Rejects single-sample noise outliers at the cost of ~4 ms extra
-            active time per channel (~12 ms total vs ~4 ms). Enable for
-            electrically noisy installations; leave off for maximum battery life.
+            Rejects single-sample noise outliers at the cost of ~3 ms extra
+            active time per channel (two more ~1.2 ms conversions plus I2C).
+            Enable for electrically noisy installations; leave off for
+            maximum battery life.
 
     config WELLD_TEMP_COMPENSATION_ENABLED
         bool "Temperature compensation for water level"
@@ -188,9 +187,10 @@ menu "WellD Sensor"
         default 11
         range 9 12
         help
-            Conversion time: 9-bit = 94 ms, 10-bit = 188 ms, 11-bit = 375 ms,
-            12-bit = 750 ms. Lower resolution saves active time and battery.
-            11-bit gives 0.0625 °C steps — adequate for well water monitoring
-            and saves 375 ms per wakeup compared to 12-bit.
+            Conversion wait per wakeup (the ds18b20 driver's timing, just
+            above the datasheet maximums): 9-bit = 100 ms, 10-bit = 200 ms,
+            11-bit = 400 ms, 12-bit = 800 ms. Lower resolution saves active
+            time and battery. 11-bit gives 0.125 °C steps — adequate for well
+            water monitoring — and saves 400 ms per wakeup compared to 12-bit.
 
 endmenu

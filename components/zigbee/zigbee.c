@@ -1,6 +1,8 @@
 #include "zigbee.h"
 #include "welld_core.h"
+#include "welld_nvs.h"
 #include "esp_zigbee.h"
+#include "ezbee/bdb.h"
 #include "ezbee/zcl/zcl_core.h"
 #include "ezbee/zcl/cluster/basic_desc.h"
 #include "ezbee/zcl/cluster/analog_input_desc.h"
@@ -46,14 +48,23 @@ static const char *TAG = "zigbee";
    access-control check even with placeholder values. */
 #define OTA_MANUFACTURER_CODE  0x1234
 #define OTA_IMAGE_TYPE         0x0001
+#define OTA_HW_VERSION         0x0001   /* advertised in Query Next Image */
 
 /* Event bits used to synchronise zb_task with zigbee_send() on the main task.
  * A FAIL_BIT raised after the report was already delivered (SENT_BIT or
  * s_sent_before_ota) is OTA-origin and does not fail the send — the outcome
- * is resolved by welld_send_result(). */
+ * is resolved by welld_send_result().
+ *
+ * There is deliberately no "stack stopped" bit: esp-zigbee-lib 2.x's
+ * esp_zigbee_launch_mainloop() only returns if select() fails, so the stack
+ * cannot be torn down from inside its own callbacks (esp_zigbee_deinit()
+ * there frees the task queue, lock and radio workflow the loop is still
+ * using, and the loop then spins on an empty workflow list instead of
+ * returning). zigbee_send() parks the stack under its lock instead and the
+ * caller deep-sleeps — the same end state as the SDK's deep-sleep end-device
+ * example, which enters deep sleep from inside the running stack. */
 #define SENT_BIT    BIT0   /* reports were queued and the finish window elapsed */
 #define FAIL_BIT    BIT1   /* coordinator not found, steering failed, or OTA error */
-#define STOPPED_BIT BIT2   /* mainloop has exited; radio is free */
 
 /* ZCL character strings: first byte is length, no null terminator */
 static char s_manufacturer[] = "\x05WellD";
@@ -84,9 +95,11 @@ static volatile bool   s_ota_begin_failed = false;
    waiting for the transfer. A later OTA-origin FAIL_BIT must not turn that
    delivered report into a send failure (see welld_send_result). */
 static volatile bool   s_sent_before_ota  = false;
-static int64_t         s_ota_start_us    = 0;   /* wall-clock time when OTA began */
+static volatile bool   s_ota_aborted      = false;  /* see zigbee_ota_aborted() */
+static int64_t         s_ota_last_block_us = 0; /* time of the last OTA progress */
 static esp_ota_handle_t s_ota_handle     = 0;
 static const esp_partition_t *s_ota_partition = NULL;
+static welld_ota_parser_t s_ota_parser;     /* strips the .zigbee header/elements */
 static uint32_t        s_zb_fails        = 0;   /* copied from main task before xTaskCreate */
 
 /* FreeRTOS software timers replace esp_zb_scheduler_alarm so we avoid
@@ -100,28 +113,37 @@ static void do_stop_sent(void *ctx);
 static void do_timeout_check(void *ctx);
 
 /* Fired TOTAL_TIMEOUT_MS after the Zigbee loop starts. If OTA is in progress
-   we reschedule rather than killing the loop — OTA can take many minutes.
-   Uses a wall-clock check (CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC) to abort
-   stalled downloads rather than a reschedule counter, so the limit is
-   independent of TOTAL_TIMEOUT_MS.
+   we reschedule rather than ending the cycle — a Zigbee OTA of a ~650 KB
+   image takes many minutes. The stall check measures time since the last
+   OTA progress (CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC), not since the start, so
+   a slow-but-moving transfer is never cut off while a hung one is.
    Once OTA finishes (reboot) or fails (clears s_ota_in_progress), the next
-   fire stops the loop with FAIL_BIT to wake zigbee_send(). */
+   fire raises FAIL_BIT to wake zigbee_send(). */
 static void timeout_timer_cb(TimerHandle_t xTimer)
 {
     esp_zigbee_task_queue_post(do_timeout_check, NULL);
+}
+
+/* Abort an OTA download in progress and release zigbee_send(). */
+static void ota_fail(const char *why)
+{
+    ESP_LOGE(TAG, "OTA failed: %s — aborting", why);
+    s_ota_aborted = true;
+    if (s_ota_in_progress) {
+        esp_ota_abort(s_ota_handle);
+        s_ota_in_progress = false;
+    }
+    xEventGroupSetBits(s_events, FAIL_BIT);
 }
 
 /* Executed inside the Zigbee task context (via task_queue_post). */
 static void do_timeout_check(void *ctx)
 {
     if (s_ota_in_progress) {
-        int64_t elapsed_s = (esp_timer_get_time() - s_ota_start_us) / 1000000LL;
-        if (elapsed_s >= CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC) {
-            ESP_LOGE(TAG, "OTA stalled after %lld s, aborting", (long long)elapsed_s);
-            esp_ota_abort(s_ota_handle);
-            s_ota_in_progress = false;
-            xEventGroupSetBits(s_events, FAIL_BIT);
-            esp_zigbee_deinit();
+        int64_t idle_s = (esp_timer_get_time() - s_ota_last_block_us) / 1000000LL;
+        if (idle_s >= CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC) {
+            ESP_LOGE(TAG, "OTA stalled: no block for %lld s", (long long)idle_s);
+            ota_fail("stall timeout");
             return;
         }
         /* Reschedule for another TOTAL_TIMEOUT_MS */
@@ -130,13 +152,12 @@ static void do_timeout_check(void *ctx)
     }
     ESP_LOGE(TAG, "timeout — no coordinator found");
     xEventGroupSetBits(s_events, FAIL_BIT);
-    esp_zigbee_deinit();
 }
 
 /* Fired SEND_DELAY_MS after reports are queued, giving the stack time to
    transmit and receive an ACK from the coordinator. If OTA started within
    that window (coordinator responded with an image) we return early to keep
-   the loop alive; do_timeout_check (or an OTA failure path) stops it later. */
+   the cycle alive; do_timeout_check (or an OTA failure path) ends it later. */
 static void finish_timer_cb(TimerHandle_t xTimer)
 {
     esp_zigbee_task_queue_post(do_stop_sent, NULL);
@@ -160,98 +181,173 @@ static void do_stop_sent(void *ctx)
         ESP_LOGW(TAG, "OTA begin failed; report already delivered — send still succeeds");
     }
     xEventGroupSetBits(s_events, SENT_BIT);
-    esp_zigbee_deinit();
 }
 
-/* OTA state machine — called by the Zigbee stack for every OTA upgrade event.
- *
- * Flow:
- *   PROGRESS_START     → find the next OTA partition, open an esp_ota handle
- *   PROGRESS_RECEIVING → write each 128-byte block to flash as it arrives
- *   PROGRESS_APPLY     → validate and commit the image, set boot partition, reboot
- *
- * On any failure we abort the OTA handle, clear s_ota_in_progress, and stop
- * the Zigbee loop immediately rather than waiting for do_timeout_check. */
-static void zb_action_handler(ezb_zcl_core_action_callback_id_t callback_id, void *message)
+/* welld_ota_parser sink: write one run of upgrade-image bytes to flash. */
+static bool ota_write_sink(void *ctx, const uint8_t *data, size_t len)
 {
-    if (callback_id != EZB_ZCL_CORE_OTA_UPGRADE_CLIENT_PROGRESS_CB_ID) return;
-    ezb_zcl_ota_upgrade_client_progress_message_t *msg = message;
+    (void)ctx;
+    return esp_ota_write(s_ota_handle, data, len) == ESP_OK;
+}
+
+/* OTA client progress — called by the Zigbee stack for every stage, per the
+ * esp-zigbee-sdk 2.0.1 OTA client contract:
+ *
+ *   START     → open an esp_ota handle on the inactive slot, reset the parser
+ *   RECEIVING → the block is a slice of the raw .zigbee FILE (OTA header and
+ *               sub-element headers included); only the Upgrade Image
+ *               element's bytes are written to flash (welld_ota_parser)
+ *   CHECK     → the whole file arrived and parsed cleanly
+ *   APPLY     → esp_ota_end() (image validation) + set the boot partition
+ *   FINISH    → reboot into the new image
+ *   ABORT     → drop the partial image
+ *
+ * msg->out.result tells the stack whether to continue (SUCCESS) or abort. */
+static void ota_progress(ezb_zcl_ota_upgrade_client_progress_message_t *msg)
+{
+    msg->out.result = EZB_ZCL_STATUS_SUCCESS;
 
     switch (msg->in.progress) {
-    case EZB_ZCL_OTA_UPGRADE_PROGRESS_START:
-        /* Record wall-clock start time for the stall-detection window */
-        s_ota_start_us = esp_timer_get_time();
+    case EZB_ZCL_OTA_UPGRADE_PROGRESS_START: {
+        uint32_t file_size = msg->in.start.image_size;
+        s_ota_last_block_us = esp_timer_get_time();
         /* esp_ota_get_next_update_partition selects whichever of ota_0/ota_1
            is not currently running, so we always write to the inactive slot */
         s_ota_partition = esp_ota_get_next_update_partition(NULL);
         if (!s_ota_partition) {
             ESP_LOGE(TAG, "OTA: no update partition found");
             msg->out.result = EZB_ZCL_STATUS_ABORT;
+            s_ota_begin_failed = true;
             return;
         }
-        if (esp_ota_begin(s_ota_partition, OTA_SIZE_UNKNOWN, &s_ota_handle) == ESP_OK) {
-            s_ota_in_progress = true;
-            ESP_LOGI(TAG, "OTA started → %s", s_ota_partition->label);
-        } else {
-            ESP_LOGE(TAG, "OTA: esp_ota_begin failed");
+        /* Erase only what the file needs (it is a few dozen bytes larger
+           than the app image) instead of the whole 1.5 MB slot, and let
+           esp_ota_begin reject a file that cannot fit. */
+        if (esp_ota_begin(s_ota_partition, file_size ? file_size : OTA_SIZE_UNKNOWN,
+                          &s_ota_handle) != ESP_OK) {
+            ESP_LOGE(TAG, "OTA: esp_ota_begin failed (file %lu bytes)",
+                     (unsigned long)file_size);
             msg->out.result = EZB_ZCL_STATUS_ABORT;
             s_ota_begin_failed = true;
+            return;
+        }
+        welld_ota_parser_init(&s_ota_parser, file_size);
+        s_ota_in_progress = true;
+        ESP_LOGI(TAG, "OTA started → %s (file v0x%08lx, %lu bytes)", s_ota_partition->label,
+                 (unsigned long)msg->in.start.file_version, (unsigned long)file_size);
+        break;
+    }
+
+    case EZB_ZCL_OTA_UPGRADE_PROGRESS_RECEIVING:
+        if (!s_ota_in_progress) {
+            msg->out.result = EZB_ZCL_STATUS_ABORT;
+            break;
+        }
+        s_ota_last_block_us = esp_timer_get_time();
+        if (!welld_ota_parser_feed(&s_ota_parser, msg->in.receiving.block,
+                                   msg->in.receiving.block_size, ota_write_sink, NULL)) {
+            msg->out.result = EZB_ZCL_STATUS_ABORT;
+            ota_fail("malformed .zigbee file or flash write error");
         }
         break;
 
-    case EZB_ZCL_OTA_UPGRADE_PROGRESS_RECEIVING:
-        if (s_ota_in_progress &&
-            msg->in.receiving.block != NULL &&
-            msg->in.receiving.block_size > 0) {
-            if (esp_ota_write(s_ota_handle,
-                              msg->in.receiving.block,
-                              msg->in.receiving.block_size) != ESP_OK) {
-                ESP_LOGE(TAG, "OTA write failed — aborting");
-                esp_ota_abort(s_ota_handle);
-                s_ota_in_progress = false;
-                /* do_stop_sent already returned early; stop now */
-                msg->out.result = EZB_ZCL_STATUS_ABORT;
-                xEventGroupSetBits(s_events, FAIL_BIT);
-                esp_zigbee_deinit();
-            }
+    case EZB_ZCL_OTA_UPGRADE_PROGRESS_CHECK:
+        if (!s_ota_in_progress || !welld_ota_parser_complete(&s_ota_parser)) {
+            msg->out.result = EZB_ZCL_STATUS_ABORT;
+            ota_fail("incomplete image");
         }
         break;
 
     case EZB_ZCL_OTA_UPGRADE_PROGRESS_APPLY:
-        if (s_ota_in_progress) {
-            /* esp_ota_end validates the image SHA-256 and marks it valid.
-               esp_ota_set_boot_partition updates the otadata partition so the
-               bootloader selects the new image on next boot. */
-            if (esp_ota_end(s_ota_handle) == ESP_OK &&
-                esp_ota_set_boot_partition(s_ota_partition) == ESP_OK) {
-                ESP_LOGI(TAG, "OTA complete — rebooting");
-                esp_restart();
-            } else {
-                ESP_LOGE(TAG, "OTA finalise failed — aborting");
-                s_ota_in_progress = false;
-                msg->out.result = EZB_ZCL_STATUS_ABORT;
-                xEventGroupSetBits(s_events, FAIL_BIT);
-                esp_zigbee_deinit();
-            }
+        /* esp_ota_end validates the image (and its signature under Secure
+           Boot); esp_ota_set_boot_partition updates otadata so the
+           bootloader selects the new image on the next boot. */
+        if (!s_ota_in_progress) {
+            msg->out.result = EZB_ZCL_STATUS_ABORT;
+            break;
         }
+        /* esp_ota_end frees the handle whatever its result — clear the flag
+           first so ota_fail() cannot esp_ota_abort() a consumed handle. */
+        s_ota_in_progress = false;
+        esp_err_t end_err = esp_ota_end(s_ota_handle);
+        s_ota_handle = 0;
+        if (end_err != ESP_OK || esp_ota_set_boot_partition(s_ota_partition) != ESP_OK) {
+            msg->out.result = EZB_ZCL_STATUS_ABORT;
+            ota_fail("image validation or boot-partition update");
+            break;
+        }
+        /* Keep zigbee_send() waiting until FINISH reboots us; restart the
+           stall window for the server's upgrade-time delay. (Should the
+           stall check fire anyway, the new image is already the boot
+           partition and takes over at the next wakeup.) */
+        s_ota_in_progress   = true;
+        s_ota_last_block_us = esp_timer_get_time();
+        ESP_LOGI(TAG, "OTA image applied (%lu bytes)", (unsigned long)s_ota_parser.image_bytes);
+        break;
+
+    case EZB_ZCL_OTA_UPGRADE_PROGRESS_FINISH:
+        ESP_LOGI(TAG, "OTA complete — rebooting");
+        esp_restart();
         break;
 
     case EZB_ZCL_OTA_UPGRADE_PROGRESS_ABORT:
         ESP_LOGW(TAG, "OTA aborted by stack");
-        if (s_ota_in_progress) {
-            esp_ota_abort(s_ota_handle);
-            s_ota_in_progress = false;
-            xEventGroupSetBits(s_events, FAIL_BIT);
-            esp_zigbee_deinit();
-        }
-        break;
-
-    case EZB_ZCL_OTA_UPGRADE_PROGRESS_FINISH:
-        ESP_LOGI(TAG, "OTA finished by stack");
+        if (s_ota_in_progress) ota_fail("aborted by stack");
         break;
 
     default:
         break;
+    }
+}
+
+static void zb_action_handler(ezb_zcl_core_action_callback_id_t callback_id, void *message)
+{
+    switch (callback_id) {
+    case EZB_ZCL_CORE_OTA_UPGRADE_CLIENT_PROGRESS_CB_ID:
+        ota_progress(message);
+        break;
+    case EZB_ZCL_CORE_OTA_UPGRADE_QUERY_NEXT_IMAGE_RSP_CB_ID: {
+        /* Accept whatever the server offers — the stack has already matched
+           manufacturer code / image type and starts the download (PROGRESS_
+           START) when the status is SUCCESS. */
+        ezb_zcl_ota_upgrade_query_next_image_rsp_message_t *rsp = message;
+        if (rsp->in.image.status == EZB_ZCL_OTA_UPGRADE_STATUS_CODE_SUCCESS) {
+            ESP_LOGI(TAG, "OTA: server offers v0x%08lx (%lu bytes)",
+                     (unsigned long)rsp->in.image.file_version,
+                     (unsigned long)rsp->in.image.size);
+        }
+        rsp->out.result = EZB_ZCL_STATUS_SUCCESS;
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+/* Ask the OTA server (the coordinator, endpoint 1 on Zigbee2MQTT) for a newer
+ * image. A sleepy device has to ask: an Image Notify from the server only
+ * reaches it if it happens to poll its parent in the few seconds it is awake.
+ * Zigbee2MQTT answers "no image" until an update is requested for the device,
+ * then serves the file on the device's next query. */
+static void send_ota_query(void)
+{
+    ezb_zcl_ota_upgrade_query_next_image_req_cmd_t query = {
+        .cmd_ctrl = {
+            .dst_addr        = EZB_ADDRESS_SHORT(0x0000),
+            .dst_ep          = 1,
+            .src_ep          = EP_LEVEL,
+            .dis_default_rsp = true,
+        },
+        .payload = {
+            .fc           = 0x01,   /* hardware version present */
+            .manuf_code   = OTA_MANUFACTURER_CODE,
+            .image_type   = OTA_IMAGE_TYPE,
+            .file_version = OTA_FW_VERSION,
+            .hw_version   = OTA_HW_VERSION,
+        },
+    };
+    if (ezb_zcl_ota_upgrade_query_next_image_cmd_req(&query) != EZB_ERR_NONE) {
+        ESP_LOGW(TAG, "OTA query not sent");
     }
 }
 
@@ -429,13 +525,36 @@ static void send_reports(void)
         ezb_zcl_report_attr_cmd_req(&report);
     }
 
+    /* Ask the coordinator for a newer firmware image (see send_ota_query). */
+    send_ota_query();
+
     /* Give the stack SEND_DELAY_MS to transmit before we declare success */
     xTimerStart(s_finish_timer, 0);
 }
 
+static void log_and_send_reports(const char *how)
+{
+    if (isnan(s_rate_cm_per_hour)) {
+        ESP_LOGI(TAG, "%s; reporting level=%.3f m temp=%.1f C batt=%.2f V rate=n/a",
+                 how, s_level_m, s_temperature_c, s_battery_v);
+    } else {
+        ESP_LOGI(TAG, "%s; reporting level=%.3f m temp=%.1f C batt=%.2f V rate=%.1f cm/h",
+                 how, s_level_m, s_temperature_c, s_battery_v, s_rate_cm_per_hour);
+    }
+    send_reports();
+}
+
 /* Application signal handler — called by the Zigbee stack from within the
  * mainloop task context. Drives the BDB commissioning state machine:
- *   SKIP_STARTUP → INITIALIZATION → NETWORK_STEERING → send reports
+ *   SKIP_STARTUP → INITIALIZATION → (already on a network) send reports
+ *                                 → (factory-new) NETWORK_STEERING → send reports
+ * Every deep-sleep wakeup is a "reboot" for the stack: with network state in
+ * zb_storage, BDB initialisation resumes the existing membership (rejoining
+ * the parent if needed) and DEVICE_REBOOT reports success — no steering. Only
+ * a factory-new device (first boot, or after the GPIO factory reset) steers,
+ * which needs permit-join open on the coordinator. This mirrors the SDK's
+ * deep_sleep_end_device example; steering a node that is already on a
+ * network is the BDB "open the network" procedure, not a join.
  * Returns true when the signal is handled (prevents further propagation). */
 static bool zb_signal_handler(const ezb_app_signal_t *signal)
 {
@@ -456,13 +575,15 @@ static bool zb_signal_handler(const ezb_app_signal_t *signal)
     case EZB_BDB_SIGNAL_DEVICE_FIRST_START:
     case EZB_BDB_SIGNAL_DEVICE_REBOOT: {
         const ezb_bdb_signal_simple_params_t *params = ezb_app_signal_get_params(signal);
-        if (params->status == EZB_BDB_STATUS_SUCCESS) {
-            /* Stack initialised; begin network steering (scan + join) */
+        if (params->status != EZB_BDB_STATUS_SUCCESS) {
+            ESP_LOGE(TAG, "init/rejoin failed (status=%d)", params->status);
+            xEventGroupSetBits(s_events, FAIL_BIT);
+        } else if (ezb_bdb_is_factory_new()) {
+            /* No stored network: scan + join (needs permit-join). */
+            ESP_LOGI(TAG, "factory-new — starting network steering");
             ezb_bdb_start_top_level_commissioning(EZB_BDB_MODE_NETWORK_STEERING);
         } else {
-            ESP_LOGE(TAG, "init failed (status=%d)", params->status);
-            xEventGroupSetBits(s_events, FAIL_BIT);
-            esp_zigbee_deinit();
+            log_and_send_reports("rejoined");
         }
         return true;
     }
@@ -470,18 +591,10 @@ static bool zb_signal_handler(const ezb_app_signal_t *signal)
     case EZB_BDB_SIGNAL_STEERING: {
         const ezb_bdb_signal_simple_params_t *params = ezb_app_signal_get_params(signal);
         if (params->status == EZB_BDB_STATUS_SUCCESS) {
-            if (isnan(s_rate_cm_per_hour)) {
-                ESP_LOGI(TAG, "joined; reporting level=%.3f m temp=%.1f C batt=%.2f V rate=n/a",
-                         s_level_m, s_temperature_c, s_battery_v);
-            } else {
-                ESP_LOGI(TAG, "joined; reporting level=%.3f m temp=%.1f C batt=%.2f V rate=%.1f cm/h",
-                         s_level_m, s_temperature_c, s_battery_v, s_rate_cm_per_hour);
-            }
-            send_reports();
+            log_and_send_reports("joined");
         } else {
             ESP_LOGE(TAG, "steering failed (status=%d)", params->status);
             xEventGroupSetBits(s_events, FAIL_BIT);
-            esp_zigbee_deinit();
         }
         return true;
     }
@@ -506,8 +619,9 @@ static ezb_zcl_cluster_desc_t make_ai_cluster(float initial_value)
 /* FreeRTOS task that owns the Zigbee radio for one wakeup cycle:
  *   1. Init the stack as an End Device
  *   2. Register clusters and endpoints
- *   3. Call esp_zigbee_launch_mainloop() — blocks until esp_zigbee_deinit()
- *   4. Set STOPPED_BIT so zigbee_send() knows the radio is released */
+ *   3. Run esp_zigbee_launch_mainloop() — it does not return in normal
+ *      operation; zigbee_send() parks it under the stack lock once the cycle
+ *      is resolved and the caller deep-sleeps (see SENT_BIT/FAIL_BIT). */
 static void zb_task(void *pvParameters)
 {
     /* Combined init: platform config + device config in one call */
@@ -526,6 +640,11 @@ static void zb_task(void *pvParameters)
             },
         },
         .platform_config = {
+            /* NVS partition for the stack's network datasets (keys, PAN,
+               parent, frame counters) — must exist in partitions.csv and be
+               initialised by app_main before this task runs: the platform
+               layer abort()s if it cannot open it. */
+            .storage_partition_name = WELLD_ZB_STORAGE_PARTITION,
             .radio_config = { .radio_mode = ESP_ZIGBEE_RADIO_MODE_NATIVE },
         },
     };
@@ -604,7 +723,7 @@ static void zb_task(void *pvParameters)
     ezb_zcl_ota_upgrade_cluster_desc_add_attr(ota_desc,
         EZB_ZCL_ATTR_OTA_UPGRADE_DOWNLOADED_FILE_VERSION_ID, &s_ota_downloaded_ver);
     ezb_zcl_ota_upgrade_set_download_block_size(EP_LEVEL, 128);
-    ezb_zcl_ota_upgrade_set_hw_version(EP_LEVEL, 0x0001);
+    ezb_zcl_ota_upgrade_set_hw_version(EP_LEVEL, OTA_HW_VERSION);
     ezb_af_endpoint_add_cluster_desc(level_ep, ota_desc);
     ezb_af_device_add_endpoint_desc(dev_desc, level_ep);
 
@@ -671,21 +790,29 @@ static void zb_task(void *pvParameters)
     /* Arm the watchdog timer before entering the blocking mainloop */
     xTimerStart(s_timeout_timer, 0);
 
-    /* Blocking — returns when esp_zigbee_deinit() is called */
+    /* Does not return in normal operation (only on an internal select()
+       failure) — zigbee_send() parks the loop under the stack lock. */
     esp_zigbee_launch_mainloop();
 
-    xEventGroupSetBits(s_events, STOPPED_BIT);
+    ESP_LOGE(TAG, "Zigbee mainloop exited unexpectedly");
+    xEventGroupSetBits(s_events, FAIL_BIT);
     vTaskDelete(NULL);
 }
 
-/* Send sensor readings over Zigbee and block until the radio is released.
+/* Send sensor readings over Zigbee and block until the outcome is known.
  *
  * Lifecycle:
  *   1. Store readings in module-level globals (read by zb_task/send_reports)
- *   2. Spawn zb_task which initialises the stack and joins the network
- *   3. Wait for SENT_BIT (success) or FAIL_BIT (timeout / error)
- *   4. Wait for STOPPED_BIT before returning — ensures the IEEE 802.15.4
- *      radio is fully idle before the caller enters deep sleep
+ *   2. Spawn zb_task which initialises the stack and rejoins (or, when
+ *      factory-new, steers onto) the network
+ *   3. Wait for SENT_BIT (success) or FAIL_BIT (timeout / error) — kept
+ *      waiting while an OTA download runs
+ *   4. Park the stack: stop the timers and take the Zigbee lock, which the
+ *      mainloop releases around each select(), so zb_task freezes outside
+ *      any stack processing — no frame, dataset (NVS) write or flash
+ *      operation in flight. The caller deep-sleeps next, which powers the
+ *      radio down. Nothing is freed: the event group, timers and task live
+ *      until deep sleep resets the chip (zigbee_send() runs once per boot).
  *
  * Returns true when the report was delivered — either SENT_BIT, or the
  * finish window elapsed before an OTA download took over the radio. An OTA
@@ -703,6 +830,7 @@ bool zigbee_send(float level_m,
 {
     s_ota_begin_failed  = false;
     s_sent_before_ota   = false;
+    s_ota_aborted       = false;
     s_level_m           = level_m;
     s_battery_v         = battery_v;
     s_temperature_c     = temperature_c;
@@ -754,11 +882,9 @@ bool zigbee_send(float level_m,
     /* Wait for SENT/FAIL. During an OTA download neither bit is set for
      * potentially many minutes (do_stop_sent returns early while
      * s_ota_in_progress), so keep re-waiting while OTA is running instead of
-     * falling through on timeout: returning here would delete the event group
-     * and timers still used by zb_task (use-after-free) and let the caller
-     * enter deep sleep with the radio mid-transfer. The wait is still
-     * bounded — the stall watchdog in do_timeout_check aborts a hung OTA
-     * with FAIL_BIT after CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC, and a
+     * falling through on timeout and deep-sleeping mid-transfer. The wait is
+     * still bounded — the stall watchdog in do_timeout_check aborts an OTA
+     * that receives no block for CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC, and a
      * successful OTA ends in esp_restart(). */
     EventBits_t bits;
     do {
@@ -766,29 +892,22 @@ bool zigbee_send(float level_m,
                                    pdFALSE, pdFALSE,
                                    pdMS_TO_TICKS(TOTAL_TIMEOUT_MS + 5000));
     } while ((bits & (SENT_BIT | FAIL_BIT)) == 0 && s_ota_in_progress);
-    /* Wait for the radio to be released before entering deep sleep */
-    EventBits_t stop_bits = xEventGroupWaitBits(s_events, STOPPED_BIT, pdFALSE, pdFALSE,
-                                                pdMS_TO_TICKS(5000));
 
-    if (stop_bits & STOPPED_BIT) {
-        xTimerDelete(s_timeout_timer, 0);
-        xTimerDelete(s_finish_timer, 0);
-        vEventGroupDelete(s_events);
-    } else {
-        /* zb_task has not unwound yet — its mainloop and the timer callbacks
-           may still touch the event group and timers, so deleting them here
-           would be a use-after-free. Deliberately leak them instead: the
-           caller enters deep sleep right after we return, and deep sleep is
-           a full chip reset, so the leak is bounded to this one wake cycle
-           and strictly safer than freeing under a live task. */
-        ESP_LOGW(TAG, "zb_task did not stop within 5 s — leaking Zigbee sync objects until deep sleep");
+    /* Park the stack (step 4 above). */
+    xTimerStop(s_timeout_timer, 0);
+    xTimerStop(s_finish_timer, 0);
+    if (!esp_zigbee_lock_acquire(pdMS_TO_TICKS(2000))) {
+        ESP_LOGW(TAG, "Zigbee lock not acquired — sleeping with the stack running");
     }
-    s_timeout_timer = NULL;
-    s_finish_timer  = NULL;
 
     /* Success = report delivered (SENT_BIT, or the finish window elapsed
        before an OTA took over). An OTA-origin FAIL_BIT never fails the send. */
     return welld_send_result((bits & SENT_BIT) != 0,
                              (bits & FAIL_BIT) != 0,
                              s_sent_before_ota);
+}
+
+bool zigbee_ota_aborted(void)
+{
+    return s_ota_aborted;
 }
