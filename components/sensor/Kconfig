@@ -65,14 +65,18 @@ menu "WellD Sensor"
 
     config WELLD_BATT_EMPTY_MV
         int "Battery empty voltage (mV)"
-        default 3000
+        default 3200
         range 2000 10000
         help
-            Voltage read at 0 % state of charge. 3000 = 1S 18650 (3.0 V —
-            also the ESP32-C6 minimum supply through the HT7333 LDO passthrough).
-            When battery voltage (from ADC divider) drops at or below this
-            threshold, the device skips the Zigbee send and all NVS writes and
-            sleeps for the maximum interval to conserve charge.
+            Voltage read at 0 % state of charge. When the battery (resting,
+            read before the radio) is at or below this threshold the device
+            skips the Zigbee send and all NVS writes and sleeps for the
+            maximum interval to conserve charge.
+            3200 keeps the ESP32-C6 in spec: below ~3.4 V the HT7333-A LDO is
+            in dropout, so the 3.3 V rail is VBAT minus ~60-100 mV of dropout
+            and the cell/protection-FET sag under the 802.15.4 TX burst. At a
+            3.0 V resting cell that rail is ~2.9 V — under the C6's 3.0 V
+            minimum. The cost is the last ~5 % of an 18650's capacity.
 
     config WELLD_DS18B20_GPIO
         int "GPIO number for DS18B20 data line"

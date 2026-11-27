@@ -2,7 +2,7 @@
    be unit-tested with `node --test` without installing zigbee-herdsman. */
 
 const DEFAULT_BATTERY_FULL_MV  = 4200;   /* 1S 18650 */
-const DEFAULT_BATTERY_EMPTY_MV = 3000;
+const DEFAULT_BATTERY_EMPTY_MV = 3200;   /* keeps the HT7333-fed 3.3 V rail >= 3.0 V under TX */
 
 /* ZCL AnalogInput presentValue must decode to a plain finite number. Anything
    else (strings, booleans, NaN, ±Infinity, missing) is a malformed report —

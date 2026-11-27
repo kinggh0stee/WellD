@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-27 follow-up — firmware 1.2.1)
+- **Battery-empty threshold 3.0 V → 3.2 V** (`CONFIG_WELLD_BATT_EMPTY_MV` 3000 → **3200**; Z2M `battery_empty_mv` default follows, tripwire test updated). Below ≈3.4 V the HT7333-A LDO is in dropout, so at a 3.0 V resting cell the 3.3 V rail sagged to ≈2.9 V under the 802.15.4 TX burst — below the ESP32-C6's 3.0 V minimum. Costs the last ≈5 % of an 18650's capacity; `battery` % now spans 3.2–4.2 V.
+
 ### Hardware (2026-11-27 follow-up)
 - **4–20 mA ADC inputs hardened** (design change #20): R3/R5 **100 Ω → 1 kΩ**, C3/C5 **1 µF → 100 nF (16 V X7R)**, C4/C6 (10 µF bulk) **DNP**. A shorted transducer or cable lets D9 hold the signal at ≈7–8 V while VLOOP is on; through 100 Ω that pushed ≈40 mA via the D1 clamp into +3V3, which the HT7333 LDO cannot sink. 1 kΩ limits it to ≈3.5 mA. The new RC keeps the 1.6 kHz corner but settles in < 1 ms (the old 100 Ω × 11 µF, τ = 1.1 ms, used most of the 10 ms read window). Values only — no net change, netlist re-verified.
 

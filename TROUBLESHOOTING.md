@@ -8,7 +8,7 @@ Connect USB and open the serial monitor (`idf.py -p /dev/ttyUSB0 monitor`).
 
 ### 1. No serial output at all
 
-- **Check power:** The on-board DW01A protection isolates the cell below ≈2.4 V (and the low-battery guard stops reporting below 3.0 V). Charge the cell first — either charger input (USB or solar) recovers a protection-tripped cell. Also check the cell is seated in the BT1 carrier with correct polarity.
+- **Check power:** The on-board DW01A protection isolates the cell below ≈2.4 V (and the low-battery guard stops reporting at or below 3.2 V). Charge the cell first — either charger input (USB or solar) recovers a protection-tripped cell. Also check the cell is seated in the BT1 carrier with correct polarity.
 - **Check USB cable:** Some cables are charge-only (no data lines). Try a different cable.
 - **Check bootloader baud:** ESP32-C6 boots at 115200; ensure your terminal is set correctly.
 - **Brownout reset loop:** If you see `rst:0x1 (POWERON)` repeatedly, the USB port may not supply enough current for the 12 V boost + Zigbee TX spike. Power from a charged battery while keeping USB connected for serial.
@@ -34,7 +34,7 @@ Connect USB and open the serial monitor (`idf.py -p /dev/ttyUSB0 monitor`).
 4. **Coordinator replaced / network re-formed:** the device keeps its old network membership and never wipes it on its own (an outage would otherwise orphan it). Factory-reset it (hold GPIO23 / TP13 LOW at power-on) and re-pair with permit-join open. From the third consecutive failure the device backs off to its maximum sleep interval (`backing off to … s` in the log), so expect up to `CONFIG_WELLD_SLEEP_MAX_SEC` before it retries.
 5. **Interference:** The 2.4 GHz band is crowded. Check for Wi-Fi access points on overlapping channels.
 
-### 5. `battery critically low (X.XX V <= 3.00 V) — skipping send`
+### 5. `battery critically low (X.XX V <= 3.20 V) — skipping send`
 
 - **Battery genuinely flat:** Charge via USB or solar.
 - **Measurement error:** Verify the divider ratio in Kconfig matches R7/R8 (100 kΩ / 100 kΩ, ratio 200).
@@ -97,7 +97,7 @@ If your measurement is higher:
 
 ## Quick Checks Checklist
 
-- [ ] Cell voltage > 3.0 V (measure across the BT1 carrier tabs — minimum safe discharge; DW01A protection trips at ≈2.4 V)
+- [ ] Cell voltage > 3.2 V (measure across the BT1 carrier tabs — the firmware's reporting floor; DW01A protection trips at ≈2.4 V)
 - [ ] Solar charging LED (if populated) is off or on as expected
 - [ ] `idf.py monitor` shows `BOOT` → `SENSOR_OK` → `ZB_SENT` within ~10 s
 - [ ] Zigbee2MQTT logs show `Device 'WellD-v1' joined` on first pairing

@@ -20,7 +20,7 @@
 # converter. Override per-device in the Zigbee2MQTT device options UI instead
 # of changing these, since they are not read by the firmware at runtime.
 # CONFIG_WELLD_BATT_FULL_MV=4200   # 1S 18650 full charge
-# CONFIG_WELLD_BATT_EMPTY_MV=3000  # 1S 18650 minimum safe discharge
+# CONFIG_WELLD_BATT_EMPTY_MV=3200  # 1S 18650: keeps the LDO-fed 3.3 V rail >= 3.0 V under TX
 
 # DS18B20 temperature sensor GPIO (PCB: GPIO7)
 # CONFIG_WELLD_DS18B20_GPIO=7
