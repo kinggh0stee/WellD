@@ -118,9 +118,9 @@ R31 (10 kΩ, 0402) connects D5's gate to GND. R31 holds Vgs = −Vbat so the MOS
 
 ### Enclosure
 
-The enclosure is designed in [`hardware/case/welld_case.scad`](hardware/case/welld_case.scad). **No separate battery bay is needed any more** — the single 18650 lives in the top-side on-board carrier (BT1), so the case only has to clear ≈19–21 mm above the board. The external footprint follows the final board outline (unconstrained; working target ≈100 × 60 mm) and is sized at layout time. A USB-C slot on the left short wall accommodates the J13 connector (TP4056 charging **and** USB console/programming via the ESP32 native USB). The case dimensions consume the final board layout, so case work stays last.
+The enclosure is **not designed yet** — the previous OpenSCAD case was deleted with the old PCB on 2026-05-25, and case work deliberately comes last because it consumes the final board outline and connector / test-point positions (see `hardware/pcb/fab_checklist.md`). Constraints already fixed: **no separate battery bay is needed** — the single 18650 lives in the top-side on-board carrier (BT1), so the case only has to clear ≈19–21 mm above the board. The external footprint follows the final board outline (unconstrained; working target ≈100 × 60 mm) and is sized at layout time. A USB-C slot on the left short wall accommodates the J13 connector (TP4056 charging **and** USB console/programming via the ESP32 native USB). The case dimensions consume the final board layout, so case work stays last.
 
-For concrete underside mounting, the lid grows four corner wings with M6 anchor-bolt clearance holes. The bolt pattern centre-to-centre span is **127 × 82 mm** (X × Y). Use the `drill_template()` module to print a 1:1 paper/card drill guide before installing anchor bolts.
+The TP13 factory-reset pad must stay reachable with the lid off. (The old case's corner-wing mounting and 127 × 82 mm bolt pattern belonged to the deleted design and will be redone for the new outline.)
 
 ---
 
@@ -450,7 +450,7 @@ components/zigbee/       esp-zigbee-lib wrapper, OTA client, BDB commissioning t
 components/welld_core/   pure helpers (rate-of-change, adaptive sleep, ZCL encoding)
 zigbee2mqtt/welld.js     external converter for Zigbee2MQTT
 hardware/pcb/            PCB design reference, BOM, Gerber generation script
-hardware/case/           OpenSCAD parametric enclosure (cell lives on the PCB — no battery bay)
+hardware/case/           (planned) OpenSCAD enclosure — not created yet; designed after board layout
 test/sensor/             on-device Unity tests (1-Wire, NVS round-trips)
 test/welld_core/         on-device Unity tests (rate, sleep, ZCL helpers)
 test/host/               host CMake test project — no ESP-IDF required
