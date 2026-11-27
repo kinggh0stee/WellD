@@ -347,7 +347,7 @@ The firmware tracks consecutive boot failures in RTC memory. If 3 consecutive bo
 
 Use `CONFIG_WELLD_SENSOR_OFFSET_CM` (or `sensor_set_offset_cm()` at runtime) to shift the reported level without moving the transducer. For example, if the transducer hangs 15 cm above the well bottom, set the offset to `+15` to report depth from the bottom of the well (`level = column above the transducer + offset`); use a negative offset when your zero point is above the transducer, e.g. `-50` when it hangs 50 cm below the outlet pipe you want to measure from.
 
-The offset is persisted in NVS (key `offset_cm` in namespace `welld`) and clamped to ±600 cm.
+The offset is persisted in NVS (key `offset_cm` in namespace `welld`) and clamped to ±600 cm. It is added after the water-density correction, which applies to the measured water column only — the offset is geometry, not water. A reading that the offset would push below zero is reported as 0 m.
 
 ### Adaptive sleep & rate of change
 

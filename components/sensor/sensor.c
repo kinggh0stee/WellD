@@ -442,6 +442,16 @@ void sensor_offset_cache_reset(void)
     s_offset_cm = INT32_MIN;
 }
 
+float sensor_apply_level_offset(float column_m)
+{
+    int offset_cm = sensor_get_offset_cm();
+    float level_m = sensor_level_with_offset(column_m, offset_cm);
+    if (offset_cm != 0) {
+        ESP_LOGI(TAG, "level=%.2f m with the %+d cm offset", level_m, offset_cm);
+    }
+    return level_m;
+}
+
 /* Minimum VLOOP on-time before the shunt is sampled: MT3608B soft-start plus
  * the Q3/C20/C22 rail settle. CONFIG_WELLD_VLOOP_SETTLE_MS (>= this) adds the
  * transducer's own start-up time. */
@@ -450,8 +460,8 @@ void sensor_offset_cache_reset(void)
  * sensor_read_level()). */
 #define LOOP_DEAD_SHORT_MV    3000
 
-/* Read the water level in metres, applying the NVS-stored offset and
- * optional temperature compensation.
+/* Read the water column above the transducer in metres (no offset, no
+ * temperature compensation — see sensor.h for the order).
  * Gates the MT3608B 12V boost (VLOOP GPIO) for the duration of the read.
  * Uses ADS1115 AIN0 to measure the shunt voltage across the 4-20 mA loop.
  * Returns -1.0 if the transducer loop current indicates an open circuit.
@@ -518,16 +528,10 @@ float sensor_read_level(void)
                  volt_mv, current_ua);
         return level_m;
     }
-    float offset_m = sensor_get_offset_cm() / 100.0f;
-    level_m += offset_m;
-    if (level_m < 0.0f) level_m = 0.0f;
-
-    if (offset_m != 0.0f)
-        ESP_LOGI(TAG, "voltage=%d mV  current=%d µA  level=%.2f m (offset %.0f cm)",
-                 volt_mv, current_ua, level_m, offset_m * 100.0f);
-    else
-        ESP_LOGI(TAG, "voltage=%d mV  current=%d µA  level=%.2f m",
-                 volt_mv, current_ua, level_m);
+    /* The water column only: the offset is applied by
+     * sensor_apply_level_offset() after the density correction. */
+    ESP_LOGI(TAG, "voltage=%d mV  current=%d µA  level=%.2f m",
+             volt_mv, current_ua, level_m);
     return level_m;
 }
 

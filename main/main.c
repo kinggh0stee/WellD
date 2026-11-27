@@ -606,17 +606,19 @@ void app_main(void)
         enter_deep_sleep(low_batt_sleep);
     }
 
-    /* Battery is healthy — read the remaining sensors (still before the radio). */
+    /* Battery is healthy — read the remaining sensors (still before the radio).
+     * sensor_read_level() returns the water column above the transducer. */
     float level_m       = sensor_read_level();
     float temperature_c = sensor_read_temperature();
     s_profile.t_sensors = esp_timer_get_time() - t0;
     if (level_m >= 0.0f) {
         rtc_log_event(RTC_EVT_SENSOR_OK);
-    }
-
-    /* Temperature compensation for water density */
-    if (level_m >= 0.0f && temperature_c > -127.0f) {
-        level_m = sensor_level_temp_compensate(level_m, temperature_c);
+        /* Density correction applies to the water column only; the offset is
+         * geometry (where zero is), so it is added afterwards. */
+        if (temperature_c > -127.0f) {
+            level_m = sensor_level_temp_compensate(level_m, temperature_c);
+        }
+        level_m = sensor_apply_level_offset(level_m);
     }
 
 #ifdef CONFIG_WELLD_SELFTEST_ENABLED

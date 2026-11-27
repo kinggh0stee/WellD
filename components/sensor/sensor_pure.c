@@ -39,6 +39,12 @@ float sensor_battery_from_mv(int adc_mv, int divider_ratio_x100)
     return (float)adc_mv * (float)divider_ratio_x100 / 100000.0f;
 }
 
+float sensor_level_with_offset(float column_m, int offset_cm)
+{
+    float level_m = column_m + (float)offset_cm / 100.0f;
+    return level_m < 0.0f ? 0.0f : level_m;
+}
+
 bool sensor_temp_in_range(float temp_c)
 {
     return temp_c >= -55.0f && temp_c <= 125.0f;

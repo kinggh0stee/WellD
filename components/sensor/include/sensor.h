@@ -7,9 +7,20 @@
 typedef int esp_err_t;
 #endif
 
-/* reads 4-20 mA transducer via ADC; maps 4 mA → 0 m, 20 mA → MAX_DEPTH_CM/100 m;
-   returns -1 if loop current is below 3.5 mA (transducer disconnected) */
+/* reads 4-20 mA transducer via ADC; maps 4 mA → 0 m, 20 mA → MAX_DEPTH_CM/100 m.
+   Returns the water column above the transducer, WITHOUT the level offset —
+   apply sensor_level_temp_compensate() (density) first, then
+   sensor_apply_level_offset(). Returns -1 if the loop current is below
+   3.5 mA (transducer disconnected) and -2 on a short (> 21 mA). */
 float sensor_read_level(void);
+
+/* Add the level offset (NVS, else CONFIG_WELLD_SENSOR_OFFSET_CM) to a water
+   column reading and clamp the result at 0 m. Call it after the density
+   correction: the offset is geometry (where zero is), not water. */
+float sensor_apply_level_offset(float column_m);
+
+/* pure: column_m + offset_cm / 100, clamped at 0 m. */
+float sensor_level_with_offset(float column_m, int offset_cm);
 
 /* pure level calculation from a shunt voltage in mV; exposed for unit testing */
 float sensor_level_from_mv(int volt_mv);

@@ -137,6 +137,25 @@ static void test_temp_factor_other_reference(void)
     TEST_ASSERT_FLOAT_WITHIN(2e-5f, 998.2067f / 999.7026f, f);
 }
 
+static void test_level_with_offset(void)
+{
+    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 2.15f, sensor_level_with_offset(2.0f, 15));   /* 15 cm above the bottom */
+    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 1.5f, sensor_level_with_offset(2.0f, -50));   /* zero above the transducer */
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, sensor_level_with_offset(0.3f, -50));           /* clamped at 0 m */
+    TEST_ASSERT_EQUAL_FLOAT(2.0f, sensor_level_with_offset(2.0f, 0));
+}
+
+static void test_density_correction_scales_the_column_not_the_offset(void)
+{
+    /* 30 °C water, 4 °C reference: the 3 m column is corrected (x1.00434),
+     * the -150 cm offset is not — the old order scaled both. */
+    float f = sensor_temp_level_factor(30.0f, 4);
+    float level = sensor_level_with_offset(3.0f * f, -150);
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, 3.0f * f - 1.5f, level);
+    /* the old order, ((3.0 - 1.5) * f), was off by |offset| * (f - 1) */
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 1.5f * (f - 1.0f), level - (3.0f - 1.5f) * f);
+}
+
 static void test_temp_factor_outside_range_is_skipped(void)
 {
     TEST_ASSERT_EQUAL_FLOAT(1.0f, sensor_temp_level_factor(-0.5f, 4));   /* ice / probe in air */
@@ -192,6 +211,8 @@ static int run_tests(void)
     RUN_TEST(test_temp_factor_matches_density_table);
     RUN_TEST(test_temp_factor_other_reference);
     RUN_TEST(test_temp_factor_outside_range_is_skipped);
+    RUN_TEST(test_level_with_offset);
+    RUN_TEST(test_density_correction_scales_the_column_not_the_offset);
 #ifndef HOST_BUILD
     RUN_TEST(test_offset_round_trip);
     RUN_TEST(test_offset_clamped_on_set);
