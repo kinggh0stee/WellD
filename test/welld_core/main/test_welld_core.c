@@ -122,18 +122,22 @@ static void test_encode_temp_just_below_sentinel(void)
     TEST_ASSERT_EQUAL_HEX16(0x8000, (uint16_t)welld_zb_encode_temp(-127.01f));
 }
 
-/* welld_zb_should_report_battery ------------------------------------------ */
+/* welld_zb_battery_present_value ------------------------------------------ */
 
-static void test_battery_reportable(void)
+static void test_battery_present_value_passes_readings(void)
 {
-    TEST_ASSERT_TRUE(welld_zb_should_report_battery(0.0f));
-    TEST_ASSERT_TRUE(welld_zb_should_report_battery(3.7f));
+    TEST_ASSERT_EQUAL_FLOAT(3.7f, welld_zb_battery_present_value(3.7f));
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, welld_zb_battery_present_value(0.0f));
 }
 
-static void test_battery_not_reportable(void)
+static void test_battery_present_value_unknown_is_minus_one(void)
 {
-    TEST_ASSERT_FALSE(welld_zb_should_report_battery(-1.0f));
-    TEST_ASSERT_FALSE(welld_zb_should_report_battery(-0.001f));
+    /* Always reported: -1 tells the converter "unknown" (published as null)
+     * instead of the last good voltage staying on show. */
+    TEST_ASSERT_EQUAL_FLOAT(-1.0f, welld_zb_battery_present_value(-1.0f));
+    TEST_ASSERT_EQUAL_FLOAT(-1.0f, welld_zb_battery_present_value(-0.001f));
+    TEST_ASSERT_EQUAL_FLOAT(-1.0f, welld_zb_battery_present_value(NAN));
+    TEST_ASSERT_EQUAL_FLOAT(-1.0f, welld_zb_battery_present_value(INFINITY));
 }
 
 /* welld_pack_zcl_string ---------------------------------------------------- */
@@ -382,6 +386,50 @@ static void test_adaptive_sleep_boundary_just_below_20(void)
 {
     /* 19.999 cm/h stays in the heavy-pumping band → default / 2. */
     TEST_ASSERT_EQUAL_UINT32(150, welld_adaptive_sleep_sec(19.999f, 300, 60, 1800));
+}
+
+/* welld_battery_state ----------------------------------------------------- */
+
+static void test_battery_state_read_failure_is_invalid(void)
+{
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_INVALID, welld_battery_state(-1.0f, 3200, 4200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_INVALID, welld_battery_state(NAN, 3200, 4200));
+}
+
+static void test_battery_state_near_zero_is_invalid_not_low(void)
+{
+    /* A missing/open divider reads a few mV of noise. Classifying that as
+     * LOW would skip every send forever. */
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_INVALID, welld_battery_state(0.0f, 3200, 4200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_INVALID, welld_battery_state(0.004f, 3200, 4200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_INVALID, welld_battery_state(1.99f, 3200, 4200));
+}
+
+static void test_battery_state_low_band(void)
+{
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_LOW, welld_battery_state(2.0f, 3200, 4200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_LOW, welld_battery_state(3.0f, 3200, 4200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_LOW, welld_battery_state(3.2f, 3200, 4200));
+}
+
+static void test_battery_state_ok(void)
+{
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_OK, welld_battery_state(3.21f, 3200, 4200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_OK, welld_battery_state(4.2f, 3200, 4200));
+    /* A charger's CV phase or a protection-board overshoot stays plausible. */
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_OK, welld_battery_state(4.35f, 3200, 4200));
+}
+
+static void test_battery_state_implausibly_high_is_invalid(void)
+{
+    /* R8 open: AIN2 sits at the ADS1115 clamp and a 1S pack reads ~7 V.
+     * Treating that as OK would disable the low-battery guard silently. */
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_INVALID, welld_battery_state(7.2f, 3200, 4200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_INVALID, welld_battery_state(5.26f, 3200, 4200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_OK, welld_battery_state(5.24f, 3200, 4200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_INVALID, welld_battery_state(INFINITY, 3200, 4200));
+    /* full_mv 0 disables the upper bound */
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_OK, welld_battery_state(7.2f, 3200, 0));
 }
 
 /* welld_fail_backoff_sleep_sec -------------------------------------------- */
@@ -715,8 +763,8 @@ static int run_tests(void)
     RUN_TEST(test_encode_temp_invalid_sentinel);
     RUN_TEST(test_encode_temp_just_above_sentinel);
     RUN_TEST(test_encode_temp_just_below_sentinel);
-    RUN_TEST(test_battery_reportable);
-    RUN_TEST(test_battery_not_reportable);
+    RUN_TEST(test_battery_present_value_passes_readings);
+    RUN_TEST(test_battery_present_value_unknown_is_minus_one);
     RUN_TEST(test_pack_zcl_string_short);
     RUN_TEST(test_pack_zcl_string_truncates_to_buffer);
     RUN_TEST(test_pack_zcl_string_empty);
@@ -750,6 +798,11 @@ static int run_tests(void)
     RUN_TEST(test_adaptive_sleep_fast_band_exact_half);
     RUN_TEST(test_adaptive_sleep_boundary_just_below_2);
     RUN_TEST(test_adaptive_sleep_boundary_just_below_20);
+    RUN_TEST(test_battery_state_read_failure_is_invalid);
+    RUN_TEST(test_battery_state_near_zero_is_invalid_not_low);
+    RUN_TEST(test_battery_state_low_band);
+    RUN_TEST(test_battery_state_ok);
+    RUN_TEST(test_battery_state_implausibly_high_is_invalid);
     RUN_TEST(test_backoff_below_threshold_keeps_normal);
     RUN_TEST(test_backoff_at_and_above_threshold);
     RUN_TEST(test_backoff_never_shortens);

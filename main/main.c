@@ -256,6 +256,7 @@ typedef enum {
     RTC_EVT_FACTORY_RESET   = 0x0B,
     RTC_EVT_BROWNOUT        = 0x0C,
     RTC_EVT_WATCHDOG        = 0x0D,
+    RTC_EVT_BATT_INVALID    = 0x0E,   /* battery read failed or implausible — guard blind */
 } rtc_event_t;
 
 RTC_DATA_ATTR static struct {
@@ -304,6 +305,7 @@ static void rtc_log_print(void)
             case RTC_EVT_FACTORY_RESET: name = "FACTORY_RESET"; break;
             case RTC_EVT_BROWNOUT:      name = "BROWNOUT";      break;
             case RTC_EVT_WATCHDOG:      name = "WATCHDOG";      break;
+            case RTC_EVT_BATT_INVALID:  name = "BATT_INVALID";  break;
         }
         ESP_LOGI(TAG, "  [%u] t=%lus  %s", (unsigned)i, (unsigned long)s_rtc_log.ts[idx], name);
     }
@@ -547,11 +549,29 @@ void app_main(void)
     /* Read sensors before powering the radio. The ADC is sensitive to 802.15.4
      * RF interference, so all ADC reads must complete before zigbee_send().
      * The battery is read FIRST so the low-battery guard below can run before
-     * the level (12 V VLOOP boost) and temperature (DS18B20, whose probe-change
+     * the level (16 V VLOOP boost) and temperature (DS18B20, whose probe-change
      * path writes the ROM code to NVS) reads — a wakeup that won't report must
      * not burn loop power or touch NVS below the flash-safe voltage. */
     t0 = esp_timer_get_time();
     float battery_v = sensor_read_battery_v();
+    welld_batt_state_t batt_state = welld_battery_state(battery_v, CONFIG_WELLD_BATT_EMPTY_MV,
+                                                        CONFIG_WELLD_BATT_FULL_MV);
+    if (batt_state == WELLD_BATT_INVALID) {
+        /* No usable battery reading: the read failed, or the value is one a
+         * running device cannot have (below ~2 V: no divider fitted, Q5/R7
+         * open, AIN2 floating; far above full charge: R8 open). Don't let it
+         * trip the low-battery guard on every wakeup — but the guard is now
+         * blind, so say so: an RTC event locally, and EP2 reports -1, which
+         * the converter publishes as battery_voltage/battery = null. */
+        if (battery_v < 0.0f) {
+            ESP_LOGW(TAG, "battery read failed (ADS1115 AIN2) — reporting it as unknown");
+        } else {
+            ESP_LOGW(TAG, "battery reading %.2f V is implausible — divider/AIN2 fault? ignoring it",
+                     battery_v);
+        }
+        rtc_log_event(RTC_EVT_BATT_INVALID);
+        battery_v = -1.0f;
+    }
 
     /* Flash programming requires VCC >= 2.7 V. A Zigbee TX burst (~80–130 mA
      * through the HT7333 in dropout) on a nearly-dead cell can dip below
@@ -559,7 +579,7 @@ void app_main(void)
      * or below the empty threshold, skip the remaining sensor reads, the send,
      * and all NVS writes, and sleep as long as possible to conserve the
      * remaining charge. */
-    if (battery_v > 0.0f && battery_v <= CONFIG_WELLD_BATT_EMPTY_MV / 1000.0f) {
+    if (batt_state == WELLD_BATT_LOW) {
         ESP_LOGW(TAG, "battery critically low (%.2f V <= %.2f V) — skipping send",
                  battery_v, CONFIG_WELLD_BATT_EMPTY_MV / 1000.0f);
         rtc_log_event(RTC_EVT_LOW_BATT_SKIP);
@@ -586,17 +606,19 @@ void app_main(void)
         enter_deep_sleep(low_batt_sleep);
     }
 
-    /* Battery is healthy — read the remaining sensors (still before the radio). */
+    /* Battery is healthy — read the remaining sensors (still before the radio).
+     * sensor_read_level() returns the water column above the transducer. */
     float level_m       = sensor_read_level();
     float temperature_c = sensor_read_temperature();
     s_profile.t_sensors = esp_timer_get_time() - t0;
     if (level_m >= 0.0f) {
         rtc_log_event(RTC_EVT_SENSOR_OK);
-    }
-
-    /* Temperature compensation for water density */
-    if (level_m >= 0.0f && temperature_c > -127.0f) {
-        level_m = sensor_level_temp_compensate(level_m, temperature_c);
+        /* Density correction applies to the water column only; the offset is
+         * geometry (where zero is), so it is added afterwards. */
+        if (temperature_c > -127.0f) {
+            level_m = sensor_level_temp_compensate(level_m, temperature_c);
+        }
+        level_m = sensor_apply_level_offset(level_m);
     }
 
 #ifdef CONFIG_WELLD_SELFTEST_ENABLED

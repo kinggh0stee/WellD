@@ -49,7 +49,7 @@ const definition = {
             .withDescription('Voltage (mV) at 100 % battery. Default 4200 (18650 Li-ion full charge).'),
         numeric('battery_empty_mv', ea.SET)
             .withValueMin(2500).withValueMax(4500)
-            .withDescription('Voltage (mV) at 0 % battery. Default 3000 (18650 minimum safe discharge).'),
+            .withDescription('Voltage (mV) at 0 % battery. Default 3200 — the firmware stops reporting at/below this (CONFIG_WELLD_BATT_EMPTY_MV) to keep the 3.3 V rail in spec.'),
     ],
 };
 

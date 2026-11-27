@@ -10,6 +10,272 @@
 		(company "WellD Project")
 	)
 	(lib_symbols
+		(symbol "welld:BCP53"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "Q"
+				(at 3.81 3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 0.8 0.8)
+					)
+				)
+			)
+			(property "Value" "BCP53-16"
+				(at 3.81 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 0.8 0.8)
+					)
+				)
+			)
+			(property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 0.8 0.8)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 0.8 0.8)
+					)
+				)
+			)
+			(property "Description" "PNP bipolar transistor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 0.8 0.8)
+					)
+				)
+			)
+			(symbol "BCP53_0_1"
+				(rectangle
+					(start -2.54 -2.54)
+					(end 2.54 2.54)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+			)
+			(symbol "BCP53_1_1"
+				(pin input line
+					(at -5.08 0 0)
+					(length 2.54)
+					(name "B"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 5.08 270)
+					(length 2.54)
+					(name "E"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -5.08 90)
+					(length 2.54)
+					(name "C"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "welld:MMBT3906"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "Q"
+				(at 3.81 3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 0.8 0.8)
+					)
+				)
+			)
+			(property "Value" "MMBT3906"
+				(at 3.81 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 0.8 0.8)
+					)
+				)
+			)
+			(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 0.8 0.8)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 0.8 0.8)
+					)
+				)
+			)
+			(property "Description" "PNP bipolar transistor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 0.8 0.8)
+					)
+				)
+			)
+			(symbol "MMBT3906_0_1"
+				(rectangle
+					(start -2.54 -2.54)
+					(end 2.54 2.54)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+			)
+			(symbol "MMBT3906_1_1"
+				(pin input line
+					(at -5.08 0 0)
+					(length 2.54)
+					(name "B"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 5.08 270)
+					(length 2.54)
+					(name "E"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -5.08 90)
+					(length 2.54)
+					(name "C"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 0.8 0.8)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "power:PWR_FLAG"
 			(power global)
 			(pin_numbers
@@ -5985,7 +6251,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C2836497"
+		(property "LCSC" "C98802"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -6024,7 +6290,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "17300d88-0e9d-5af3-b84d-30e1813ca9b6")
 		(property "Reference" "C6"
@@ -6038,7 +6304,7 @@
 				)
 			)
 		)
-		(property "Value" "10uF"
+		(property "Value" "10uF DNF"
 			(at 207.01 99.79 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6211,7 +6477,7 @@
 				)
 			)
 		)
-		(property "Value" "1uF"
+		(property "Value" "100nF"
 			(at 171.45 84.55 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6717,7 +6983,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C2836497"
+		(property "LCSC" "C98802"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -6940,7 +7206,7 @@
 				)
 			)
 		)
-		(property "Value" "100R"
+		(property "Value" "1k"
 			(at 207.01 69.31 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7025,7 +7291,7 @@
 				)
 			)
 		)
-		(property "Value" "1uF"
+		(property "Value" "100nF"
 			(at 207.01 84.55 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7548,7 +7814,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-363_SC-70-6"
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-143"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -7581,7 +7847,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C2687116"
+		(property "LCSC" "C12333"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -8051,7 +8317,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "a859cef0-5f43-5743-b803-8abdab943992")
 		(property "Reference" "C4"
@@ -8065,7 +8331,7 @@
 				)
 			)
 		)
-		(property "Value" "10uF"
+		(property "Value" "10uF DNF"
 			(at 189.23 84.55 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8507,7 +8773,7 @@
 				)
 			)
 		)
-		(property "Value" "100R"
+		(property "Value" "1k"
 			(at 152.4 99.79 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8602,7 +8868,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-363_SC-70-6"
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-143"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -8635,7 +8901,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C2687116"
+		(property "LCSC" "C12333"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -10998,28 +11264,15 @@
 		)
 		(uuid "4f75d9a5-cdc1-4c8e-8ca5-e91de6bd99b7")
 	)
-	(global_label "VLOOP"
-		(shape passive)
+	(label "LOOP_PWR_CH1"
 		(at 142.24 49.53 0)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left)
+			(justify left bottom)
 		)
-		(uuid "04e425b7-c99c-49ee-917b-9680e30bcacf")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 142.24 49.53 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
+		(uuid "9aedc6a8-80b2-4930-96b5-98c4f16fd0dd")
 	)
 	(wire
 		(pts
@@ -11031,16 +11284,15 @@
 		)
 		(uuid "21e09803-99a7-44e9-8e50-5eeecaf5e5e6")
 	)
-	(hierarchical_label "VLOOP_CH2"
-		(shape bidirectional)
+	(label "LOOP_PWR_CH2"
 		(at 160.02 49.53 0)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left)
+			(justify left bottom)
 		)
-		(uuid "e0b8a9e6-691e-42c3-8761-98362e4b360d")
+		(uuid "c4c5210e-7372-4372-8258-d60d0be166d5")
 	)
 	(no_connect
 		(at 146.05 81.28)
@@ -11151,6 +11403,1824 @@
 		(uuid "0f3157fd-d590-473b-9e03-575ab8021423")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 40.64 208.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 238.76 35.56 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f1f5f5ae-4628-4f90-ba1b-22aa3d1c54cf")
+		(property "Reference" "R52"
+			(at 242.57 34.29 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "22R"
+			(at 242.57 36.83 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "LCSC" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "f3303fdf-991e-4d34-8b97-39eba0b33e86")
+		)
+		(pin "2"
+			(uuid "1d3340d1-8a5e-46c9-bb3a-8d70f1e41902")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "R52")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/0c45da4f-3a65-5906-aac7-f973a0770f80/f1f5f5ae-4628-4f90-ba1b-22aa3d1c54cf"
+					(reference "R52")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:MMBT3906")
+		(at 251.46 35.56 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "fad55bea-32da-4281-a7c5-6839038a218b")
+		(property "Reference" "Q9"
+			(at 255.27 34.29 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "MMBT3906"
+			(at 255.27 36.83 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "LCSC" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "e1cdf0ac-7f4b-4edb-b5eb-deb87ef52743")
+		)
+		(pin "2"
+			(uuid "d0541c64-aede-4078-925c-d575203bf4cc")
+		)
+		(pin "3"
+			(uuid "616550ad-756f-4158-bf35-5fc2fd4c293f")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "Q9")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/0c45da4f-3a65-5906-aac7-f973a0770f80/fad55bea-32da-4281-a7c5-6839038a218b"
+					(reference "Q9")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:BCP53")
+		(at 264.16 35.56 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "424105ef-df31-49fe-8f99-216baef378d3")
+		(property "Reference" "Q8"
+			(at 267.97 34.29 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "BCP53-16"
+			(at 267.97 36.83 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "LCSC" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "110b2596-35eb-4e81-91c3-04c2f85323e5")
+		)
+		(pin "2"
+			(uuid "9f43f544-ebdf-48b4-8ed8-9b364c9983e4")
+		)
+		(pin "3"
+			(uuid "dfe01cbc-5835-4923-806b-dafd06465070")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "Q8")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/0c45da4f-3a65-5906-aac7-f973a0770f80/424105ef-df31-49fe-8f99-216baef378d3"
+					(reference "Q8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 276.86 35.56 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b73ec624-bec6-4de1-a280-3d15850eff50")
+		(property "Reference" "R53"
+			(at 280.67 34.29 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "15k"
+			(at 280.67 36.83 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "LCSC" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "27d92c36-d36d-471f-b7f3-166fdd1e4524")
+		)
+		(pin "2"
+			(uuid "1d5205d6-f393-4e1b-84ea-a64f09320a10")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "R53")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/0c45da4f-3a65-5906-aac7-f973a0770f80/b73ec624-bec6-4de1-a280-3d15850eff50"
+					(reference "R53")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_Schottky")
+		(at 241.3 53.34 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7a360baf-7ebf-4275-a606-27b65d031eb5")
+		(property "Reference" "D17"
+			(at 245.11 52.07 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "SS34"
+			(at 245.11 54.61 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SMA"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "LCSC" "C8678"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "c0e001c1-f71e-44e3-944a-7e16c526e4ce")
+		)
+		(pin "2"
+			(uuid "5a3a2d91-bf22-49bd-b371-3c4b828c9d08")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "D17")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/0c45da4f-3a65-5906-aac7-f973a0770f80/7a360baf-7ebf-4275-a606-27b65d031eb5"
+					(reference "D17")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_TVS")
+		(at 266.7 53.34 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "500a861a-07fd-4029-8ac3-451d1d9bc011")
+		(property "Reference" "D18"
+			(at 270.51 52.07 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "SMAJ18A"
+			(at 270.51 54.61 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SMA"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "LCSC" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "5124907e-4b3d-43b9-b4b7-1bd1e0123a9d")
+		)
+		(pin "2"
+			(uuid "eb0f0a91-598d-411c-bd4d-f5ef5416e8db")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "D18")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/0c45da4f-3a65-5906-aac7-f973a0770f80/500a861a-07fd-4029-8ac3-451d1d9bc011"
+					(reference "D18")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 238.76 78.74 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "6855a75a-c99f-4dcb-b334-ea015c156cef")
+		(property "Reference" "R54"
+			(at 242.57 77.47 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "22R"
+			(at 242.57 80.01 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0603_1608Metric"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "LCSC" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "779f2aa9-85b6-4a46-b694-39dd914fc9bd")
+		)
+		(pin "2"
+			(uuid "dab5aefa-2a29-4073-b539-dcd56aaaa5b8")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "R54")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/0c45da4f-3a65-5906-aac7-f973a0770f80/6855a75a-c99f-4dcb-b334-ea015c156cef"
+					(reference "R54")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:MMBT3906")
+		(at 251.46 78.74 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b404efa6-c83e-4b6d-adfb-00484ab898b4")
+		(property "Reference" "Q11"
+			(at 255.27 77.47 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "MMBT3906"
+			(at 255.27 80.01 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-23"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "LCSC" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "7c552c6c-7319-4c3b-a207-6cab4a43c46f")
+		)
+		(pin "2"
+			(uuid "47dfb285-dbbb-4645-bc98-188f0204832b")
+		)
+		(pin "3"
+			(uuid "c8b88848-e3ff-4976-a8b9-9220046c66d8")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "Q11")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/0c45da4f-3a65-5906-aac7-f973a0770f80/b404efa6-c83e-4b6d-adfb-00484ab898b4"
+					(reference "Q11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "welld:BCP53")
+		(at 264.16 78.74 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "af311e91-4d07-42bd-81ce-70e3f620b9b7")
+		(property "Reference" "Q10"
+			(at 267.97 77.47 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "BCP53-16"
+			(at 267.97 80.01 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "LCSC" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "6c460d8a-9b70-42b7-9f13-5c8423c620f7")
+		)
+		(pin "2"
+			(uuid "4cd3856f-2f02-4418-bfce-36701e8fa1e4")
+		)
+		(pin "3"
+			(uuid "b81bde01-b5ad-4e49-954c-0e034b490a64")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "Q10")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/0c45da4f-3a65-5906-aac7-f973a0770f80/af311e91-4d07-42bd-81ce-70e3f620b9b7"
+					(reference "Q10")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 276.86 78.74 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "4f799da8-fc41-426d-b135-fbe6840046ff")
+		(property "Reference" "R55"
+			(at 280.67 77.47 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "15k"
+			(at 280.67 80.01 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "LCSC" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "0bb48b01-2633-4480-81d7-8caf4d36bc85")
+		)
+		(pin "2"
+			(uuid "2aa75e11-9dd6-487b-93a5-1e46c369f666")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "R55")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/0c45da4f-3a65-5906-aac7-f973a0770f80/4f799da8-fc41-426d-b135-fbe6840046ff"
+					(reference "R55")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_Schottky")
+		(at 241.3 96.52 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f46ef1bc-ad7f-4639-b36c-0016416bafdb")
+		(property "Reference" "D19"
+			(at 245.11 95.25 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "SS34"
+			(at 245.11 97.79 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SMA"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "LCSC" "C8678"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "f1569f2c-db3b-43d7-aaff-f3cd5cfcd72a")
+		)
+		(pin "2"
+			(uuid "8802679b-4589-4c88-b2eb-d6539c8e4341")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "D19")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/0c45da4f-3a65-5906-aac7-f973a0770f80/f46ef1bc-ad7f-4639-b36c-0016416bafdb"
+					(reference "D19")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_TVS")
+		(at 266.7 96.52 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f610bc13-9be3-4b0e-89e5-4e9466650a93")
+		(property "Reference" "D20"
+			(at 270.51 95.25 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+					(bold yes)
+				)
+			)
+		)
+		(property "Value" "SMAJ18A"
+			(at 270.51 97.79 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SMA"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(property "LCSC" ""
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 0.8 0.8)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "d6d081d6-f136-4657-ae5e-904c9933038e")
+		)
+		(pin "2"
+			(uuid "058cbca4-cb00-4ae0-8e5b-d7ee552dcce3")
+		)
+		(instances
+			(project "welld"
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29"
+					(reference "D20")
+					(unit 1)
+				)
+				(path "/58c9365f-ec30-52a7-98fc-0e15b15bee29/0c45da4f-3a65-5906-aac7-f973a0770f80/f610bc13-9be3-4b0e-89e5-4e9466650a93"
+					(reference "D20")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 238.76 31.75) (xy 238.76 29.21)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a309767a-f16f-49ea-8254-ff6b960d1915")
+	)
+	(global_label "VLOOP"
+		(shape passive)
+		(at 238.76 29.21 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "404fc143-4958-4e4d-98e8-84b150773a7b")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 238.76 29.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 251.46 30.48) (xy 251.46 27.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cfdfa09b-fbd8-4ea9-8bd7-2f227780d1a1")
+	)
+	(global_label "VLOOP"
+		(shape passive)
+		(at 251.46 27.94 90)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "496ea5e1-0109-4eae-a221-5279c34b30b3")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 251.46 27.94 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 237.49 53.34) (xy 234.95 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c26fd57a-c6d7-47e1-9784-59c44801a12b")
+	)
+	(global_label "VLOOP"
+		(shape passive)
+		(at 234.95 53.34 180)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "11354124-8c65-4264-ae0e-138a024464e5")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 234.95 53.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 237.49 96.52) (xy 234.95 96.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4df33c8a-0013-42b0-9322-31a2192804bb")
+	)
+	(hierarchical_label "VLOOP_CH2"
+		(shape bidirectional)
+		(at 234.95 96.52 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "416222a7-6297-4111-81ef-d9a0288a8b5e")
+	)
+	(wire
+		(pts
+			(xy 238.76 39.37) (xy 238.76 41.91)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "68c1a9a5-a575-4ef6-94b9-686856ec424e")
+	)
+	(label "LIM_E_CH1"
+		(at 238.76 41.91 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "08d422af-165e-4cb7-a284-119657a7db0c")
+	)
+	(wire
+		(pts
+			(xy 264.16 30.48) (xy 264.16 27.94)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f49eeb0a-f2f4-4a83-a309-1c99a02d037d")
+	)
+	(label "LIM_E_CH1"
+		(at 264.16 27.94 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "6430dcb2-423e-448c-998f-227ca0f23d35")
+	)
+	(wire
+		(pts
+			(xy 246.38 35.56) (xy 243.84 35.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bacfc8da-86ae-4db6-802e-d10035cfacc7")
+	)
+	(label "LIM_E_CH1"
+		(at 243.84 35.56 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "d06819df-ee73-45a0-a612-044d7ff98a8e")
+	)
+	(wire
+		(pts
+			(xy 259.08 35.56) (xy 256.54 35.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fc40dd50-e106-4a51-96fe-e6f749a548e7")
+	)
+	(label "LIM_B_CH1"
+		(at 256.54 35.56 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "c0469bc5-165c-4f8f-bea7-9b42ce10237b")
+	)
+	(wire
+		(pts
+			(xy 251.46 40.64) (xy 251.46 43.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ad84c668-7dae-4916-8473-b4701956093f")
+	)
+	(label "LIM_B_CH1"
+		(at 251.46 43.18 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "1470c0cd-40a9-477f-9afa-fa642b3e54b2")
+	)
+	(wire
+		(pts
+			(xy 276.86 31.75) (xy 276.86 29.21)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2afc9fd1-fb03-4871-893e-19e451707215")
+	)
+	(label "LIM_B_CH1"
+		(at 276.86 29.21 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "b1ff5315-8d1d-422a-b4b5-b0f94abd2e80")
+	)
+	(wire
+		(pts
+			(xy 264.16 40.64) (xy 264.16 43.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cdf20150-3d3a-4fad-b425-4a3ad6ed075b")
+	)
+	(label "LOOP_PWR_CH1"
+		(at 264.16 43.18 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "c032870a-fba4-4cb2-a0bd-9bfceef78b9c")
+	)
+	(wire
+		(pts
+			(xy 245.11 53.34) (xy 247.65 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "679c0534-f056-48df-abba-459a907ec5d9")
+	)
+	(label "LOOP_PWR_CH1"
+		(at 247.65 53.34 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "1354dd2f-9969-4cac-9d78-a9b9ac11bd4c")
+	)
+	(wire
+		(pts
+			(xy 262.89 53.34) (xy 260.35 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "630794d1-aa38-4fcb-9527-7c043b5f0e69")
+	)
+	(label "LOOP_PWR_CH1"
+		(at 260.35 53.34 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "892c1bab-ff8d-4508-a2d4-6d1588d4986d")
+	)
+	(wire
+		(pts
+			(xy 238.76 74.93) (xy 238.76 72.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e42eed7c-ed17-4b19-bd46-a238c5aa1b6a")
+	)
+	(hierarchical_label "VLOOP_CH2"
+		(shape bidirectional)
+		(at 238.76 72.39 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "0b37eb5c-09dd-4c85-a0e0-0df26765ec4d")
+	)
+	(wire
+		(pts
+			(xy 251.46 73.66) (xy 251.46 71.12)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7a7dcd62-c939-42dd-b3b4-93db8d1c5834")
+	)
+	(hierarchical_label "VLOOP_CH2"
+		(shape bidirectional)
+		(at 251.46 71.12 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "c129675c-1228-4aac-9682-b061d773f266")
+	)
+	(wire
+		(pts
+			(xy 238.76 82.55) (xy 238.76 85.09)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9e5cce4a-c5a8-49b0-8753-bd4495fb0c9f")
+	)
+	(label "LIM_E_CH2"
+		(at 238.76 85.09 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "7ea9a675-1518-4805-801a-02453566b91b")
+	)
+	(wire
+		(pts
+			(xy 264.16 73.66) (xy 264.16 71.12)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "801ced39-a27a-4372-bfbd-0e29602aa9b0")
+	)
+	(label "LIM_E_CH2"
+		(at 264.16 71.12 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "2008fa55-4b76-473a-868f-d7ac66120aa5")
+	)
+	(wire
+		(pts
+			(xy 246.38 78.74) (xy 243.84 78.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "44e35a3a-7e92-49de-b4a7-197b821ef734")
+	)
+	(label "LIM_E_CH2"
+		(at 243.84 78.74 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "64f8fb1a-3580-45f6-881b-c57987ef2a75")
+	)
+	(wire
+		(pts
+			(xy 259.08 78.74) (xy 256.54 78.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a91b778e-8892-4099-a1ee-96f625661696")
+	)
+	(label "LIM_B_CH2"
+		(at 256.54 78.74 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "c8d30f3f-db91-4a9b-bdf1-f25bbe6e6518")
+	)
+	(wire
+		(pts
+			(xy 251.46 83.82) (xy 251.46 86.36)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8441660a-66c0-4321-9570-ce2e2f3e80fe")
+	)
+	(label "LIM_B_CH2"
+		(at 251.46 86.36 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "86f7b394-edba-43aa-bcb5-9ccecf813b21")
+	)
+	(wire
+		(pts
+			(xy 276.86 74.93) (xy 276.86 72.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "89d10778-f882-4438-bc25-4f497ef94419")
+	)
+	(label "LIM_B_CH2"
+		(at 276.86 72.39 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "ec6ce583-5153-409d-aece-ddcb13f9c381")
+	)
+	(wire
+		(pts
+			(xy 264.16 83.82) (xy 264.16 86.36)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "59699479-b78c-432d-8bd3-72fffcadba60")
+	)
+	(label "LOOP_PWR_CH2"
+		(at 264.16 86.36 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "5602d0e6-135b-4306-9e0f-af664ba7c920")
+	)
+	(wire
+		(pts
+			(xy 245.11 96.52) (xy 247.65 96.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fa1ad5ff-1446-4f63-a3f7-2ef0421ce661")
+	)
+	(label "LOOP_PWR_CH2"
+		(at 247.65 96.52 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3706f801-6399-4dc5-9999-5c295bcc06d8")
+	)
+	(wire
+		(pts
+			(xy 262.89 96.52) (xy 260.35 96.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a850cf3c-c16f-4879-83e5-0bf773269869")
+	)
+	(label "LOOP_PWR_CH2"
+		(at 260.35 96.52 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "92d6314e-602f-4d5a-b695-d2d0bb0ea45c")
+	)
+	(wire
+		(pts
+			(xy 276.86 39.37) (xy 276.86 41.91)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ef376049-0a76-49f0-9559-f0781fa5a3df")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 276.86 41.91 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "ff2e328d-1cf9-4c27-87cb-386045ceba3b")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 276.86 41.91 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 276.86 82.55) (xy 276.86 85.09)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c722aef1-e554-41a8-b396-fa5281934017")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 276.86 85.09 270)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "9b73898f-97d9-4e9b-8c2a-65fe071c5ce5")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 276.86 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 270.51 53.34) (xy 273.05 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "46202275-4809-4dd4-a13b-cfa1a6117227")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 273.05 53.34 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "8f554f02-1342-4030-bed5-53875746e864")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 273.05 53.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 270.51 96.52) (xy 273.05 96.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ceea9115-c458-4ca8-8076-b07fcd968635")
+	)
+	(global_label "GND"
+		(shape passive)
+		(at 273.05 96.52 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "0b1bdece-43a3-41f3-a962-be7f0574f3d9")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 273.05 96.52 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

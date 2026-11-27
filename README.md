@@ -23,7 +23,7 @@ The current design is a purpose-built custom PCB (outline set at layout — work
 | ESP32-C6 module | MCU + Zigbee radio |
 | ADS1115 (0x48) | 16-bit I²C ADC — shunt voltage (AIN0) + battery divider (AIN2) |
 | HT7333-A | 3.3 V LDO (≈4 µA Iq, 250 mA, ~90 mV dropout). Replaced the AP63203WU buck in the 2026-07-19 1S conversion — the buck's 3.8 V minimum input fails at 1S empty (3.0 V). Below ≈3.4 V the output follows the battery minus dropout; the ESP32-C6 runs down to 3.0 V |
-| MT3608B | 12 V **asynchronous** boost for the 4–20 mA loop supply (VLOOP, GPIO5-gated). D15 (SS34 Schottky) rectifies the switch node; a Q3/Q4 load-disconnect switch in series with L1 blocks the permanent VBAT leak to the loop terminals during deep sleep |
+| MT3608B | 16 V **asynchronous** boost for the 4–20 mA loop supply (VLOOP, GPIO5-gated; 12 V until design change #21). Each loop channel is fed through a ≈27–35 mA current limiter (Q8–Q11). D15 (SS34 Schottky) rectifies the switch node; a Q3/Q4 load-disconnect switch in series with L1 blocks the permanent VBAT leak to the loop terminals during deep sleep |
 | CN3791 | 1S MPPT solar buck charge **controller** (external SI2319CDS P-FET stage; fixed 4.2 V CV, MPPT ≈5.0 V for 6 V-nominal panels; panel Voc limited to **10 V** by the SMAJ10CA input TVS). A solar-powered LM393 cold-charge cutoff clamps charging below ≈+2 °C — zero battery draw at night |
 | TP4056 | USB-C 1 A linear charger (2026-07-19 1S conversion — replaced the IP2326 boost selection, which itself replaced the non-functional TP5100). Auto-charges whenever VBUS is present (CE strapped high); charge-temperature NTC window ≈ +5…+44 °C |
 | DW01A + FS8205A | On-board 1S battery protection (supervisor + dual N-FET in the cell− path) — added 2026-07-19 with the generic-18650 carrier; a bare cell has no PCM |
@@ -35,7 +35,7 @@ All 15 test point pads are 1.0 mm SMD, **DNF** (do not fit) — bare copper pads
 | Ref | Net | Ref | Net |
 |-----|-----|-----|-----|
 | TP1 | VBAT (3.0–4.2 V, 1S range) | TP9 | I2C SCL |
-| TP2 | VLOOP (12 V boost) | TP10 | VSOLAR_IN |
+| TP2 | VLOOP (16 V boost) | TP10 | VSOLAR_IN |
 | TP3 | +3V3 | TP11 | VBAT_RAW (before D5 reverse-polarity MOSFET) |
 | TP4 | GND | TP12 | ADS1115 DRDY (GPIO22) |
 | TP5 | LOOP+ (LOOP_TERM_CH1) | TP13 | FACTORY_RESET (GPIO23 — short to GND while powering on) |
@@ -54,7 +54,7 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 | 18 | SDA | I²C bus (ADS1115 only) — GPIO10/11 are not bonded out on the ESP32-C6-MINI-1 module, so I²C is on GPIO18/19 |
 | 19 | SCL | I²C bus (ADS1115 only) |
 | 12 | USB    | Native USB D− → USB-C (console/programming); from U11 USBLC6 |
-| 5  | Output | MT3608B EN + Q4 gate — 12 V loop supply (`VLOOP`), with Q3/Q4 load-disconnect; R27 pull-down holds it off during deep sleep |
+| 5  | Output | MT3608B EN + Q4 gate — 16 V loop supply (`VLOOP`), with Q3/Q4 load-disconnect; R27 pull-down holds it off during deep sleep |
 | 4  | —      | Spare — no schematic connection (the TP4056 USB charger is autonomous, CE strapped high in hardware) |
 | 6  | Input  | Solar charger /CHRG (CN3791) — solar-charging-active detect (active-low: LOW = charging; R25 external pull-up) |
 | 7  | 1-Wire | DS18B20 data |
@@ -62,13 +62,13 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 | 22 | Input  | ADS1115 ALERT/DRDY (moved off GPIO12) |
 | 23 | Input  | Factory reset (hold LOW at boot → NVS + Zigbee network erase, re-pair with permit-join; via TP13; moved off GPIO13) |
 | 15 | Output | Battery-divider enable (`BATT_DIV_EN`) — drives the Q2 level-shifter that switches the Q5 high-side P-FET |
-| 14 | —      | Status LED (D4 via R14/SJ3 — moved off GPIO13, which is reserved for factory reset; no firmware support yet) |
+| 14 | —      | Status LED (D4 via R14/SJ3 — moved off GPIO13, now native USB D+; no firmware support yet) |
 
 ### Connections (screw terminals)
 
 | Terminal | Wire | ESD / surge protection |
 |----------|------|------------------------|
-| LOOP+ / LOOP− | 4–20 mA transducer, two-wire | D9 / D10 SMAJ5.0A TVS (400 W, DO-214AC); D11 SMAJ13A unidirectional TVS on VLOOP; D1 PRTR5V0U2X rail clamp at ADS1115 inputs |
+| LOOP+ / LOOP− | 4–20 mA transducer, two-wire | D9 / D10 SMAJ5.0A TVS (400 W, DO-214AC); D18 / D20 SMAJ18A on each LOOP+ terminal, D17 / D19 SS34 steering LOOP+ surges into D11 (SMAJ18A on VLOOP), ≈27–35 mA current limiter per channel; D1 PRTR5V0U2X rail clamp at ADS1115 inputs |
 | 1W DATA / GND | DS18B20 data + ground | D12 PRTR5V0U2X dual-channel rail clamp (SOT-363) — 0.5 pF added capacitance, well below the 800 pF 1-Wire add limit |
 | Battery | Single generic 18650 (3.0–4.2 V) in the on-board THT carrier **BT1** — no cable, no connector (the XT30 was deleted 2026-07-19) | On-board 1S protection **DW01A + FS8205A** in the cell− path (generic bare cells have no PCM): over-discharge ≈2.4 V, over-charge ≈4.3 V, over-current. D13 SMAJ5.0A TVS at the cell+ tab; D5 AO3407 P-ch MOSFET in series on cell+ blocks a **reversed-inserted cell**; R31 10 kΩ gate pull-down holds D5 on |
 | SOLAR+/−      | Solar panel, ≤ **10 V Voc** (6 V-nominal panels — 1S conversion 2026-07-19; the 2S design accepted 12 V panels) | D14 SMAJ10CA bidirectional TVS (400 W, DO-214AC) at the terminal, plus second-stage D8 SMAJ10CA at the CN3791 VIN |
@@ -92,15 +92,15 @@ Connector placement:
 
 ### 4–20 mA loop
 
-The MT3608B boost converter lifts VLOOP to 12 V to power the transducer loop. The boost is asynchronous: D15 (SS34 Schottky) carries the switch node to VLOOP, and a Q3 (P-FET) / Q4 (level-shifter) load-disconnect switch in series with the inductor prevents VBAT from leaking through L1 + D15 to the loop terminals during deep sleep. GPIO5 drives both the MT3608B EN and the Q4 gate; R27 pulls the net low while GPIO5 is isolated in deep sleep.
+The MT3608B boost converter lifts VLOOP to **16 V** (R23 1.91 MΩ / R24 75 kΩ → 15.88 V) to power the transducer loop. Each channel's LOOP+ is fed through a two-transistor current limiter (sense resistor R52/R54, BCP53 pass Q8/Q10 in SOT-223, clamp Q9/Q11) that holds a shorted cable at ≈27–35 mA, so the firmware just reports the short — before design change #21 a short pulled amps from the cell and tripped the DW01A protection, leaving the device dead until a charger reconnected. The limiter costs ≈0.5 V at 20 mA, which is why VLOOP went from 12 V to 16 V: a transducer now gets ≈12.6 V at 20 mA (VLOOP −5 %), comfortable for 9–36 V types; 12 V-minimum types work with short cables (≤ ≈30 Ω loop resistance) and the 100 Ω shunt. The boost is asynchronous: D15 (SS34 Schottky) carries the switch node to VLOOP, and a Q3 (P-FET) / Q4 (level-shifter) load-disconnect switch in series with the inductor prevents VBAT from leaking through L1 + D15 to the loop terminals during deep sleep. GPIO5 drives both the MT3608B EN and the Q4 gate; R27 pulls the net low while GPIO5 is isolated in deep sleep.
 
-Firmware gates GPIO5 high for **10 ms** (MT3608B soft-start plus rail settling through the Q3 load-disconnect P-FET into C20/C22 — raised from 5 ms in the 2026-07 PCB review) before reading, then drives it low immediately after. Maximum ON time is 100 ms.
+Firmware gates GPIO5 high for `CONFIG_WELLD_VLOOP_SETTLE_MS` — **10 ms** by default: MT3608B soft-start plus rail settling through the Q3 load-disconnect P-FET into C20/C22 (raised from 5 ms in the 2026-07 PCB review) — before reading, then drives it low immediately after. The transducer must also produce a valid output within that window: if its datasheet start-up (switch-on) time is longer, raise the option to match.
 
 The ADS1115 measures the voltage across a shunt resistor on the loop return: PGA ±4.096 V, single-shot at 860 SPS, AIN0 vs GND. (20 mA × 100 Ω = 2.0 V would sit at the very top of the ±2.048 V range, which clips at 20.47 mA — too low to see the > 21 mA short-circuit fault.)
 
 10 nF X7R bypass capacitors (C34 / C35) are placed directly across each 100 Ω shunt resistor (R2 / R4) to suppress HF pickup from the loop cable. The RC corner is ~160 kHz, well above the measurement bandwidth.
 
-The loop signal terminals are protected by SMAJ5.0A TVS diodes (D9 / D10, 400 W, DO-214AC/SMA). The 5 V standoff (6.4 V minimum breakdown) keeps the 2.0 V working point far below the knee, so leakage stays negligible; R3 / R5 and the D1 rail clamp still protect the ADS1115 inputs, and the forward diode clamps negative transients. (The earlier SMAJ3.3CA leaked up to 800 µA at its standoff — replaced 2026-07-14.)
+The loop signal terminals are protected by SMAJ5.0A TVS diodes (D9 / D10, 400 W, DO-214AC/SMA). The 5 V standoff (6.4 V minimum breakdown) keeps the 2.0 V working point far below the knee, so leakage stays negligible; Behind them, R3 / R5 (1 kΩ) and the D1 rail clamp protect the ADS1115 inputs: with the cable shorted, the loop limiter keeps the signal node at ≤ ≈3.5 V; should a limiter fail, D9 holds it at ≈7–8 V while VLOOP is on and 1 kΩ limits the current D1 dumps into +3V3 to ≈3.5 mA (with the earlier 100 Ω it was ≈40 mA, more than the LDO-fed rail can absorb). C3 / C5 (100 nF) form a filter with the shunt and the series resistor (τ = (R2 + R3)·C3 ≈ 110 µs, ≈1.45 kHz) that settles to 0.01 % in about 1 ms; C4 / C6 are DNP footprints (value `10uF DNF`) — fitting them would slow the input to τ ≈ 11 ms. The forward diode of the TVS clamps negative transients. (The earlier SMAJ3.3CA leaked up to 800 µA at its standoff — replaced 2026-07-14.)
 
 The 1W DATA terminal (J6) is protected by D12, a PRTR5V0U2X dual-channel rail clamp in SOT-363 (the same part as D1 at the ADS1115 inputs). D12 clamps the data line to 3V3 + ~0.5 V during an ESD transient in sub-nanosecond response time. The added capacitance per channel is 0.5 pF, which is negligible compared to the 800 pF DS18B20 bus limit and does not affect 1-Wire timing.
 
@@ -149,7 +149,7 @@ idf.py set-target esp32c6
 
 # build and flash
 idf.py build
-idf.py -p /dev/ttyUSB0 flash monitor
+idf.py -p /dev/ttyACM0 flash monitor   # PCB USB-C (native USB); a dev board's UART port is usually /dev/ttyUSB0
 ```
 
 Or use the interactive menu: `idf.py menuconfig` → **WellD Configuration**.
@@ -176,7 +176,7 @@ All options have sensible defaults. Only change what differs from your hardware.
 | `CONFIG_WELLD_BATT_REPORT_ENABLED` | `y` | Report battery voltage over Zigbee (EP2, Analog Input). The battery is always measured internally via ADS1115 AIN2 (R7/R8 divider) for the low-battery guard; disabling this only removes the Zigbee endpoint |
 | `CONFIG_WELLD_BATT_DIVIDER_RATIO` | `200` | Divider ratio × 100 — matches the 100 kΩ / 100 kΩ divider (R7/R8): (100+100)/100 = 2.00 |
 | `CONFIG_WELLD_BATT_FULL_MV` | `4200` | Voltage (mV) reported as 100 % by the Z2M converter (1S full charge) |
-| `CONFIG_WELLD_BATT_EMPTY_MV` | `3000` | Voltage (mV) at or below which the device skips the Zigbee send and all NVS writes to protect flash (1S minimum safe discharge) |
+| `CONFIG_WELLD_BATT_EMPTY_MV` | `3200` | Voltage (mV) at or below which the device skips the Zigbee send and all NVS writes to protect flash. 3.2 V keeps the HT7333-fed 3.3 V rail ≥ 3.0 V (the ESP32-C6 minimum) under the TX burst; at a 3.0 V cell the rail sags to ≈2.9 V. Costs the last ≈5 % of capacity |
 
 ### Sleep
 
@@ -200,7 +200,8 @@ All options have sensible defaults. Only change what differs from your hardware.
 |--------|---------|-------------|
 | `CONFIG_WELLD_I2C_SDA_GPIO` | `18` | I²C SDA pin (ADS1115). GPIO10/11 unavailable on the MINI-1 module |
 | `CONFIG_WELLD_I2C_SCL_GPIO` | `19` | I²C SCL pin (ADS1115) |
-| `CONFIG_WELLD_VLOOP_GPIO` | `5` | MT3608B EN + Q3/Q4 load-disconnect — 12 V loop supply enable. Held HIGH ≥ 10 ms before any 4–20 mA read (rail settles through the Q3 P-FET into C20/C22) |
+| `CONFIG_WELLD_VLOOP_GPIO` | `5` | MT3608B EN + Q3/Q4 load-disconnect — 16 V loop supply enable. Held HIGH for `CONFIG_WELLD_VLOOP_SETTLE_MS` before each 4–20 mA read, LOW right after |
+| `CONFIG_WELLD_VLOOP_SETTLE_MS` | `10` | Loop warm-up before the reading (10–1000 ms). 10 ms covers the PCB's 16 V rail (it settles through the Q3 P-FET into C20/C22); raise it to the transducer's datasheet start-up / switch-on time if that is longer. Above 10 ms the firmware samples AIN0 once the rail is up and switches the loop straight off at ≥ 25 mA, confirmed by a second reading 5 ms later (a cable shorted to the signal wire; shunts ≤ ≈115 Ω), instead of holding it on for the whole warm-up |
 | `CONFIG_WELLD_SOLAR_DETECT_GPIO` | `6` | Solar charger /CHRG (CN3791) — solar-charging-active detect (active-low) |
 | `CONFIG_WELLD_BATT_DIV_EN_GPIO` | `15` | Battery-divider enable — Q2 level-shifter gate, switching the Q5 high-side P-FET |
 | `CONFIG_WELLD_ADS1115_DRDY_GPIO` | `22` | ADS1115 ALERT/DRDY interrupt input (moved off GPIO12, now native USB D−) |
@@ -210,8 +211,8 @@ All options have sensible defaults. Only change what differs from your hardware.
 | Option | Default | Description |
 |--------|---------|-------------|
 | `CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED` | `n` | Take 3 ADS1115 samples per measurement and report the median. Opt-in for electrically noisy installations (pump motor interference, long cable runs). Costs ~6 ms extra active time per wakeup (two extra ~1.2 ms conversions per channel); leave off for maximum battery life |
-| `CONFIG_WELLD_TEMP_COMPENSATION_ENABLED` | `y` | Apply water-density correction to the level reading: `level / (1 + alpha * (temp - 20))`. Suppressed automatically when DS18B20 fails (temp ≤ −127 °C) |
-| `CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C` | `207` | Water density coefficient in ppm/°C. Depends on `WELLD_TEMP_COMPENSATION_ENABLED`. Typical value for fresh water is 207 ppm/°C; range 0–500 |
+| `CONFIG_WELLD_TEMP_COMPENSATION_ENABLED` | `y` | Correct the level for water density: `level × ρ(ref) / ρ(T)`, with the pure-water density of Tanaka (2001). Water warmer than the reference is less dense, so the transducer reads low and the level is raised — by 0.03 % at 10 °C and 0.43 % at 30 °C for the default reference. Skipped when the DS18B20 fails and outside 0–40 °C |
+| `CONFIG_WELLD_TEMP_COMPENSATION_REF_C` | `4` | Water temperature the transducer's metre scale assumes (0–40 °C). Nearly every datasheet uses the conventional metre of water column (9.80665 kPa = 1000 kg/m³, water at ≈4 °C), so leave 4 unless yours states e.g. "calibrated in 20 °C water". Replaces the linear `…_PPM_PER_C` coefficient (removed in 1.2.1) |
 | `CONFIG_WELLD_DS18B20_RESOLUTION_BITS` | `11` | DS18B20 conversion resolution: 9 / 10 / 11 / 12 bit. Conversion wait: 100 / 200 / 400 / 800 ms (the ds18b20 driver's timing). 11-bit gives 0.125 °C steps — adequate for well water monitoring and saves 400 ms per wakeup vs 12-bit |
 | `CONFIG_WELLD_FACTORY_RESET_GPIO` | `23` | If this GPIO is held LOW at boot, NVS and the Zigbee network state are erased and the device reboots factory-new — re-pair it with permit-join (moved off GPIO13, now native USB D+). Internal pull-up enabled; leave unconnected for normal operation |
 | `CONFIG_WELLD_SELFTEST_ENABLED` | `n` | Exercise all peripherals on every boot and log PASS/FAIL. Adds ~200 ms to boot time; useful for factory QA and PCB bring-up |
@@ -269,7 +270,7 @@ The device publishes to `zigbee2mqtt/<friendly_name>` on each wakeup:
 - `water_level_rate` is signed cm/h. Positive = recovering, negative = drawing down. Omitted on the first valid wakeup after a cold boot and during open-loop cycles.
 - `temperature` is omitted when the DS18B20 is not detected.
 - `battery_voltage` comes from the ADS1115 AIN2 voltage divider (R7/R8 100 kΩ / 100 kΩ, switched high-side by Q5 under GPIO15 control).
-- `battery` is a percentage derived from `battery_voltage` using the device options `battery_full_mv` / `battery_empty_mv`. Options are coerced to numbers (YAML strings like `"4200"` are accepted) and fall back to the defaults 4200 / 3000 mV for anything missing or non-numeric. If the thresholds are misconfigured (`battery_full_mv <= battery_empty_mv`), the voltage is still published but the percentage is omitted.
+- `battery` is a percentage derived from `battery_voltage` using the device options `battery_full_mv` / `battery_empty_mv`. Options are coerced to numbers (YAML strings like `"4200"` are accepted) and fall back to the defaults 4200 / 3200 mV (matching the firmware's `CONFIG_WELLD_BATT_FULL_MV` / `CONFIG_WELLD_BATT_EMPTY_MV`) for anything missing or non-numeric. If the thresholds are misconfigured (`battery_full_mv <= battery_empty_mv`), the voltage is still published but the percentage is omitted. When the firmware cannot trust its battery reading (read failed, or below 2.0 V / above 125 % of full charge) it reports −1 and both `battery_voltage` and `battery` are published as `null`, so Home Assistant shows them unavailable — the low-battery guard is blind until the reading recovers.
 - `zb_fails` is the number of consecutive failed send attempts that preceded this report (0 = healthy). From 3 failures the device sleeps its maximum interval between attempts until one succeeds.
 - `device_lqi` is the link quality measured on the device side (EP6, 1–255) — the LQI of the device's parent entry in its own neighbor table. It is distinct from Zigbee2MQTT's own `linkquality` field, which comes from the coordinator side of the link. A value of 0 means "unknown" (no parent entry found) and is not published. Firmware ≤ 1.0.2 always sent 0, so the key only appears from firmware 1.0.3 onwards.
 - `solar_charging` is a **boolean** (binary expose): `true` = the solar MPPT charger (CN3791) is actively charging, `false` = not charging.
@@ -344,9 +345,9 @@ The firmware tracks consecutive boot failures in RTC memory. If 3 consecutive bo
 
 ### Level offset calibration
 
-Use `CONFIG_WELLD_SENSOR_OFFSET_CM` (or `sensor_set_offset_cm()` at runtime) to shift the reported level without moving the transducer. For example, if the transducer hangs 15 cm above the well bottom, set the offset to `-15` to report depth from the bottom of the well.
+Use `CONFIG_WELLD_SENSOR_OFFSET_CM` (or `sensor_set_offset_cm()` at runtime) to shift the reported level without moving the transducer. For example, if the transducer hangs 15 cm above the well bottom, set the offset to `+15` to report depth from the bottom of the well (`level = column above the transducer + offset`); use a negative offset when your zero point is above the transducer, e.g. `-50` when it hangs 50 cm below the outlet pipe you want to measure from.
 
-The offset is persisted in NVS (key `offset_cm` in namespace `welld`) and clamped to ±600 cm.
+The offset is persisted in NVS (key `offset_cm` in namespace `welld`) and clamped to ±600 cm. It is added after the water-density correction, which applies to the measured water column only — the offset is geometry, not water. A reading that the offset would push below zero is reported as 0 m.
 
 ### Adaptive sleep & rate of change
 
@@ -382,6 +383,8 @@ Before every `esp_deep_sleep()` call, `sensor_pre_sleep_cleanup()` is invoked au
 ### Low-battery protection
 
 When battery voltage drops **to or below** `CONFIG_WELLD_BATT_EMPTY_MV`, the device skips the Zigbee send and all NVS writes, and sleeps for the maximum interval to conserve charge. The rate history is invalidated entirely on this path — the level can drift arbitrarily far across a low-battery blackout, so the first valid reading after recovery re-seeds the history and reports no rate once (the EP4 report is skipped) instead of producing a false rate spike.
+
+A reading **below 2.0 V** or **above 125 % of `CONFIG_WELLD_BATT_FULL_MV`** is not treated as a battery level at all: a running device cannot have such a cell (the DW01A disconnects it at 2.4 V and 4.3 V), so the measurement path has failed — divider not fitted (dev-board builds), Q5/R7 open or AIN2 floating (reads ≈0 V), or R8 open (AIN2 pulled to the clamp, ≈7 V). The device logs `battery reading … is implausible` (or `battery read failed` when the ADS1115 does not answer), records `BATT_INVALID` in the RTC event log, skips the low-battery guard and keeps reporting — with the battery published as `null` (unavailable) so the fault is visible remotely. Without the window, a missing divider would read a few mV of noise and silence the device for good, and an open R8 would disable the guard without any sign.
 
 ### Expected serial output
 
@@ -493,6 +496,6 @@ CI builds these to catch compile breaks but cannot execute them (real hardware n
 
 ---
 
-## Legacy: dev board wiring
+## Dev-board build (without the PCB)
 
-The firmware has no ESP32-C6 internal-ADC path — every analog reading goes through the ADS1115. To build on an off-the-shelf ESP32-C6 dev board instead of the custom PCB, add an ADS1115 breakout (address 0x48) on the `CONFIG_WELLD_I2C_SDA_GPIO` / `SCL_GPIO` pins, wire the transducer shunt to its AIN0 and power the loop externally, and set `CONFIG_WELLD_BATT_REPORT_ENABLED=n` unless you also build the AIN2 battery divider (without it EP2 would only report read errors). The power-control GPIO options (`VLOOP`, `BATT_DIV_EN`) are still compiled in and can be left disconnected.
+The firmware has no ESP32-C6 internal-ADC path — every analog reading goes through the ADS1115. To build on an off-the-shelf ESP32-C6 dev board, follow **[`docs/wiring.md`](docs/wiring.md)**: an ADS1115 breakout on GPIO18/19 (address 0x48, ALERT on GPIO22), the transducer shunt into AIN0 through a 4.7 kΩ protection resistor with an externally powered loop, the DS18B20 on GPIO7, and either a 100 kΩ/100 kΩ battery divider on AIN2 or **AIN2 tied to GND** with `CONFIG_WELLD_BATT_REPORT_ENABLED=n` (a floating AIN2 can read like a flat cell and trip the low-battery guard). Leave the PCB-only GPIOs (5, 6, 15, 23) unconnected. The guide includes a wiring diagram, a net-by-net checklist and the log lines to expect on first boot.

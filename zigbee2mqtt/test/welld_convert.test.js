@@ -34,9 +34,9 @@ test('convertLevel returns undefined for null/NaN/Infinity', () => {
 /* convertBattery ---------------------------------------------------------- */
 
 test('battery percentage uses defaults when options omitted', () => {
-    /* 3.6 V with default 3.0 V empty / 4.2 V full → 50 % */
-    const out = convertBattery(3.6);
-    assert.equal(out.battery_voltage, 3.6);
+    /* 3.7 V with default 3.2 V empty / 4.2 V full → 50 % */
+    const out = convertBattery(3.7);
+    assert.equal(out.battery_voltage, 3.7);
     assert.equal(out.battery, 50);
 });
 
@@ -57,17 +57,19 @@ test('battery percentage honours custom full/empty options', () => {
 });
 
 test('battery percentage rounds to nearest integer', () => {
-    /* 3.61 V with defaults 3.0 V empty / 4.2 V full → (3.61-3.0)/(4.2-3.0)*100
-       = 0.61/1.2*100 = 50.833…% → rounds to 51 */
-    const out = convertBattery(3.61);
+    /* With the defaults (1000 mV span, voltage rounded to 10 mV) every
+       percentage is already whole, so use a 1200 mV span: 3.61 V with
+       3.0 V empty / 4.2 V full → 0.61/1.2*100 = 50.833…% → rounds to 51 */
+    const out = convertBattery(3.61, {battery_full_mv: 4200, battery_empty_mv: 3000});
     assert.equal(out.battery, 51);
 });
 
 test('battery defaults match the firmware Kconfig defaults', () => {
     /* If these drift, the JS converter will silently misreport %.
-       Firmware >= 1.1.0 is the 1S board: 4200 / 3000 mV. */
+       Firmware >= 1.2.1 (1S board): 4200 / 3200 mV — see
+       CONFIG_WELLD_BATT_FULL_MV / CONFIG_WELLD_BATT_EMPTY_MV. */
     assert.equal(DEFAULT_BATTERY_FULL_MV, 4200);
-    assert.equal(DEFAULT_BATTERY_EMPTY_MV, 3000);
+    assert.equal(DEFAULT_BATTERY_EMPTY_MV, 3200);
 });
 
 test('equal thresholds: voltage still reported, percentage omitted (no division by zero)', () => {
@@ -87,14 +89,14 @@ test('battery options arriving as strings (YAML config) are coerced', () => {
 });
 
 test('non-finite battery options fall back to defaults instead of publishing NaN', () => {
-    const out = convertBattery(3.6, {battery_full_mv: NaN, battery_empty_mv: 'garbage'});
+    const out = convertBattery(3.7, {battery_full_mv: NaN, battery_empty_mv: 'garbage'});
     assert.equal(out.battery, 50);
     assert.ok(Number.isFinite(out.battery));
 });
 
 test('a single provided battery option combines with the other default', () => {
-    /* full 4000 (custom), empty 3000 (default) → 3.5 V = 50 % */
-    const out = convertBattery(3.5, {battery_full_mv: 4000});
+    /* full 4000 (custom), empty 3200 (default) → 3.6 V = 50 % */
+    const out = convertBattery(3.6, {battery_full_mv: 4000});
     assert.equal(out.battery, 50);
 });
 
@@ -104,20 +106,37 @@ test('convertBattery returns undefined for null/NaN/Infinity', () => {
     assert.equal(convertBattery(Infinity), undefined);
 });
 
+test('negative battery (firmware "unknown" sentinel) → voltage and % both null', () => {
+    /* -1 = read failed or implausible: the firmware's low-battery guard is
+       blind, so HA must show the battery unavailable — not a stale value,
+       and not 0 % (which the percentage clamp would otherwise produce). */
+    assert.deepEqual(convertBattery(-1), {battery_voltage: null, battery: null});
+    assert.deepEqual(convertBattery(-0.01, {battery_full_mv: 4200, battery_empty_mv: 3200}),
+        {battery_voltage: null, battery: null});
+});
+
 test('18650 battery at full charge (4200 mV) reports 100 %', () => {
     const out = convertBattery(4.2);
     assert.equal(out.battery_voltage, 4.2);
     assert.equal(out.battery, 100);
 });
 
-test('18650 battery at midpoint (3600 mV) reports 50 %', () => {
-    /* (3600 - 3000) / (4200 - 3000) * 100 = 50 % */
-    const out = convertBattery(3.6);
-    assert.equal(out.battery_voltage, 3.6);
+test('18650 battery at midpoint (3700 mV) reports 50 %', () => {
+    /* (3700 - 3200) / (4200 - 3200) * 100 = 50 % */
+    const out = convertBattery(3.7);
+    assert.equal(out.battery_voltage, 3.7);
     assert.equal(out.battery, 50);
 });
 
-test('18650 battery at minimum safe discharge (3000 mV) reports 0 %', () => {
+test('18650 battery at the empty threshold (3200 mV) reports 0 %', () => {
+    const out = convertBattery(3.2);
+    assert.equal(out.battery_voltage, 3.2);
+    assert.equal(out.battery, 0);
+});
+
+test('18650 battery below the empty threshold (3000 mV) clamps to 0 %', () => {
+    /* The firmware stops reporting at/below 3.2 V, but a stored backlog
+       or an older image may still send lower readings. */
     const out = convertBattery(3.0);
     assert.equal(out.battery_voltage, 3);
     assert.equal(out.battery, 0);
@@ -144,9 +163,9 @@ test('endpoint 1 with negative present value reports null', () => {
 test('endpoint 2 dispatches to battery converter', () => {
     const result = convertAnalogInput({
         endpoint: {ID: 2},
-        data: {presentValue: 3.6},
+        data: {presentValue: 3.7},
     });
-    assert.equal(result.battery_voltage, 3.6);
+    assert.equal(result.battery_voltage, 3.7);
     assert.equal(result.battery, 50);
 });
 
@@ -376,7 +395,7 @@ test('store-and-forward burst: mixed-endpoint reports stay isolated', () => {
        must not leak state between endpoints. */
     const frames = [
         {endpoint: {ID: 1}, data: {presentValue: 2.5}},
-        {endpoint: {ID: 2}, data: {presentValue: 3.6}},
+        {endpoint: {ID: 2}, data: {presentValue: 3.7}},
         {endpoint: {ID: 4}, data: {presentValue: -3.2}},
         {endpoint: {ID: 5}, data: {presentValue: 1.0}},
         {endpoint: {ID: 6}, data: {presentValue: 180.0}},
@@ -385,7 +404,7 @@ test('store-and-forward burst: mixed-endpoint reports stay isolated', () => {
     const results = frames.map(convertAnalogInput);
     assert.deepEqual(results, [
         {water_level: 2.5},
-        {battery_voltage: 3.6, battery: 50},
+        {battery_voltage: 3.7, battery: 50},
         {water_level_rate: -3.2},
         {zb_fails: 1},
         {device_lqi: 180},

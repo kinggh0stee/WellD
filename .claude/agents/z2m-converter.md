@@ -19,7 +19,7 @@ Endpoint map (mirrors firmware — do not change without firmware agent sign-off
 
 Key constraints:
 - EP 4 (water_level_rate) is always registered in firmware — only skip publishing when the value is absent from the message, not when the EP is missing
-- Battery % is computed from device options battery_full_mv (default 4200) and battery_empty_mv (default 3000); clamp to [0, 100]
+- Battery % is computed from device options battery_full_mv (default 4200) and battery_empty_mv (default 3200); clamp to [0, 100]
 - Do not add toZigbee entries — this is a report-only device
 - OTA is enabled (ota: true); do not remove it
 

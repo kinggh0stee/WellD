@@ -176,6 +176,7 @@ NETS = {
             "R2.2", "R4.2", "R8.2", "R26.2",
             "Q2.S", "J4.3", "J5.3", "J6.3", "J7.3",
             "GDT1.2", "GDT2.2",   # GDT coarse surge stage returns (DNF)
+            "R53.2", "R55.2", "D18.2", "D20.2",   # loop limiters (design change #21)
         ],
         "+3V3": [
             "FB1.1", "R_DRDY.1", "R6.1", "R28.1",
@@ -186,12 +187,27 @@ NETS = {
         "I2C_SDA": ["U9.9"],
         "I2C_SCL": ["U9.10"],
         "ADS_DRDY": ["U9.2", "R_DRDY.2"],
-        # CH1 4-20 mA chain
-        "VLOOP": ["J4.1"],
+        # Loop current limiters (design change #21): per channel a PNP pass
+        # transistor (BCP53-16, SOT-223 1=B 2=C 3=E 4=C tab — Nexperia and
+        # onsemi confirmed; SOT-89 BCX53 pinouts vary by vendor) with a 22R
+        # sense resistor and
+        # a PNP clamp (MMBT3906, SOT-23 1=B 2=E 3=C) limit LOOP+ to ~27-35 mA.
+        # D17/D19 (SS34) steer LOOP+ surges into VLOOP / VLOOP_CH2 (D19 sits
+        # after SJ2 so an open SJ2 still isolates J5); D18/D20 (SMAJ18A) clamp
+        # each terminal now that D11 no longer sits on LOOP+.
+        "VLOOP": ["R52.1", "Q9.2", "D17.1"],
+        "LIM_E_CH1": ["R52.2", "Q8.3", "Q9.1"],
+        "LIM_B_CH1": ["Q8.1", "Q9.3", "R53.1"],
+        "LOOP_PWR_CH1": ["J4.1", "Q8.2", "D17.2", "D18.1"],
+        "LIM_E_CH2": ["R54.2", "Q10.3", "Q11.1"],
+        "LIM_B_CH2": ["Q10.1", "Q11.3", "R55.1"],
+        "LOOP_PWR_CH2": ["J5.1", "Q10.2", "D19.2", "D20.1"],
+        # CH1 4-20 mA chain (LOOP+ via the CH1 limiter above)
         "LOOP_TERM_CH1": ["J4.2", "D9.1", "R2.1", "C34.1", "R3.1", "GDT1.1"],
         "ADC_CH0": ["U9.4", "R3.2", "C3.1", "C4.1", "D1.2"],
-        # CH2 4-20 mA chain (loop power gated by SJ2 on interfaces sheet)
-        "VLOOP_CH2": ["J5.1"],
+        # CH2 4-20 mA chain (loop power gated by SJ2 on interfaces sheet, then
+        # the CH2 limiter above)
+        "VLOOP_CH2": ["R54.1", "Q11.2", "D19.1"],   # D19 after SJ2: open SJ2 still isolates J5
         "LOOP_TERM_CH2": ["J5.2", "D10.1", "R4.1", "C35.1", "R5.1", "GDT2.1"],
         "ADC_CH1": ["U9.5", "R5.2", "C5.1", "C6.1", "D1.3"],
         # battery divider (high-side switch Q5/R16 on power sheet)

@@ -39,7 +39,41 @@ float sensor_battery_from_mv(int adc_mv, int divider_ratio_x100)
     return (float)adc_mv * (float)divider_ratio_x100 / 100000.0f;
 }
 
+float sensor_level_with_offset(float column_m, int offset_cm)
+{
+    float level_m = column_m + (float)offset_cm / 100.0f;
+    return level_m < 0.0f ? 0.0f : level_m;
+}
+
 bool sensor_temp_in_range(float temp_c)
 {
     return temp_c >= -55.0f && temp_c <= 125.0f;
+}
+
+/* Density of air-free pure water relative to its maximum (~3.98 °C), from
+ * Tanaka et al., Metrologia 38 (2001) 301 — the CIPM formula, within a few
+ * ppm of the tables over 0–40 °C. Its a5 (999.97495 kg/m3) cancels in the
+ * ratio below. */
+static float water_density_rel(float t)
+{
+    const float a1 = -3.983035f, a2 = 301.797f, a3 = 522528.9f, a4 = 69.34881f;
+    float d = t + a1;
+    return 1.0f - (d * d) * (t + a2) / (a3 * (t + a4));
+}
+
+/* The transducer measures pressure p = rho * g * h, and its metre scale
+ * assumes water at ref_temp_c — 4 °C for the conventional metre of water
+ * column (9.80665 kPa, 1000 kg/m3), which nearly every datasheet uses:
+ *
+ *     h_true = p / (rho(T) * g) = h_raw * rho(ref) / rho(T)
+ *
+ * Water away from ~4 °C is less dense, so a given column presses less and
+ * reads LOW: the factor is >= 1 for a 4 °C reference (0.03 % at 10 °C,
+ * 0.43 % at 30 °C). Outside 0–40 °C (ice, or a probe out of the water) the
+ * correction is skipped. */
+float sensor_temp_level_factor(float temp_c, int ref_temp_c)
+{
+    if (!(temp_c >= 0.0f && temp_c <= 40.0f)) return 1.0f;   /* also rejects NaN */
+    if (ref_temp_c < 0 || ref_temp_c > 40) return 1.0f;
+    return water_density_rel((float)ref_temp_c) / water_density_rel(temp_c);
 }

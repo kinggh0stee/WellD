@@ -23,6 +23,8 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 3. Re-run `python3 hardware/pcb/netlist_check.py` after the resave — it must still report zero mismatches (guards against the migration moving anything).
 4. Replace the custom `welld:ESP32_C6_MINI_1U` symbol with the official Espressif library part and re-run ERC + `netlist_check.py`. **The custom pin numbering was verified WRONG (2026-07-21)** — the official signal-pin map is recorded in the symbol-verification table in `schematic_connections.md`; map the existing nets to it. The one behavioural consequence is already applied: **GPIO10/GPIO11 are not bonded out on the MINI-1**, so I²C was moved to **GPIO18/GPIO19** across firmware + schematic + docs.
 5. Swap SJ2–SJ5 to the *Bridged* solder-jumper variants (currently Open).
+6. After *Update PCB from Schematic*, check that **D1/D12 (PRTR5V0U2X) land on 4-pad `SOT-143` footprints with LCSC C12333** (the placed instances carried the old 6-pin SOT-363 footprint and the USBLC6-clone number C2687116 until 2026-11-27), **D6 on `D_SMB`** (MBRS140), and the LCSC fields of **D9/D10/D13 (C98802)** and **U12 (C16581)** — all corrected in the schematic data on 2026-11-27. Still open in the data: **L1** footprint (`L_Vishay_IFSC-1515AH` in the schematic vs the CDRH4D22 part in the BOM), **SW1/SW2** footprint (CK KSC6 vs 6×6 mm), **BT1** LCSC (holder choice) — pick and align before ordering.
+7. The loop current limiters (#21) add **Q8–Q11, R52–R55, D17–D20** on the sensors sheet (placed in the empty band right of the existing grid): place them per Group E2 in `placement_constraints.md`. Q8–Q11, D18/D20 and D11 (now SMAJ18A) still need LCSC numbers (marked ⚠️ in the BOM). **Q8/Q10 must be a SOT-223 BCP53-16 (1=B, 2=C, 3=E, 4=C) — never an SOT-89 BCX53**, whose pinout depends on the vendor; **check the chosen BCP53 vendor's datasheet pin order at order time** (Nexperia and onsemi are confirmed). With SJ2 open, leave J5 LOOP+ unconnected (D20 alone cannot take a field surge) and never feed it above ≈18 V.
 
 ## 2. Cell choice (no vendor question any more)
 
@@ -39,6 +41,8 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 - BOM: `bom_footprints.md` — updated 2026-07-19 for the 1S conversion. Verified numbers carried over: PRTR5V0U2X **C12333**, SMAJ5.0A **C98802** (now also D13), PTC C210838, AO3400A C20917, HRO USB-C C165948.
 - **LCSC numbers — ✅ locked 2026-07-21**: LM393 **C7955** (onsemi, JLCPCB Basic), CN3791 **C154992** (Consonance), TP4056 **C16581** (ESOP-8), HT7333-A **C21583**, DW01A **C351410** (PUOLOP, JLCPCB), FS8205A **C14212** (Fortune, JLCPCB), SMAJ10CA D8/D14 **C320526** (LGE), SMAJ13A D11 **C110519** (Diodes Inc), BT1 **C2979182** (MY-18650-02 clip ×2). ✅ **Footprints resolved 2026-07-21**: BT1 → `Battery:BatteryHolder_Keystone_1042_1x18650` (KiCad standard, no draw); HRO USB-C → `Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12` (confirmed present in KiCad standard lib). **Only the GDT land pattern remains** — and it is gated: GDT1/GDT2 are DNF with no chosen MPN (site-dependent populate), so the pattern is drawn only if/when a specific 2-electrode GDT is selected.
 
+- **DNF parts must stay unfitted**: export the BOM and CPL with DNP excluded, then check that **C4/C6** (`10uF DNF`) and **GDT1/GDT2** (`GDT 90V DNF`) are absent. A fitted C4 slows the AIN0 input to τ ≈ 11 ms and reads the level 10–40 % low at the default 10 ms warm-up — invisible to the firmware's range checks (design change #20).
+
 ## 5. First-article bench-verify list (before enclosure sealing)
 
 | # | Check | Why |
@@ -54,6 +58,15 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 | 9 | Loop reading sanity vs known pressure; SMAJ5.0A leakage invisible on the shunt | D9/D10 substitution validation |
 | 10 | ADS1115 AIN2 reads correctly up to 4.2 V cell (±4.096 V PGA, ratio 200) | shipped in fw 1.1.0 — clipping at full charge was the failure mode |
 | 11 | Protection trip + recovery: cell isolated below ≈2.4 V, recovers on charger; over-current trip; reversed-cell insertion blocked (D5) | new DW01A/FS8205A path + carrier (#11a–c); values assumed from the module ecosystem |
+
+
+**Loop current limiters + 16 V loop (design change #21):**
+- VLOOP at TP2 with GPIO5 forced HIGH: **15.1–16.7 V** (15.88 V nominal). With a 20 mA calibrator in the loop, VLOOP must be ≥ 15.1 V and the reading settled (within ±20 µA of the calibrator) at the 10 ms sample (a 12 V-minimum transducer at 20 mA needs VLOOP ≥ ≈14.5 V)
+- J4 LOOP+ shorted to SIG through an ammeter: **≈27–35 mA** (room temperature ≈32 mA); firmware logs `transducer short-circuit`; the device keeps running (no DW01A trip)
+- J4 LOOP+ shorted to GND: same current, **no DW01A trip**; firmware logs `transducer open loop` (the shunt sees nothing)
+- 20 mA calibrator in the loop: LOOP+ ≥ VLOOP − 0.55 V (limiter drop ≈0.5 V); repeat on J5 with SJ2 bridged
+- With SJ2 open: J5 LOOP+ ≈0 V while VLOOP is on (CH2 isolated)
+- D18/D20 and D9, D10, D11, D13 use the bidirectional `D_TVS` symbol for unidirectional parts: polarity comes only from the D_SMA pad 1 = cathode (band) convention — check every SMAJ orientation at assembly (a reversed D18/D20 is a limited LOOP+→GND short that reads as an open loop)
 
 ## 6. Enclosure (after layout freezes connector positions)
 

@@ -442,22 +442,82 @@ void sensor_offset_cache_reset(void)
     s_offset_cm = INT32_MIN;
 }
 
-/* Read the water level in metres, applying the NVS-stored offset and
- * optional temperature compensation.
- * Gates the MT3608B 12V boost (VLOOP GPIO) for the duration of the read.
+float sensor_apply_level_offset(float column_m)
+{
+    int offset_cm = sensor_get_offset_cm();
+    float level_m = sensor_level_with_offset(column_m, offset_cm);
+    if (offset_cm != 0) {
+        ESP_LOGI(TAG, "level=%.2f m with the %+d cm offset", level_m, offset_cm);
+    }
+    return level_m;
+}
+
+/* Minimum VLOOP on-time before the shunt is sampled: MT3608B soft-start plus
+ * the Q3/C20/C22 rail settle. CONFIG_WELLD_VLOOP_SETTLE_MS (>= this) adds the
+ * transducer's own start-up time. */
+#define VLOOP_RAIL_SETTLE_MS  10
+/* Loop current at or above this during a long warm-up = cable shorted to
+ * the signal wire (see sensor_read_level()): above NAMUR alarm currents
+ * (<= ~23 mA) and below the PCB limiter's hot minimum (~27 mA, design
+ * change #21). Valid for shunts up to ~115 ohm: above that 25 mA would sit
+ * above the ADS1115 input ceiling (~2.9-3.3 V) and a short could be missed
+ * here — the final > 21 mA check still reports it. */
+#define LOOP_DEAD_SHORT_UA    25000
+#if CONFIG_WELLD_VLOOP_SETTLE_MS > VLOOP_RAIL_SETTLE_MS
+/* Second reading this long after the first before calling it a short. */
+#define LOOP_SHORT_CONFIRM_US 5000
+
+/* One AIN0 conversion as a loop current in µA (0 if the read fails). */
+static int loop_probe_ua(void)
+{
+    int mv = ads1115_read_mv(0);
+    if (mv == INT_MIN) return 0;
+    return (int)(((int64_t)mv * 1000000LL) / CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS);
+}
+#endif
+
+/* Read the water column above the transducer in metres (no offset, no
+ * temperature compensation — see sensor.h for the order).
+ * Gates the MT3608B 16 V boost (VLOOP GPIO) for the duration of the read.
  * Uses ADS1115 AIN0 to measure the shunt voltage across the 4-20 mA loop.
  * Returns -1.0 if the transducer loop current indicates an open circuit.
  * Returns -2.0 if a short-circuit is detected (>21 mA). */
 float sensor_read_level(void)
 {
-    /* Gate VLOOP HIGH to enable the MT3608B boost converter.
-     * The 12 V output caps (C20/C22) charge through the Q3 load-disconnect
-     * P-FET, so the rail needs longer than the bare MT3608B soft-start
-     * (< 5 ms typ) to stabilise. Hold HIGH for 10 ms before the ADC reads
-     * the shunt (PCB review 2026-07: raised from 5 ms for Q3 + C20/C22).
-     * Constraint from CLAUDE.md: GPIO5 must be HIGH ≥ 10 ms before any read. */
+    /* Gate VLOOP HIGH to enable the MT3608B boost converter. The 16 V output
+     * caps (C20/C22) charge through the Q3 load-disconnect P-FET, so the rail
+     * needs longer than the bare MT3608B soft-start (< 5 ms typ): at least
+     * VLOOP_RAIL_SETTLE_MS (PCB review 2026-07: raised from 5 ms). The
+     * transducer may need longer still to reach a valid output —
+     * CONFIG_WELLD_VLOOP_SETTLE_MS (default = the 10 ms rail minimum). */
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 1);
-    delay_at_least_ms(10);  /* MT3608B soft-start + Q3/C20/C22 rail settle */
+    delay_at_least_ms(VLOOP_RAIL_SETTLE_MS);
+#if CONFIG_WELLD_VLOOP_SETTLE_MS > VLOOP_RAIL_SETTLE_MS
+    {
+        /* Long transducer warm-up: once the rail is up, check for a cable
+         * shorted to the signal wire before waiting out the rest. The WellD
+         * PCB limits each LOOP+ to ~27-35 mA (design change #21), but its pass
+         * transistor then dissipates ~0.4-0.55 W for as long as VLOOP stays
+         * on — and a dev-board loop supply (or a failed limiter) may have no
+         * limit at all. A cable shorted to GND bypasses the shunt (reads
+         * 0 mA) and cannot be caught here; the limiter covers it. */
+        int probe_ua = loop_probe_ua();
+        if (probe_ua >= LOOP_DEAD_SHORT_UA) {
+            /* Confirm before cutting the warm-up short: a transducer still
+             * charging its input capacitance through the limiter, or a
+             * single noisy sample, must not be mistaken for a short. */
+            esp_rom_delay_us(LOOP_SHORT_CONFIRM_US);
+            int again_ua = loop_probe_ua();
+            if (again_ua >= LOOP_DEAD_SHORT_UA) {
+                gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
+                ESP_LOGE(TAG, "transducer short-circuit at warm-up (%d µA, then %d µA) — loop switched off",
+                         probe_ua, again_ua);
+                return -2.0f;
+            }
+        }
+    }
+    delay_at_least_ms(CONFIG_WELLD_VLOOP_SETTLE_MS - VLOOP_RAIL_SETTLE_MS);
+#endif
 
     int volt_mv;
 #if CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED
@@ -466,7 +526,8 @@ float sensor_read_level(void)
     volt_mv = ads1115_read_mv(0);
 #endif
 
-    /* Drive VLOOP LOW immediately after read — max ON time is 100 ms */
+    /* Drive VLOOP LOW immediately after the read: on time is the settle
+     * time plus one conversion (or three with oversampling). */
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
 
     if (volt_mv == INT_MIN) {
@@ -490,31 +551,27 @@ float sensor_read_level(void)
                  volt_mv, current_ua);
         return level_m;
     }
-    float offset_m = sensor_get_offset_cm() / 100.0f;
-    level_m += offset_m;
-    if (level_m < 0.0f) level_m = 0.0f;
-
-    if (offset_m != 0.0f)
-        ESP_LOGI(TAG, "voltage=%d mV  current=%d µA  level=%.2f m (offset %.0f cm)",
-                 volt_mv, current_ua, level_m, offset_m * 100.0f);
-    else
-        ESP_LOGI(TAG, "voltage=%d mV  current=%d µA  level=%.2f m",
-                 volt_mv, current_ua, level_m);
+    /* The water column only: the offset is applied by
+     * sensor_apply_level_offset() after the density correction. */
+    ESP_LOGI(TAG, "voltage=%d mV  current=%d µA  level=%.2f m",
+             volt_mv, current_ua, level_m);
     return level_m;
 }
 
 /* Apply temperature compensation to a raw water-level reading.
- * Water density decreases with temperature, so a pressure transducer
- * reads slightly high in warm water and low in cold water.
- * level_m = raw / (1 + alpha * (temp_c - 20.0))
- * Returns the compensated level. */
+ * The transducer measures pressure; its metre scale assumes water at
+ * CONFIG_WELLD_TEMP_COMPENSATION_REF_C (4 °C = the conventional metre of
+ * water, 1000 kg/m3). Water at another temperature has a different density,
+ * so the level is multiplied by rho(ref)/rho(T) — see
+ * sensor_temp_level_factor() in sensor_pure.c (host-tested against tabulated
+ * densities). Before 1.2.1 this divided by (1 + 207 ppm * (T - 20)): wrong
+ * sign and a 20 °C reference. Returns the compensated level. */
 float sensor_level_temp_compensate(float level_m, float temp_c)
 {
 #if CONFIG_WELLD_TEMP_COMPENSATION_ENABLED
-    float alpha = CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C / 1e6f;
-    float factor = 1.0f + alpha * (temp_c - 20.0f);
-    if (factor <= 0.0f) factor = 1.0f;
-    float compensated = level_m / factor;
+    float factor = sensor_temp_level_factor(temp_c,
+                                            CONFIG_WELLD_TEMP_COMPENSATION_REF_C);
+    float compensated = level_m * factor;
     ESP_LOGI(TAG, "temp-comp: raw=%.3f m temp=%.1f°C factor=%.5f compensated=%.3f m",
              level_m, temp_c, factor, compensated);
     return compensated;

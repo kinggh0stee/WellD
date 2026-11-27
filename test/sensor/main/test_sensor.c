@@ -5,6 +5,7 @@
 
 #include "unity.h"
 #include "sensor.h"
+#include <math.h>
 
 #ifndef HOST_BUILD
 #include "nvs_flash.h"
@@ -101,6 +102,69 @@ static void test_temp_in_range(void)
     TEST_ASSERT_FALSE(sensor_temp_in_range(-55.1f));
 }
 
+/* Water-density correction. Oracle: tabulated density of air-free water
+ * (kg/m3, ITS-90 tables) — independent of the formula under test:
+ * 0 °C 999.8428, 4 °C 999.9750, 10 °C 999.7026, 20 °C 998.2067,
+ * 30 °C 995.6511, 40 °C 992.2204. The exact correction for a reading taken
+ * at T, on a metre scale that assumes water at Tref, is rho(Tref)/rho(T). */
+static void test_temp_factor_unity_at_reference(void)
+{
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, sensor_temp_level_factor(4.0f, 4));
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, sensor_temp_level_factor(20.0f, 20));
+}
+
+static void test_temp_factor_matches_density_table(void)
+{
+    /* 4 °C reference = the conventional metre of water (1000 kg/m3). Water
+     * away from 4 °C is less dense, presses less per metre and under-reads,
+     * so the correction RAISES the level. Pre-1.2.1 firmware lowered it in
+     * cold water (wrong sign, 20 °C reference). */
+    TEST_ASSERT_FLOAT_WITHIN(2e-5f, 999.9750f / 999.7026f, sensor_temp_level_factor(10.0f, 4));
+    TEST_ASSERT_FLOAT_WITHIN(2e-5f, 999.9750f / 998.2067f, sensor_temp_level_factor(20.0f, 4));
+    TEST_ASSERT_FLOAT_WITHIN(2e-5f, 999.9750f / 995.6511f, sensor_temp_level_factor(30.0f, 4));
+    TEST_ASSERT_FLOAT_WITHIN(2e-5f, 999.9750f / 992.2204f, sensor_temp_level_factor(40.0f, 4));
+    /* density anomaly: 0 °C water is lighter than 4 °C water */
+    TEST_ASSERT_FLOAT_WITHIN(2e-5f, 999.9750f / 999.8428f, sensor_temp_level_factor(0.0f, 4));
+    TEST_ASSERT_TRUE(sensor_temp_level_factor(10.0f, 4) > 1.0f);
+}
+
+static void test_temp_factor_other_reference(void)
+{
+    /* A transducer calibrated in 20 °C water over-reads in colder, denser
+     * water: factor < 1. */
+    float f = sensor_temp_level_factor(10.0f, 20);
+    TEST_ASSERT_TRUE(f < 1.0f);
+    TEST_ASSERT_FLOAT_WITHIN(2e-5f, 998.2067f / 999.7026f, f);
+}
+
+static void test_level_with_offset(void)
+{
+    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 2.15f, sensor_level_with_offset(2.0f, 15));   /* 15 cm above the bottom */
+    TEST_ASSERT_FLOAT_WITHIN(1e-6f, 1.5f, sensor_level_with_offset(2.0f, -50));   /* zero above the transducer */
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, sensor_level_with_offset(0.3f, -50));           /* clamped at 0 m */
+    TEST_ASSERT_EQUAL_FLOAT(2.0f, sensor_level_with_offset(2.0f, 0));
+}
+
+static void test_density_correction_scales_the_column_not_the_offset(void)
+{
+    /* 30 °C water, 4 °C reference: the 3 m column is corrected (x1.00434),
+     * the -150 cm offset is not — the old order scaled both. */
+    float f = sensor_temp_level_factor(30.0f, 4);
+    float level = sensor_level_with_offset(3.0f * f, -150);
+    TEST_ASSERT_FLOAT_WITHIN(1e-4f, 3.0f * f - 1.5f, level);
+    /* the old order, ((3.0 - 1.5) * f), was off by |offset| * (f - 1) */
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 1.5f * (f - 1.0f), level - (3.0f - 1.5f) * f);
+}
+
+static void test_temp_factor_outside_range_is_skipped(void)
+{
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, sensor_temp_level_factor(-0.5f, 4));   /* ice / probe in air */
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, sensor_temp_level_factor(40.5f, 4));
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, sensor_temp_level_factor(NAN, 4));
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, sensor_temp_level_factor(10.0f, 41));  /* bad reference */
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, sensor_temp_level_factor(10.0f, -1));
+}
+
 #ifndef HOST_BUILD
 /* NVS round-trip tests need real flash — on-device only. */
 
@@ -143,6 +207,12 @@ static int run_tests(void)
     RUN_TEST(test_battery_zero_adc);
     RUN_TEST(test_battery_no_divider);
     RUN_TEST(test_temp_in_range);
+    RUN_TEST(test_temp_factor_unity_at_reference);
+    RUN_TEST(test_temp_factor_matches_density_table);
+    RUN_TEST(test_temp_factor_other_reference);
+    RUN_TEST(test_temp_factor_outside_range_is_skipped);
+    RUN_TEST(test_level_with_offset);
+    RUN_TEST(test_density_correction_scales_the_column_not_the_offset);
 #ifndef HOST_BUILD
     RUN_TEST(test_offset_round_trip);
     RUN_TEST(test_offset_clamped_on_set);

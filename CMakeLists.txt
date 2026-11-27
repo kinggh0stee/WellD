@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-set(PROJECT_VER "1.2.0")
+set(PROJECT_VER "1.2.1")
 
 # Layer the gitignored per-machine overrides (sdkconfig.defaults.local — e.g.
 # secure-boot signing on the key-holding machine) on top of the committed

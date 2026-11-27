@@ -56,11 +56,18 @@ These components must land on a specific board edge:
 - U7 and U8 must be **≥8mm apart**
 
 ### Group E — 4-20mA shunt and protection chain (CH1)
-`J4 → D9 → R2 → C34 → R3 → D1 → C3/C4 → U9 AIN0`
+`J4 → D9 → R2 → C34 → R3 → D1 → C3 (C4 DNP) → U9 AIN0`
 - D9 within **3mm** of J4 SIG terminal
 - C34 within **1mm** of R2 pads (across the shunt)
 - TP5 (test point) at the R2/R3 shunt-top node
-- Same grouping for CH2: `J5 → D10 → R4 → C35 → R5 → D1 CH2 → C5/C6 → U9 AIN1`
+- Same grouping for CH2: `J5 → D10 → R4 → C35 → R5 → D1 CH2 → C5 (C6 DNP) → U9 AIN1`
+
+### Group E2 — Loop current limiters (design change #21, one per channel)
+`VLOOP → R52 → Q8 → J4 LOOP+` (CH2: `VLOOP_CH2 → R54 → Q10 → J5 LOOP+`), clamp Q9/Q11 and base resistor R53/R55 beside them.
+- **D18/D20 (SMAJ18A) within 3 mm of the J4/J5 LOOP+ pin**, short fat return to GND — they are now the only clamp directly on the terminal
+- **D17/D19 (SS34 steering) with short, ≥ 0.5 mm traces** — surge current flows LOOP+ → D17 → VLOOP → D11 (CH1) and LOOP+ → D19 → VLOOP_CH2 → **SJ2** → VLOOP → D11 (CH2, ≈45 A at 2 kV): place SJ2 next to D19 and D11, keep the whole path short and ≥ 0.5 mm, and D11 close to where they meet VLOOP
+- Q9/Q11 next to R52/R54 (it senses their drop; no other current in that trace)
+- **Q8/Q10 (BCP53, SOT-223) collector tab on ≥ 1 cm² of LOOP_PWR copper** — up to ≈0.55 W into a dead short while VLOOP is on (see the thermal table)
 
 ### Group F — ESP32-C6 module decoupling
 `U6, C13, C30–C33, C15, R15, C36`
@@ -162,6 +169,7 @@ W1 is a hand-attached cable — it is NOT pick-and-place. PCBWay installs it man
 | Component | Pour size | Layer | Via stitching |
 |-----------|-----------|-------|---------------|
 | M_SOLAR / D16 / D_SOLAR (solar buck) | copper spread at each part | F.Cu, GND/net pours as routing allows | the CN3791 controller itself needs no special pour |
+| Q8, Q10 BCP53 (loop limiters, #21 — ≈0.55 W only during a dead short while VLOOP is on, 10–15 ms per wakeup by default) | ≥ 1 cm² on the collector tab (LOOP_PWR_CH1/2 net) | F.Cu (B.Cu mirror optional) | 2–4 vias if mirrored |
 | U12 TP4056 | 10×10mm | F.Cu + B.Cu, GND net (EPAD soldered) | ≥6 vias, 0.5–0.6mm drill (≈1.3W at 1A linear charge — thermal regulation folds back if undersized) |
 
 ---

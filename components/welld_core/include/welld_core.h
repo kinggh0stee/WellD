@@ -45,15 +45,43 @@ uint32_t welld_fail_backoff_sleep_sec(uint32_t consecutive_fails,
  * was raised or the wait simply timed out. */
 bool welld_send_result(bool sent_bit, bool fail_bit, bool sent_before_ota);
 
+/* A battery reading below this cannot come from a running device: the DW01A
+ * isolates the cell at 2.4 V and the HT7333-fed rail browns the ESP32-C6 out
+ * well above that. Anything lower means the measurement path failed (divider
+ * not fitted on a dev board, Q5/R7 open, AIN2 floating near 0 V). */
+#define WELLD_BATT_PLAUSIBLE_MIN_MV 2000U
+
+/* ...nor can one above this percentage of the full-charge voltage: with R8
+ * open, AIN2 is pulled up to the ADS1115 input clamp and a 1S pack reads
+ * ~7 V. */
+#define WELLD_BATT_PLAUSIBLE_MAX_PCT_OF_FULL 125U
+
+typedef enum {
+    WELLD_BATT_INVALID,  /* read failed (-1), NaN or implausible: report the
+                          * battery as unknown and skip the low-battery guard */
+    WELLD_BATT_LOW,      /* at/below the empty threshold: skip the send */
+    WELLD_BATT_OK,
+} welld_batt_state_t;
+
+/* Classify a battery reading in volts against the empty and full-charge
+ * thresholds (mV). Without the plausibility window a missing divider reads a
+ * few mV of noise — "critically low" — and the device would never report
+ * again, while an open R8 would read ~7 V and disable the guard silently.
+ * full_mv == 0 disables the upper bound. */
+welld_batt_state_t welld_battery_state(float battery_v, uint32_t empty_mv,
+                                       uint32_t full_mv);
+
 /* Encode a temperature in °C as ZCL Temperature Measurement value (int16,
  * units of 0.01 °C). Returns 0x8000 — the ZCL "invalid" sentinel — when the
  * input is the sensor's -127 not-found marker. */
 int16_t welld_zb_encode_temp(float temp_c);
 
-/* Returns true when the battery reading should be sent to the coordinator.
- * sensor_read_battery_v() returns -1 when monitoring is disabled or the ADC
- * read failed; a negative reading should never be reported. */
-bool welld_zb_should_report_battery(float battery_v);
+/* EP2 present value for a battery reading: the reading itself when it is a
+ * finite, non-negative voltage, otherwise -1.0 — the "battery unknown"
+ * sentinel (read failed or implausible). It is always reported, so the Z2M
+ * converter can publish battery_voltage / battery as null instead of leaving
+ * the last good value on show while the low-battery guard is blind. */
+float welld_zb_battery_present_value(float battery_v);
 
 /* Pack a C string into a ZCL character string (1-byte length prefix, no
  * null terminator) into out[0..out_size-1]. Truncates src to fit out_size-1
