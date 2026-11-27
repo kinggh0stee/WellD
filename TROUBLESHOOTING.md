@@ -39,6 +39,13 @@ Connect USB and open the serial monitor (`idf.py -p /dev/ttyUSB0 monitor`).
 - **Battery genuinely flat:** Charge via USB or solar.
 - **Measurement error:** Verify the divider ratio in Kconfig matches R7/R8 (100 kΩ / 100 kΩ, ratio 200).
 
+### 5a. `battery reading X.XX V is implausible — divider/AIN2 fault? ignoring it`
+
+The device read under 2.0 V on the battery divider, which a running device cannot have, so it treats this as a measurement fault. The reading is dropped (no `battery_voltage` / `battery` published) and the low-battery guard is skipped, so reports keep flowing.
+
+- **Dev board without a divider:** expected — set `CONFIG_WELLD_BATT_REPORT_ENABLED=n` to drop the EP2 endpoint entirely.
+- **WellD PCB:** check R7/R8, the Q5 high-side P-FET and its Q2 driver on GPIO15 (TP for VBAT and the divider mid-point), and the AIN2 trace.
+
 ### 6. OTA issues
 
 - **OTA image rejected:** Ensure `--manufacturer-code 0x1234` and `--image-type 0x0001` match the hardcoded values in `components/zigbee/zigbee.c`. Do not use `0xFFFF` wildcards.

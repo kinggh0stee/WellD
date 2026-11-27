@@ -384,6 +384,36 @@ static void test_adaptive_sleep_boundary_just_below_20(void)
     TEST_ASSERT_EQUAL_UINT32(150, welld_adaptive_sleep_sec(19.999f, 300, 60, 1800));
 }
 
+/* welld_battery_state ----------------------------------------------------- */
+
+static void test_battery_state_read_failure_is_invalid(void)
+{
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_INVALID, welld_battery_state(-1.0f, 3200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_INVALID, welld_battery_state(NAN, 3200));
+}
+
+static void test_battery_state_near_zero_is_invalid_not_low(void)
+{
+    /* A missing/open divider reads a few mV of noise. Classifying that as
+     * LOW would skip every send forever. */
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_INVALID, welld_battery_state(0.0f, 3200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_INVALID, welld_battery_state(0.004f, 3200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_INVALID, welld_battery_state(1.99f, 3200));
+}
+
+static void test_battery_state_low_band(void)
+{
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_LOW, welld_battery_state(2.0f, 3200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_LOW, welld_battery_state(3.0f, 3200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_LOW, welld_battery_state(3.2f, 3200));
+}
+
+static void test_battery_state_ok(void)
+{
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_OK, welld_battery_state(3.21f, 3200));
+    TEST_ASSERT_EQUAL_INT(WELLD_BATT_OK, welld_battery_state(4.2f, 3200));
+}
+
 /* welld_fail_backoff_sleep_sec -------------------------------------------- */
 
 static void test_backoff_below_threshold_keeps_normal(void)
@@ -750,6 +780,10 @@ static int run_tests(void)
     RUN_TEST(test_adaptive_sleep_fast_band_exact_half);
     RUN_TEST(test_adaptive_sleep_boundary_just_below_2);
     RUN_TEST(test_adaptive_sleep_boundary_just_below_20);
+    RUN_TEST(test_battery_state_read_failure_is_invalid);
+    RUN_TEST(test_battery_state_near_zero_is_invalid_not_low);
+    RUN_TEST(test_battery_state_low_band);
+    RUN_TEST(test_battery_state_ok);
     RUN_TEST(test_backoff_below_threshold_keeps_normal);
     RUN_TEST(test_backoff_at_and_above_threshold);
     RUN_TEST(test_backoff_never_shortens);

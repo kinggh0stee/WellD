@@ -45,6 +45,24 @@ uint32_t welld_fail_backoff_sleep_sec(uint32_t consecutive_fails,
  * was raised or the wait simply timed out. */
 bool welld_send_result(bool sent_bit, bool fail_bit, bool sent_before_ota);
 
+/* A battery reading below this cannot come from a running device: the DW01A
+ * isolates the cell at 2.4 V and the HT7333-fed rail browns the ESP32-C6 out
+ * well above that. Anything lower means the measurement path failed (divider
+ * not fitted on a dev board, Q5/R7 open, AIN2 floating near 0 V). */
+#define WELLD_BATT_PLAUSIBLE_MIN_MV 2000U
+
+typedef enum {
+    WELLD_BATT_INVALID,  /* read failed (-1), NaN or implausibly low: do not
+                          * report it and do not apply the low-battery guard */
+    WELLD_BATT_LOW,      /* at/below the empty threshold: skip the send */
+    WELLD_BATT_OK,
+} welld_batt_state_t;
+
+/* Classify a battery reading in volts against the empty threshold (mV).
+ * Without the plausibility floor a missing divider reads a few mV of noise —
+ * "critically low" — and the device would never report again. */
+welld_batt_state_t welld_battery_state(float battery_v, uint32_t empty_mv);
+
 /* Encode a temperature in °C as ZCL Temperature Measurement value (int16,
  * units of 0.01 °C). Returns 0x8000 — the ZCL "invalid" sentinel — when the
  * input is the sensor's -127 not-found marker. */

@@ -383,6 +383,8 @@ Before every `esp_deep_sleep()` call, `sensor_pre_sleep_cleanup()` is invoked au
 
 When battery voltage drops **to or below** `CONFIG_WELLD_BATT_EMPTY_MV`, the device skips the Zigbee send and all NVS writes, and sleeps for the maximum interval to conserve charge. The rate history is invalidated entirely on this path — the level can drift arbitrarily far across a low-battery blackout, so the first valid reading after recovery re-seeds the history and reports no rate once (the EP4 report is skipped) instead of producing a false rate spike.
 
+A reading **below 2.0 V** is not treated as a flat battery: a running device cannot have such a cell (the DW01A disconnects it at 2.4 V), so it means the measurement path failed — divider not fitted (dev-board builds), Q5/R7 open, or AIN2 floating. The device logs `battery reading … is implausible`, drops the reading (no `battery_voltage` / `battery` published) and keeps reporting normally. Without this floor, a missing divider would read a few mV of noise and silence the device for good.
+
 ### Expected serial output
 
 Normal cycle:

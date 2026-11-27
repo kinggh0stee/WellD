@@ -552,6 +552,16 @@ void app_main(void)
      * not burn loop power or touch NVS below the flash-safe voltage. */
     t0 = esp_timer_get_time();
     float battery_v = sensor_read_battery_v();
+    welld_batt_state_t batt_state = welld_battery_state(battery_v, CONFIG_WELLD_BATT_EMPTY_MV);
+    if (batt_state == WELLD_BATT_INVALID && battery_v >= 0.0f) {
+        /* A running device cannot have a cell below ~2 V, so this is the
+         * measurement path (no divider fitted, Q5/R7 open, AIN2 floating) —
+         * not a flat battery. Drop the reading (not reported on EP2) instead
+         * of letting it trip the low-battery guard on every wakeup. */
+        ESP_LOGW(TAG, "battery reading %.2f V is implausible — divider/AIN2 fault? ignoring it",
+                 battery_v);
+        battery_v = -1.0f;
+    }
 
     /* Flash programming requires VCC >= 2.7 V. A Zigbee TX burst (~80–130 mA
      * through the HT7333 in dropout) on a nearly-dead cell can dip below
@@ -559,7 +569,7 @@ void app_main(void)
      * or below the empty threshold, skip the remaining sensor reads, the send,
      * and all NVS writes, and sleep as long as possible to conserve the
      * remaining charge. */
-    if (battery_v > 0.0f && battery_v <= CONFIG_WELLD_BATT_EMPTY_MV / 1000.0f) {
+    if (batt_state == WELLD_BATT_LOW) {
         ESP_LOGW(TAG, "battery critically low (%.2f V <= %.2f V) — skipping send",
                  battery_v, CONFIG_WELLD_BATT_EMPTY_MV / 1000.0f);
         rtc_log_event(RTC_EVT_LOW_BATT_SKIP);

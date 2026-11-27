@@ -31,6 +31,15 @@ bool welld_send_result(bool sent_bit, bool fail_bit, bool sent_before_ota)
     return false;
 }
 
+welld_batt_state_t welld_battery_state(float battery_v, uint32_t empty_mv)
+{
+    /* Written as !(v >= min) so NaN lands in INVALID too. */
+    if (!(battery_v >= (float)WELLD_BATT_PLAUSIBLE_MIN_MV / 1000.0f)) {
+        return WELLD_BATT_INVALID;
+    }
+    return battery_v <= (float)empty_mv / 1000.0f ? WELLD_BATT_LOW : WELLD_BATT_OK;
+}
+
 int16_t welld_zb_encode_temp(float temp_c)
 {
     if (temp_c <= -127.0f) {

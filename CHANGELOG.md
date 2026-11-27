@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-27 follow-up — firmware 1.2.1)
+- **A missing or failed battery divider silenced the device**: the low-battery guard treated any reading above 0 V as real, so a divider that is not fitted (dev boards), an open Q5/R7, or a floating AIN2 reading a few mV of noise counted as "critically low" and skipped every send forever. New `welld_battery_state()` classifies readings below 2.0 V as a measurement fault (a running device cannot have such a cell — the DW01A cuts at 2.4 V): the reading is dropped (not reported on EP2) and the guard is not applied.
+
 ### Changed (2026-11-27 follow-up — firmware 1.2.1)
 - **Battery-empty threshold 3.0 V → 3.2 V** (`CONFIG_WELLD_BATT_EMPTY_MV` 3000 → **3200**; Z2M `battery_empty_mv` default follows, tripwire test updated). Below ≈3.4 V the HT7333-A LDO is in dropout, so at a 3.0 V resting cell the 3.3 V rail sagged to ≈2.9 V under the 802.15.4 TX burst — below the ESP32-C6's 3.0 V minimum. Costs the last ≈5 % of an 18650's capacity; `battery` % now spans 3.2–4.2 V.
 
