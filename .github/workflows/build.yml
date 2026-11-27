@@ -49,18 +49,23 @@ jobs:
           VER=$(grep -oP 'set\(PROJECT_VER "\K[0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt)
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VER"
           FILE_VER=$(printf "0x%02X%02X%02X00" "$MAJOR" "$MINOR" "$PATCH")
-          OTA_SCRIPT=$(find $IDF_PATH -name ota_image_create.py 2>/dev/null | head -1)
-          if [ -n "$OTA_SCRIPT" ]; then
-            python "$OTA_SCRIPT" \
-              --manufacturer-code 0x1234 \
-              --image-type 0x0001 \
-              --file-version "$FILE_VER" \
-              --output build/welld.ota.zigbee \
-              build/welld.bin
-            echo "OTA image generated: build/welld.ota.zigbee"
-          else
-            echo "WARNING: ota_image_create.py not found — skipping OTA image"
+          # Pack the .zigbee OTA file with the in-repo packer. Manufacturer
+          # code / image type come from zigbee.c so the file can never drift
+          # from what the device accepts. (The packer used to be looked up
+          # under $IDF_PATH, where it does not exist — the step silently
+          # skipped on every run.)
+          MANUF=$(grep -oP '#define OTA_MANUFACTURER_CODE\s+\K0x[0-9A-Fa-f]+' components/zigbee/zigbee.c)
+          ITYPE=$(grep -oP '#define OTA_IMAGE_TYPE\s+\K0x[0-9A-Fa-f]+' components/zigbee/zigbee.c)
+          if [ -z "$MANUF" ] || [ -z "$ITYPE" ]; then
+            echo "::error::Could not read OTA_MANUFACTURER_CODE / OTA_IMAGE_TYPE from components/zigbee/zigbee.c"
+            exit 1
           fi
+          python tools/ota_image_create.py \
+            --manufacturer-code "$MANUF" \
+            --image-type "$ITYPE" \
+            --file-version "$FILE_VER" \
+            --output build/welld.ota.zigbee \
+            build/welld.bin
           BUILDEOF
           chmod +x /tmp/welld_build.sh
           docker run --rm \
@@ -69,6 +74,41 @@ jobs:
             -w /project \
             espressif/idf:v6.0.1 \
             bash /tmp/welld_build.sh
+
+  build-variants:
+    # The main build compiles only the default Kconfig values; code behind
+    # non-default options (diagnostic mode, self-test, oversampling, RTC log
+    # print, battery reporting / temperature compensation / adaptive sleep
+    # off) would otherwise never be compiled — e.g. a -Werror=format break
+    # sat behind CONFIG_WELLD_DIAGNOSTIC_MODE_ENABLED.
+    name: ESP-IDF build (${{ matrix.variant }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [features_on, features_off]
+
+    steps:
+      - name: Checkout
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git init
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git -c advice.detachedHead=false checkout FETCH_HEAD
+
+      - name: Build firmware with optional features ${{ matrix.variant }}
+        run: |
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/project" \
+            -w /project \
+            espressif/idf:v6.0.1 \
+            bash -c ". \$IDF_PATH/export.sh && idf.py -B build_${{ matrix.variant }} \
+              -D SDKCONFIG=build_${{ matrix.variant }}/sdkconfig \
+              -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;.github/ci/sdkconfig.${{ matrix.variant }}' \
+              set-target esp32c6 build"
 
   static-analysis:
     name: C static analysis (cppcheck)

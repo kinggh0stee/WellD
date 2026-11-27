@@ -40,6 +40,12 @@ menu "WellD Configuration"
         help
             Upper bound on adaptive sleep. The device will never sleep
             longer than this, even when the level is perfectly stable.
+            Also the interval used while the battery is at/below
+            WELLD_BATT_EMPTY_MV, and the failure backoff: after 3
+            consecutive failed sends the device sleeps this long between
+            attempts until one succeeds (a failed wakeup keeps the radio
+            searching for up to ~25 s). Must stay below the parent's
+            256-minute end-device timeout.
 
     config WELLD_DIAGNOSTIC_MODE_ENABLED
         bool "Diagnostic mode (bench test)"
@@ -73,9 +79,11 @@ menu "WellD Configuration"
         default 240
         range 60 600
         help
-            Maximum wall-clock time an OTA download may take before it is
-            considered stalled and aborted. Prevents a hung download from
-            keeping the radio alive indefinitely.
+            Abort an OTA download when no image block has arrived for this
+            long. Measured since the last block, not since the start: a
+            ~650 KB image takes many minutes over Zigbee, and a moving
+            transfer is never cut off — only a hung one, which would
+            otherwise keep the radio alive indefinitely.
 
     config WELLD_RTC_LOG_PRINT_ENABLED
         bool "Print RTC event log on every wakeup"
@@ -101,8 +109,10 @@ menu "WellD Configuration"
         help
             GPIO23 on the WellD PCB — moved off GPIO13 (2026-07-22) so the
             native USB D+ pin can serve the USB-C console/programming path.
-            If this GPIO is held LOW during boot, NVS is erased and the
-            device reboots for a clean Zigbee join. Internal pull-up is
-            enabled; leave unconnected for normal operation.
+            If this GPIO is held LOW during boot, NVS (calibration offset,
+            counters) and the Zigbee network state are erased and the device
+            reboots factory-new; it then needs permit-join on the
+            coordinator to join again. Internal pull-up is enabled; leave
+            unconnected for normal operation.
 
 endmenu

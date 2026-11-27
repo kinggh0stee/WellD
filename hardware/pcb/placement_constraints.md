@@ -46,7 +46,7 @@ These components must land on a specific board edge:
 - C23 (100nF) and C24 (1µF) on the **U9 side** of FB1, within **1mm** of U9 VDD pin
 - Keep U9 **≥20mm from U8** (MT3608B switching noise)
 - Keep U9 away from L1 and L2 (inductor EMI)
-- R_DRDY (4.7kΩ pull-up for ADS_DRDY) can be anywhere near U9 or near GPIO12 trace
+- R_DRDY (4.7kΩ pull-up for ADS_DRDY) can be anywhere near U9 or near the GPIO22 trace
 
 ### Group D — CN3791 solar charger thermal (corrected 2026-07-19 — controller, external FET carries the heat)
 `U7, C17, C18, R19, R20, R21`
@@ -175,7 +175,7 @@ W1 is a hand-attached cable — it is NOT pick-and-place. PCBWay installs it man
 - TP8/TP9: near J8 I²C header
 - TP10: near J12 solar input terminal
 - TP11: near J1 BAT+ terminal (before D5)
-- TP12: near U6 GPIO12 area
+- TP12: near U6 GPIO22 area
 - TP13 (FACTORY_RESET): board edge or otherwise reachable with the lid off — field-recovery pad, pair visually with TP4 (GND)
 - TP14: near U7 /CHRG pin
 - TP15: near U12 /CHRG pin

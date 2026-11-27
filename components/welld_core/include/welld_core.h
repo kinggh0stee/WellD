@@ -12,14 +12,20 @@ typedef enum {
     WELLD_FAIL_INCREMENT,   /* send failed — bump counter */
 } welld_fail_action_t;
 
-/* True when the consecutive-failure counter loaded from NVS at boot has hit
- * the threshold and the caller should wipe NVS to force a fresh Zigbee join. */
-bool welld_should_wipe_nvs(uint32_t current_count, uint32_t threshold);
-
 /* Decide what to write to NVS for the failure counter after a Zigbee send.
- * effective_count is the value used during this wakeup (0 if NVS was wiped
- * at boot, otherwise the value loaded from NVS). */
+ * effective_count is the consecutive-failure count loaded from NVS at boot. */
 welld_fail_action_t welld_post_send_action(uint32_t effective_count, bool sent);
+
+/* Sleep duration for the next cycle once this wakeup's send outcome is known.
+ * consecutive_fails counts failures INCLUDING this wakeup (0 after a
+ * successful send). From `threshold` failures on, the sleep is stretched to
+ * `backoff_sec` so a coordinator outage does not cost a full radio-on search
+ * every normal interval; an already-longer normal_sec is never shortened.
+ * threshold == 0 disables the backoff. */
+uint32_t welld_fail_backoff_sleep_sec(uint32_t consecutive_fails,
+                                      uint32_t threshold,
+                                      uint32_t normal_sec,
+                                      uint32_t backoff_sec);
 
 /* Resolve the outcome of one zigbee_send() cycle from its synchronisation
  * flags:
@@ -33,10 +39,10 @@ welld_fail_action_t welld_post_send_action(uint32_t effective_count, bool sent);
  *
  * The report counts as delivered when either sent flag is set. A FAIL_BIT
  * raised after that can only be OTA-origin (stall abort, flash write or
- * finalise failure) and must NOT count as a send failure — five of those
- * would wipe NVS and force a needless rejoin. fail_bit never changes the
- * outcome: with no sent flag the send failed whether FAIL_BIT was raised or
- * the wait simply timed out. */
+ * finalise failure) and must NOT count as a send failure — a run of those
+ * would push the device into failure backoff for no reason. fail_bit never
+ * changes the outcome: with no sent flag the send failed whether FAIL_BIT
+ * was raised or the wait simply timed out. */
 bool welld_send_result(bool sent_bit, bool fail_bit, bool sent_before_ota);
 
 /* Encode a temperature in °C as ZCL Temperature Measurement value (int16,
@@ -80,3 +86,51 @@ uint32_t welld_adaptive_sleep_sec(float rate_cm_per_hour,
                                   uint32_t default_sec,
                                   uint32_t min_sec,
                                   uint32_t max_sec);
+
+/* ── Zigbee OTA upgrade file parser (ZCL spec 07-5123, §11.4) ─────────────────
+ *
+ * esp-zigbee-lib 2.x hands the OTA client the raw .zigbee file stream: the
+ * OTA header (file identifier 0x0BEEF11E, header length, …, optional fields)
+ * followed by sub-elements (2-byte tag, 4-byte length, value). Only the value
+ * of the Upgrade Image element (tag 0x0000) is the ESP app image that may be
+ * written to the OTA partition — writing the raw stream makes esp_ota_write()
+ * reject the first byte (0x1E, not the 0xE9 image magic). This streaming
+ * parser accepts arbitrary block boundaries and forwards only upgrade-image
+ * bytes to a sink callback. All multi-byte fields are little-endian. */
+
+#define WELLD_OTA_FILE_IDENTIFIER    0x0BEEF11EUL
+#define WELLD_OTA_HEADER_MIN_LEN     56U     /* mandatory header fields */
+#define WELLD_OTA_HEADER_MAX_LEN     69U     /* + every optional field */
+#define WELLD_OTA_TAG_UPGRADE_IMAGE  0x0000U
+
+/* Receives one contiguous run of upgrade-image bytes; return false to abort. */
+typedef bool (*welld_ota_sink_t)(void *ctx, const uint8_t *data, size_t len);
+
+typedef struct {
+    uint32_t file_size;       /* total file size announced at start, 0 = unknown */
+    uint32_t consumed;        /* file bytes consumed so far */
+    uint32_t hdr_len;         /* OTA header length field */
+    uint32_t elem_remaining;  /* bytes left in the current element's value */
+    uint32_t image_bytes;     /* upgrade-image bytes handed to the sink */
+    uint16_t elem_tag;        /* tag of the element being consumed */
+    uint8_t  scratch[8];      /* fixed-size field assembled across blocks */
+    uint8_t  scratch_len;
+    uint8_t  state;           /* internal parse state */
+    bool     image_seen;      /* an upgrade-image element header was parsed */
+} welld_ota_parser_t;
+
+/* Reset the parser for a new download of `file_size` bytes (0 = unknown). */
+void welld_ota_parser_init(welld_ota_parser_t *p, uint32_t file_size);
+
+/* Consume one received block. Upgrade-image bytes are passed to sink(ctx, …)
+ * in order. Returns false — and stays failed for every later call — on a
+ * malformed stream (bad file identifier, impossible header length, duplicate
+ * or empty image element, data past the announced file size) or when the
+ * sink returns false. */
+bool welld_ota_parser_feed(welld_ota_parser_t *p, const uint8_t *data,
+                           size_t len, welld_ota_sink_t sink, void *ctx);
+
+/* True once the stream ended cleanly on an element boundary, exactly one
+ * upgrade-image element was received in full, and (when the size was
+ * announced) the whole file was consumed. */
+bool welld_ota_parser_complete(const welld_ota_parser_t *p);

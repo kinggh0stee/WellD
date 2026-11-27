@@ -46,7 +46,7 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 | 1 | MT3608B pin continuity (SW↔L1 node, IN↔VBAT) before first power-on | pin map confirmed from library sources, never from the raw Aerosemi PDF |
 | 2 | +3V3 rail regulates 3.3 V; worst-case rail current < 250 mA during 802.15.4 TX + sensor reads | U1 is now a 250 mA HT7333-A LDO (1S blocker #10d) |
 | 3 | TP4056 1 A charge without thermal fold-back in the enclosure (or accept fold-back / drop R_PROG to 2.4 k) | ≈1.3 W linear dissipation at mid-charge; pour sizing is a guess until measured |
-| 4 | Sleep floor < 15 µA total: HT7333 Iq + TP4056 BAT leak + CN3791 BAT dark current + TVS at 4.2 V | nightly battery budget (1S blocker #10e) |
+| 4 | Sleep floor ≈ 25–30 µA total at 4.2 V: ESP32-C6 deep sleep ≈7 µA + HT7333 Iq ≈4 µA + CN3791 BAT/CSP ≈9 µA + DW01A ≈3 µA + TP4056 BAT leak <2 µA + ADS1115/DS18B20 standby ≈1.5 µA + FS8205A/TVS leakage. Flag anything above ≈35 µA (corrected 2026-11 recheck: the old "< 15 µA" omitted the MCU and the protection IC, and CN3791 + HT7333 alone are ≈13 µA) | nightly battery budget (1S blocker #10e) |
 | 5 | Charger CV agreement: CN3791 vs TP4056, both nominally 4.2 V, under co-charge | verify no oscillation / one-charger-hogging at the overlap |
 | 6 | NTC cutoffs: TP4056 stops outside RT1's **computed +8…+44 °C** window; **LM393 cutoff clamps solar charge below ≈+2 °C (release ≈+4 °C), zero charge current while clamped** | outdoor Li-ion; thresholds computed — confirm on bench |
 | 7 | MT3608B EN-low shutdown current < 1 µA; boost still makes 12 V from VBAT = 3.0 V (ratio 4×, higher input current) | sleep-budget + low-battery loop-read assumptions |

@@ -92,7 +92,7 @@
 | BATT_DIV_EN | signal | GPIO15 → Q2 gate (HIGH enables battery divider via Q5) |
 | VBOOST_EN | signal | GPIO5 → MT3608B EN + Q4 gate (HIGH = 12V loop on); R27 pull-down |
 | GPIO14_LED | signal | Status LED (GPIO14 → R14 → D4 → SJ3 → GND) |
-| FACTORY_RESET | signal | GPIO23 → TP13 pad (hold LOW at boot = NVS erase); moved off GPIO13 = USB D+ |
+| FACTORY_RESET | signal | GPIO23 → TP13 pad (hold LOW at boot = NVS + Zigbee network erase, re-pair with permit-join); moved off GPIO13 = USB D+ |
 | UART_TX / UART_RX | signal | Debug UART GPIO16/GPIO17 → SJ4/SJ5 → J10 |
 | EN | signal | ESP32-C6 EN (R15 pull-up, C36, SW1, J10) |
 | BOOT | signal | ESP32-C6 GPIO9 (R12 pull-up, SW2, J10) |
@@ -457,7 +457,7 @@ CH1 path: `J4 SIG → D9 clamp → R2 shunt (‖ C34) → R3 → ADC_CH0 (C3, C4
 | R3 | pin 2 | ADC_CH0 | |
 | C3 (1µF), C4 (10µF) | pin 1 | ADC_CH0 | RC filter / bulk |
 | D1 PRTR5V0U2X | IO1 | ADC_CH0 | Clamp to +3V3/GND |
-| U9 ADS1115 | AIN0 | ADC_CH0 | 20 mA × 100 Ω = 2.0 V max, PGA ±2.048 V |
+| U9 ADS1115 | AIN0 | ADC_CH0 | 20 mA × 100 Ω = 2.0 V max; firmware reads it on the **±4.096 V PGA** since 1.2.0 (±2.048 V clipped at 20.47 mA, hiding the > 21 mA short fault) |
 | TP5 | pad | LOOP_TERM_CH1 | At shunt top |
 | GDT1 (DNF) | pin 1 | LOOP_TERM_CH1 | 2-pole 90 V gas discharge tube to GND (pin 2) — coarse stage of the industrial GDT → series-R → TVS coordination; footprint only, populate per site for long/buried cable runs |
 
@@ -527,7 +527,7 @@ GPIO8 strapping: R13 (10k) pull-up to +3V3, no other connection.
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U6 ESP32-C6 | **GPIO23** | Internal pull-up at boot; hold LOW ≥ boot = NVS erase + rejoin (moved off GPIO13 = native USB D+, 2026-07-22) |
+| U6 ESP32-C6 | **GPIO23** | Internal pull-up at boot; hold LOW ≥ boot = NVS + Zigbee network erase, re-pair with permit-join (moved off GPIO13 = native USB D+, 2026-07-22) |
 | TP13 (**new**) | pad | Field-accessible pad — short to TP4/GND while powering on |
 
 ### UART_TX / UART_RX
@@ -645,7 +645,7 @@ When replacing `welld:ESP32_C6_MINI_1U` with Espressif's official `ESP32-C6-MINI
    - **10b. CN3791 (U7) — ✅ RESOLVED WITH MAJOR CORRECTIONS 2026-07-19** (datasheet extractions + Soldered Electronics open-hardware KiCad design): the first-drawn symbol was wrong in numbering AND function set. Real part: **controller with external P-FET** (DRV=10 drives M_SOLAR; 8 V gate clamp), pin map VG=1/GND=2//CHRG=3//DONE=4/COM=5/MPPT=6/BAT=7/CSP=8/VCC=9/DRV=10, **no TEMP pin** (→ #10f), COM needs 220 nF+120 Ω to GND, VG needs 100 nF to VCC, I_CH = **120 mV/R_CS ✅** (0.1 Ω → 1.2 A), VCC 4.5–28 V (abs 30 V), 4.2 V ±1 % CV, 300 kHz, BAT+CSP sleep ≈ **9 µA @ 4.2 V** (nightly-budget entry). Schematic corrected: M_SOLAR (SI2319CDS) + D16 + R_DRV 300 k restored, C_COM/R_COM added, RT_SOLAR deleted. ✅ **L_SOLAR resized 2026-07-19**: computed peak inductor current ≈1.24 A (Ich 1.2 A + ½·85 mA ripple at 47 µH); the old SRN6045TA-470M (Isat ≈1.3 A) gave only ~5 % margin. Changed to **SRN6045TA-220M (22 µH, Isat 3.3 A, Irms 2.3 A, DCR 96 mΩ, same 6045 footprint)** — 1.7× margin over the 1.9 A target; ripple rises to 182 mApp, still trivial. CN3791 LCSC confirmed 2026-07-21: **C154992** (Consonance, in stock).
    - **10c. ADS1115 battery range (firmware)**: AIN2 now sees up to 2.1 V (÷2 divider) — the AIN2 read **must move to the ±4.096 V PGA** (the ±2.048 V range clips at 4.1 V pack voltage, exactly the full-charge region). Firmware handoff together with `CONFIG_WELLD_BATT_DIVIDER_RATIO` 430 → 200, `BATT_FULL_MV` 8400 → 4200, `BATT_EMPTY_MV` 6000 → 3000.
    - **10d. HT7333-A (U1) — ✅ RESOLVED 2026-07-19**: SOT-23 pinout confirmed GND=1, VOUT=2, VIN=3 (multiple sources; identical to XC6206). 3.5–4 µA Iq, VIN 2–12 V, dropout ≈60 mV @ 100 mA. LCSC **C21583** confirmed (Holtek HT7333-A). Still open: bench-verify worst-case 3.3 V rail current < 250 mA during 802.15.4 TX + sensor reads (Wi-Fi must remain disabled — it already is).
-   - **10e. Sleep budget re-check (bench)**: 1S sleep floor should now be U1 4 µA Iq + TP4056 BAT leak (<2 µA typ) + CN3791 BAT dark current + TVS leakage at 4.2 V — target < 15 µA total; measure at first article.
+   - **10e. Sleep budget re-check (bench)**: 1S sleep floor ≈ 25–30 µA at 4.2 V — ESP32-C6 deep sleep ≈7 µA + U1 HT7333 Iq ≈4 µA + CN3791 BAT/CSP ≈9 µA + DW01A ≈3 µA + TP4056 BAT leak <2 µA + ADS1115/DS18B20 standby ≈1.5 µA + FS8205A/TVS leakage; measure at first article and flag > ≈35 µA. *(Corrected in the 2026-11 recheck: the earlier "< 15 µA total" omitted the MCU and DW01A — CN3791 + HT7333 alone are ≈13 µA.)*
 9. **✅ APPLIED 2026-07-14 (same-day follow-up pass)** — all eight edits are now in the sheets: U1 renumbered (FB=1/EN=2/VIN=3/GND=4) + renamed welld:AP63203WU + TSOT-23-6 + **C_BST_AP 100 nF placed on new net AP_BST (U1 BST ↔ SW)**; USBLC6 renumbered; PRTR5V0U2X redrawn 4-pin SOT-143B (VCC2/GND2 stubs removed); D9/D10 = SMAJ5.0A; U12 footprint = QFN-24-1EP_4x4mm_P0.5mm_EP2.6x2.6mm; FB1 = 0603; C28/C29/C_SYS1/C_SYS2 = 25 V. netlist_check: 393 pins / 78 nets / 0 mismatches. Original findings (details in `component_verification_2026-07-14.md`): (a) U1 symbol renumber + **C_BST_AP 100 nF BST–SW cap** (blocker #1 — rail cannot start without it); (b) USBLC6/PRTR5V0U2X symbol renumbering; (c) D9/D10 → SMAJ5.0A; (d) IP2326 footprint = QFN-24 4×4 P0.5 EP2.5; (e) FB1 footprint 0402 → **0603** (BLM18KG601SN1D is a 1608-metric part); (f) C28/C29/C_SYS1/C_SYS2 → 25 V rating.
 
 ---

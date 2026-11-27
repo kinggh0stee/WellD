@@ -7,30 +7,10 @@
 #include <math.h>
 #include <string.h>
 
-#define THRESHOLD 5
-
 #ifdef HOST_BUILD
 void setUp(void) {}
 void tearDown(void) {}
 #endif
-
-/* welld_should_wipe_nvs ----------------------------------------------------- */
-
-static void test_wipe_at_threshold(void)
-{
-    TEST_ASSERT_TRUE(welld_should_wipe_nvs(THRESHOLD, THRESHOLD));
-}
-
-static void test_wipe_above_threshold(void)
-{
-    TEST_ASSERT_TRUE(welld_should_wipe_nvs(THRESHOLD + 10, THRESHOLD));
-}
-
-static void test_no_wipe_below_threshold(void)
-{
-    TEST_ASSERT_FALSE(welld_should_wipe_nvs(THRESHOLD - 1, THRESHOLD));
-    TEST_ASSERT_FALSE(welld_should_wipe_nvs(0, THRESHOLD));
-}
 
 /* welld_post_send_action --------------------------------------------------- */
 
@@ -50,10 +30,10 @@ static void test_post_send_failure_increments(void)
     TEST_ASSERT_EQUAL_INT(WELLD_FAIL_INCREMENT, welld_post_send_action(4, false));
 }
 
-static void test_post_send_success_at_wipe_threshold(void)
+static void test_post_send_success_after_many_failures(void)
 {
-    /* A send that succeeds with the counter already at/above the wipe
-     * threshold still resets — success always clears the counter. */
+    /* A send that succeeds after a long outage still resets — success
+     * always clears the counter, however large it grew. */
     TEST_ASSERT_EQUAL_INT(WELLD_FAIL_RESET, welld_post_send_action(5, true));
     TEST_ASSERT_EQUAL_INT(WELLD_FAIL_RESET, welld_post_send_action(1000, true));
 }
@@ -404,16 +384,324 @@ static void test_adaptive_sleep_boundary_just_below_20(void)
     TEST_ASSERT_EQUAL_UINT32(150, welld_adaptive_sleep_sec(19.999f, 300, 60, 1800));
 }
 
+/* welld_fail_backoff_sleep_sec -------------------------------------------- */
+
+static void test_backoff_below_threshold_keeps_normal(void)
+{
+    TEST_ASSERT_EQUAL_UINT32(300, welld_fail_backoff_sleep_sec(0, 3, 300, 1800));
+    TEST_ASSERT_EQUAL_UINT32(300, welld_fail_backoff_sleep_sec(2, 3, 300, 1800));
+}
+
+static void test_backoff_at_and_above_threshold(void)
+{
+    TEST_ASSERT_EQUAL_UINT32(1800, welld_fail_backoff_sleep_sec(3, 3, 300, 1800));
+    TEST_ASSERT_EQUAL_UINT32(1800, welld_fail_backoff_sleep_sec(500, 3, 300, 1800));
+}
+
+static void test_backoff_never_shortens(void)
+{
+    /* An adaptive interval already longer than the backoff is kept. */
+    TEST_ASSERT_EQUAL_UINT32(3600, welld_fail_backoff_sleep_sec(10, 3, 3600, 1800));
+}
+
+static void test_backoff_threshold_zero_disables(void)
+{
+    TEST_ASSERT_EQUAL_UINT32(300, welld_fail_backoff_sleep_sec(100, 0, 300, 1800));
+}
+
+/* welld_ota_parser ---------------------------------------------------------- */
+/* Builds .zigbee files byte-for-byte like esp-zigbee-sdk's
+ * tools/image_builder_tool and tools/ota_image_create.py: 56-byte mandatory
+ * header (+ optional fields), then tag/length/value sub-elements. */
+
+#define OTA_TEST_PAYLOAD_LEN 300
+#define OTA_TEST_BUF_LEN     1024
+
+static uint8_t  s_ota_file[OTA_TEST_BUF_LEN];
+static uint8_t  s_ota_out[OTA_TEST_BUF_LEN];
+static size_t   s_ota_out_len;
+static int      s_ota_sink_calls;
+static int      s_ota_sink_fail_at;   /* fail on this call number (0 = never) */
+
+static bool ota_test_sink(void *ctx, const uint8_t *data, size_t len)
+{
+    (void)ctx;
+    s_ota_sink_calls++;
+    if (s_ota_sink_fail_at && s_ota_sink_calls == s_ota_sink_fail_at) return false;
+    TEST_ASSERT_TRUE(s_ota_out_len + len <= sizeof(s_ota_out));
+    memcpy(s_ota_out + s_ota_out_len, data, len);
+    s_ota_out_len += len;
+    return true;
+}
+
+static void ota_put16(uint8_t *b, uint16_t v)
+{
+    b[0] = (uint8_t)v;
+    b[1] = (uint8_t)(v >> 8);
+}
+
+static void ota_put32(uint8_t *b, uint32_t v)
+{
+    for (int i = 0; i < 4; i++) b[i] = (uint8_t)(v >> (8 * i));
+}
+
+static uint8_t ota_payload_byte(size_t i)
+{
+    /* First byte is the ESP image magic, as in a real welld.bin. */
+    return i == 0 ? 0xE9 : (uint8_t)(i * 7 + 3);
+}
+
+/* Append a tag/length/value element; value bytes are payload pattern bytes
+ * for the upgrade image, 0xA5 filler for anything else. */
+static size_t ota_put_elem(uint8_t *b, uint16_t tag, uint32_t len)
+{
+    ota_put16(b, tag);
+    ota_put32(b + 2, len);
+    for (uint32_t i = 0; i < len; i++) {
+        b[6 + i] = tag == WELLD_OTA_TAG_UPGRADE_IMAGE ? ota_payload_byte(i) : 0xA5;
+    }
+    return 6 + len;
+}
+
+/* Header with `opt_len` optional-field bytes (4 = min/max HW version). */
+static size_t ota_put_header(uint8_t *b, uint8_t opt_len)
+{
+    memset(b, 0, WELLD_OTA_HEADER_MIN_LEN + opt_len);
+    ota_put32(b, WELLD_OTA_FILE_IDENTIFIER);
+    ota_put16(b + 4, 0x0100);                      /* header version */
+    ota_put16(b + 6, (uint16_t)(WELLD_OTA_HEADER_MIN_LEN + opt_len));
+    ota_put16(b + 8, opt_len ? 0x0004 : 0x0000);   /* field control */
+    ota_put16(b + 10, 0x1234);                     /* manufacturer code */
+    ota_put16(b + 12, 0x0001);                     /* image type */
+    ota_put32(b + 14, 0x01020000);                 /* file version */
+    ota_put16(b + 18, 0x0002);                     /* stack version */
+    return WELLD_OTA_HEADER_MIN_LEN + opt_len;
+}
+
+static void ota_finish_header(uint8_t *b, size_t total)
+{
+    ota_put32(b + 52, (uint32_t)total);            /* total image size */
+}
+
+/* Standard single-element file, as CI produces it. */
+static size_t ota_build_simple(void)
+{
+    size_t n = ota_put_header(s_ota_file, 0);
+    n += ota_put_elem(s_ota_file + n, WELLD_OTA_TAG_UPGRADE_IMAGE, OTA_TEST_PAYLOAD_LEN);
+    ota_finish_header(s_ota_file, n);
+    return n;
+}
+
+static void ota_reset_sink(void)
+{
+    s_ota_out_len = 0;
+    s_ota_sink_calls = 0;
+    s_ota_sink_fail_at = 0;
+}
+
+static bool ota_feed_in_blocks(welld_ota_parser_t *p, size_t total, size_t block)
+{
+    for (size_t off = 0; off < total; off += block) {
+        size_t n = total - off < block ? total - off : block;
+        if (!welld_ota_parser_feed(p, s_ota_file + off, n, ota_test_sink, NULL)) return false;
+    }
+    return true;
+}
+
+static void ota_assert_payload(size_t len)
+{
+    TEST_ASSERT_EQUAL_UINT32(len, s_ota_out_len);
+    for (size_t i = 0; i < len; i++) {
+        TEST_ASSERT_EQUAL_HEX8(ota_payload_byte(i), s_ota_out[i]);
+    }
+}
+
+static void test_ota_parse_single_block(void)
+{
+    size_t total = ota_build_simple();
+    welld_ota_parser_t p;
+    ota_reset_sink();
+    welld_ota_parser_init(&p, (uint32_t)total);
+    TEST_ASSERT_TRUE(welld_ota_parser_feed(&p, s_ota_file, total, ota_test_sink, NULL));
+    TEST_ASSERT_TRUE(welld_ota_parser_complete(&p));
+    TEST_ASSERT_EQUAL_UINT32(OTA_TEST_PAYLOAD_LEN, p.image_bytes);
+    ota_assert_payload(OTA_TEST_PAYLOAD_LEN);
+}
+
+static void test_ota_parse_any_block_size(void)
+{
+    /* Block boundaries must be able to split every field: the 8-byte header
+     * prefix, the header tail and the 6-byte element header. */
+    static const size_t sizes[] = {1, 2, 3, 5, 6, 7, 8, 9, 50, 55, 56, 57, 61,
+                                   62, 63, 64, 100, 128, 223};
+    size_t total = ota_build_simple();
+    for (size_t i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++) {
+        welld_ota_parser_t p;
+        ota_reset_sink();
+        welld_ota_parser_init(&p, (uint32_t)total);
+        TEST_ASSERT_TRUE(ota_feed_in_blocks(&p, total, sizes[i]));
+        TEST_ASSERT_TRUE(welld_ota_parser_complete(&p));
+        ota_assert_payload(OTA_TEST_PAYLOAD_LEN);
+    }
+}
+
+static void test_ota_parse_first_image_byte_is_esp_magic(void)
+{
+    /* The bug this parser fixes: the raw stream starts 0x1E (file id LE),
+     * which esp_ota_write() rejects. The sink must see 0xE9 first. */
+    size_t total = ota_build_simple();
+    welld_ota_parser_t p;
+    ota_reset_sink();
+    welld_ota_parser_init(&p, (uint32_t)total);
+    TEST_ASSERT_EQUAL_HEX8(0x1E, s_ota_file[0]);
+    TEST_ASSERT_TRUE(ota_feed_in_blocks(&p, total, 64));
+    TEST_ASSERT_EQUAL_HEX8(0xE9, s_ota_out[0]);
+}
+
+static void test_ota_parse_optional_header_fields(void)
+{
+    size_t n = ota_put_header(s_ota_file, 4);   /* min/max hardware version */
+    n += ota_put_elem(s_ota_file + n, WELLD_OTA_TAG_UPGRADE_IMAGE, OTA_TEST_PAYLOAD_LEN);
+    ota_finish_header(s_ota_file, n);
+    welld_ota_parser_t p;
+    ota_reset_sink();
+    welld_ota_parser_init(&p, (uint32_t)n);
+    TEST_ASSERT_TRUE(ota_feed_in_blocks(&p, n, 7));
+    TEST_ASSERT_TRUE(welld_ota_parser_complete(&p));
+    ota_assert_payload(OTA_TEST_PAYLOAD_LEN);
+}
+
+static void test_ota_parse_skips_other_elements(void)
+{
+    /* Signature before and integrity code after the image: only the image
+     * bytes reach the sink. */
+    size_t n = ota_put_header(s_ota_file, 0);
+    n += ota_put_elem(s_ota_file + n, 0x0001, 10);
+    n += ota_put_elem(s_ota_file + n, WELLD_OTA_TAG_UPGRADE_IMAGE, OTA_TEST_PAYLOAD_LEN);
+    n += ota_put_elem(s_ota_file + n, 0x0003, 16);
+    ota_finish_header(s_ota_file, n);
+    welld_ota_parser_t p;
+    ota_reset_sink();
+    welld_ota_parser_init(&p, (uint32_t)n);
+    TEST_ASSERT_TRUE(ota_feed_in_blocks(&p, n, 5));
+    TEST_ASSERT_TRUE(welld_ota_parser_complete(&p));
+    ota_assert_payload(OTA_TEST_PAYLOAD_LEN);
+}
+
+static void test_ota_parse_unknown_file_size(void)
+{
+    size_t total = ota_build_simple();
+    welld_ota_parser_t p;
+    ota_reset_sink();
+    welld_ota_parser_init(&p, 0);
+    TEST_ASSERT_TRUE(ota_feed_in_blocks(&p, total, 64));
+    TEST_ASSERT_TRUE(welld_ota_parser_complete(&p));
+    ota_assert_payload(OTA_TEST_PAYLOAD_LEN);
+}
+
+static void test_ota_parse_rejects_bad_file_identifier(void)
+{
+    size_t total = ota_build_simple();
+    s_ota_file[0] ^= 0xFF;
+    welld_ota_parser_t p;
+    ota_reset_sink();
+    welld_ota_parser_init(&p, (uint32_t)total);
+    TEST_ASSERT_FALSE(welld_ota_parser_feed(&p, s_ota_file, total, ota_test_sink, NULL));
+    TEST_ASSERT_FALSE(welld_ota_parser_complete(&p));
+    TEST_ASSERT_EQUAL_UINT32(0, s_ota_out_len);
+}
+
+static void test_ota_parse_rejects_bad_header_length(void)
+{
+    size_t total = ota_build_simple();
+    welld_ota_parser_t p;
+
+    ota_put16(s_ota_file + 6, WELLD_OTA_HEADER_MIN_LEN - 1);
+    ota_reset_sink();
+    welld_ota_parser_init(&p, (uint32_t)total);
+    TEST_ASSERT_FALSE(welld_ota_parser_feed(&p, s_ota_file, total, ota_test_sink, NULL));
+
+    ota_put16(s_ota_file + 6, WELLD_OTA_HEADER_MAX_LEN + 1);
+    ota_reset_sink();
+    welld_ota_parser_init(&p, (uint32_t)total);
+    TEST_ASSERT_FALSE(welld_ota_parser_feed(&p, s_ota_file, total, ota_test_sink, NULL));
+}
+
+static void test_ota_parse_truncated_is_incomplete(void)
+{
+    size_t total = ota_build_simple();
+    welld_ota_parser_t p;
+    ota_reset_sink();
+    welld_ota_parser_init(&p, (uint32_t)total);
+    TEST_ASSERT_TRUE(welld_ota_parser_feed(&p, s_ota_file, total - 1, ota_test_sink, NULL));
+    TEST_ASSERT_FALSE(welld_ota_parser_complete(&p));
+}
+
+static void test_ota_parse_rejects_data_past_file_size(void)
+{
+    size_t total = ota_build_simple();
+    welld_ota_parser_t p;
+    ota_reset_sink();
+    welld_ota_parser_init(&p, (uint32_t)total - 10);
+    TEST_ASSERT_FALSE(welld_ota_parser_feed(&p, s_ota_file, total, ota_test_sink, NULL));
+    /* A failed parser stays failed. */
+    TEST_ASSERT_FALSE(welld_ota_parser_feed(&p, s_ota_file, 1, ota_test_sink, NULL));
+    TEST_ASSERT_FALSE(welld_ota_parser_complete(&p));
+}
+
+static void test_ota_parse_rejects_element_past_file_end(void)
+{
+    /* Element length field claims more bytes than the file holds. */
+    size_t total = ota_build_simple();
+    ota_put32(s_ota_file + WELLD_OTA_HEADER_MIN_LEN + 2, OTA_TEST_PAYLOAD_LEN + 1);
+    welld_ota_parser_t p;
+    ota_reset_sink();
+    welld_ota_parser_init(&p, (uint32_t)total);
+    TEST_ASSERT_FALSE(welld_ota_parser_feed(&p, s_ota_file, total, ota_test_sink, NULL));
+}
+
+static void test_ota_parse_rejects_duplicate_image(void)
+{
+    size_t n = ota_put_header(s_ota_file, 0);
+    n += ota_put_elem(s_ota_file + n, WELLD_OTA_TAG_UPGRADE_IMAGE, 20);
+    n += ota_put_elem(s_ota_file + n, WELLD_OTA_TAG_UPGRADE_IMAGE, 20);
+    ota_finish_header(s_ota_file, n);
+    welld_ota_parser_t p;
+    ota_reset_sink();
+    welld_ota_parser_init(&p, (uint32_t)n);
+    TEST_ASSERT_FALSE(welld_ota_parser_feed(&p, s_ota_file, n, ota_test_sink, NULL));
+}
+
+static void test_ota_parse_no_image_is_incomplete(void)
+{
+    size_t n = ota_put_header(s_ota_file, 0);
+    n += ota_put_elem(s_ota_file + n, 0x0001, 10);
+    ota_finish_header(s_ota_file, n);
+    welld_ota_parser_t p;
+    ota_reset_sink();
+    welld_ota_parser_init(&p, (uint32_t)n);
+    TEST_ASSERT_TRUE(welld_ota_parser_feed(&p, s_ota_file, n, ota_test_sink, NULL));
+    TEST_ASSERT_FALSE(welld_ota_parser_complete(&p));
+}
+
+static void test_ota_parse_sink_failure_aborts(void)
+{
+    size_t total = ota_build_simple();
+    welld_ota_parser_t p;
+    ota_reset_sink();
+    s_ota_sink_fail_at = 2;
+    welld_ota_parser_init(&p, (uint32_t)total);
+    TEST_ASSERT_FALSE(ota_feed_in_blocks(&p, total, 64));
+    TEST_ASSERT_FALSE(welld_ota_parser_complete(&p));
+}
+
 static int run_tests(void)
 {
     UNITY_BEGIN();
-    RUN_TEST(test_wipe_at_threshold);
-    RUN_TEST(test_wipe_above_threshold);
-    RUN_TEST(test_no_wipe_below_threshold);
     RUN_TEST(test_post_send_success_already_zero);
     RUN_TEST(test_post_send_success_after_failures);
     RUN_TEST(test_post_send_failure_increments);
-    RUN_TEST(test_post_send_success_at_wipe_threshold);
+    RUN_TEST(test_post_send_success_after_many_failures);
     RUN_TEST(test_post_send_failure_ignores_count);
     RUN_TEST(test_send_result_sent_only);
     RUN_TEST(test_send_result_sent_with_late_ota_fail);
@@ -462,6 +750,24 @@ static int run_tests(void)
     RUN_TEST(test_adaptive_sleep_fast_band_exact_half);
     RUN_TEST(test_adaptive_sleep_boundary_just_below_2);
     RUN_TEST(test_adaptive_sleep_boundary_just_below_20);
+    RUN_TEST(test_backoff_below_threshold_keeps_normal);
+    RUN_TEST(test_backoff_at_and_above_threshold);
+    RUN_TEST(test_backoff_never_shortens);
+    RUN_TEST(test_backoff_threshold_zero_disables);
+    RUN_TEST(test_ota_parse_single_block);
+    RUN_TEST(test_ota_parse_any_block_size);
+    RUN_TEST(test_ota_parse_first_image_byte_is_esp_magic);
+    RUN_TEST(test_ota_parse_optional_header_fields);
+    RUN_TEST(test_ota_parse_skips_other_elements);
+    RUN_TEST(test_ota_parse_unknown_file_size);
+    RUN_TEST(test_ota_parse_rejects_bad_file_identifier);
+    RUN_TEST(test_ota_parse_rejects_bad_header_length);
+    RUN_TEST(test_ota_parse_truncated_is_incomplete);
+    RUN_TEST(test_ota_parse_rejects_data_past_file_size);
+    RUN_TEST(test_ota_parse_rejects_element_past_file_end);
+    RUN_TEST(test_ota_parse_rejects_duplicate_image);
+    RUN_TEST(test_ota_parse_no_image_is_incomplete);
+    RUN_TEST(test_ota_parse_sink_failure_aborts);
     return UNITY_END();
 }
 

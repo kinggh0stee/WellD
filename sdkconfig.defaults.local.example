@@ -2,8 +2,7 @@
 # sdkconfig.defaults.local is gitignored — credentials never touch git.
 
 # Sensor — set these to match your hardware
-# CONFIG_WELLD_SENSOR_ADC_CHANNEL=0
-# CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS=100000
+# CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS=100000  # 1–130 Ω (ADS1115 AIN0, ±4.096 V range)
 # CONFIG_WELLD_SENSOR_MAX_DEPTH_CM=600
 
 # Level offset — cm added to the reading after scaling (can be negative).
@@ -20,11 +19,11 @@
 # Battery percentage thresholds — these set the defaults shown in the Z2M
 # converter. Override per-device in the Zigbee2MQTT device options UI instead
 # of changing these, since they are not read by the firmware at runtime.
-# CONFIG_WELLD_BATT_FULL_MV=4200   # 1S2P 18650 full charge
-# CONFIG_WELLD_BATT_EMPTY_MV=3000  # 1S2P 18650 minimum safe discharge
+# CONFIG_WELLD_BATT_FULL_MV=4200   # 1S 18650 full charge
+# CONFIG_WELLD_BATT_EMPTY_MV=3000  # 1S 18650 minimum safe discharge
 
-# DS18B20 temperature sensor GPIO
-# CONFIG_WELLD_DS18B20_GPIO=4
+# DS18B20 temperature sensor GPIO (PCB: GPIO7)
+# CONFIG_WELLD_DS18B20_GPIO=7
 
 # Sleep interval
 # CONFIG_WELLD_SLEEP_DURATION_SEC=300

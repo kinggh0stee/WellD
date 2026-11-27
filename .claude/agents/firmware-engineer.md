@@ -18,7 +18,7 @@ Key constraints:
 - GPIO4 is spare (no schematic connection — TP4056 auto-charges); GPIO6 monitors the CN3791 solar /CHRG (active-low)
 - ADS1115 AIN2 + gated resistor divider is the only battery voltage measurement path
 - Never modify OTA_FW_VERSION directly — it derives from PROJECT_VER in CMakeLists.txt
-- Self-healing: wipe Zigbee NVS and rejoin after 5 consecutive send failures
+- Outage handling: no automatic network wipe (the stack rejoins on its own); from 3 consecutive failed sends back off to CONFIG_WELLD_SLEEP_MAX_SEC; GPIO23 factory reset erases NVS + the `zb_storage` Zigbee partition
 
 GPIO map (do not change without PCB agent sign-off):
 - GPIO10 SDA, GPIO11 SCL (I²C — ADS1115 only)

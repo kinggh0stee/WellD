@@ -179,8 +179,8 @@
 | FB1 | 600Ω@100MHz ferrite | **0603** | `Inductor_SMD:L_0603_1608Metric` | BLM18KG601SN1D | C76537 ✅ | In +3V3 feed to U9 VDD. **Footprint corrected 2026-07-14**: BLM18 series is 1608-metric = **0603** (the old row said 0402 — that would be BLM15AX601SN1D) |
 | C23 | 100nF | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | U9 VDD bypass, U9 side of FB1 |
 | C24 | 1µF | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | U9 VDD bulk |
-| R9 | 4.7kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | I²C SDA pull-up (GPIO10) |
-| R10 | 4.7kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | I²C SCL pull-up (GPIO11) |
+| R9 | 4.7kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | I²C SDA pull-up (GPIO18) |
+| R10 | 4.7kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | I²C SCL pull-up (GPIO19) |
 | **R_DRDY** | **4.7kΩ** | **0402** | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **ADD TO SCHEMATIC** — ADS_DRDY to +3V3; required open-drain pull-up |
 
 ---
@@ -275,12 +275,12 @@ All test points use: `TestPoint:TestPoint_Pad_1.0x1.0mm`
 | TP5 | LOOP_TERM_CH1 | Between R2 and R3 |
 | TP6 | LOOP_TERM_CH2 | Between R4 and R5 |
 | TP7 | 1WIRE | At J6 DATA |
-| TP8 | I2C_SDA | GPIO10 |
-| TP9 | I2C_SCL | GPIO11 |
+| TP8 | I2C_SDA | GPIO18 (moved off GPIO10 — not bonded on MINI-1, 2026-07-21) |
+| TP9 | I2C_SCL | GPIO19 (moved off GPIO11) |
 | TP10 | VSOLAR_IN | At J12 |
 | TP11 | VBAT_RAW | At BT1 cell+, before D5 |
-| TP12 | ADS_DRDY | GPIO12 interrupt line |
-| TP13 | FACTORY_RESET | **NEW** — GPIO13; short to GND at power-on for NVS erase + rejoin |
+| TP12 | ADS_DRDY | GPIO22 interrupt line (moved off GPIO12 = USB D−, 2026-07-22) |
+| TP13 | FACTORY_RESET | **NEW** — GPIO23; short to GND at power-on for NVS + Zigbee network erase (re-pair with permit-join) (moved off GPIO13 = USB D+, 2026-07-22) |
 | TP14 | /CHRG_SOLAR | Solar charge status (present in interfaces sheet, was missing here) |
 | TP15 | /CHRG_USB | TP4056 /CHRG charge status (open-drain, R38 pull-up) |
 

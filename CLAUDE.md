@@ -59,21 +59,21 @@ Pure functions intended for host testing belong in `components/sensor/sensor_pur
 
 One `app_main()` = one report. The order matters and is load-bearing:
 
-1. **RTC event log + boot reason** — a 16-entry RTC-memory ring buffer records structured events (boot, send, fail, OTA, brownout, watchdog…). Printing on wakeup is gated behind `CONFIG_WELLD_RTC_LOG_PRINT_ENABLED` (default off).
-2. **NVS init** (erase + retry on `NO_FREE_PAGES` / `NEW_VERSION_FOUND`).
-3. **Factory reset check** — `CONFIG_WELLD_FACTORY_RESET_GPIO` (default 13, internal pull-up) held LOW at boot erases NVS and reboots for a clean join.
+1. **RTC event log + boot reason** — a 16-entry RTC-memory ring buffer records structured events (boot, sensor OK, send, fail, low-battery skip, OTA abort, factory reset, brownout, watchdog). Printing on wakeup is gated behind `CONFIG_WELLD_RTC_LOG_PRINT_ENABLED` (default off).
+2. **NVS init** — the default `nvs` partition (erase + retry on `NO_FREE_PAGES` / `NEW_VERSION_FOUND`).
+3. **Factory reset check, then Zigbee storage** — `CONFIG_WELLD_FACTORY_RESET_GPIO` (default 23, internal pull-up) held LOW at boot erases NVS **and** the Zigbee network state, re-stamps only the proven-image marker, and reboots factory-new (it then steers and needs permit-join). Otherwise the stack's dedicated `zb_storage` NVS partition is initialised (same erase + retry). esp-zigbee-lib `abort()`s at start-up if it cannot open that partition, so when its init fails the wakeup skips the send (counted as a failure) instead of crash-looping.
 4. **OTA rollback guard** — an RTC boot-attempt counter increments each boot and is cleared on a successful Zigbee send. At 3 consecutive boots without a send, `esp_ota_set_boot_partition()` rolls back to the inactive partition (protects against a broken OTA image that crashes before reporting). The counter is **armed only while the running image is unproven**: NVS key `"img_ok"` stores the version string of the last image that ever sent successfully, so a coordinator outage can never roll back a known-good image, and low-battery-skip wakeups un-count themselves (they never attempt a send).
-5. **RTC struct validation** — each `RTC_DATA_ATTR` struct carries a magic constant; a mismatch (cold boot, or an OTA that changed the layout) zeroes the struct. **Bump the magic whenever you change an RTC struct layout.**
+5. **RTC struct validation** — each `RTC_DATA_ATTR` struct carries a magic constant; a mismatch (cold boot, or an OTA that changed the layout) zeroes the struct. **Bump the magic whenever you change an RTC struct layout.** The rate-history elapsed accumulator then advances by the previous wakeup's sleep + active time — before any exit path, so an aborted wakeup's sleep never drops out of the next rate window.
 6. **`sensor_i2c_init()`** — brings up the I²C bus + ADS1115 and drives the power-control GPIOs to safe idle. Must precede any sensor read.
 7. **Solar detect** — GPIO6 (solar charger /CHRG, active-low input; CN3791 on the 1S board) sampled and later reported on EP7.
-8. **Fail-counter check** — NVS namespace `"welld"`, key `"zb_fails"` (names centralised in `components/welld_core/include/welld_nvs.h`). If ≥ `FAIL_THRESHOLD` (5), `nvs_flash_erase()` drops stale Zigbee network state to force a fresh join. The calibrated sensor offset is read out first and re-saved immediately after the wipe, so calibration survives.
-9. **Read the battery first, then the low-battery guard, then the remaining sensors — all before the radio.** The ADC is sensitive to 802.15.4 RF interference, so all `sensor_read_*` calls must precede `zigbee_send`. The battery (AIN2) is read before level/temperature so the guard can bail out before burning VLOOP power or risking the DS18B20 probe-change NVS write. GPIO5 (VLOOP) must be HIGH ≥10 ms before any 4–20 mA read (12 V rail settles through the Q3 load-disconnect P-FET into C20/C22) and LOW immediately after. A valid level reading is temperature-compensated for water density (`CONFIG_WELLD_TEMP_COMPENSATION_ENABLED`, default on).
+8. **Fail counter read** — NVS namespace `"welld"`, key `"zb_fails"` (names centralised in `components/welld_core/include/welld_nvs.h`): consecutive failed send attempts before this wakeup. Telemetry (EP5) and input to the failure backoff (step 15) only — there is **no automatic network-state wipe**: when the coordinator returns, the stack resumes its stored membership on its own, whereas a wipe would orphan the device until permit-join is reopened.
+9. **Read the battery first, then the low-battery guard, then the remaining sensors — all before the radio.** The ADC is sensitive to 802.15.4 RF interference, so all `sensor_read_*` calls must precede `zigbee_send`. The battery (AIN2) is read before level/temperature so the guard can bail out before burning VLOOP power or risking the DS18B20 probe-change NVS write. GPIO5 (VLOOP) must be HIGH ≥10 ms before any 4–20 mA read (12 V rail settles through the Q3 load-disconnect P-FET into C20/C22) and LOW immediately after. These minimums are tick-rate independent (`ticks_at_least_ms()` / `esp_rom_delay_us()` — see Conventions). A valid level reading is temperature-compensated for water density (`CONFIG_WELLD_TEMP_COMPENSATION_ENABLED`, default on).
 10. **Low-battery guard** — if battery ≤ `CONFIG_WELLD_BATT_EMPTY_MV`, skip the remaining sensor reads, the Zigbee send, *and all NVS writes* (flash programming below 2.7 V during a TX spike corrupts NVS), invalidate the rate history (the level can drift arbitrarily during the blackout, so the first reading after recovery reports rate = NaN), un-count the boot attempt, and sleep for `CONFIG_WELLD_SLEEP_MAX_SEC`.
 11. **Compute rate of change** from RTC-memory history: the previous valid level plus cumulative elapsed time (sleep durations **and** active-phase durations) across any intervening invalid wakeups. NaN if there's no prior valid reading yet.
-12. **`zigbee_send()` blocks** until the radio is idle (success, timeout, or OTA reboot). Receives level / battery / temperature / rate / fail count / solar state, plus the store-and-forward backlog.
-13. **Post-send bookkeeping** via `welld_post_send_action()` — the fail counter is written only on change (an in-RAM cache skips redundant NVS commits; flash has limited write cycles). On failure the reading is pushed into the 8-entry RTC store-and-forward buffer; on success the buffer and boot-attempt counter are cleared.
+12. **`zigbee_send()` blocks** until the cycle is resolved (sent, failed/timed out, or an OTA reboot), then parks the stack under its lock — it is never torn down (see Components). Receives level / battery / temperature / rate / fail count / solar state, plus the store-and-forward backlog; after the reports it sends an OTA Query Next Image, and an offered image is downloaded before it returns.
+13. **Post-send bookkeeping** via `welld_post_send_action()` — the fail counter is written only on change (an in-RAM cache skips redundant NVS commits; flash has limited write cycles). On failure the reading is pushed into the 8-entry RTC store-and-forward buffer; on success the buffer and boot-attempt counter are cleared. An aborted OTA download is logged as `OTA_ABORT`.
 14. **Update RTC history** — only when this wakeup's reading was valid (`level_m >= 0`). On an open-loop reading the previous `last_level_m` is kept and elapsed time keeps accumulating so the next valid reading spans the full gap.
-15. **Pick next sleep duration** via `welld_adaptive_sleep_sec()` when `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED` and a rate is available; otherwise `CONFIG_WELLD_SLEEP_DURATION_SEC`. Stored in `s_history.pending_sleep_sec` so the next wakeup knows how long it slept.
+15. **Pick next sleep duration** via `welld_adaptive_sleep_sec()` when `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED` and a rate is available; otherwise `CONFIG_WELLD_SLEEP_DURATION_SEC`. Then the **failure backoff**: from 3 consecutive failed sends (this one included) `welld_fail_backoff_sleep_sec()` stretches it to `CONFIG_WELLD_SLEEP_MAX_SEC` until a send succeeds — a failed wakeup keeps the radio searching for up to ~25 s. Stored in `s_history.pending_sleep_sec` so the next wakeup knows how long it slept.
 16. **`enter_deep_sleep()`** — every exit path goes through this helper: `sensor_pre_sleep_cleanup()` (removes the DRDY ISR, deletes the I²C bus), drives VLOOP / BATT_DIV_EN LOW, then `esp_sleep_config_gpio_isolate()` and `esp_deep_sleep()`. Never call `esp_deep_sleep()` directly.
 
 ### RTC-memory state (survives deep sleep, zeroed on cold boot)
@@ -88,8 +88,8 @@ All in `main/main.c`, each guarded by its own magic constant:
 ### Components
 
 - `main/` — orchestration only; owns the NVS fail counter and all RTC-memory state.
-- `components/welld_core/` — pure decision/math helpers (`welld_should_wipe_nvs`, `welld_post_send_action`, `welld_rate_cm_per_hour`, `welld_adaptive_sleep_sec`, ZCL encoding helpers) with zero ESP-IDF dependencies, plus `welld_nvs.h` (shared NVS namespace/key defines).
-- `components/sensor/` — ADS1115 (I²C addr 0x48) + DS18B20 + power-control GPIOs. AIN0 reads the 4–20 mA shunt, AIN2 the gated battery divider. Conversions run single-shot with the ALERT/DRDY pin in conversion-ready mode: a falling-edge ISR on GPIO22 releases a semaphore (10 ms timeout fallback). Owns NVS keys `"offset_cm"` and `"ds18b20_rom"`. `sensor_level_from_mv()` / `sensor_battery_from_mv()` / `sensor_temp_in_range()` are the pure functions exposed for host tests. Optional median-of-three oversampling (`CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED`) and a peripheral self-test (`CONFIG_WELLD_SELFTEST_ENABLED`). PCB GPIO assignments (all configurable via `WellD Sensor` Kconfig):
+- `components/welld_core/` — pure decision/math helpers (`welld_post_send_action`, `welld_fail_backoff_sleep_sec`, `welld_send_result`, `welld_rate_cm_per_hour`, `welld_adaptive_sleep_sec`, ZCL encoding helpers, and the streaming Zigbee OTA file parser `welld_ota_parser_*`) with zero ESP-IDF dependencies, plus `welld_nvs.h` (shared NVS namespace/key and partition-label defines).
+- `components/sensor/` — ADS1115 (I²C addr 0x48) + DS18B20 + power-control GPIOs. AIN0 reads the 4–20 mA shunt, AIN2 the gated battery divider, both on the ±4.096 V range (AIN2 reaches 2.1 V at full charge; on AIN0 it keeps the >21 mA short check measurable). Conversions run single-shot at 860 SPS with the ALERT/DRDY pin in conversion-ready mode (Hi_thresh MSB = 1, Lo_thresh MSB = 0 — the reset values do the opposite): a falling-edge ISR on GPIO22 releases a semaphore, the OS bit is then confirmed over I²C, and a missing edge falls back to polling after 10 ms. DS18B20 resolution is passed to the driver as its 0–3 enum index, and the per-device trigger's own wait (100/200/400/800 ms) is the only conversion delay. Owns NVS keys `"offset_cm"` and `"ds18b20_rom"`. `sensor_level_from_mv()` / `sensor_battery_from_mv()` / `sensor_temp_in_range()` are the pure functions exposed for host tests. Optional median-of-three oversampling (`CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED`) and a peripheral self-test (`CONFIG_WELLD_SELFTEST_ENABLED`). PCB GPIO assignments (all configurable via `WellD Sensor` Kconfig):
 
   | GPIO | PCB function |
   |------|---------------|
@@ -104,8 +104,8 @@ All in `main/main.c`, each guarded by its own magic constant:
   | 14 | Status LED (D4, optional — no firmware support yet) |
   | 15 | Battery divider enable (Q2 gate; pulse HIGH ≥1 ms before AIN2 read) |
   | 22 | ADS1115 ALERT/DRDY (open-drain conversion-ready, external 4.7 kΩ pull-up) — moved off GPIO12 (now USB D−), 2026-07-22 |
-  | 23 | Factory reset (hold LOW at boot → NVS erase + rejoin) — moved off GPIO13 (now USB D+) |
-- `components/zigbee/` — esp-zigbee-lib wrapper. Spawns `zb_task` which runs the BDB commissioning state machine and the stack main loop, with a randomised steering backoff (`CONFIG_WELLD_ZIGBEE_BACKOFF_MAX_MS`) to avoid steer storms after a power outage. Synchronisation back to the caller uses a FreeRTOS event group with `SENT_BIT` / `FAIL_BIT` / `STOPPED_BIT`. The caller must wait for `STOPPED_BIT` before deep-sleep so the radio is fully released.
+  | 23 | Factory reset (hold LOW at boot → NVS + Zigbee network erase; rejoin needs permit-join) — moved off GPIO13 (now USB D+) |
+- `components/zigbee/` — esp-zigbee-lib wrapper. Spawns `zb_task`, which initialises the stack with its network datasets in the dedicated `zb_storage` NVS partition (`storage_partition_name` — the platform layer `abort()`s if it can't open it), resumes the stored membership on `DEVICE_REBOOT` and runs BDB network steering **only when factory-new** (as in the SDK's `deep_sleep_end_device` example — steering an on-network node is the BDB "open the network" procedure), with a randomised start backoff (`CONFIG_WELLD_ZIGBEE_BACKOFF_MAX_MS`). Synchronisation back to the caller uses a FreeRTOS event group with `SENT_BIT` / `FAIL_BIT`. **The stack is never torn down**: `esp_zigbee_launch_mainloop()` only returns on an internal `select()` failure, and `esp_zigbee_deinit()` from inside its callbacks frees the task queue, lock and radio workflow the loop still uses. `zigbee_send()` instead stops its timers and takes the Zigbee lock (released by the mainloop around each `select()`), parking `zb_task` outside any stack processing, and the caller deep-sleeps.
 
 ### Zigbee endpoints
 
@@ -113,7 +113,7 @@ All in `main/main.c`, each guarded by its own magic constant:
 - EP 2 — Analog Input (battery volts). Only registered when `CONFIG_WELLD_BATT_REPORT_ENABLED` (default on). The battery is always measured internally for the low-battery guard regardless.
 - EP 3 — Temperature Measurement (0x0402, int16 × 0.01 °C). `0x8000` is the ZCL "invalid" sentinel.
 - EP 4 — Analog Input (level rate of change, cm/h, signed). Always registered (the descriptor has to be stable across wakeups), but **only reported when the rate is finite** — `isnan(rate)` means there is no prior valid reading and the EP4 report frame is skipped.
-- EP 5 — Analog Input (consecutive Zigbee failure counter). Always reported.
+- EP 5 — Analog Input (failed send attempts that preceded this report). Always reported.
 - EP 6 — Analog Input (device-side LQI, 1–255). Read from the stack's neighbor table: the LQI of the parent entry (`ezb_nwk_get_next_neighbor`, `EZB_NWK_RELATIONSHIP_PARENT`). 0 = no parent entry found = "unknown"; the converter publishes nonzero values as `device_lqi` and never publishes 0 — Z2M's own `linkquality` key comes from the coordinator and was shadowing this endpoint.
 - EP 7 — Analog Input (solar charging state, 0/1). Always reported.
 
@@ -129,13 +129,15 @@ PROJECT_VER = "MAJOR.MINOR.PATCH"  →  OTA_FW_VERSION = 0xMMmmPP00
 
 This conversion lives in `components/zigbee/CMakeLists.txt` (it fails the build loudly on a malformed `PROJECT_VER`) and is passed as a `-D` compile definition. **To cut a new firmware release, bump `PROJECT_VER` in the root `CMakeLists.txt`** — don't touch `OTA_FW_VERSION` directly. CI enforces a version bump on any PR that touches `main/` or `components/`.
 
-`OTA_MANUFACTURER_CODE = 0x1234` and `OTA_IMAGE_TYPE = 0x0001` are hardcoded in `components/zigbee/zigbee.c`. Any `.zigbee` OTA file passed to Zigbee2MQTT must be packed with those exact values via `ota_image_create.py` (`--manufacturer-code 0x1234 --image-type 0x0001`); the device rejects mismatched headers. **Do not wildcard these to `0xFFFF`** — they're a security boundary against rogue OTA servers. CI generates the `.zigbee` image automatically as a build artifact.
+`OTA_MANUFACTURER_CODE = 0x1234` and `OTA_IMAGE_TYPE = 0x0001` are hardcoded in `components/zigbee/zigbee.c`. Any `.zigbee` OTA file passed to Zigbee2MQTT must be packed with those exact values via the in-repo `tools/ota_image_create.py` (`--manufacturer-code 0x1234 --image-type 0x0001`; byte-for-byte the layout of esp-zigbee-sdk's `image_builder_tool`); the device rejects mismatched headers. **Do not wildcard these to `0xFFFF`** — they're a security boundary against rogue OTA servers. CI packs `build/welld.ota.zigbee` on every build, reading both codes from `zigbee.c` (not uploaded — see CI).
+
+OTA client flow (esp-zigbee-lib 2.x): a sleepy device has to ask — `zigbee_send()` sends Query Next Image each wakeup, and Zigbee2MQTT serves the file on the first query after an update is requested. RECEIVING blocks are slices of the raw `.zigbee` **file** (OTA header + sub-element headers included); `welld_ota_parser` writes only the Upgrade Image element to flash. Stages: START (`esp_ota_begin` erasing only the file size) → RECEIVING → CHECK (whole file parsed) → APPLY (`esp_ota_end` + boot partition) → FINISH (reboot).
 
 OTA failure handling is two-layered:
-- **Stall watchdog** — a download that exceeds `CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC` (default 240 s wall clock) is aborted so a hung transfer can't keep the radio alive indefinitely.
+- **Stall watchdog** — a download that receives no block for `CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC` (default 240 s, measured since the last block — a full ~650 KB transfer takes many minutes) is aborted so a hung transfer can't keep the radio alive indefinitely.
 - **Rollback guard** — 3 consecutive boots without a successful Zigbee send roll the boot partition back to the previous image (see wake-cycle step 4).
 
-The partition table (`partitions.csv`) defines dual 1.5 MB OTA slots (`ota_0` / `ota_1`); `esp_ota_get_next_update_partition(NULL)` always returns the inactive one. `sdkconfig.defaults` pins `CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y` to fit them — don't drop this without resizing partitions.
+The partition table (`partitions.csv`) defines dual 1.5 MB OTA slots (`ota_0` / `ota_1`) plus the 16 KB `zb_storage` NVS partition for the Zigbee stack (in the gap before `ota_0`); `esp_ota_get_next_update_partition(NULL)` always returns the inactive one. OTA cannot change the partition table — a layout change needs a serial flash. `sdkconfig.defaults` pins `CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y` to fit them — don't drop this without resizing partitions.
 
 ### Secure Boot V2
 
@@ -144,7 +146,7 @@ The partition table (`partitions.csv`) defines dual 1.5 MB OTA slots (`ota_0` / 
 ### Configuration layering
 
 - `sdkconfig.defaults` — **committed**, contains only settings that must hold regardless of local config (flash size, Zigbee role, watchdog, brownout, secure boot).
-- `sdkconfig.defaults.local` — **gitignored**, user-specific overrides (`.example` template at repo root).
+- `sdkconfig.defaults.local` — **gitignored**, user-specific overrides (`.example` template at repo root). The root `CMakeLists.txt` appends it to `SDKCONFIG_DEFAULTS` when present (ESP-IDF alone reads only `sdkconfig.defaults`). Defaults only seed a **new** `sdkconfig`, so after editing it regenerate with `idf.py set-target esp32c6`.
 - `sdkconfig` — **committed and regenerated** by `menuconfig` (CI regenerates its own copy from `sdkconfig.defaults` via `set-target`). Updates land via PRs (the auto-commit CI step was removed in commit `174a595`).
 - `dependencies.lock` — managed component pins, committed.
 
@@ -164,13 +166,13 @@ espressif/ds18b20:        "==0.3.1"
 
 ### Failure recovery semantics
 
-- 5 consecutive Zigbee send failures → next boot erases NVS → fresh join. The calibrated sensor offset is preserved across the wipe (read before, re-saved after). This is the only self-healing path for join state; there is no watchdog re-pair logic inside a single wake cycle.
+- Coordinator outage / failed send → reading buffered (below); from 3 consecutive failures the device sleeps `CONFIG_WELLD_SLEEP_MAX_SEC` between attempts until a send succeeds. Network membership is kept: when the coordinator is back, the stack resumes its stored membership (rejoining its parent with the stored keys — no permit-join). There is no automatic network wipe; re-pairing to a different coordinator is the GPIO23 factory reset.
 - Failed sends are buffered (8 entries, RTC memory) and burst-reported after the next successful send, preserving rate accuracy.
 - DS18B20 missing or out-of-range → temperature omitted from report, retried next wake. Temperature compensation is skipped when the probe read fails.
 - Pressure-loop current < 3.5 mA → `water_level = -1.0` reported (converter forwards as `null`, HA marks unavailable).
 - Battery at/below `CONFIG_WELLD_BATT_EMPTY_MV` → send and NVS writes skipped entirely; device sleeps the maximum interval.
 - Task watchdog (30 s) and brownout detection are enabled in `sdkconfig.defaults`; the reset reason is logged into the RTC event ring on the next boot.
-- Field recovery without tools: hold GPIO23 LOW at boot for a factory reset (NVS erase + rejoin).
+- Field recovery without tools: hold GPIO23 LOW at boot for a factory reset (NVS + Zigbee network erase; re-pairing needs permit-join).
 
 ## Conventions
 
@@ -180,7 +182,9 @@ espressif/ds18b20:        "==0.3.1"
 - Component `REQUIRES` lists are minimal and explicit; prefer adding to `REQUIRES` over reaching for transitive includes.
 - Log tag convention: one `static const char *TAG` per `.c` file, named for the component (`"main"`, `"sensor"`, `"zigbee"`).
 - Code style is enforced by `.clang-format` / `.editorconfig`; `.pre-commit-config.yaml` is available for local hooks.
-- NVS namespace/key strings live only in `components/welld_core/include/welld_nvs.h` — never inline the literals.
+- NVS namespace/key strings (and the `zb_storage` partition label) live only in `components/welld_core/include/welld_nvs.h` — never inline the literals.
+- Minimum delays and timeouts must be tick-rate independent. `CONFIG_FREERTOS_HZ` is 100, so `pdMS_TO_TICKS(1)` is 0 and `vTaskDelay(pdMS_TO_TICKS(10))` can return after ~0 ms: use `esp_rom_delay_us()` for sub-tick waits and `ticks_at_least_ms()` (round up + 1 tick, `components/sensor/sensor.c`) for blocking ones.
+- uint32_t is `unsigned long` on ESP-IDF's RISC-V toolchain and format mismatches are build errors (`-Werror=format`): print it as `%lu` with an `(unsigned long)` cast or `PRIu32`.
 - `AGENTS.md` is a compact mirror of this file for OpenCode sessions; keep the two consistent when commands or architecture change.
 
 ## Sub-Agent Routing Rules
@@ -243,11 +247,12 @@ Firmware agent → test agent → docs agent
 
 ## CI
 
-`.github/workflows/build.yml` has six jobs. No third-party actions are used — every job does an inline git checkout, and ESP-IDF jobs run inside `docker run espressif/idf:v6.0.1`:
+`.github/workflows/build.yml` has seven jobs. No third-party actions are used — every job does an inline git checkout, and ESP-IDF jobs run inside `docker run espressif/idf:v6.0.1`:
 
-- **ESP-IDF build (esp32c6)** — builds the firmware, derives the OTA file version from `PROJECT_VER`, packs the `.zigbee` OTA image via `ota_image_create.py`, and guards against `CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y` leaking into the CI sdkconfig (build outputs are not uploaded as artifacts — that would need `actions/upload-artifact`, which the no-third-party-actions policy excludes).
+- **ESP-IDF build (esp32c6)** — builds the firmware, derives the OTA file version from `PROJECT_VER`, packs `build/welld.ota.zigbee` with `tools/ota_image_create.py` (manufacturer code / image type read from `zigbee.c`; the step fails rather than skips), and guards against `CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y` leaking into the CI sdkconfig (build outputs are not uploaded as artifacts — that would need `actions/upload-artifact`, which the no-third-party-actions policy excludes).
+- **ESP-IDF build variants** — matrix `features_on` / `features_off`: rebuilds with the `.github/ci/sdkconfig.<variant>` overlay so code behind non-default Kconfig options (diagnostic mode, self-test, oversampling, RTC log print; battery reporting, temperature compensation, adaptive sleep off) is compiled too.
 - **C static analysis (cppcheck)** — runs `cppcheck` over all C source files under `components/` and `main/`; fails on any warning, style, performance, or portability finding.
 - **Version bump check** — on pull requests only; fails if any `main/` or `components/` source changed without a matching bump to `PROJECT_VER` in `CMakeLists.txt`.
-- **Host unit tests** — plain `ubuntu-latest`, no Docker, no ESP-IDF. Runs the `test/host/` suite (welld_core + sensor pure helpers) via ctest. Fetches Unity at configure time.
+- **Host unit tests** — plain `ubuntu-latest`, no Docker, no ESP-IDF. Runs the `test/host/` suite (welld_core — including the OTA file parser — and sensor pure helpers) via ctest. Fetches Unity at configure time.
 - **On-device unit tests (build only)** — builds `test/sensor` and `test/welld_core` for esp32c6 to catch compile breaks. The tests themselves need real hardware to execute.
 - **Zigbee2MQTT converter tests** — Node 20, runs `npm test` in `zigbee2mqtt/` against the external converter.

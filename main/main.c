@@ -18,10 +18,19 @@
 #include <math.h>
 #include <string.h>
 #include <stdint.h>
+#include <time.h>
 
 static const char *TAG = "main";
 
-#define FAIL_THRESHOLD  5           /* NVS erase + rejoin after this many failures */
+/* After this many consecutive failed send attempts (this wakeup included) the
+ * next sleep is stretched to the maximum interval until a send succeeds: a
+ * failed wakeup keeps the radio searching for up to ~25 s, so retrying at the
+ * normal 5-min cadence during a coordinator outage would drain an 18650 in
+ * weeks. There is no automatic network-state wipe — the stack's own rejoin
+ * resumes the existing membership when the coordinator returns, while a wipe
+ * would orphan the device until permit-join is reopened. The GPIO factory
+ * reset is the manual re-pair path. */
+#define FAIL_BACKOFF_THRESHOLD  3
 
 
 /* OTA rollback: count consecutive boots without a successful Zigbee send.
@@ -152,32 +161,6 @@ static void boot_attempts_uncount(void)
     }
 }
 
-/* Factory reset: hold GPIO23 LOW at boot to erase NVS and force rejoin.
- * Internal pull-up keeps it HIGH by default; short to GND for reset. */
-static bool factory_reset_check(void)
-{
-#ifdef CONFIG_WELLD_FACTORY_RESET_GPIO
-    gpio_config_t cfg = {
-        .pin_bit_mask = 1ULL << CONFIG_WELLD_FACTORY_RESET_GPIO,
-        .mode         = GPIO_MODE_INPUT,
-        .pull_up_en   = GPIO_PULLUP_ENABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type    = GPIO_INTR_DISABLE,
-    };
-    gpio_config(&cfg);
-    vTaskDelay(pdMS_TO_TICKS(10));  /* let pull-up settle */
-    if (!gpio_get_level(CONFIG_WELLD_FACTORY_RESET_GPIO)) {
-        ESP_LOGW(TAG, "factory reset GPIO held LOW — erasing NVS");
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ESP_ERROR_CHECK(nvs_flash_init());
-        ESP_LOGI(TAG, "NVS erased; rebooting for clean join");
-        esp_restart();
-        return true;  /* never reached */
-    }
-#endif
-    return false;
-}
-
 /* Power-profiling: time spent in each phase of the wake cycle (us).
  * Logged before deep sleep to help optimize battery life. */
 static struct {
@@ -249,22 +232,26 @@ static void store_clear(void)
 
 /* RTC event log — small ring buffer of structured events for field debugging.
  * Preserved across deep sleep, zeroed on cold boot. Each entry is a 32-bit
- * seconds-since-boot timestamp and an 8-bit event code. */
+ * timestamp — seconds since the last cold boot, from the RTC-backed system
+ * clock (time()), which keeps running through deep sleep; esp_timer would
+ * restart at 0 on every wakeup — and an 8-bit event code. */
 /* Magic bumped 0x574C4402 → 0x574C4405 when head grew uint8_t → uint32_t
  * (a uint8_t head wrapped after 256 events, making rtc_log_print() report
  * an empty/short log once per wrap). */
 #define RTC_LOG_MAGIC    0x574C4405UL
 #define RTC_LOG_ENTRIES  16
 
+/* Codes are stable across firmware versions (the ring survives OTA), so
+ * retired codes keep their decode entries and are never reused. */
 typedef enum {
     RTC_EVT_BOOT            = 0x01,
     RTC_EVT_SENSOR_OK       = 0x02,
     RTC_EVT_ZB_SENT         = 0x03,
     RTC_EVT_ZB_FAIL         = 0x04,
     RTC_EVT_LOW_BATT_SKIP   = 0x05,
-    RTC_EVT_NVS_WIPE        = 0x06,
-    RTC_EVT_OTA_START       = 0x07,
-    RTC_EVT_OTA_COMPLETE    = 0x08,
+    RTC_EVT_NVS_WIPE        = 0x06,   /* retired 1.2.0: automatic NVS wipe removed */
+    RTC_EVT_OTA_START       = 0x07,   /* reserved — never logged */
+    RTC_EVT_OTA_COMPLETE    = 0x08,   /* reserved — a completed OTA reboots */
     RTC_EVT_OTA_ABORT       = 0x09,
     RTC_EVT_FACTORY_RESET   = 0x0B,
     RTC_EVT_BROWNOUT        = 0x0C,
@@ -288,7 +275,7 @@ static void rtc_log_init(void)
 
 static void rtc_log_event(rtc_event_t ev)
 {
-    uint32_t now_sec = (uint32_t)(esp_timer_get_time() / 1000000LL);
+    uint32_t now_sec = (uint32_t)time(NULL);
     uint32_t idx = s_rtc_log.head % RTC_LOG_ENTRIES;
     s_rtc_log.ts[idx] = now_sec;
     s_rtc_log.ev[idx] = (uint8_t)ev;
@@ -320,6 +307,68 @@ static void rtc_log_print(void)
         }
         ESP_LOGI(TAG, "  [%u] t=%lus  %s", (unsigned)i, (unsigned long)s_rtc_log.ts[idx], name);
     }
+}
+
+/* Initialise the Zigbee stack's dedicated NVS partition (WELLD_ZB_STORAGE_
+ * PARTITION). esp-zigbee-lib opens it on start-up and abort()s if it cannot,
+ * so this must succeed before zigbee_send(); on failure the caller skips the
+ * send rather than crash-looping. */
+static bool zb_storage_init(void)
+{
+    esp_err_t err = nvs_flash_init_partition(WELLD_ZB_STORAGE_PARTITION);
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        err = nvs_flash_erase_partition(WELLD_ZB_STORAGE_PARTITION);
+        if (err == ESP_OK) {
+            err = nvs_flash_init_partition(WELLD_ZB_STORAGE_PARTITION);
+        }
+    }
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Zigbee storage partition '%s' unavailable (%s) — was the "
+                 "current partition table flashed? Reports disabled.",
+                 WELLD_ZB_STORAGE_PARTITION, esp_err_to_name(err));
+        return false;
+    }
+    return true;
+}
+
+/* Factory reset: hold GPIO23 LOW at boot to erase NVS and the Zigbee network
+ * state, then reboot factory-new — the device steers and needs permit-join
+ * on the coordinator to join again. Internal pull-up keeps it HIGH by
+ * default; short to GND for reset. The proven-image marker is re-stamped:
+ * it is firmware health, not user state, and losing it would re-arm OTA
+ * rollback while the device waits for permit-join, letting 3 join-less
+ * wakeups flip a healthy image back to the old slot. */
+static bool factory_reset_check(void)
+{
+#ifdef CONFIG_WELLD_FACTORY_RESET_GPIO
+    gpio_config_t cfg = {
+        .pin_bit_mask = 1ULL << CONFIG_WELLD_FACTORY_RESET_GPIO,
+        .mode         = GPIO_MODE_INPUT,
+        .pull_up_en   = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type    = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&cfg);
+    vTaskDelay(pdMS_TO_TICKS(10));  /* let pull-up settle */
+    if (!gpio_get_level(CONFIG_WELLD_FACTORY_RESET_GPIO)) {
+        ESP_LOGW(TAG, "factory reset GPIO held LOW — erasing NVS and Zigbee network state");
+        rtc_log_event(RTC_EVT_FACTORY_RESET);
+        bool img_was_proven = image_is_proven();
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ESP_ERROR_CHECK(nvs_flash_init());
+        esp_err_t err = nvs_flash_erase_partition(WELLD_ZB_STORAGE_PARTITION);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Zigbee storage erase failed: %s", esp_err_to_name(err));
+        }
+        if (img_was_proven) {
+            image_mark_proven();
+        }
+        ESP_LOGI(TAG, "erased; rebooting factory-new");
+        esp_restart();
+        return true;  /* never reached */
+    }
+#endif
+    return false;
 }
 
 /* NVS wear-leveling: cache the last-written value so we skip redundant
@@ -406,7 +455,7 @@ void app_main(void)
             ESP_LOGI(TAG, "boot reason: deep-sleep wakeup");
             break;
         case ESP_RST_SW:
-            ESP_LOGI(TAG, "boot reason: software restart (OTA)");
+            ESP_LOGI(TAG, "boot reason: software restart (OTA, rollback or factory reset)");
             break;
         default:
             ESP_LOGI(TAG, "boot reason: %d", (int)reason);
@@ -423,6 +472,9 @@ void app_main(void)
     /* Factory reset: check GPIO before any other logic */
     factory_reset_check();
 
+    /* The Zigbee stack's own NVS partition (network keys / PAN / parent). */
+    bool zb_storage_ok = zb_storage_init();
+
     /* OTA rollback protection: count boots without a successful send */
     boot_attempts_init();
 
@@ -438,6 +490,16 @@ void app_main(void)
         s_store.magic = STORE_MAGIC;
     }
 
+    /* Accumulate elapsed time from the previous wakeup: both the programmed sleep
+     * duration and the active phase, so the rate calculation reflects wall-clock
+     * time rather than just sleep time. Must run before every exit path — the
+     * I2C-failure abort, the low-battery guard and the normal cycle — or the
+     * skipped wakeup's sleep would silently vanish from the next rate window. */
+    if (s_history.valid) {
+        s_history.elapsed_since_last_valid_sec +=
+            s_history.pending_sleep_sec + s_history.last_active_sec;
+    }
+
     /* Print events from previous wakeups — useful for field diagnosis when the
      * device is monitored over USB, but adds up to 17 log lines per production
      * wakeup.  Gated behind CONFIG_WELLD_RTC_LOG_PRINT_ENABLED (default off). */
@@ -450,6 +512,9 @@ void app_main(void)
     int64_t t0 = esp_timer_get_time();
     if (sensor_i2c_init() != ESP_OK) {
         ESP_LOGE(TAG, "I2C init failed — aborting wakeup");
+        s_history.pending_sleep_sec = CONFIG_WELLD_SLEEP_DURATION_SEC;
+        s_history.last_active_sec =
+            (uint32_t)((esp_timer_get_time() - wakeup_start_us) / 1000000LL);
         enter_deep_sleep(CONFIG_WELLD_SLEEP_DURATION_SEC);
     }
     s_profile.t_i2c_init = esp_timer_get_time() - t0;
@@ -475,31 +540,9 @@ void app_main(void)
     }
 
 
+    /* Consecutive failed send attempts before this wakeup — reported on EP5
+     * and used for the failure backoff below. */
     uint32_t fail_count = read_fail_count();
-    if (welld_should_wipe_nvs(fail_count, FAIL_THRESHOLD)) {
-        ESP_LOGW(TAG, "%lu consecutive Zigbee failures — erasing NVS to force rejoin",
-                 (unsigned long)fail_count);
-        rtc_log_event(RTC_EVT_NVS_WIPE);
-        /* Read the calibrated offset before wiping so it can be re-saved
-         * immediately after. Without this, 5 Zigbee failures silently revert
-         * the sensor to its compile-time zero reference. */
-        int saved_offset = sensor_get_offset_cm();
-        if (saved_offset != CONFIG_WELLD_SENSOR_OFFSET_CM)
-            ESP_LOGW(TAG, "preserving sensor offset %d cm across NVS erase", saved_offset);
-        bool img_was_proven = image_is_proven();
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ESP_ERROR_CHECK(nvs_flash_init());
-        sensor_offset_cache_reset();
-        sensor_set_offset_cm(saved_offset);
-        if (img_was_proven) {
-            /* Re-save the proven-image marker: the wipe targets stale Zigbee
-             * join state, not the rollback arming. Losing it here would
-             * re-arm rollback and let 3 more coordinator-less boots flip a
-             * healthy image back to the old slot. */
-            image_mark_proven();
-        }
-        fail_count = 0;
-    }
 
     /* Read sensors before powering the radio. The ADC is sensitive to 802.15.4
      * RF interference, so all ADC reads must complete before zigbee_send().
@@ -510,17 +553,9 @@ void app_main(void)
     t0 = esp_timer_get_time();
     float battery_v = sensor_read_battery_v();
 
-    /* Accumulate elapsed time from the previous wakeup: both the programmed sleep
-     * duration and the active phase, so the rate calculation reflects wall-clock
-     * time rather than just sleep time. Must run before either exit path — the
-     * low-battery guard below or the normal cycle. */
-    if (s_history.valid) {
-        s_history.elapsed_since_last_valid_sec +=
-            s_history.pending_sleep_sec + s_history.last_active_sec;
-    }
-
-    /* Flash programming requires VCC >= 2.7 V. A 20 mA Zigbee TX spike on a
-     * nearly-dead cell can dip below that, corrupting NVS. If the battery is at
+    /* Flash programming requires VCC >= 2.7 V. A Zigbee TX burst (~80–130 mA
+     * through the HT7333 in dropout) on a nearly-dead cell can dip below
+     * that, corrupting NVS. If the battery is at
      * or below the empty threshold, skip the remaining sensor reads, the send,
      * and all NVS writes, and sleep as long as possible to conserve the
      * remaining charge. */
@@ -575,18 +610,24 @@ void app_main(void)
                                                    s_history.elapsed_since_last_valid_sec);
     }
 
-    /* Zigbee send with store-and-forward burst */
+    /* Zigbee send with store-and-forward burst. Without its storage partition
+     * the stack would abort() on start-up, so count the wakeup as a failed
+     * send instead (store-and-forward and the failure backoff still apply). */
     t0 = esp_timer_get_time();
-    bool sent = zigbee_send(level_m, battery_v, temperature_c, rate_cm_per_hour, fail_count,
+    bool sent = zb_storage_ok &&
+                zigbee_send(level_m, battery_v, temperature_c, rate_cm_per_hour, fail_count,
                             solar_charging, s_store.count, s_store.level_m, s_store.battery_v,
                             s_store.temp_c);
     s_profile.t_zigbee = esp_timer_get_time() - t0;
+    if (zb_storage_ok && zigbee_ota_aborted()) {
+        rtc_log_event(RTC_EVT_OTA_ABORT);
+    }
 
     switch (welld_post_send_action(fail_count, sent)) {
     case WELLD_FAIL_INCREMENT:
         write_fail_count(fail_count + 1);
-        ESP_LOGW(TAG, "Zigbee send failed (%lu/%d)",
-                 (unsigned long)(fail_count + 1), FAIL_THRESHOLD);
+        ESP_LOGW(TAG, "Zigbee send failed (%lu consecutive)",
+                 (unsigned long)(fail_count + 1));
         rtc_log_event(RTC_EVT_ZB_FAIL);
         /* Save reading for next successful send */
         store_push(level_m, battery_v, temperature_c);
@@ -622,6 +663,21 @@ void app_main(void)
                                              CONFIG_WELLD_SLEEP_MAX_SEC);
     }
 #endif
+    /* Coordinator-outage backoff (see FAIL_BACKOFF_THRESHOLD). */
+    {
+        uint32_t fails_now   = sent ? 0 : fail_count + 1;
+        uint32_t backoff_sec = CONFIG_WELLD_SLEEP_DURATION_SEC;
+#ifdef CONFIG_WELLD_SLEEP_MAX_SEC
+        backoff_sec = CONFIG_WELLD_SLEEP_MAX_SEC;
+#endif
+        uint32_t backed_off = welld_fail_backoff_sleep_sec(fails_now, FAIL_BACKOFF_THRESHOLD,
+                                                           sleep_sec, backoff_sec);
+        if (backed_off != sleep_sec) {
+            ESP_LOGW(TAG, "%lu consecutive send failures — backing off to %lu s",
+                     (unsigned long)fails_now, (unsigned long)backed_off);
+        }
+        sleep_sec = backed_off;
+    }
     s_history.pending_sleep_sec = sleep_sec;
     s_history.last_active_sec =
         (uint32_t)((esp_timer_get_time() - wakeup_start_us) / 1000000LL);
@@ -635,7 +691,9 @@ void app_main(void)
 #ifdef CONFIG_WELLD_DIAGNOSTIC_MODE_ENABLED
     {
         uint32_t stay_ms = CONFIG_WELLD_DIAGNOSTIC_STAY_AWAKE_SEC * 1000U;
-        ESP_LOGI(TAG, "diagnostic mode — staying awake %u ms", stay_ms);
+        /* uint32_t is unsigned long on ESP-IDF's RISC-V toolchain — %u is a
+         * -Werror=format build break once this option is enabled. */
+        ESP_LOGI(TAG, "diagnostic mode — staying awake %lu ms", (unsigned long)stay_ms);
         vTaskDelay(pdMS_TO_TICKS(stay_ms));
     }
 #endif
