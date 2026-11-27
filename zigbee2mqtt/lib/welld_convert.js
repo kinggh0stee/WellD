@@ -34,10 +34,14 @@ function convertLevel(presentValue) {
 /* Endpoint 2: battery voltage + percentage. Percentage is linear between the
    user-configured full/empty thresholds and clamped to [0, 100]. A
    misconfigured threshold pair (full <= empty) makes the percentage
-   incomputable, but the voltage reading is still valid — report it alone. */
+   incomputable, but the voltage reading is still valid — report it alone.
+   A negative present_value is the firmware's "battery unknown" sentinel (read
+   failed or implausible — its low-battery guard is blind): publish both as
+   null so HA shows them unavailable instead of a stale or 0 % value. */
 function convertBattery(presentValue, options = {}) {
     const value = finitePresentValue(presentValue);
     if (value === undefined) return undefined;
+    if (value < 0) return {battery_voltage: null, battery: null};
     const voltage = parseFloat(value.toFixed(2));
     const fullMv  = optionMv(options.battery_full_mv,  DEFAULT_BATTERY_FULL_MV);
     const emptyMv = optionMv(options.battery_empty_mv, DEFAULT_BATTERY_EMPTY_MV);

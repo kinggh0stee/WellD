@@ -130,7 +130,11 @@ menu "WellD Sensor"
             milliseconds after power-up, so set this to the start-up
             ("switch-on") time in its datasheet if that is longer. Each extra
             millisecond keeps the boost and a 4-20 mA load on: roughly
-            15-75 mA from the cell per wakeup while it lasts.
+            15-75 mA from the cell per wakeup while it lasts. Above 10 ms the
+            firmware samples AIN0 once the rail is up and switches the loop
+            straight off if it is pinned at a dead short (>= 3.0 V), so a
+            shorted cable is not held at the boost's current limit for the
+            whole warm-up.
 
     config WELLD_BATT_DIV_EN_GPIO
         int "Battery divider enable GPIO (Q2 gate)"
@@ -184,28 +188,28 @@ menu "WellD Sensor"
         default y
         help
             Compensate water-level readings for the change of water density
-            with temperature. The 4-20 mA -> metres scaling assumes 20 °C
-            water: warmer water is less dense, so a given column presses less
-            and the transducer reads low; colder water reads high. Requires
-            CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C. At 207 ppm/°C the
-            correction is about 0.21 % per 10 °C away from 20 °C — small but
-            systematic. Disabled automatically when the DS18B20 read fails
-            (guard in main.c: temp > -127.0 °C).
+            with temperature. A transducer's metre scale is a pressure that
+            assumes water of one density (see WELLD_TEMP_COMPENSATION_REF_C);
+            water at another temperature is less dense, so a given column
+            presses less and reads low. The correction is small in well
+            water (0.03 % at 10 °C, 0.07 % at 14 °C for the 4 °C reference)
+            and grows in warm water (0.43 % at 30 °C). Skipped when the
+            DS18B20 read fails (guard in main.c: temp > -127.0 °C) and
+            outside 0-40 °C.
 
-    config WELLD_TEMP_COMPENSATION_PPM_PER_C
-        int "Water density coefficient (ppm/°C)"
-        default 207
-        range 0 500
+    config WELLD_TEMP_COMPENSATION_REF_C
+        int "Water temperature the transducer's metre scale assumes (°C)"
+        default 4
+        range 0 40
         depends on WELLD_TEMP_COMPENSATION_ENABLED
         help
-            Volumetric expansion coefficient of the water, ~207 ppm/°C for
-            fresh water at 20 °C. The reported level is corrected as:
-            level = raw / (1 - coeff*(temp - 20°C)), raising it in warm water
-            and lowering it in cold water. The true coefficient shrinks in cold
-            water (~88 ppm/°C at 10 °C, 0 at 4 °C), so this linear model
-            over-corrects slightly far from 20 °C: at 10 °C it lowers the level
-            0.21 % where 0.15 % is exact (~3.5 mm on a 6 m column). For well
-            water that stays near 10 °C, 150 is exact at that temperature.
+            A transducer's "0-5 m" range is really a pressure range. Nearly
+            every datasheet uses the conventional metre of water column
+            (9.80665 kPa, i.e. 1000 kg/m3 - water at its densest, about
+            4 °C): leave this at 4. Change it only if your transducer states
+            a different reference, e.g. 20 for "calibrated in 20 °C water".
+            The level is multiplied by rho(ref)/rho(T), using the Tanaka
+            (2001) density of pure water.
 
     config WELLD_DS18B20_RESOLUTION_BITS
         int "DS18B20 resolution (bits)"

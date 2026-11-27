@@ -24,11 +24,11 @@ float sensor_battery_from_mv(int adc_mv, int divider_ratio_x100);
 bool sensor_temp_in_range(float temp_c);
 
 /* pure: water-density correction factor for a level reading taken in water
-   at temp_c. The level scaling assumes 20 °C water; warmer water is less
-   dense, so the transducer under-reads (factor > 1), colder water over-reads
-   (factor < 1). Returns 1 / (1 - ppm_per_c * 1e-6 * (temp_c - 20)), or 1.0
-   when that is not finite and positive. Multiply the level by it. */
-float sensor_temp_level_factor(float temp_c, int ppm_per_c);
+   at temp_c, when the transducer's metre scale assumes water at ref_temp_c
+   (4 = the conventional metre of water column). Returns rho(ref)/rho(temp),
+   pure-water density per Tanaka (2001); 1.0 outside 0–40 °C or for NaN.
+   Multiply the level by it. */
+float sensor_temp_level_factor(float temp_c, int ref_temp_c);
 
 /* reads battery voltage via ADC resistor divider; returns volts, or -1 if disabled */
 float sensor_read_battery_v(void);

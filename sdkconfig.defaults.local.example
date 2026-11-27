@@ -6,7 +6,8 @@
 # CONFIG_WELLD_SENSOR_MAX_DEPTH_CM=600
 
 # Level offset — cm added to the reading after scaling (can be negative).
-# E.g. -15 if the transducer sits 15 cm above the well bottom.
+# E.g. +15 if the transducer sits 15 cm above the well bottom (report depth
+# from the bottom), or -50 if it hangs 50 cm below the outlet pipe you measure from.
 # Persisted in NVS; can also be updated at runtime via sensor_set_offset_cm().
 # CONFIG_WELLD_SENSOR_OFFSET_CM=0
 

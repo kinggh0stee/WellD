@@ -44,18 +44,30 @@ bool sensor_temp_in_range(float temp_c)
     return temp_c >= -55.0f && temp_c <= 125.0f;
 }
 
-/* The transducer measures pressure p = rho * g * h, and the 4-20 mA -> metres
- * scaling assumes 20 °C water. With rho(T) ~= rho20 * (1 - beta * (T - 20))
- * (beta = volumetric expansion coefficient, ~207 ppm/°C near 20 °C):
- *
- *     h_true = p / (rho(T) * g) = h_raw * rho20 / rho(T)
- *            = h_raw / (1 - beta * (T - 20))
- *
- * Warm water is less dense, so a given column presses less and reads LOW:
- * the factor is > 1 above 20 °C and < 1 below it. */
-float sensor_temp_level_factor(float temp_c, int ppm_per_c)
+/* Density of air-free pure water relative to its maximum (~3.98 °C), from
+ * Tanaka et al., Metrologia 38 (2001) 301 — the CIPM formula, within a few
+ * ppm of the tables over 0–40 °C. Its a5 (999.97495 kg/m3) cancels in the
+ * ratio below. */
+static float water_density_rel(float t)
 {
-    float denom = 1.0f - (float)ppm_per_c * 1e-6f * (temp_c - 20.0f);
-    if (!(denom > 0.0f)) return 1.0f;   /* also rejects NaN */
-    return 1.0f / denom;
+    const float a1 = -3.983035f, a2 = 301.797f, a3 = 522528.9f, a4 = 69.34881f;
+    float d = t + a1;
+    return 1.0f - (d * d) * (t + a2) / (a3 * (t + a4));
+}
+
+/* The transducer measures pressure p = rho * g * h, and its metre scale
+ * assumes water at ref_temp_c — 4 °C for the conventional metre of water
+ * column (9.80665 kPa, 1000 kg/m3), which nearly every datasheet uses:
+ *
+ *     h_true = p / (rho(T) * g) = h_raw * rho(ref) / rho(T)
+ *
+ * Water away from ~4 °C is less dense, so a given column presses less and
+ * reads LOW: the factor is >= 1 for a 4 °C reference (0.03 % at 10 °C,
+ * 0.43 % at 30 °C). Outside 0–40 °C (ice, or a probe out of the water) the
+ * correction is skipped. */
+float sensor_temp_level_factor(float temp_c, int ref_temp_c)
+{
+    if (!(temp_c >= 0.0f && temp_c <= 40.0f)) return 1.0f;   /* also rejects NaN */
+    if (ref_temp_c < 0 || ref_temp_c > 40) return 1.0f;
+    return water_density_rel((float)ref_temp_c) / water_density_rel(temp_c);
 }

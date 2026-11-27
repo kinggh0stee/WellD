@@ -68,7 +68,7 @@ cd zigbee2mqtt && npm test
 | `main/` | Wake orchestration, NVS fail counter, RTC history |
 | `components/sensor/` | ADS1115, DS18B20, battery divider, GPIO power control |
 | `components/zigbee/` | esp-zigbee-lib wrapper, OTA client, BDB task |
-| `components/welld_core/` | Pure helpers: rate-of-change, adaptive sleep, failure backoff, ZCL encoding, OTA file parser |
+| `components/welld_core/` | Pure helpers: rate-of-change, adaptive sleep, failure backoff, battery-reading classification, ZCL encoding, OTA file parser |
 | `zigbee2mqtt/` | External converter (`welld.js`) and its Node tests |
 | `test/host/` | Host CMake test runner (Unity v2.6.0) |
 | `test/sensor/`, `test/welld_core/` | Standalone ESP-IDF test apps for on-device hardware |

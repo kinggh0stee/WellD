@@ -388,15 +388,13 @@ static void send_reports(void)
 #if CONFIG_WELLD_BATT_REPORT_ENABLED
         /* Same compile-time gate as the EP_BATTERY endpoint registration:
            without it the burst would report on an unregistered endpoint. */
-        float burst_batt = s_store_battery_v[i];
-        if (welld_zb_should_report_battery(burst_batt)) {
-            ezb_zcl_set_attr_value(EP_BATTERY,
-                EZB_ZCL_CLUSTER_ID_ANALOG_INPUT, EZB_ZCL_CLUSTER_SERVER,
-                EZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID,
-                EZB_ZCL_STD_MANUF_CODE, &burst_batt, false);
-            report.cmd_ctrl.src_ep = EP_BATTERY;
-            ezb_zcl_report_attr_cmd_req(&report);
-        }
+        float burst_batt = welld_zb_battery_present_value(s_store_battery_v[i]);
+        ezb_zcl_set_attr_value(EP_BATTERY,
+            EZB_ZCL_CLUSTER_ID_ANALOG_INPUT, EZB_ZCL_CLUSTER_SERVER,
+            EZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID,
+            EZB_ZCL_STD_MANUF_CODE, &burst_batt, false);
+        report.cmd_ctrl.src_ep = EP_BATTERY;
+        ezb_zcl_report_attr_cmd_req(&report);
 #endif
         if (s_store_temp_c[i] > -127.0f) {
             int16_t temp_zb = welld_zb_encode_temp(s_store_temp_c[i]);
@@ -431,16 +429,17 @@ static void send_reports(void)
     ezb_zcl_report_attr_cmd_req(&report);
 
 #if CONFIG_WELLD_BATT_REPORT_ENABLED
-    /* Battery voltage — Analog Input cluster, endpoint 2.
-       Skip report if ADC returned -1 (read error). */
-    if (welld_zb_should_report_battery(s_battery_v)) {
-        ezb_zcl_set_attr_value(EP_BATTERY,
-            EZB_ZCL_CLUSTER_ID_ANALOG_INPUT, EZB_ZCL_CLUSTER_SERVER,
-            EZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID,
-            EZB_ZCL_STD_MANUF_CODE, &s_battery_v, false);
-        report.cmd_ctrl.src_ep = EP_BATTERY;
-        ezb_zcl_report_attr_cmd_req(&report);
-    }
+    /* Battery voltage — Analog Input cluster, endpoint 2. Always reported:
+       an unknown battery (read failed or implausible) goes out as -1, which
+       the converter publishes as null, so the last good voltage does not
+       stay on show while the low-battery guard is blind. */
+    float batt_pv = welld_zb_battery_present_value(s_battery_v);
+    ezb_zcl_set_attr_value(EP_BATTERY,
+        EZB_ZCL_CLUSTER_ID_ANALOG_INPUT, EZB_ZCL_CLUSTER_SERVER,
+        EZB_ZCL_ATTR_ANALOG_INPUT_PRESENT_VALUE_ID,
+        EZB_ZCL_STD_MANUF_CODE, &batt_pv, false);
+    report.cmd_ctrl.src_ep = EP_BATTERY;
+    ezb_zcl_report_attr_cmd_req(&report);
 #endif
 
     /* Temperature — Temperature Measurement cluster (0x0402), endpoint 3.

@@ -106,6 +106,15 @@ test('convertBattery returns undefined for null/NaN/Infinity', () => {
     assert.equal(convertBattery(Infinity), undefined);
 });
 
+test('negative battery (firmware "unknown" sentinel) → voltage and % both null', () => {
+    /* -1 = read failed or implausible: the firmware's low-battery guard is
+       blind, so HA must show the battery unavailable — not a stale value,
+       and not 0 % (which the percentage clamp would otherwise produce). */
+    assert.deepEqual(convertBattery(-1), {battery_voltage: null, battery: null});
+    assert.deepEqual(convertBattery(-0.01, {battery_full_mv: 4200, battery_empty_mv: 3200}),
+        {battery_voltage: null, battery: null});
+});
+
 test('18650 battery at full charge (4200 mV) reports 100 %', () => {
     const out = convertBattery(4.2);
     assert.equal(out.battery_voltage, 4.2);

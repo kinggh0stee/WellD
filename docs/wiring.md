@@ -166,7 +166,7 @@ The transducer's datasheet gives its supply range, typically something like 9–
 
 ### What this sensor does
 
-The DS18B20 is a digital thermometer sealed in a stainless steel probe. It talks over a single data wire (the "1-Wire" bus). Besides reporting the water temperature, the firmware uses it to correct the level reading for water density: warm water is lighter, so a given depth presses on the transducer a little less (`CONFIG_WELLD_TEMP_COMPENSATION_ENABLED`, on by default).
+The DS18B20 is a digital thermometer sealed in a stainless steel probe. It talks over a single data wire (the "1-Wire" bus). Besides reporting the water temperature, the firmware uses it to correct the level reading for water density: warmer water is lighter, so a given depth presses on the transducer a little less (`CONFIG_WELLD_TEMP_COMPENSATION_ENABLED`, on by default — about 0.03 % at 10 °C, 0.4 % at 30 °C).
 
 ### Step-by-step wiring
 
@@ -200,7 +200,7 @@ Lower the probe alongside the transducer so it measures the same water — the d
 
 ### No battery? Tie A2 to GND
 
-If you are not measuring a battery, connect ADS1115 **A2 to GND** and set `CONFIG_WELLD_BATT_REPORT_ENABLED=n` (this removes the battery entities). **Do not leave A2 floating.** The firmware reads A2 on every wakeup for its low-battery guard, and a floating input can read any voltage — one that happens to look like a flat cell stops all reports. A grounded A2 reads 0 V, which the firmware recognises as "no divider" and ignores; it logs `battery reading 0.00 V is implausible — divider/AIN2 fault? ignoring it` once per wakeup.
+If you are not measuring a battery, connect ADS1115 **A2 to GND** and set `CONFIG_WELLD_BATT_REPORT_ENABLED=n` (this removes the battery entities). **Do not leave A2 floating.** The firmware reads A2 on every wakeup for its low-battery guard, and a floating input can read any voltage — one that happens to look like a flat cell stops all reports. A grounded A2 reads 0 V, which the firmware recognises as "no divider": it logs `battery reading 0.00 V is implausible — divider/AIN2 fault? ignoring it` once per wakeup and, if the battery endpoint is still enabled, publishes the battery as `null` (unavailable).
 
 ### Why a divider
 
@@ -323,7 +323,7 @@ I (309) sensor: battery=4.05 V (divider)
 I (326) sensor: voltage=1485 mV  current=14850 µA  level=4.07 m
 I (341) sensor: DS18B20 ROM 0x5e0000005e3a7a28 stored to NVS
 I (744) sensor: temperature=12.3 °C
-I (745) sensor: temp-comp: raw=4.069 m temp=12.3°C factor=0.99841 compensated=4.062 m
+I (745) sensor: temp-comp: raw=4.069 m temp=12.3°C factor=1.00051 compensated=4.071 m
 ```
 
 The `DS18B20 ROM … stored to NVS` line appears only on the first boot, or after you swap the probe. Once the device has joined your Zigbee network, Zigbee2MQTT shows `water_level`, `temperature`, `battery_voltage` and `battery`; `water_level_rate` follows from the second reading on.
@@ -337,7 +337,7 @@ The `DS18B20 ROM … stored to NVS` line appears only on the first boot, or afte
 | `E … sensor: transducer open loop (voltage=0 mV, 0 µA < 3.5 mA)` | No loop current | Loop supply on; loop supply (−) to GND; both transducer wires; the shunt |
 | `E … sensor: transducer short-circuit (voltage=3290 mV, 32900 µA > 21 mA)` | More than 21 mA | Shorted cable, or transducer (−) going to A0 without the shunt to GND |
 | `E … sensor: no DS18B20 found on GPIO 7` | The probe does not answer | The 4.7 kΩ pull-up; DATA on GPIO7; red wire on 3V3, not GND |
-| `W … main: battery reading 0.00 V is implausible — divider/AIN2 fault? ignoring it` | A2 reads below 2.0 V, so the reading is ignored | Expected when A2 is tied to GND (no divider). Otherwise check R1, R2 and the A2 wire |
+| `W … main: battery reading 0.00 V is implausible — divider/AIN2 fault? ignoring it` | A2 reads below 2.0 V (or above 125 % of full charge), so the reading is ignored and the battery is published as `null` | Expected when A2 is tied to GND (no divider). Otherwise check R1, R2 and the A2 wire |
 | `W … main: battery critically low (3.15 V <= 3.20 V) — skipping send` | The low-battery guard skipped this report | Charge the cell. If you have no battery, A2 is probably floating — tie it to GND |
 
 For anything else, see [`TROUBLESHOOTING.md`](../TROUBLESHOOTING.md).

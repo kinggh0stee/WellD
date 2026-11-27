@@ -39,12 +39,13 @@ Connect USB and open the serial monitor: `idf.py -p /dev/ttyACM0 monitor` for th
 - **Battery genuinely flat:** Charge via USB or solar.
 - **Measurement error:** Verify the divider ratio in Kconfig matches R7/R8 (100 kΩ / 100 kΩ, ratio 200).
 
-### 5a. `battery reading X.XX V is implausible — divider/AIN2 fault? ignoring it`
+### 5a. `battery reading X.XX V is implausible — divider/AIN2 fault? ignoring it` (or `battery read failed (ADS1115 AIN2) — reporting it as unknown`)
 
-The device read under 2.0 V on the battery divider, which a running device cannot have, so it treats this as a measurement fault. The reading is dropped (no `battery_voltage` / `battery` published) and the low-battery guard is skipped, so reports keep flowing.
+The device read a battery voltage no running device can have — under 2.0 V, or above 125 % of `CONFIG_WELLD_BATT_FULL_MV` (≈5.25 V for 1S) — or could not read AIN2 at all, so it treats this as a measurement fault. The low-battery guard is skipped so reports keep flowing, `BATT_INVALID` goes into the RTC event log, and the battery is reported as unknown: Zigbee2MQTT publishes `battery_voltage` and `battery` as `null` (Home Assistant shows them unavailable). While this lasts the device is **not** protected against running its cell flat — fix the cause.
 
 - **Dev board without a divider:** expected, provided AIN2 is tied to GND — set `CONFIG_WELLD_BATT_REPORT_ENABLED=n` to drop the EP2 endpoint entirely. Never leave AIN2 floating: a floating input can read like a flat cell and trip the low-battery guard instead.
-- **WellD PCB:** check R7/R8, the Q5 high-side P-FET and its Q2 driver on GPIO15 (TP for VBAT and the divider mid-point), and the AIN2 trace.
+- **WellD PCB, reading ≈0 V:** check R7, the Q5 high-side P-FET and its Q2 driver on GPIO15, and the AIN2 trace (with Q5 off or R7 open, R8 pulls AIN2 to 0 V).
+- **WellD PCB, reading ≈7 V:** R8 is open — AIN2 is pulled up to the ADS1115 input clamp through R7.
 
 ### 6. OTA issues
 
@@ -80,6 +81,7 @@ This is invaluable for diagnosing devices that failed in the field and are later
 | `FACTORY_RESET` | GPIO23 factory reset — NVS and Zigbee network state erased |
 | `BROWNOUT` | Previous reset was a brownout |
 | `WATCHDOG` | Previous reset was a task/interrupt watchdog |
+| `BATT_INVALID` | Battery read failed or was implausible (see 5a): the low-battery guard was skipped and EP2 reported "unknown" |
 | `NVS_WIPE` | Retired in 1.2.0 (the automatic 5-failure wipe was removed); appears only in logs written by older firmware |
 
 ## Diagnostic Mode (Bench Testing)

@@ -256,6 +256,7 @@ typedef enum {
     RTC_EVT_FACTORY_RESET   = 0x0B,
     RTC_EVT_BROWNOUT        = 0x0C,
     RTC_EVT_WATCHDOG        = 0x0D,
+    RTC_EVT_BATT_INVALID    = 0x0E,   /* battery read failed or implausible — guard blind */
 } rtc_event_t;
 
 RTC_DATA_ATTR static struct {
@@ -304,6 +305,7 @@ static void rtc_log_print(void)
             case RTC_EVT_FACTORY_RESET: name = "FACTORY_RESET"; break;
             case RTC_EVT_BROWNOUT:      name = "BROWNOUT";      break;
             case RTC_EVT_WATCHDOG:      name = "WATCHDOG";      break;
+            case RTC_EVT_BATT_INVALID:  name = "BATT_INVALID";  break;
         }
         ESP_LOGI(TAG, "  [%u] t=%lus  %s", (unsigned)i, (unsigned long)s_rtc_log.ts[idx], name);
     }
@@ -552,14 +554,22 @@ void app_main(void)
      * not burn loop power or touch NVS below the flash-safe voltage. */
     t0 = esp_timer_get_time();
     float battery_v = sensor_read_battery_v();
-    welld_batt_state_t batt_state = welld_battery_state(battery_v, CONFIG_WELLD_BATT_EMPTY_MV);
-    if (batt_state == WELLD_BATT_INVALID && battery_v >= 0.0f) {
-        /* A running device cannot have a cell below ~2 V, so this is the
-         * measurement path (no divider fitted, Q5/R7 open, AIN2 floating) —
-         * not a flat battery. Drop the reading (not reported on EP2) instead
-         * of letting it trip the low-battery guard on every wakeup. */
-        ESP_LOGW(TAG, "battery reading %.2f V is implausible — divider/AIN2 fault? ignoring it",
-                 battery_v);
+    welld_batt_state_t batt_state = welld_battery_state(battery_v, CONFIG_WELLD_BATT_EMPTY_MV,
+                                                        CONFIG_WELLD_BATT_FULL_MV);
+    if (batt_state == WELLD_BATT_INVALID) {
+        /* No usable battery reading: the read failed, or the value is one a
+         * running device cannot have (below ~2 V: no divider fitted, Q5/R7
+         * open, AIN2 floating; far above full charge: R8 open). Don't let it
+         * trip the low-battery guard on every wakeup — but the guard is now
+         * blind, so say so: an RTC event locally, and EP2 reports -1, which
+         * the converter publishes as battery_voltage/battery = null. */
+        if (battery_v < 0.0f) {
+            ESP_LOGW(TAG, "battery read failed (ADS1115 AIN2) — reporting it as unknown");
+        } else {
+            ESP_LOGW(TAG, "battery reading %.2f V is implausible — divider/AIN2 fault? ignoring it",
+                     battery_v);
+        }
+        rtc_log_event(RTC_EVT_BATT_INVALID);
         battery_v = -1.0f;
     }
 

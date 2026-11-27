@@ -442,6 +442,14 @@ void sensor_offset_cache_reset(void)
     s_offset_cm = INT32_MIN;
 }
 
+/* Minimum VLOOP on-time before the shunt is sampled: MT3608B soft-start plus
+ * the Q3/C20/C22 rail settle. CONFIG_WELLD_VLOOP_SETTLE_MS (>= this) adds the
+ * transducer's own start-up time. */
+#define VLOOP_RAIL_SETTLE_MS  10
+/* AIN0 at or above this during a long warm-up = dead short (see
+ * sensor_read_level()). */
+#define LOOP_DEAD_SHORT_MV    3000
+
 /* Read the water level in metres, applying the NVS-stored offset and
  * optional temperature compensation.
  * Gates the MT3608B 12V boost (VLOOP GPIO) for the duration of the read.
@@ -450,16 +458,33 @@ void sensor_offset_cache_reset(void)
  * Returns -2.0 if a short-circuit is detected (>21 mA). */
 float sensor_read_level(void)
 {
-    /* Gate VLOOP HIGH to enable the MT3608B boost converter.
-     * The 12 V output caps (C20/C22) charge through the Q3 load-disconnect
-     * P-FET, so the rail needs longer than the bare MT3608B soft-start
-     * (< 5 ms typ) to stabilise. Hold HIGH for 10 ms before the ADC reads
-     * the shunt (PCB review 2026-07: raised from 5 ms for Q3 + C20/C22).
-     * Constraint from CLAUDE.md: GPIO5 must be HIGH ≥ 10 ms before any read. */
+    /* Gate VLOOP HIGH to enable the MT3608B boost converter. The 12 V output
+     * caps (C20/C22) charge through the Q3 load-disconnect P-FET, so the rail
+     * needs longer than the bare MT3608B soft-start (< 5 ms typ): at least
+     * VLOOP_RAIL_SETTLE_MS (PCB review 2026-07: raised from 5 ms). The
+     * transducer may need longer still to reach a valid output —
+     * CONFIG_WELLD_VLOOP_SETTLE_MS (default = the 10 ms rail minimum). */
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 1);
-    /* Rail settle (MT3608B soft-start + Q3/C20/C22, >= 10 ms) and the
-     * transducer's own start-up time — Kconfig, default 10 ms. */
-    delay_at_least_ms(CONFIG_WELLD_VLOOP_SETTLE_MS);
+    delay_at_least_ms(VLOOP_RAIL_SETTLE_MS);
+#if CONFIG_WELLD_VLOOP_SETTLE_MS > VLOOP_RAIL_SETTLE_MS
+    {
+        /* Long transducer warm-up: once the rail is up, check for a dead
+         * short before waiting out the rest. VLOOP has no current limit on
+         * its way to LOOP+, so a shorted cable holds the boost at its switch
+         * limit into the D9 clamp (and draws amps from the cell) for as long
+         * as VLOOP stays on. LOOP_DEAD_SHORT_MV pins AIN0 near the top of its
+         * range: >= 23 mA even at the 130 ohm maximum shunt, above NAMUR
+         * alarm currents a healthy transducer may show while starting. */
+        int probe_mv = ads1115_read_mv(0);
+        if (probe_mv != INT_MIN && probe_mv >= LOOP_DEAD_SHORT_MV) {
+            gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
+            ESP_LOGE(TAG, "transducer short-circuit at warm-up (voltage=%d mV) — loop switched off",
+                     probe_mv);
+            return -2.0f;
+        }
+    }
+    delay_at_least_ms(CONFIG_WELLD_VLOOP_SETTLE_MS - VLOOP_RAIL_SETTLE_MS);
+#endif
 
     int volt_mv;
 #if CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED
@@ -507,17 +532,18 @@ float sensor_read_level(void)
 }
 
 /* Apply temperature compensation to a raw water-level reading.
- * Water density decreases with temperature, so a given column of warm water
- * presses less on the transducer and reads slightly LOW; cold water reads
- * slightly high. level_m = raw / (1 - alpha * (temp_c - 20.0)) — see
- * sensor_temp_level_factor() in sensor_pure.c (host-tested). Before 1.2.1
- * this divided by (1 + alpha * ...), which doubled the error instead of
- * removing it. Returns the compensated level. */
+ * The transducer measures pressure; its metre scale assumes water at
+ * CONFIG_WELLD_TEMP_COMPENSATION_REF_C (4 °C = the conventional metre of
+ * water, 1000 kg/m3). Water at another temperature has a different density,
+ * so the level is multiplied by rho(ref)/rho(T) — see
+ * sensor_temp_level_factor() in sensor_pure.c (host-tested against tabulated
+ * densities). Before 1.2.1 this divided by (1 + 207 ppm * (T - 20)): wrong
+ * sign and a 20 °C reference. Returns the compensated level. */
 float sensor_level_temp_compensate(float level_m, float temp_c)
 {
 #if CONFIG_WELLD_TEMP_COMPENSATION_ENABLED
     float factor = sensor_temp_level_factor(temp_c,
-                                            CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C);
+                                            CONFIG_WELLD_TEMP_COMPENSATION_REF_C);
     float compensated = level_m * factor;
     ESP_LOGI(TAG, "temp-comp: raw=%.3f m temp=%.1f°C factor=%.5f compensated=%.3f m",
              level_m, temp_c, factor, compensated);
