@@ -62,7 +62,7 @@ Firmware correctness:
 - OTA safety: OTA_MANUFACTURER_CODE (0x1234) and OTA_IMAGE_TYPE (0x0001) must not be wildcarded to 0xFFFF
 - RTC struct magic: if any RTC_DATA_ATTR struct layout changed, the corresponding magic constant must be bumped
 - ESP_ERROR_CHECK on hardware calls that can legitimately fail should be if(ret != ESP_OK) with graceful handling
-- Zigbee NVS erase path: the 5-failure self-heal must not silently wipe sensor calibration (offset_cm, ds18b20_rom)
+- Zigbee state: network datasets live in the `zb_storage` NVS partition (must exist in partitions.csv and be initialised before the stack starts — esp-zigbee-lib aborts otherwise); nothing may wipe it automatically (only the GPIO23 factory reset); never `esp_zigbee_deinit()` from stack callbacks
 - Any unbounded loops or missing timeouts in ISR or radio task context
 - Open-loop current detection: readings < 3.5 mA should report level = -1.0, not silently use stale data
 

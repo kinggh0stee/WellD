@@ -280,7 +280,7 @@ All test points use: `TestPoint:TestPoint_Pad_1.0x1.0mm`
 | TP10 | VSOLAR_IN | At J12 |
 | TP11 | VBAT_RAW | At BT1 cell+, before D5 |
 | TP12 | ADS_DRDY | GPIO22 interrupt line (moved off GPIO12 = USB D−, 2026-07-22) |
-| TP13 | FACTORY_RESET | **NEW** — GPIO23; short to GND at power-on for NVS erase + rejoin (moved off GPIO13 = USB D+, 2026-07-22) |
+| TP13 | FACTORY_RESET | **NEW** — GPIO23; short to GND at power-on for NVS + Zigbee network erase (re-pair with permit-join) (moved off GPIO13 = USB D+, 2026-07-22) |
 | TP14 | /CHRG_SOLAR | Solar charge status (present in interfaces sheet, was missing here) |
 | TP15 | /CHRG_USB | TP4056 /CHRG charge status (open-drain, R38 pull-up) |
 

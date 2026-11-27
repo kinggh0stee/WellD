@@ -6,8 +6,8 @@ Battery-powered well-level monitor for the ESP32-C6. Each wakeup it reads a 4–
 - **Battery life:** months on a single 18650 cell at the default 5-minute interval (deep sleep between readings)
 - **Adaptive sleep:** sleep duration scales with how fast the level is changing — longer windows when stable, shorter during transients
 - **Rate-of-change reporting:** `water_level_rate` in cm/h; distinguishes "well recovering" from "well being drawn down"
-- **Self-healing:** wipes Zigbee NVS state and rejoins fresh after 5 consecutive send failures
-- **OTA:** Zigbee OTA Upgrade client, dual 1.5 MB app slots
+- **Outage-tolerant:** keeps its network membership through coordinator outages (resumes on its own when the coordinator is back), buffers failed readings for a burst re-send, and backs off to the maximum sleep interval after 3 consecutive failed sends to save the battery
+- **OTA:** Zigbee OTA Upgrade client (queries the coordinator every wakeup), dual 1.5 MB app slots, rollback guard
 - **Sentinels:** open-loop (< 3.5 mA) and short-circuit (> 21 mA) transducer faults both report `null` water level so Home Assistant can alert on wiring faults
 
 ---
@@ -60,7 +60,7 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 | 7  | 1-Wire | DS18B20 data |
 | 13 | USB    | Native USB D+ → USB-C (console/programming) |
 | 22 | Input  | ADS1115 ALERT/DRDY (moved off GPIO12) |
-| 23 | Input  | Factory reset (hold LOW at boot → NVS erase + rejoin; via TP13; moved off GPIO13) |
+| 23 | Input  | Factory reset (hold LOW at boot → NVS + Zigbee network erase, re-pair with permit-join; via TP13; moved off GPIO13) |
 | 15 | Output | Battery-divider enable (`BATT_DIV_EN`) — drives the Q2 level-shifter that switches the Q5 high-side P-FET |
 | 14 | —      | Status LED (D4 via R14/SJ3 — moved off GPIO13, which is reserved for factory reset; no firmware support yet) |
 
@@ -68,7 +68,7 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 
 | Terminal | Wire | ESD / surge protection |
 |----------|------|------------------------|
-| LOOP+ / LOOP− | 4–20 mA transducer, two-wire | D9 / D10 SMAJ3.3CA bidirectional TVS (200 W, DO-214AC); D11 SMAJ13A unidirectional TVS on VLOOP; D1 PRTR5V0U2X rail clamp at ADS1115 inputs |
+| LOOP+ / LOOP− | 4–20 mA transducer, two-wire | D9 / D10 SMAJ5.0A TVS (400 W, DO-214AC); D11 SMAJ13A unidirectional TVS on VLOOP; D1 PRTR5V0U2X rail clamp at ADS1115 inputs |
 | 1W DATA / GND | DS18B20 data + ground | D12 PRTR5V0U2X dual-channel rail clamp (SOT-363) — 0.5 pF added capacitance, well below the 800 pF 1-Wire add limit |
 | Battery | Single generic 18650 (3.0–4.2 V) in the on-board THT carrier **BT1** — no cable, no connector (the XT30 was deleted 2026-07-19) | On-board 1S protection **DW01A + FS8205A** in the cell− path (generic bare cells have no PCM): over-discharge ≈2.4 V, over-charge ≈4.3 V, over-current. D13 SMAJ5.0A TVS at the cell+ tab; D5 AO3407 P-ch MOSFET in series on cell+ blocks a **reversed-inserted cell**; R31 10 kΩ gate pull-down holds D5 on |
 | SOLAR+/−      | Solar panel, ≤ **10 V Voc** (6 V-nominal panels — 1S conversion 2026-07-19; the 2S design accepted 12 V panels) | D14 SMAJ10CA bidirectional TVS (400 W, DO-214AC) at the terminal, plus second-stage D8 SMAJ10CA at the CN3791 VIN |
@@ -96,17 +96,17 @@ The MT3608B boost converter lifts VLOOP to 12 V to power the transducer loop. Th
 
 Firmware gates GPIO5 high for **10 ms** (MT3608B soft-start plus rail settling through the Q3 load-disconnect P-FET into C20/C22 — raised from 5 ms in the 2026-07 PCB review) before reading, then drives it low immediately after. Maximum ON time is 100 ms.
 
-The ADS1115 measures the voltage across a shunt resistor on the loop return. PGA ±2.048 V, single-shot at 860 SPS, AIN0 vs GND.
+The ADS1115 measures the voltage across a shunt resistor on the loop return: PGA ±4.096 V, single-shot at 860 SPS, AIN0 vs GND. (20 mA × 100 Ω = 2.0 V would sit at the very top of the ±2.048 V range, which clips at 20.47 mA — too low to see the > 21 mA short-circuit fault.)
 
-10 nF X7R bypass capacitors (C_SH1 / C_SH2) are placed directly across each 100 Ω shunt resistor (R2 / R4) to suppress HF pickup from the loop cable. The RC corner is ~1.6 MHz, well above the measurement bandwidth.
+10 nF X7R bypass capacitors (C34 / C35) are placed directly across each 100 Ω shunt resistor (R2 / R4) to suppress HF pickup from the loop cable. The RC corner is ~160 kHz, well above the measurement bandwidth.
 
-LOOP+ and LOOP– screw terminals are protected by SMAJ3.3CA bidirectional TVS diodes (D9 / D10, 200 W, DO-214AC/SMA). The 3.3 V standoff is above the normal 2 V loop maximum so the TVS does not conduct in normal operation; the ~5.3 V clamp at 10 A provides tighter protection for the ADS1115 AIN absolute-maximum chain than the previous SMAJ5.0CA devices.
+The loop signal terminals are protected by SMAJ5.0A TVS diodes (D9 / D10, 400 W, DO-214AC/SMA). The 5 V standoff (6.4 V minimum breakdown) keeps the 2.0 V working point far below the knee, so leakage stays negligible; R3 / R5 and the D1 rail clamp still protect the ADS1115 inputs, and the forward diode clamps negative transients. (The earlier SMAJ3.3CA leaked up to 800 µA at its standoff — replaced 2026-07-14.)
 
 The 1W DATA terminal (J6) is protected by D12, a PRTR5V0U2X dual-channel rail clamp in SOT-363 (the same part as D1 at the ADS1115 inputs). D12 clamps the data line to 3V3 + ~0.5 V during an ESD transient in sub-nanosecond response time. The added capacitance per channel is 0.5 pF, which is negligible compared to the 800 pF DS18B20 bus limit and does not affect 1-Wire timing.
 
 ### Battery monitoring
 
-Battery voltage is read via the gated resistor divider (R7 100 kΩ / R8 100 kΩ) on ADS1115 AIN2. The divider is disconnected on the **high side** by Q5 (AO3407 P-FET) between VBAT and R7; GPIO15 drives the Q2 level-shifter (AO3400A) that pulls Q5's gate low. GPIO15 is pulsed HIGH for 1 ms before reading, then LOW immediately after — C8 across R8 is 1 nF so the mid-node settles well inside that 1 ms window. With Q5 off the divider is completely dead: AIN2 rests at 0 V through R8, eliminating sleep leakage into the ADS1115 input ESD diodes. The divider ratio is 2.00 (200/100), mapping 4.2 V full charge to 2.1 V — the firmware reads AIN2 with the ADS1115 **±4.096 V** PGA (the ±2.048 V range used for the loop shunt would clip right at full charge).
+Battery voltage is read via the gated resistor divider (R7 100 kΩ / R8 100 kΩ) on ADS1115 AIN2. The divider is disconnected on the **high side** by Q5 (AO3407 P-FET) between VBAT and R7; GPIO15 drives the Q2 level-shifter (AO3400A) that pulls Q5's gate low. GPIO15 is pulsed HIGH for 1 ms (a busy-wait, exact at any tick rate) before reading, then LOW immediately after — C8 across R8 is 1 nF so the mid-node settles well inside that 1 ms window. With Q5 off the divider is completely dead: AIN2 rests at 0 V through R8, eliminating sleep leakage into the ADS1115 input ESD diodes. The divider ratio is 2.00 (200/100), mapping 4.2 V full charge to 2.1 V — the firmware reads AIN2 with the ADS1115 **±4.096 V** PGA (±2.048 V would clip right at full charge).
 
 The BAT+ rail protection chain: **J1 BAT+ → D13 (SMAJ10CA TVS, at terminal) → D5 S→D (AO3407 reverse-polarity MOSFET) → VBAT system rail.**
 
@@ -140,9 +140,12 @@ cd WellD
 # one-time: select the target chip
 idf.py set-target esp32c6
 
-# local config — copy the template and edit it (gitignored)
+# local config — copy the template and edit it (gitignored; the root
+# CMakeLists.txt layers it over sdkconfig.defaults). Defaults only seed a NEW
+# sdkconfig — re-run `idf.py set-target esp32c6` after editing it.
 cp sdkconfig.defaults.local.example sdkconfig.defaults.local
 $EDITOR sdkconfig.defaults.local
+idf.py set-target esp32c6
 
 # build and flash
 idf.py build
@@ -206,16 +209,16 @@ All options have sensible defaults. Only change what differs from your hardware.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED` | `n` | Take 3 ADS1115 samples per measurement and report the median. Opt-in for electrically noisy installations (pump motor interference, long cable runs). Costs ~8 ms extra active time per wakeup; leave off for maximum battery life |
+| `CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED` | `n` | Take 3 ADS1115 samples per measurement and report the median. Opt-in for electrically noisy installations (pump motor interference, long cable runs). Costs ~6 ms extra active time per wakeup (two extra ~1.2 ms conversions per channel); leave off for maximum battery life |
 | `CONFIG_WELLD_TEMP_COMPENSATION_ENABLED` | `y` | Apply water-density correction to the level reading: `level / (1 + alpha * (temp - 20))`. Suppressed automatically when DS18B20 fails (temp ≤ −127 °C) |
 | `CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C` | `207` | Water density coefficient in ppm/°C. Depends on `WELLD_TEMP_COMPENSATION_ENABLED`. Typical value for fresh water is 207 ppm/°C; range 0–500 |
-| `CONFIG_WELLD_DS18B20_RESOLUTION_BITS` | `11` | DS18B20 conversion resolution: 9 / 10 / 11 / 12 bit. Conversion time: 94 / 188 / 375 / 750 ms. 11-bit gives 0.0625 °C steps — adequate for well water monitoring and saves 375 ms per wakeup vs 12-bit |
-| `CONFIG_WELLD_FACTORY_RESET_GPIO` | `23` | If this GPIO is held LOW at boot, NVS is erased and the device rejoins Zigbee fresh (moved off GPIO13, now native USB D+). Internal pull-up enabled; leave unconnected for normal operation |
+| `CONFIG_WELLD_DS18B20_RESOLUTION_BITS` | `11` | DS18B20 conversion resolution: 9 / 10 / 11 / 12 bit. Conversion wait: 100 / 200 / 400 / 800 ms (the ds18b20 driver's timing). 11-bit gives 0.125 °C steps — adequate for well water monitoring and saves 400 ms per wakeup vs 12-bit |
+| `CONFIG_WELLD_FACTORY_RESET_GPIO` | `23` | If this GPIO is held LOW at boot, NVS and the Zigbee network state are erased and the device reboots factory-new — re-pair it with permit-join (moved off GPIO13, now native USB D+). Internal pull-up enabled; leave unconnected for normal operation |
 | `CONFIG_WELLD_SELFTEST_ENABLED` | `n` | Exercise all peripherals on every boot and log PASS/FAIL. Adds ~200 ms to boot time; useful for factory QA and PCB bring-up |
 | `CONFIG_WELLD_DIAGNOSTIC_MODE_ENABLED` | `n` | Stay awake for `WELLD_DIAGNOSTIC_STAY_AWAKE_SEC` after each sensor read, printing verbose logs. Deep sleep is still entered after the window expires |
 | `CONFIG_WELLD_DIAGNOSTIC_STAY_AWAKE_SEC` | `60` | Stay-awake window when diagnostic mode is enabled (seconds, 10–300). Depends on `WELLD_DIAGNOSTIC_MODE_ENABLED` |
-| `CONFIG_WELLD_ZIGBEE_BACKOFF_MAX_MS` | `500` | Random delay before Zigbee network steering on each wakeup (0–5000 ms). Jitters start time to avoid simultaneous steering from multiple devices after a power outage |
-| `CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC` | `240` | Maximum wall-clock time an OTA download may take before it is considered stalled and aborted (60–600 s) |
+| `CONFIG_WELLD_ZIGBEE_BACKOFF_MAX_MS` | `500` | Random delay before the Zigbee stack starts commissioning on each wakeup (0–5000 ms). Jitters start time to avoid simultaneous joins from multiple devices after a power outage |
+| `CONFIG_WELLD_OTA_STALL_TIMEOUT_SEC` | `240` | Abort an OTA download after this long without receiving a block (60–600 s). Measured since the last block — a full ~650 KB transfer takes many minutes and is never cut off while it is moving |
 | `CONFIG_WELLD_RTC_LOG_PRINT_ENABLED` | `n` | Print RTC event log on wakeup — enable when diagnosing a retrieved device over USB; leave off in production |
 
 ---
@@ -243,7 +246,7 @@ sudo systemctl restart zigbee2mqtt
 
 ### 2. Pair the device
 
-Enable permit-join in `configuration.yaml`, power up the board, and wait for the join. First pairing takes up to 25 s; subsequent wakeups rejoin in a few seconds using cached network state in NVS. Disable permit-join once paired.
+Enable permit-join in `configuration.yaml`, power up the board, and wait for the join. First pairing takes up to 25 s; subsequent wakeups resume the network in a few seconds from the state cached in the `zb_storage` partition (no permit-join needed). Disable permit-join once paired.
 
 ### 3. MQTT payload
 
@@ -267,7 +270,7 @@ The device publishes to `zigbee2mqtt/<friendly_name>` on each wakeup:
 - `temperature` is omitted when the DS18B20 is not detected.
 - `battery_voltage` comes from the ADS1115 AIN2 voltage divider (R7/R8 100 kΩ / 100 kΩ, switched high-side by Q5 under GPIO15 control).
 - `battery` is a percentage derived from `battery_voltage` using the device options `battery_full_mv` / `battery_empty_mv`. Options are coerced to numbers (YAML strings like `"4200"` are accepted) and fall back to the defaults 4200 / 3000 mV for anything missing or non-numeric. If the thresholds are misconfigured (`battery_full_mv <= battery_empty_mv`), the voltage is still published but the percentage is omitted.
-- `zb_fails` counts consecutive Zigbee send failures since the last success (0 = healthy; the device auto-rejoins at 5).
+- `zb_fails` is the number of consecutive failed send attempts that preceded this report (0 = healthy). From 3 failures the device sleeps its maximum interval between attempts until one succeeds.
 - `device_lqi` is the link quality measured on the device side (EP6, 1–255) — the LQI of the device's parent entry in its own neighbor table. It is distinct from Zigbee2MQTT's own `linkquality` field, which comes from the coordinator side of the link. A value of 0 means "unknown" (no parent entry found) and is not published. Firmware ≤ 1.0.2 always sent 0, so the key only appears from firmware 1.0.3 onwards.
 - `solar_charging` is a **boolean** (binary expose): `true` = the solar MPPT charger (CN3791) is actively charging, `false` = not charging.
 - When previous sends failed, the buffered readings (up to 8, RTC store-and-forward) are burst-reported oldest-first before the current reading, so the coordinator receives the full history in order.
@@ -306,10 +309,10 @@ The OTA file-version `0xMMmmPP00` (major << 24 | minor << 16 | patch << 8; e.g. 
 
 ### 2. Build the OTA image
 
-After `idf.py build`, wrap the binary using `ota_image_create.py` from the esp-zigbee-sdk:
+After `idf.py build`, wrap the binary with the in-repo packer (stdlib Python; same file layout as esp-zigbee-sdk's `image_builder_tool`):
 
 ```bash
-python path/to/ota_image_create.py \
+python tools/ota_image_create.py \
     --manufacturer-code 0x1234 \
     --image-type 0x0001 \
     --file-version 0x01000200 \
@@ -319,7 +322,7 @@ python path/to/ota_image_create.py \
 
 `--manufacturer-code` and `--image-type` **must** match the constants in `components/zigbee/zigbee.c` (`0x1234` / `0x0001`). The device rejects mismatched headers — don't wildcard them to `0xFFFF`.
 
-`--file-version` must increase monotonically and match the `0xMMmmPP00` encoding of `PROJECT_VER`; the device only installs images with a higher version than the running one. (CI derives it automatically and uploads the packed `.zigbee` file as a build artifact.)
+`--file-version` must increase monotonically and match the `0xMMmmPP00` encoding of `PROJECT_VER`; the device only installs images with a higher version than the running one. (CI derives it automatically and packs `build/welld.ota.zigbee` on every build to prove the step works; the no-third-party-actions policy means it is not uploaded as an artifact.)
 
 ### 3. Deploy
 
@@ -327,7 +330,7 @@ python path/to/ota_image_create.py \
 cp welld-v1.0.2.zigbee /opt/zigbee2mqtt/data/ota/
 ```
 
-Zigbee2MQTT picks the file up automatically. On the next wakeup the device queries for an update, downloads it in 128-byte blocks over Zigbee, and reboots into the new firmware.
+List the file in a local OTA override index (`ota: zigbee_ota_override_index_location:` in Zigbee2MQTT's `configuration.yaml` — see the Zigbee2MQTT OTA documentation for the index format), then request the update for the device in the frontend. The device sends a Query Next Image request on every wakeup (a sleepy device can't be reached by an Image Notify), so the download starts on its next wakeup after the request; it arrives in ≤ 128-byte blocks — expect many minutes for a ~650 KB image — and the device reboots into the new firmware.
 
 > **Upgrading from ≤ 1.0.2:** firmware 1.0.3 adds the battery endpoint (EP2) to the device descriptor. Zigbee2MQTT caches the endpoint list from the original interview, so after the OTA completes, re-interview the device (Z2M frontend → device → *Reconfigure/Interview*, or re-pair) to surface the new `battery_voltage` / `battery` entities. Also note the Kconfig option rename below — a stale `CONFIG_WELLD_BATT_ADC_CHANNEL=-1` line in `sdkconfig.defaults.local` is silently ignored; set `CONFIG_WELLD_BATT_REPORT_ENABLED=n` if you want battery reporting to stay off.
 
@@ -366,7 +369,7 @@ Set `CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED=n` for a fixed reporting cadence.
 
 ### Factory reset
 
-Hold `CONFIG_WELLD_FACTORY_RESET_GPIO` (default GPIO23) LOW during boot to erase NVS and force a clean Zigbee rejoin. On the custom PCB, short the TP13 pad to GND (TP4) while powering on. The internal pull-up is enabled; leaving the pin unconnected causes normal operation. This is the same NVS erase that occurs automatically after 5 consecutive Zigbee send failures.
+Hold `CONFIG_WELLD_FACTORY_RESET_GPIO` (default GPIO23) LOW during boot to erase NVS (calibration offset, counters, cached DS18B20 ROM) and the Zigbee network state; the device reboots factory-new and joins again once permit-join is open on the coordinator. On the custom PCB, short the TP13 pad to GND (TP4) while powering on. The internal pull-up is enabled; leaving the pin unconnected causes normal operation. This is the only way the network state is erased — the device never wipes it on its own.
 
 ### I2C bus recovery
 
@@ -402,11 +405,11 @@ No coordinator in range:
 
 ```
 E (zigbee): timeout — no coordinator found
-W (main):   Zigbee send failed (1/5)
+W (main):   Zigbee send failed (1 consecutive)
 I (main):   sleeping 300 s
 ```
 
-After 5 consecutive failures the NVS partition is erased on the next boot, forcing a clean Zigbee rejoin.
+From the third consecutive failure the device backs off (`W (main): 3 consecutive send failures — backing off to 1800 s`) and keeps retrying at the maximum interval; its network membership is kept, so it resumes on its own when the coordinator is back.
 
 Pressure transducer disconnected (open loop, < 3.5 mA):
 
@@ -478,9 +481,10 @@ CI builds these to catch compile breaks but cannot execute them (real hardware n
 
 ### CI
 
-`.github/workflows/build.yml` runs six jobs:
+`.github/workflows/build.yml` runs seven jobs:
 
-- **ESP-IDF build** — v6.0.1, `esp32c6`, builds firmware and OTA image, uploads `*.bin`, `*.elf`, `*.map`, `*.zigbee`, `dependencies.lock`
+- **ESP-IDF build** — v6.0.1, `esp32c6`, builds the firmware and packs the `.zigbee` OTA image with `tools/ota_image_create.py` (nothing is uploaded — no third-party actions)
+- **ESP-IDF build variants** — matrix `features_on` / `features_off`: compiles the code behind non-default Kconfig options
 - **C static analysis** — cppcheck over all `main/` and `components/` C sources; fails the build on any finding
 - **Version bump check** — PR-only gate; fails if firmware sources changed without bumping `PROJECT_VER` in `CMakeLists.txt`
 - **Host unit tests** — plain `ubuntu-latest`, ctest, fetches Unity v2.6.0
@@ -491,4 +495,4 @@ CI builds these to catch compile breaks but cannot execute them (real hardware n
 
 ## Legacy: dev board wiring
 
-If building from an off-the-shelf ESP32-C6 dev board instead of the custom PCB, wire the pressure transducer shunt directly to an ADC1 pin and power the loop externally. The ADS1115 and MT3608B boost are not available on a bare dev board — configure `CONFIG_WELLD_SENSOR_ADC_CHANNEL` to the ESP ADC channel used and set `CONFIG_WELLD_BATT_REPORT_ENABLED=n` (no battery divider on a bare dev board, so EP2 would only report read errors). The power-control GPIO options (`VLOOP`, `BATT_DIV_EN`) are still compiled in but can be left disconnected if the solar charger is absent.
+The firmware has no ESP32-C6 internal-ADC path — every analog reading goes through the ADS1115. To build on an off-the-shelf ESP32-C6 dev board instead of the custom PCB, add an ADS1115 breakout (address 0x48) on the `CONFIG_WELLD_I2C_SDA_GPIO` / `SCL_GPIO` pins, wire the transducer shunt to its AIN0 and power the loop externally, and set `CONFIG_WELLD_BATT_REPORT_ENABLED=n` unless you also build the AIN2 battery divider (without it EP2 would only report read errors). The power-control GPIO options (`VLOOP`, `BATT_DIV_EN`) are still compiled in and can be left disconnected.

@@ -92,7 +92,7 @@
 | BATT_DIV_EN | signal | GPIO15 → Q2 gate (HIGH enables battery divider via Q5) |
 | VBOOST_EN | signal | GPIO5 → MT3608B EN + Q4 gate (HIGH = 12V loop on); R27 pull-down |
 | GPIO14_LED | signal | Status LED (GPIO14 → R14 → D4 → SJ3 → GND) |
-| FACTORY_RESET | signal | GPIO23 → TP13 pad (hold LOW at boot = NVS erase); moved off GPIO13 = USB D+ |
+| FACTORY_RESET | signal | GPIO23 → TP13 pad (hold LOW at boot = NVS + Zigbee network erase, re-pair with permit-join); moved off GPIO13 = USB D+ |
 | UART_TX / UART_RX | signal | Debug UART GPIO16/GPIO17 → SJ4/SJ5 → J10 |
 | EN | signal | ESP32-C6 EN (R15 pull-up, C36, SW1, J10) |
 | BOOT | signal | ESP32-C6 GPIO9 (R12 pull-up, SW2, J10) |
@@ -457,7 +457,7 @@ CH1 path: `J4 SIG → D9 clamp → R2 shunt (‖ C34) → R3 → ADC_CH0 (C3, C4
 | R3 | pin 2 | ADC_CH0 | |
 | C3 (1µF), C4 (10µF) | pin 1 | ADC_CH0 | RC filter / bulk |
 | D1 PRTR5V0U2X | IO1 | ADC_CH0 | Clamp to +3V3/GND |
-| U9 ADS1115 | AIN0 | ADC_CH0 | 20 mA × 100 Ω = 2.0 V max, PGA ±2.048 V |
+| U9 ADS1115 | AIN0 | ADC_CH0 | 20 mA × 100 Ω = 2.0 V max; firmware reads it on the **±4.096 V PGA** since 1.2.0 (±2.048 V clipped at 20.47 mA, hiding the > 21 mA short fault) |
 | TP5 | pad | LOOP_TERM_CH1 | At shunt top |
 | GDT1 (DNF) | pin 1 | LOOP_TERM_CH1 | 2-pole 90 V gas discharge tube to GND (pin 2) — coarse stage of the industrial GDT → series-R → TVS coordination; footprint only, populate per site for long/buried cable runs |
 
@@ -527,7 +527,7 @@ GPIO8 strapping: R13 (10k) pull-up to +3V3, no other connection.
 
 | Component | Pin | Note |
 |-----------|-----|------|
-| U6 ESP32-C6 | **GPIO23** | Internal pull-up at boot; hold LOW ≥ boot = NVS erase + rejoin (moved off GPIO13 = native USB D+, 2026-07-22) |
+| U6 ESP32-C6 | **GPIO23** | Internal pull-up at boot; hold LOW ≥ boot = NVS + Zigbee network erase, re-pair with permit-join (moved off GPIO13 = native USB D+, 2026-07-22) |
 | TP13 (**new**) | pad | Field-accessible pad — short to TP4/GND while powering on |
 
 ### UART_TX / UART_RX

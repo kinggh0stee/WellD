@@ -36,7 +36,7 @@ const definition = {
             .withDescription('Water level rate of change. Positive = rising (recovering), negative = falling (draw-down). Only reported once two valid readings are in.'),
         numeric('zb_fails', ea.STATE)
             .withValueMin(0).withValueMax(255)
-            .withDescription('Consecutive Zigbee send failures since last success. 0 = healthy. Warnings at 3+, auto-rejoin at 5.'),
+            .withDescription('Failed report attempts that preceded this report (consecutive, since the last success). 0 = healthy. From 3 the device backs off to its maximum sleep interval until a send succeeds.'),
         numeric('device_lqi', ea.STATE)
             .withValueMin(1).withValueMax(255)
             .withDescription('Device-side Zigbee link quality (LQI), 1-255: the LQI of the device\'s parent link as seen from the device (firmware >= 1.0.3). Distinct from the built-in linkquality, which is the coordinator-side radio LQI. Higher is better. 0 = unknown and is not published.'),
