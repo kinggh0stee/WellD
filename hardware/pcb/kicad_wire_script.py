@@ -188,8 +188,9 @@ NETS = {
         "I2C_SCL": ["U9.10"],
         "ADS_DRDY": ["U9.2", "R_DRDY.2"],
         # Loop current limiters (design change #21): per channel a PNP pass
-        # transistor (BCP53-16, SOT-223 1=B 2=C 3=E 4=C tab — the same order
-        # for every vendor, unlike SOT-89 BCX53) with a 22R sense resistor and
+        # transistor (BCP53-16, SOT-223 1=B 2=C 3=E 4=C tab — Nexperia and
+        # onsemi confirmed; SOT-89 BCX53 pinouts vary by vendor) with a 22R
+        # sense resistor and
         # a PNP clamp (MMBT3906, SOT-23 1=B 2=E 3=C) limit LOOP+ to ~27-35 mA.
         # D17/D19 (SS34) steer LOOP+ surges into VLOOP / VLOOP_CH2 (D19 sits
         # after SJ2 so an open SJ2 still isolates J5); D18/D20 (SMAJ18A) clamp

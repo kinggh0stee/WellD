@@ -10431,7 +10431,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "aaaa0003-b000-4000-8000-000000000001")
 		(property "Reference" "C_BST"
@@ -10445,7 +10445,7 @@
 				)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "100nF DNF"
 			(at 52 159.0 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10488,7 +10488,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C14663"
+		(property "LCSC" ""
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)

@@ -459,8 +459,22 @@ float sensor_apply_level_offset(float column_m)
 /* Loop current at or above this during a long warm-up = cable shorted to
  * the signal wire (see sensor_read_level()): above NAMUR alarm currents
  * (<= ~23 mA) and below the PCB limiter's hot minimum (~27 mA, design
- * change #21). A current, not a voltage, so it holds for any shunt value. */
+ * change #21). Valid for shunts up to ~115 ohm: above that 25 mA would sit
+ * above the ADS1115 input ceiling (~2.9-3.3 V) and a short could be missed
+ * here — the final > 21 mA check still reports it. */
 #define LOOP_DEAD_SHORT_UA    25000
+#if CONFIG_WELLD_VLOOP_SETTLE_MS > VLOOP_RAIL_SETTLE_MS
+/* Second reading this long after the first before calling it a short. */
+#define LOOP_SHORT_CONFIRM_US 5000
+
+/* One AIN0 conversion as a loop current in µA (0 if the read fails). */
+static int loop_probe_ua(void)
+{
+    int mv = ads1115_read_mv(0);
+    if (mv == INT_MIN) return 0;
+    return (int)(((int64_t)mv * 1000000LL) / CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS);
+}
+#endif
 
 /* Read the water column above the transducer in metres (no offset, no
  * temperature compensation — see sensor.h for the order).
@@ -487,14 +501,17 @@ float sensor_read_level(void)
          * on — and a dev-board loop supply (or a failed limiter) may have no
          * limit at all. A cable shorted to GND bypasses the shunt (reads
          * 0 mA) and cannot be caught here; the limiter covers it. */
-        int probe_mv = ads1115_read_mv(0);
-        if (probe_mv != INT_MIN) {
-            int probe_ua = (int)(((int64_t)probe_mv * 1000000LL) /
-                                 CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS);
-            if (probe_ua >= LOOP_DEAD_SHORT_UA) {
+        int probe_ua = loop_probe_ua();
+        if (probe_ua >= LOOP_DEAD_SHORT_UA) {
+            /* Confirm before cutting the warm-up short: a transducer still
+             * charging its input capacitance through the limiter, or a
+             * single noisy sample, must not be mistaken for a short. */
+            esp_rom_delay_us(LOOP_SHORT_CONFIRM_US);
+            int again_ua = loop_probe_ua();
+            if (again_ua >= LOOP_DEAD_SHORT_UA) {
                 gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
-                ESP_LOGE(TAG, "transducer short-circuit at warm-up (voltage=%d mV, %d µA) — loop switched off",
-                         probe_mv, probe_ua);
+                ESP_LOGE(TAG, "transducer short-circuit at warm-up (%d µA, then %d µA) — loop switched off",
+                         probe_ua, again_ua);
                 return -2.0f;
             }
         }

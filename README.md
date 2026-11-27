@@ -201,7 +201,7 @@ All options have sensible defaults. Only change what differs from your hardware.
 | `CONFIG_WELLD_I2C_SDA_GPIO` | `18` | I²C SDA pin (ADS1115). GPIO10/11 unavailable on the MINI-1 module |
 | `CONFIG_WELLD_I2C_SCL_GPIO` | `19` | I²C SCL pin (ADS1115) |
 | `CONFIG_WELLD_VLOOP_GPIO` | `5` | MT3608B EN + Q3/Q4 load-disconnect — 16 V loop supply enable. Held HIGH for `CONFIG_WELLD_VLOOP_SETTLE_MS` before each 4–20 mA read, LOW right after |
-| `CONFIG_WELLD_VLOOP_SETTLE_MS` | `10` | Loop warm-up before the reading (10–1000 ms). 10 ms covers the PCB's 16 V rail (it settles through the Q3 P-FET into C20/C22); raise it to the transducer's datasheet start-up / switch-on time if that is longer. Above 10 ms the firmware samples AIN0 once the rail is up and switches the loop straight off at ≥ 25 mA (a cable shorted to the signal wire) instead of holding it on for the whole warm-up |
+| `CONFIG_WELLD_VLOOP_SETTLE_MS` | `10` | Loop warm-up before the reading (10–1000 ms). 10 ms covers the PCB's 16 V rail (it settles through the Q3 P-FET into C20/C22); raise it to the transducer's datasheet start-up / switch-on time if that is longer. Above 10 ms the firmware samples AIN0 once the rail is up and switches the loop straight off at ≥ 25 mA, confirmed by a second reading 5 ms later (a cable shorted to the signal wire; shunts ≤ ≈115 Ω), instead of holding it on for the whole warm-up |
 | `CONFIG_WELLD_SOLAR_DETECT_GPIO` | `6` | Solar charger /CHRG (CN3791) — solar-charging-active detect (active-low) |
 | `CONFIG_WELLD_BATT_DIV_EN_GPIO` | `15` | Battery-divider enable — Q2 level-shifter gate, switching the Q5 high-side P-FET |
 | `CONFIG_WELLD_ADS1115_DRDY_GPIO` | `22` | ADS1115 ALERT/DRDY interrupt input (moved off GPIO12, now native USB D−) |

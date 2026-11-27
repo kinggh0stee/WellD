@@ -24,7 +24,7 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 4. Replace the custom `welld:ESP32_C6_MINI_1U` symbol with the official Espressif library part and re-run ERC + `netlist_check.py`. **The custom pin numbering was verified WRONG (2026-07-21)** — the official signal-pin map is recorded in the symbol-verification table in `schematic_connections.md`; map the existing nets to it. The one behavioural consequence is already applied: **GPIO10/GPIO11 are not bonded out on the MINI-1**, so I²C was moved to **GPIO18/GPIO19** across firmware + schematic + docs.
 5. Swap SJ2–SJ5 to the *Bridged* solder-jumper variants (currently Open).
 6. After *Update PCB from Schematic*, check that **D1/D12 (PRTR5V0U2X) land on 4-pad `SOT-143` footprints with LCSC C12333** (the placed instances carried the old 6-pin SOT-363 footprint and the USBLC6-clone number C2687116 until 2026-11-27), **D6 on `D_SMB`** (MBRS140), and the LCSC fields of **D9/D10/D13 (C98802)** and **U12 (C16581)** — all corrected in the schematic data on 2026-11-27. Still open in the data: **L1** footprint (`L_Vishay_IFSC-1515AH` in the schematic vs the CDRH4D22 part in the BOM), **SW1/SW2** footprint (CK KSC6 vs 6×6 mm), **BT1** LCSC (holder choice) — pick and align before ordering.
-7. The loop current limiters (#21) add **Q8–Q11, R52–R55, D17–D20** on the sensors sheet (placed in the empty band right of the existing grid): place them per Group E2 in `placement_constraints.md`. Q8–Q11, D18/D20 and D11 (now SMAJ18A) still need LCSC numbers (marked ⚠️ in the BOM). **Q8/Q10 must be a SOT-223 BCP53-16 (1=B, 2=C, 3=E, 4=C) — never an SOT-89 BCX53**, whose pinout depends on the vendor.
+7. The loop current limiters (#21) add **Q8–Q11, R52–R55, D17–D20** on the sensors sheet (placed in the empty band right of the existing grid): place them per Group E2 in `placement_constraints.md`. Q8–Q11, D18/D20 and D11 (now SMAJ18A) still need LCSC numbers (marked ⚠️ in the BOM). **Q8/Q10 must be a SOT-223 BCP53-16 (1=B, 2=C, 3=E, 4=C) — never an SOT-89 BCX53**, whose pinout depends on the vendor; **check the chosen BCP53 vendor's datasheet pin order at order time** (Nexperia and onsemi are confirmed). With SJ2 open, leave J5 LOOP+ unconnected (D20 alone cannot take a field surge) and never feed it above ≈18 V.
 
 ## 2. Cell choice (no vendor question any more)
 
@@ -61,12 +61,12 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 
 
 **Loop current limiters + 16 V loop (design change #21):**
-- VLOOP at TP2 with GPIO5 forced HIGH: **15.1–16.7 V** (15.88 V nominal). With a 20 mA calibrator in the loop, VLOOP must be ≥ 15.1 V and the reading settled at the 10 ms sample (a 12 V-minimum transducer at 20 mA needs VLOOP ≥ ≈14.5 V)
+- VLOOP at TP2 with GPIO5 forced HIGH: **15.1–16.7 V** (15.88 V nominal). With a 20 mA calibrator in the loop, VLOOP must be ≥ 15.1 V and the reading settled (within ±20 µA of the calibrator) at the 10 ms sample (a 12 V-minimum transducer at 20 mA needs VLOOP ≥ ≈14.5 V)
 - J4 LOOP+ shorted to SIG through an ammeter: **≈27–35 mA** (room temperature ≈32 mA); firmware logs `transducer short-circuit`; the device keeps running (no DW01A trip)
 - J4 LOOP+ shorted to GND: same current, **no DW01A trip**; firmware logs `transducer open loop` (the shunt sees nothing)
 - 20 mA calibrator in the loop: LOOP+ ≥ VLOOP − 0.55 V (limiter drop ≈0.5 V); repeat on J5 with SJ2 bridged
 - With SJ2 open: J5 LOOP+ ≈0 V while VLOOP is on (CH2 isolated)
-- D18/D20 and D9–D13 use the bidirectional `D_TVS` symbol for unidirectional parts: polarity comes only from the D_SMA pad 1 = cathode (band) convention — check every SMAJ orientation at assembly (a reversed D18/D20 is a limited LOOP+→GND short that reads as an open loop)
+- D18/D20 and D9, D10, D11, D13 use the bidirectional `D_TVS` symbol for unidirectional parts: polarity comes only from the D_SMA pad 1 = cathode (band) convention — check every SMAJ orientation at assembly (a reversed D18/D20 is a limited LOOP+→GND short that reads as an open loop)
 
 ## 6. Enclosure (after layout freezes connector positions)
 

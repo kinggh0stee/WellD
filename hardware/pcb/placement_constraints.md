@@ -65,7 +65,7 @@ These components must land on a specific board edge:
 ### Group E2 — Loop current limiters (design change #21, one per channel)
 `VLOOP → R52 → Q8 → J4 LOOP+` (CH2: `VLOOP_CH2 → R54 → Q10 → J5 LOOP+`), clamp Q9/Q11 and base resistor R53/R55 beside them.
 - **D18/D20 (SMAJ18A) within 3 mm of the J4/J5 LOOP+ pin**, short fat return to GND — they are now the only clamp directly on the terminal
-- **D17/D19 (SS34 steering) between LOOP+ and VLOOP with short, ≥ 0.5 mm traces** — surge current flows LOOP+ → D17/D19 → VLOOP → D11; keep D11 close to where they join VLOOP
+- **D17/D19 (SS34 steering) with short, ≥ 0.5 mm traces** — surge current flows LOOP+ → D17 → VLOOP → D11 (CH1) and LOOP+ → D19 → VLOOP_CH2 → **SJ2** → VLOOP → D11 (CH2, ≈45 A at 2 kV): place SJ2 next to D19 and D11, keep the whole path short and ≥ 0.5 mm, and D11 close to where they meet VLOOP
 - Q9/Q11 next to R52/R54 (it senses their drop; no other current in that trace)
 - **Q8/Q10 (BCP53, SOT-223) collector tab on ≥ 1 cm² of LOOP_PWR copper** — up to ≈0.55 W into a dead short while VLOOP is on (see the thermal table)
 
