@@ -23,7 +23,7 @@ menu "WellD Sensor"
         default 0
         range -600 600
         help
-            Added to the computed level after scaling. Use a negative value
+            Added to the level after scaling and the water-density correction. Use a negative value
             when the transducer sits below the true zero reference point
             (e.g. -50 if it hangs 50 cm below the water outlet pipe).
             Can be overridden at runtime via NVS key "welld/offset_cm".
@@ -129,12 +129,14 @@ menu "WellD Sensor"
             reached a valid output by then; some need tens or hundreds of
             milliseconds after power-up, so set this to the start-up
             ("switch-on") time in its datasheet if that is longer. Each extra
-            millisecond keeps the boost and a 4-20 mA load on: roughly
-            15-75 mA from the cell per wakeup while it lasts. Above 10 ms the
-            firmware samples AIN0 once the rail is up and switches the loop
-            straight off if it is pinned at a dead short (>= 3.0 V), so a
-            shorted cable is not held at the boost's current limit for the
-            whole warm-up.
+            millisecond keeps the 16 V boost and the loop on: roughly
+            20-120 mA from the cell per channel while it lasts. Above 10 ms
+            the firmware samples the loop once the rail is up and switches it
+            straight off at >= 25 mA (a cable shorted to the signal wire -
+            above NAMUR alarm currents, below the PCB limiter's ~27-35 mA), so
+            the limiter's pass transistor is not held at ~0.5 W for the whole
+            warm-up. A cable shorted to ground reads 0 mA and looks like an
+            open loop; the hardware limiter covers it.
 
     config WELLD_BATT_DIV_EN_GPIO
         int "Battery divider enable GPIO (Q2 gate)"

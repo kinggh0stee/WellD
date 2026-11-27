@@ -456,9 +456,11 @@ float sensor_apply_level_offset(float column_m)
  * the Q3/C20/C22 rail settle. CONFIG_WELLD_VLOOP_SETTLE_MS (>= this) adds the
  * transducer's own start-up time. */
 #define VLOOP_RAIL_SETTLE_MS  10
-/* AIN0 at or above this during a long warm-up = dead short (see
- * sensor_read_level()). */
-#define LOOP_DEAD_SHORT_MV    3000
+/* Loop current at or above this during a long warm-up = cable shorted to
+ * the signal wire (see sensor_read_level()): above NAMUR alarm currents
+ * (<= ~23 mA) and below the PCB limiter's hot minimum (~27 mA, design
+ * change #21). A current, not a voltage, so it holds for any shunt value. */
+#define LOOP_DEAD_SHORT_UA    25000
 
 /* Read the water column above the transducer in metres (no offset, no
  * temperature compensation — see sensor.h for the order).
@@ -478,20 +480,23 @@ float sensor_read_level(void)
     delay_at_least_ms(VLOOP_RAIL_SETTLE_MS);
 #if CONFIG_WELLD_VLOOP_SETTLE_MS > VLOOP_RAIL_SETTLE_MS
     {
-        /* Long transducer warm-up: once the rail is up, check for a dead
-         * short before waiting out the rest. The WellD PCB limits each LOOP+
-         * to ~27-35 mA (design change #21), but its pass transistor then
-         * dissipates ~0.4 W for as long as VLOOP stays on — and a dev-board
-         * loop supply (or a failed limiter) may have no limit at all, holding
-         * the boost at its switch limit into the D9 clamp. LOOP_DEAD_SHORT_MV pins AIN0 near the top of its
-         * range: >= 23 mA even at the 130 ohm maximum shunt, above NAMUR
-         * alarm currents a healthy transducer may show while starting. */
+        /* Long transducer warm-up: once the rail is up, check for a cable
+         * shorted to the signal wire before waiting out the rest. The WellD
+         * PCB limits each LOOP+ to ~27-35 mA (design change #21), but its pass
+         * transistor then dissipates ~0.4-0.55 W for as long as VLOOP stays
+         * on — and a dev-board loop supply (or a failed limiter) may have no
+         * limit at all. A cable shorted to GND bypasses the shunt (reads
+         * 0 mA) and cannot be caught here; the limiter covers it. */
         int probe_mv = ads1115_read_mv(0);
-        if (probe_mv != INT_MIN && probe_mv >= LOOP_DEAD_SHORT_MV) {
-            gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
-            ESP_LOGE(TAG, "transducer short-circuit at warm-up (voltage=%d mV) — loop switched off",
-                     probe_mv);
-            return -2.0f;
+        if (probe_mv != INT_MIN) {
+            int probe_ua = (int)(((int64_t)probe_mv * 1000000LL) /
+                                 CONFIG_WELLD_SENSOR_SHUNT_MILLIOHMS);
+            if (probe_ua >= LOOP_DEAD_SHORT_UA) {
+                gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
+                ESP_LOGE(TAG, "transducer short-circuit at warm-up (voltage=%d mV, %d µA) — loop switched off",
+                         probe_mv, probe_ua);
+                return -2.0f;
+            }
         }
     }
     delay_at_least_ms(CONFIG_WELLD_VLOOP_SETTLE_MS - VLOOP_RAIL_SETTLE_MS);

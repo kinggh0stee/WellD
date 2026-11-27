@@ -10,7 +10,7 @@
 		(company "WellD Project")
 	)
 	(lib_symbols
-		(symbol "welld:BCX53"
+		(symbol "welld:BCP53"
 			(pin_names
 				(offset 1.016)
 			)
@@ -29,7 +29,7 @@
 					)
 				)
 			)
-			(property "Value" "BCX53-16"
+			(property "Value" "BCP53-16"
 				(at 3.81 -3.81 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -39,7 +39,7 @@
 					)
 				)
 			)
-			(property "Footprint" "Package_TO_SOT_SMD:SOT-89-3"
+			(property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -72,7 +72,7 @@
 					)
 				)
 			)
-			(symbol "BCX53_0_1"
+			(symbol "BCP53_0_1"
 				(rectangle
 					(start -2.54 -2.54)
 					(end 2.54 2.54)
@@ -85,7 +85,7 @@
 					)
 				)
 			)
-			(symbol "BCX53_1_1"
+			(symbol "BCP53_1_1"
 				(pin input line
 					(at -5.08 0 0)
 					(length 2.54)
@@ -11609,7 +11609,7 @@
 		)
 	)
 	(symbol
-		(lib_id "welld:BCX53")
+		(lib_id "welld:BCP53")
 		(at 264.16 35.56 0)
 		(unit 1)
 		(body_style 1)
@@ -11631,7 +11631,7 @@
 				)
 			)
 		)
-		(property "Value" "BCX53-16"
+		(property "Value" "BCP53-16"
 			(at 267.97 36.83 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11641,7 +11641,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-89-3"
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -12191,7 +12191,7 @@
 		)
 	)
 	(symbol
-		(lib_id "welld:BCX53")
+		(lib_id "welld:BCP53")
 		(at 264.16 78.74 0)
 		(unit 1)
 		(body_style 1)
@@ -12213,7 +12213,7 @@
 				)
 			)
 		)
-		(property "Value" "BCX53-16"
+		(property "Value" "BCP53-16"
 			(at 267.97 80.01 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12223,7 +12223,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-89-3"
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -12686,28 +12686,16 @@
 		)
 		(uuid "4df33c8a-0013-42b0-9322-31a2192804bb")
 	)
-	(global_label "VLOOP"
-		(shape passive)
+	(hierarchical_label "VLOOP_CH2"
+		(shape bidirectional)
 		(at 234.95 96.52 180)
-		(fields_autoplaced yes)
 		(effects
 			(font
 				(size 1.27 1.27)
 			)
 			(justify right)
 		)
-		(uuid "e7fcfb63-07da-403e-ab7f-275af66308ba")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 234.95 96.52 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
+		(uuid "416222a7-6297-4111-81ef-d9a0288a8b5e")
 	)
 	(wire
 		(pts

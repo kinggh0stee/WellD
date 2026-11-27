@@ -67,7 +67,7 @@ These components must land on a specific board edge:
 - **D18/D20 (SMAJ18A) within 3 mm of the J4/J5 LOOP+ pin**, short fat return to GND — they are now the only clamp directly on the terminal
 - **D17/D19 (SS34 steering) between LOOP+ and VLOOP with short, ≥ 0.5 mm traces** — surge current flows LOOP+ → D17/D19 → VLOOP → D11; keep D11 close to where they join VLOOP
 - Q9/Q11 next to R52/R54 (it senses their drop; no other current in that trace)
-- **Q8/Q10 (SOT-89) collector tab on ≥ 1 cm² of LOOP_PWR copper** — up to ≈0.55 W into a dead short while VLOOP is on (see the thermal table)
+- **Q8/Q10 (BCP53, SOT-223) collector tab on ≥ 1 cm² of LOOP_PWR copper** — up to ≈0.55 W into a dead short while VLOOP is on (see the thermal table)
 
 ### Group F — ESP32-C6 module decoupling
 `U6, C13, C30–C33, C15, R15, C36`
@@ -169,7 +169,7 @@ W1 is a hand-attached cable — it is NOT pick-and-place. PCBWay installs it man
 | Component | Pour size | Layer | Via stitching |
 |-----------|-----------|-------|---------------|
 | M_SOLAR / D16 / D_SOLAR (solar buck) | copper spread at each part | F.Cu, GND/net pours as routing allows | the CN3791 controller itself needs no special pour |
-| Q8, Q10 BCX53 (loop limiters, #21) | ≥ 1 cm² on the collector tab (LOOP_PWR_CH1/2 net) | F.Cu (B.Cu mirror optional) | 2–4 vias if mirrored | ≈0.55 W only during a dead short while VLOOP is on (10–15 ms per wakeup by default) |
+| Q8, Q10 BCP53 (loop limiters, #21 — ≈0.55 W only during a dead short while VLOOP is on, 10–15 ms per wakeup by default) | ≥ 1 cm² on the collector tab (LOOP_PWR_CH1/2 net) | F.Cu (B.Cu mirror optional) | 2–4 vias if mirrored |
 | U12 TP4056 | 10×10mm | F.Cu + B.Cu, GND net (EPAD soldered) | ≥6 vias, 0.5–0.6mm drill (≈1.3W at 1A linear charge — thermal regulation folds back if undersized) |
 
 ---
