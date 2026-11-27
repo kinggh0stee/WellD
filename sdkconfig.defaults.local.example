@@ -16,9 +16,11 @@
 # CONFIG_WELLD_BATT_REPORT_ENABLED=y
 # CONFIG_WELLD_BATT_DIVIDER_RATIO=200  # R7/R8 = 100 kΩ / 100 kΩ
 
-# Battery percentage thresholds — these set the defaults shown in the Z2M
-# converter. Override per-device in the Zigbee2MQTT device options UI instead
-# of changing these, since they are not read by the firmware at runtime.
+# Battery thresholds. FULL_MV is documentation only (the firmware never reads
+# it). EMPTY_MV is the firmware's low-battery guard: at or below it the device
+# skips the send and all NVS writes. The Z2M battery percentage uses its own
+# battery_full_mv / battery_empty_mv device options (same 4200 / 3200
+# defaults) — change those in the Zigbee2MQTT UI to match.
 # CONFIG_WELLD_BATT_FULL_MV=4200   # 1S 18650 full charge
 # CONFIG_WELLD_BATT_EMPTY_MV=3200  # 1S 18650: keeps the LDO-fed 3.3 V rail >= 3.0 V under TX
 
@@ -40,6 +42,9 @@
 
 # 12 V VLOOP boost enable — MT3608B EN, gated by firmware before transducer read
 # CONFIG_WELLD_VLOOP_GPIO=5
+# Loop warm-up before the reading (10–1000 ms). Raise it to your transducer's
+# datasheet start-up / switch-on time if that is longer than 10 ms.
+# CONFIG_WELLD_VLOOP_SETTLE_MS=10
 
 # Solar charging detect — /CHRG, active-low (CN3791 on 1S boards)
 # CONFIG_WELLD_SOLAR_DETECT_GPIO=6

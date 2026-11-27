@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed (2026-11-27 follow-up — firmware 1.2.1)
-- **Water-density temperature compensation had its sign inverted**: the level was divided by `1 + α·(T − 20)`, which *lowered* it in warm water and raised it in cold water — but warm water is less dense, so the transducer under-reads there and the correction must go the other way. The old formula doubled the density error instead of removing it (≈0.4 % ≈ 2.5 cm on a 6 m column for 10 °C well water). Now `level / (1 − α·(T − 20))`, via a new pure helper `sensor_temp_level_factor()` with host tests checked against tabulated water densities.
-- **A missing or failed battery divider silenced the device**: the low-battery guard treated any reading above 0 V as real, so a divider that is not fitted (dev boards), an open Q5/R7, or a floating AIN2 reading a few mV of noise counted as "critically low" and skipped every send forever. New `welld_battery_state()` classifies readings below 2.0 V as a measurement fault (a running device cannot have such a cell — the DW01A cuts at 2.4 V): the reading is dropped (not reported on EP2) and the guard is not applied.
+### Added (2026-11-27 follow-up — firmware 1.2.1)
+- **`CONFIG_WELLD_VLOOP_SETTLE_MS`** (WellD Sensor, 10–1000 ms, default 10 — unchanged behaviour): the loop warm-up before the 4–20 mA reading was hard-coded to the 10 ms the PCB's 12 V rail needs, with no room for a transducer whose own start-up time is longer. Set it to the datasheet start-up / switch-on time.
 
 ### Changed (2026-11-27 follow-up — firmware 1.2.1)
 - **Battery-empty threshold 3.0 V → 3.2 V** (`CONFIG_WELLD_BATT_EMPTY_MV` 3000 → **3200**; Z2M `battery_empty_mv` default follows, tripwire test updated). Below ≈3.4 V the HT7333-A LDO is in dropout, so at a 3.0 V resting cell the 3.3 V rail sagged to ≈2.9 V under the 802.15.4 TX burst — below the ESP32-C6's 3.0 V minimum. Costs the last ≈5 % of an 18650's capacity; `battery` % now spans 3.2–4.2 V.
+
+### Fixed (2026-11-27 follow-up — firmware 1.2.1)
+- **Water-density temperature compensation had its sign inverted**: the level was divided by `1 + α·(T − 20)`, which *lowered* it in warm water and raised it in cold water — but warm water is less dense, so the transducer under-reads there and the correction must go the other way. The old formula doubled the density error instead of removing it (≈0.4 % ≈ 2.5 cm on a 6 m column for 10 °C well water). Now `level / (1 − α·(T − 20))`, via a new pure helper `sensor_temp_level_factor()` with host tests checked against tabulated water densities.
+- **A missing or failed battery divider silenced the device**: the low-battery guard treated any reading above 0 V as real, so a divider that is not fitted (dev boards), an open Q5/R7, or a floating AIN2 reading a few mV of noise counted as "critically low" and skipped every send forever. New `welld_battery_state()` classifies readings below 2.0 V as a measurement fault (a running device cannot have such a cell — the DW01A cuts at 2.4 V): the reading is dropped (not reported on EP2) and the guard is not applied.
 
 ### Hardware (2026-11-27 follow-up)
 - **4–20 mA ADC inputs hardened** (design change #20): R3/R5 **100 Ω → 1 kΩ**, C3/C5 **1 µF → 100 nF (16 V X7R)**, C4/C6 (10 µF bulk) **DNP**. A shorted transducer or cable lets D9 hold the signal at ≈7–8 V while VLOOP is on; through 100 Ω that pushed ≈40 mA via the D1 clamp into +3V3, which the HT7333 LDO cannot sink. 1 kΩ limits it to ≈3.5 mA. The new RC keeps the 1.6 kHz corner but settles in < 1 ms (the old 100 Ω × 11 µF, τ = 1.1 ms, used most of the 10 ms read window). Values only — no net change, netlist re-verified.

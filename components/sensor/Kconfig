@@ -113,12 +113,24 @@ menu "WellD Sensor"
         range 0 21
         default 5
         help
-            Drive HIGH before any 4-20 mA transducer read; hold HIGH for
-            at least 10 ms to guarantee the 12 V rail is stable — the boost
-            output caps (C20/C22) charge through the Q3 load-disconnect
-            P-FET, so the rail settles slower than the bare MT3608B
-            soft-start (< 5 ms typical). Drive LOW immediately after.
-            Max ON time 100 ms per wake cycle.
+            Driven HIGH before each 4-20 mA transducer read and held for
+            WELLD_VLOOP_SETTLE_MS, then LOW immediately after the conversion.
+
+    config WELLD_VLOOP_SETTLE_MS
+        int "Loop warm-up before the 4-20 mA reading (ms)"
+        range 10 1000
+        default 10
+        help
+            Time VLOOP is held on before the shunt is sampled. It must cover
+            both the 12 V rail and the transducer: the boost output caps
+            (C20/C22) charge through the Q3 load-disconnect P-FET, so the rail
+            needs longer than the bare MT3608B soft-start (< 5 ms typical) -
+            10 ms is the PCB minimum. The transducer itself must also have
+            reached a valid output by then; some need tens or hundreds of
+            milliseconds after power-up, so set this to the start-up
+            ("switch-on") time in its datasheet if that is longer. Each extra
+            millisecond keeps the boost and a 4-20 mA load on: roughly
+            15-75 mA from the cell per wakeup while it lasts.
 
     config WELLD_BATT_DIV_EN_GPIO
         int "Battery divider enable GPIO (Q2 gate)"

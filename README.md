@@ -94,7 +94,7 @@ Connector placement:
 
 The MT3608B boost converter lifts VLOOP to 12 V to power the transducer loop. The boost is asynchronous: D15 (SS34 Schottky) carries the switch node to VLOOP, and a Q3 (P-FET) / Q4 (level-shifter) load-disconnect switch in series with the inductor prevents VBAT from leaking through L1 + D15 to the loop terminals during deep sleep. GPIO5 drives both the MT3608B EN and the Q4 gate; R27 pulls the net low while GPIO5 is isolated in deep sleep.
 
-Firmware gates GPIO5 high for **10 ms** (MT3608B soft-start plus rail settling through the Q3 load-disconnect P-FET into C20/C22 — raised from 5 ms in the 2026-07 PCB review) before reading, then drives it low immediately after. Maximum ON time is 100 ms.
+Firmware gates GPIO5 high for `CONFIG_WELLD_VLOOP_SETTLE_MS` — **10 ms** by default: MT3608B soft-start plus rail settling through the Q3 load-disconnect P-FET into C20/C22 (raised from 5 ms in the 2026-07 PCB review) — before reading, then drives it low immediately after. The transducer must also produce a valid output within that window: if its datasheet start-up (switch-on) time is longer, raise the option to match.
 
 The ADS1115 measures the voltage across a shunt resistor on the loop return: PGA ±4.096 V, single-shot at 860 SPS, AIN0 vs GND. (20 mA × 100 Ω = 2.0 V would sit at the very top of the ±2.048 V range, which clips at 20.47 mA — too low to see the > 21 mA short-circuit fault.)
 
@@ -200,7 +200,8 @@ All options have sensible defaults. Only change what differs from your hardware.
 |--------|---------|-------------|
 | `CONFIG_WELLD_I2C_SDA_GPIO` | `18` | I²C SDA pin (ADS1115). GPIO10/11 unavailable on the MINI-1 module |
 | `CONFIG_WELLD_I2C_SCL_GPIO` | `19` | I²C SCL pin (ADS1115) |
-| `CONFIG_WELLD_VLOOP_GPIO` | `5` | MT3608B EN + Q3/Q4 load-disconnect — 12 V loop supply enable. Held HIGH ≥ 10 ms before any 4–20 mA read (rail settles through the Q3 P-FET into C20/C22) |
+| `CONFIG_WELLD_VLOOP_GPIO` | `5` | MT3608B EN + Q3/Q4 load-disconnect — 12 V loop supply enable. Held HIGH for `CONFIG_WELLD_VLOOP_SETTLE_MS` before each 4–20 mA read, LOW right after |
+| `CONFIG_WELLD_VLOOP_SETTLE_MS` | `10` | Loop warm-up before the reading (10–1000 ms). 10 ms covers the PCB's 12 V rail (it settles through the Q3 P-FET into C20/C22); raise it to the transducer's datasheet start-up / switch-on time if that is longer |
 | `CONFIG_WELLD_SOLAR_DETECT_GPIO` | `6` | Solar charger /CHRG (CN3791) — solar-charging-active detect (active-low) |
 | `CONFIG_WELLD_BATT_DIV_EN_GPIO` | `15` | Battery-divider enable — Q2 level-shifter gate, switching the Q5 high-side P-FET |
 | `CONFIG_WELLD_ADS1115_DRDY_GPIO` | `22` | ADS1115 ALERT/DRDY interrupt input (moved off GPIO12, now native USB D−) |

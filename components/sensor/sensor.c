@@ -457,7 +457,9 @@ float sensor_read_level(void)
      * the shunt (PCB review 2026-07: raised from 5 ms for Q3 + C20/C22).
      * Constraint from CLAUDE.md: GPIO5 must be HIGH ≥ 10 ms before any read. */
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 1);
-    delay_at_least_ms(10);  /* MT3608B soft-start + Q3/C20/C22 rail settle */
+    /* Rail settle (MT3608B soft-start + Q3/C20/C22, >= 10 ms) and the
+     * transducer's own start-up time — Kconfig, default 10 ms. */
+    delay_at_least_ms(CONFIG_WELLD_VLOOP_SETTLE_MS);
 
     int volt_mv;
 #if CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED
@@ -466,7 +468,8 @@ float sensor_read_level(void)
     volt_mv = ads1115_read_mv(0);
 #endif
 
-    /* Drive VLOOP LOW immediately after read — max ON time is 100 ms */
+    /* Drive VLOOP LOW immediately after the read: on time is the settle
+     * time plus one conversion (or three with oversampling). */
     gpio_set_level(CONFIG_WELLD_VLOOP_GPIO, 0);
 
     if (volt_mv == INT_MIN) {
