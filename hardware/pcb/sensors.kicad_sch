@@ -6038,7 +6038,7 @@
 				)
 			)
 		)
-		(property "Value" "10uF"
+		(property "Value" "10uF DNF"
 			(at 207.01 99.79 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7548,7 +7548,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-363_SC-70-6"
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-143"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -7581,7 +7581,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C2687116"
+		(property "LCSC" "C12333"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -8065,7 +8065,7 @@
 				)
 			)
 		)
-		(property "Value" "10uF"
+		(property "Value" "10uF DNF"
 			(at 189.23 84.55 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8602,7 +8602,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-363_SC-70-6"
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-143"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -8635,7 +8635,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C2687116"
+		(property "LCSC" "C12333"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)

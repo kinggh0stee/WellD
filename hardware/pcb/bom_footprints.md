@@ -193,17 +193,17 @@
 | D10 | **SMAJ5.0A TVS 5V uni** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ5.0A-TR (ST) | **C98802** ✅ | J5 SIG surge clamp — see D9 |
 | **GDT1** | **GDT 90V DNF** | 8×6 mm SMD 2-pole | `WellD:GDT_BOURNS_2038_SM` ⚠️ draw in WellD.pretty (no standard lib footprint) | BOURNS 2038-09-SM class (e.g. 2038-09-SM-RPLF; Littelfuse GTCS23-900M-R05 alternate) | — ⚠️ | **NEW 2026-07-19 (DNF)** — alternatives review P-3: coarse kA-class stage of the industrial GDT → series-R → TVS 3-stage loop protection, LOOP_TERM_CH1 → GND. **Footprint only, do not fit by default** — populate per site only for long/buried/aerial transducer cable runs |
 | **GDT2** | **GDT 90V DNF** | 8×6 mm SMD 2-pole | `WellD:GDT_BOURNS_2038_SM` ⚠️ draw in WellD.pretty | same as GDT1 | — ⚠️ | **NEW 2026-07-19 (DNF)** — LOOP_TERM_CH2 → GND, see GDT1 |
-| D1 | PRTR5V0U2X dual ESD | SOT-143B | `Package_TO_SOT_SMD:SOT-143` | PRTR5V0U2X,215 | **C12333** ✅ (**corrected 2026-07-14** — old C2687116 is a UMW USBLC6-2SC6 clone) | ADS1115 AIN0/AIN1 input clamp. Pinout verified: **1=GND, 2=I/O1, 3=I/O2, 4=VCC** — welld 6-pin SOT-363 symbol must be redrawn (blocker #9b) |
+| D1 | PRTR5V0U2X dual ESD | SOT-143B | `Package_TO_SOT_SMD:SOT-143` | PRTR5V0U2X,215 | **C12333** ✅ (**corrected 2026-07-14** — old C2687116 is a UMW USBLC6-2SC6 clone; the schematic instance still carried it and the SOT-363 footprint until **2026-11-27**, now fixed) | ADS1115 AIN0/AIN1 input clamp. Pinout verified: **1=GND, 2=I/O1, 3=I/O2, 4=VCC** — welld 6-pin SOT-363 symbol must be redrawn (blocker #9b) |
 | R2 | 100Ω ±0.1% 0.25W | 0805 | `Resistor_SMD:R_0805_2012Metric` | RG2012N-101-W-T1 | — ⚠️ | CH1 shunt (AIN0 reads across this) |
 | R4 | 100Ω ±0.1% 0.25W | 0805 | `Resistor_SMD:R_0805_2012Metric` | RG2012N-101-W-T1 | — ⚠️ | CH2 shunt |
 | C34 | 10nF X7R 25V | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | HF bypass directly across R2 (was "C_SH1") |
 | C35 | 10nF X7R 25V | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | HF bypass directly across R4 (was "C_SH2") |
 | R3 | **1kΩ** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | CH1 series limiter to AIN0. **Changed 2026-11-27 from 100 Ω** (design change #20): a shorted loop drove ≈40 mA through the D1 clamp into +3V3; 1 kΩ limits it to ≈3.5 mA |
 | R5 | **1kΩ** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | CH2 series limiter to AIN1 (same change as R3) |
-| C3 | **100nF X7R 16V** | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | CH1 RC filter with R3 (fc≈1.6kHz, τ = 0.1 ms). **Changed 2026-11-27 from 1 µF** to keep the corner with R3 = 1 kΩ |
+| C3 | **100nF X7R 16V** | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | CH1 RC filter with R2 + R3 (τ ≈ 110 µs, fc ≈ 1.45 kHz, settles to 0.01 % in ≈1 ms). **Changed 2026-11-27 from 1 µF** (#20) |
 | C5 | **100nF X7R 16V** | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | CH2 RC filter with R5 (same change as C3) |
-| C4 | 10µF 10V — **DNP** | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | CH1 bulk — **do not fit** since 2026-11-27 (#20): with R3 = 1 kΩ it makes τ = 11 ms, longer than the 10 ms VLOOP read window. Footprint kept |
-| C6 | 10µF 10V — **DNP** | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | CH2 bulk — **do not fit** (same as C4) |
+| C4 | 10µF 10V — **DNP** (schematic value `10uF DNF`) | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | CH1 bulk — **do not fit** since 2026-11-27 (#20): with R2 + R3 = 1.1 kΩ it makes τ ≈ 11 ms and the level reads 10–40 % low at the default 10 ms warm-up (fitting it would need `CONFIG_WELLD_VLOOP_SETTLE_MS` ≥ ≈110 ms). Footprint kept |
+| C6 | 10µF 10V — **DNP** (schematic value `10uF DNF`) | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | CH2 bulk — **do not fit** (same as C4) |
 
 ---
 
@@ -211,7 +211,7 @@
 
 | Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC | Notes |
 |-----|-------|---------|-------------------|-----|------|-------|
-| D12 | PRTR5V0U2X dual ESD | SOT-143B | `Package_TO_SOT_SMD:SOT-143` | PRTR5V0U2X,215 | **C12333** ✅ (corrected 2026-07-14) | Same part as D1; 1-Wire DATA ESD clamp (I/O2 channel NC) |
+| D12 | PRTR5V0U2X dual ESD | SOT-143B | `Package_TO_SOT_SMD:SOT-143` | PRTR5V0U2X,215 | **C12333** ✅ (corrected 2026-07-14; schematic instance footprint/LCSC fixed 2026-11-27) | Same part as D1; 1-Wire DATA ESD clamp (I/O2 channel NC) |
 | R6 | 4.7kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | 1-Wire pull-up to +3V3 |
 | R28 | 100Ω | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | VCC series protection |
 | R32 | 33Ω | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **POPULATE** (was DNF) — GPIO abs-max protection for cable runs; resolves review warning #15 |
