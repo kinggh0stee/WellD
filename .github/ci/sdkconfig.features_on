@@ -1,0 +1,6 @@
+# CI-only overlay (build-variants job): enable every optional WellD feature so
+# the code behind it is compiled. Never used for a device build.
+CONFIG_WELLD_DIAGNOSTIC_MODE_ENABLED=y
+CONFIG_WELLD_RTC_LOG_PRINT_ENABLED=y
+CONFIG_WELLD_SELFTEST_ENABLED=y
+CONFIG_WELLD_ADC_OVERSAMPLE_ENABLED=y

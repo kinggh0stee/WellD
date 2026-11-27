@@ -1,0 +1,5 @@
+# CI-only overlay (build-variants job): turn off the default-on WellD features
+# so the code paths without them are compiled. Never used for a device build.
+CONFIG_WELLD_BATT_REPORT_ENABLED=n
+CONFIG_WELLD_TEMP_COMPENSATION_ENABLED=n
+CONFIG_WELLD_ADAPTIVE_SLEEP_ENABLED=n
