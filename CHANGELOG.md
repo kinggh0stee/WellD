@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Hardware (2026-11-27 follow-up)
 - **4–20 mA ADC inputs hardened** (design change #20): R3/R5 **100 Ω → 1 kΩ**, C3/C5 **1 µF → 100 nF (16 V X7R)**, C4/C6 (10 µF bulk) **DNP**. A shorted transducer or cable lets D9 hold the signal at ≈7–8 V while VLOOP is on; through 100 Ω that pushed ≈40 mA via the D1 clamp into +3V3, which the HT7333 LDO cannot sink. 1 kΩ limits it to ≈3.5 mA. The new RC keeps the 1.6 kHz corner but settles in < 1 ms (the old 100 Ω × 11 µF, τ = 1.1 ms, used most of the 10 ms read window). Values only — no net change, netlist re-verified.
 
+### Documentation (2026-11-27 follow-up)
+- **`docs/wiring.md` rewritten for the ADS1115 path** (it still described the long-gone internal-ADC wiring on GPIO0/1/4): ADS1115 on GPIO18/19 with ALERT on GPIO22, shunt → 4.7 kΩ → A0 with a common loop ground, DS18B20 on GPIO7, A2 divider or A2 tied to GND, which PCB-only pins to leave open, a net-by-net checklist and first-boot log lines. Diagram redrawn.
+- TROUBLESHOOTING, README, CLAUDE.md and AGENTS.md: stale GPIO numbers, parts and designators corrected; the PCB's native USB enumerates as `/dev/ttyACM0`, not `/dev/ttyUSB0`.
+
 ### Fixed (2026-11 full recheck — firmware 1.2.0)
 The firmware has never run on WellD hardware; these were found by checking the code against the TI ADS1115 datasheet, the esp-zigbee-sdk v2.0.1 examples/headers and library disassembly, and the ds18b20 0.3.1 driver source.
 - **The Zigbee stack aborted on start-up**: esp-zigbee-lib 2.x keeps its network datasets in an NVS partition (`zb_storage` by default) and calls `abort()` if it cannot open it — the partition table had none and nothing initialised it. Added `zb_storage` (16 KB, in the unused gap before `ota_0` — **reflash the partition table over serial once**), initialised in `app_main` and passed as `storage_partition_name`; if it is unavailable the wakeup skips the send instead of crash-looping.
