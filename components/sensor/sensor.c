@@ -504,17 +504,18 @@ float sensor_read_level(void)
 }
 
 /* Apply temperature compensation to a raw water-level reading.
- * Water density decreases with temperature, so a pressure transducer
- * reads slightly high in warm water and low in cold water.
- * level_m = raw / (1 + alpha * (temp_c - 20.0))
- * Returns the compensated level. */
+ * Water density decreases with temperature, so a given column of warm water
+ * presses less on the transducer and reads slightly LOW; cold water reads
+ * slightly high. level_m = raw / (1 - alpha * (temp_c - 20.0)) — see
+ * sensor_temp_level_factor() in sensor_pure.c (host-tested). Before 1.2.1
+ * this divided by (1 + alpha * ...), which doubled the error instead of
+ * removing it. Returns the compensated level. */
 float sensor_level_temp_compensate(float level_m, float temp_c)
 {
 #if CONFIG_WELLD_TEMP_COMPENSATION_ENABLED
-    float alpha = CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C / 1e6f;
-    float factor = 1.0f + alpha * (temp_c - 20.0f);
-    if (factor <= 0.0f) factor = 1.0f;
-    float compensated = level_m / factor;
+    float factor = sensor_temp_level_factor(temp_c,
+                                            CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C);
+    float compensated = level_m * factor;
     ESP_LOGI(TAG, "temp-comp: raw=%.3f m temp=%.1f°C factor=%.5f compensated=%.3f m",
              level_m, temp_c, factor, compensated);
     return compensated;

@@ -43,3 +43,19 @@ bool sensor_temp_in_range(float temp_c)
 {
     return temp_c >= -55.0f && temp_c <= 125.0f;
 }
+
+/* The transducer measures pressure p = rho * g * h, and the 4-20 mA -> metres
+ * scaling assumes 20 °C water. With rho(T) ~= rho20 * (1 - beta * (T - 20))
+ * (beta = volumetric expansion coefficient, ~207 ppm/°C near 20 °C):
+ *
+ *     h_true = p / (rho(T) * g) = h_raw * rho20 / rho(T)
+ *            = h_raw / (1 - beta * (T - 20))
+ *
+ * Warm water is less dense, so a given column presses less and reads LOW:
+ * the factor is > 1 above 20 °C and < 1 below it. */
+float sensor_temp_level_factor(float temp_c, int ppm_per_c)
+{
+    float denom = 1.0f - (float)ppm_per_c * 1e-6f * (temp_c - 20.0f);
+    if (!(denom > 0.0f)) return 1.0f;   /* also rejects NaN */
+    return 1.0f / denom;
+}

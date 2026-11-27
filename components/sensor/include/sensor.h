@@ -23,6 +23,13 @@ float sensor_battery_from_mv(int adc_mv, int divider_ratio_x100);
    (-55..125 °C). Used to discard glitched readings. */
 bool sensor_temp_in_range(float temp_c);
 
+/* pure: water-density correction factor for a level reading taken in water
+   at temp_c. The level scaling assumes 20 °C water; warmer water is less
+   dense, so the transducer under-reads (factor > 1), colder water over-reads
+   (factor < 1). Returns 1 / (1 - ppm_per_c * 1e-6 * (temp_c - 20)), or 1.0
+   when that is not finite and positive. Multiply the level by it. */
+float sensor_temp_level_factor(float temp_c, int ppm_per_c);
+
 /* reads battery voltage via ADC resistor divider; returns volts, or -1 if disabled */
 float sensor_read_battery_v(void);
 
@@ -43,9 +50,9 @@ void sensor_offset_cache_reset(void);
  * Must be called before any sensor_read_level() or sensor_read_battery_v(). */
 esp_err_t sensor_i2c_init(void);
 
-/* Apply temperature compensation to a raw water-level reading.
- * Corrects for water density change with temperature.
- * Returns the compensated level in metres. */
+/* Apply temperature compensation to a raw water-level reading: multiplies it
+ * by sensor_temp_level_factor() (water-density correction, 20 °C reference)
+ * when CONFIG_WELLD_TEMP_COMPENSATION_ENABLED. Returns metres. */
 float sensor_level_temp_compensate(float level_m, float temp_c);
 
 /* Release I2C bus driver and remove the ADS1115 DRDY ISR before deep sleep.

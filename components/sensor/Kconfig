@@ -171,11 +171,14 @@ menu "WellD Sensor"
         bool "Temperature compensation for water level"
         default y
         help
-            Compensate water-level readings for water density change with
-            temperature. Requires CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C.
-            At 207 ppm/°C the correction is <0.21 % per 10 °C deviation from
-            20 °C — small but systematic. Disabled automatically when the
-            DS18B20 read fails (guard in main.c: temp > -127.0 °C).
+            Compensate water-level readings for the change of water density
+            with temperature. The 4-20 mA -> metres scaling assumes 20 °C
+            water: warmer water is less dense, so a given column presses less
+            and the transducer reads low; colder water reads high. Requires
+            CONFIG_WELLD_TEMP_COMPENSATION_PPM_PER_C. At 207 ppm/°C the
+            correction is about 0.21 % per 10 °C away from 20 °C — small but
+            systematic. Disabled automatically when the DS18B20 read fails
+            (guard in main.c: temp > -127.0 °C).
 
     config WELLD_TEMP_COMPENSATION_PPM_PER_C
         int "Water density coefficient (ppm/°C)"
@@ -183,8 +186,14 @@ menu "WellD Sensor"
         range 0 500
         depends on WELLD_TEMP_COMPENSATION_ENABLED
         help
-            Typical value for fresh water is ~207 ppm/°C. The reported level
-            is corrected as: level = raw / (1 + coeff*(temp - 20°C)).
+            Volumetric expansion coefficient of the water, ~207 ppm/°C for
+            fresh water at 20 °C. The reported level is corrected as:
+            level = raw / (1 - coeff*(temp - 20°C)), raising it in warm water
+            and lowering it in cold water. The true coefficient shrinks in cold
+            water (~88 ppm/°C at 10 °C, 0 at 4 °C), so this linear model
+            over-corrects slightly far from 20 °C: at 10 °C it lowers the level
+            0.21 % where 0.15 % is exact (~3.5 mm on a 6 m column). For well
+            water that stays near 10 °C, 150 is exact at that temperature.
 
     config WELLD_DS18B20_RESOLUTION_BITS
         int "DS18B20 resolution (bits)"

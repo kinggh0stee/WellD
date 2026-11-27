@@ -5,6 +5,7 @@
 
 #include "unity.h"
 #include "sensor.h"
+#include <math.h>
 
 #ifndef HOST_BUILD
 #include "nvs_flash.h"
@@ -101,6 +102,50 @@ static void test_temp_in_range(void)
     TEST_ASSERT_FALSE(sensor_temp_in_range(-55.1f));
 }
 
+/* Water-density correction, 20 °C reference. Tabulated fresh-water density
+ * (kg/m³): 10 °C 999.70, 20 °C 998.21, 25 °C 997.05, 30 °C 995.65. The exact
+ * correction for a reading taken at T is rho20 / rhoT. */
+static void test_temp_factor_unity_at_reference(void)
+{
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, sensor_temp_level_factor(20.0f, 207));
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, sensor_temp_level_factor(5.0f, 0));  /* coeff 0 = off */
+}
+
+static void test_temp_factor_warm_water_raises_level(void)
+{
+    /* Warm water is less dense: a given column presses less, the transducer
+     * under-reads, so the correction must RAISE the level. The pre-1.2.1
+     * formula lowered it. */
+    float f = sensor_temp_level_factor(30.0f, 207);
+    TEST_ASSERT_TRUE(f > 1.0f);
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 1.0f / (1.0f - 0.00207f), f);
+    TEST_ASSERT_FLOAT_WITHIN(0.0006f, 998.21f / 995.65f, f);
+}
+
+static void test_temp_factor_cold_water_lowers_level(void)
+{
+    float f = sensor_temp_level_factor(10.0f, 207);
+    TEST_ASSERT_TRUE(f < 1.0f);
+    TEST_ASSERT_FLOAT_WITHIN(1e-5f, 1.0f / 1.00207f, f);
+    TEST_ASSERT_FLOAT_WITHIN(0.0006f, 998.21f / 999.70f, f);
+    /* 150 ppm/°C is exact at 10 °C (documented Kconfig tip). */
+    TEST_ASSERT_FLOAT_WITHIN(0.00002f, 998.21f / 999.70f,
+                             sensor_temp_level_factor(10.0f, 150));
+}
+
+static void test_temp_factor_tracks_density_near_reference(void)
+{
+    TEST_ASSERT_FLOAT_WITHIN(0.0002f, 998.21f / 997.05f,
+                             sensor_temp_level_factor(25.0f, 207));
+}
+
+static void test_temp_factor_degenerate_inputs(void)
+{
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, sensor_temp_level_factor(NAN, 207));
+    /* Denominator 1 - 500e-6 * 2000 = 0: refuse rather than divide by 0. */
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, sensor_temp_level_factor(2020.0f, 500));
+}
+
 #ifndef HOST_BUILD
 /* NVS round-trip tests need real flash — on-device only. */
 
@@ -143,6 +188,11 @@ static int run_tests(void)
     RUN_TEST(test_battery_zero_adc);
     RUN_TEST(test_battery_no_divider);
     RUN_TEST(test_temp_in_range);
+    RUN_TEST(test_temp_factor_unity_at_reference);
+    RUN_TEST(test_temp_factor_warm_water_raises_level);
+    RUN_TEST(test_temp_factor_cold_water_lowers_level);
+    RUN_TEST(test_temp_factor_tracks_density_near_reference);
+    RUN_TEST(test_temp_factor_degenerate_inputs);
 #ifndef HOST_BUILD
     RUN_TEST(test_offset_round_trip);
     RUN_TEST(test_offset_clamped_on_set);

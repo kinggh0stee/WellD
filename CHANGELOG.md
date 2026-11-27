@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed (2026-11-27 follow-up — firmware 1.2.1)
+- **Water-density temperature compensation had its sign inverted**: the level was divided by `1 + α·(T − 20)`, which *lowered* it in warm water and raised it in cold water — but warm water is less dense, so the transducer under-reads there and the correction must go the other way. The old formula doubled the density error instead of removing it (≈0.4 % ≈ 2.5 cm on a 6 m column for 10 °C well water). Now `level / (1 − α·(T − 20))`, via a new pure helper `sensor_temp_level_factor()` with host tests checked against tabulated water densities.
 - **A missing or failed battery divider silenced the device**: the low-battery guard treated any reading above 0 V as real, so a divider that is not fitted (dev boards), an open Q5/R7, or a floating AIN2 reading a few mV of noise counted as "critically low" and skipped every send forever. New `welld_battery_state()` classifies readings below 2.0 V as a measurement fault (a running device cannot have such a cell — the DW01A cuts at 2.4 V): the reading is dropped (not reported on EP2) and the guard is not applied.
 
 ### Changed (2026-11-27 follow-up — firmware 1.2.1)
