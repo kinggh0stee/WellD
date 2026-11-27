@@ -198,12 +198,12 @@
 | R4 | 100Ω ±0.1% 0.25W | 0805 | `Resistor_SMD:R_0805_2012Metric` | RG2012N-101-W-T1 | — ⚠️ | CH2 shunt |
 | C34 | 10nF X7R 25V | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | HF bypass directly across R2 (was "C_SH1") |
 | C35 | 10nF X7R 25V | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | HF bypass directly across R4 (was "C_SH2") |
-| R3 | 100Ω | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | CH1 series limiter to AIN0 |
-| R5 | 100Ω | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | CH2 series limiter to AIN1 |
-| C3 | 1µF X5R | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | CH1 RC filter with R3 (fc≈1.6kHz) |
-| C5 | 1µF X5R | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | CH2 RC filter with R5 |
-| C4 | 10µF 10V | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | CH1 bulk |
-| C6 | 10µF 10V | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | CH2 bulk |
+| R3 | **1kΩ** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | CH1 series limiter to AIN0. **Changed 2026-11-27 from 100 Ω** (design change #20): a shorted loop drove ≈40 mA through the D1 clamp into +3V3; 1 kΩ limits it to ≈3.5 mA |
+| R5 | **1kΩ** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | CH2 series limiter to AIN1 (same change as R3) |
+| C3 | **100nF X7R 16V** | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | CH1 RC filter with R3 (fc≈1.6kHz, τ = 0.1 ms). **Changed 2026-11-27 from 1 µF** to keep the corner with R3 = 1 kΩ |
+| C5 | **100nF X7R 16V** | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | CH2 RC filter with R5 (same change as C3) |
+| C4 | 10µF 10V — **DNP** | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | CH1 bulk — **do not fit** since 2026-11-27 (#20): with R3 = 1 kΩ it makes τ = 11 ms, longer than the 10 ms VLOOP read window. Footprint kept |
+| C6 | 10µF 10V — **DNP** | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | CH2 bulk — **do not fit** (same as C4) |
 
 ---
 

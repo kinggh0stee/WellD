@@ -56,11 +56,11 @@ These components must land on a specific board edge:
 - U7 and U8 must be **≥8mm apart**
 
 ### Group E — 4-20mA shunt and protection chain (CH1)
-`J4 → D9 → R2 → C34 → R3 → D1 → C3/C4 → U9 AIN0`
+`J4 → D9 → R2 → C34 → R3 → D1 → C3 (C4 DNP) → U9 AIN0`
 - D9 within **3mm** of J4 SIG terminal
 - C34 within **1mm** of R2 pads (across the shunt)
 - TP5 (test point) at the R2/R3 shunt-top node
-- Same grouping for CH2: `J5 → D10 → R4 → C35 → R5 → D1 CH2 → C5/C6 → U9 AIN1`
+- Same grouping for CH2: `J5 → D10 → R4 → C35 → R5 → D1 CH2 → C5 (C6 DNP) → U9 AIN1`
 
 ### Group F — ESP32-C6 module decoupling
 `U6, C13, C30–C33, C15, R15, C36`

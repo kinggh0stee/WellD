@@ -38,6 +38,7 @@
 | 17 | **Wiring pass (2026-07-13)** — all four sheets fully wired via stub+label connectivity; top sheet rebuilt (rails moved off sheet pins onto global labels; 55 signal sheet pins regenerated); 21 explicit no-connects; PWR_FLAGs added; MT3608B **pin 6 etype changed no_connect → passive** so C_BST can legally attach (doc: "harmless if fitted to an NC pin"); netlist machine-verified against this document (395 pins / 77 nets / 0 mismatches) | Clears senior review 2026-07-06 open item #3 (wire the sheets + netlist-vs-doc diff). New net names minted where the doc had none: `LED_K` (D4 cathode → SJ3), `VLOOP_CH2` (SJ2 → J5 LOOP+), `1WIRE_TERM` (terminal side of R32), `UART_TX_HDR`/`UART_RX_HDR` (SJ4/SJ5 → J10), `J6_VCC`, `D7_A`, `D5_GATE`, `U1_EN`, `AP_SW`, `MT_BST`, `Q3_GATE`, `CC1`/`CC2`, `USB_DP`/`USB_DM`, `USB_BST`, `USB_VSET`, `USB_NTC`, `USB_ISET`, `CN_COM1/2/3`, `COM2_RC`, `LED_A`, `GPIO8`, `GPIO0–3/20/21`. `AP_FB` exists only as the floating DNP divider mid-point (R_FBH.2/R_FBL.1); U1 FB is tied **directly** to +3V3 — fitting the adjustable AP63200 option requires attaching AP_FB to FB and breaking the direct tie. |
 | 18 | **1S CONVERSION (2026-07-19)** — pack 2S1P → 1S (VBAT 3.0–4.2 V; battery mechanics finalised in #19). **U12 IP2326 boost-charger subsystem deleted** (U12, L3, R_VSET, C_BST2, C_SYS1/C_SYS2, R35) → **TP4056 1 A linear 1S charger** (SOP-8+EPAD; R_PROG 1.2 kΩ → 1 A; RT1 NTC kept on TEMP with new R_NTC 5.6 kΩ top resistor; CE strapped high; /CHRG → existing /CHRG_USB net). **U7 CN3722 controller + external buck stage deleted** (M_SOLAR, D16, C_COM1/2/3, R_COM2, R33/R34 CV divider) → **CN3791 1S MPPT buck charger** (integrated switch, fixed 4.2 V CV at BAT; D_SOLAR/L_SOLAR/C_VG/RT_SOLAR/R19/R20/R21 kept & repurposed; MPPT set ≈5.0 V for a 6 V panel via R20/R21 = 316k/100k, 1.205 V MPPT reference). **U1 AP63203WU buck deleted** (VIN min 3.8 V fails at 1S empty; L2, C_BST_AP, R_FBH/R_FBL, R11 removed) → **HT7333-A 250 mA LDO** (30 nA-class EN-less part; 3.3 V out, ~90 mV dropout, 4 µA Iq). TVS re-rates: D13 → SMAJ5.0A (VBAT max 4.2 V), D8/D14 → SMAJ10CA (panel ≤6 V nominal). Battery divider R7 330k → **100k** (divide-by-2, firmware ratio 430 → 200). MT3608B VLOOP stage unchanged. GPIO map unchanged (GPIO6 still reads active-low /CHRG_SOLAR; GPIO4 now genuinely spare in hardware). | User decision: 1S chosen deliberately for simplicity/ecosystem after an analysis that slightly favored 2S (≈320 vs ≈300 days runtime). All power-rail ICs reviewed for the 3.0–4.2 V range in the same pass. |
 | 19 | **BATTERY CARRIER (2026-07-19)** — the Sinowatt 1S2P pack is dropped for a **single generic 18650 in an on-board THT carrier (BT1**, replaces J1 XT30**)**. Generic bare cells have no PCM → discrete 1S protection added: **U13 DW01A** supervisor + **Q6 FS8205A** dual N-FET in the cell− → GND path (new nets BATT_N / DW_VCC / DW_OD / DW_OC / DW_CS / DW_D; R_DW1 100 Ω + C_DW 100 nF VCC filter, R_CS_DW 1 kΩ on CS — the exact TP4056-module reference topology). D5 reverse-polarity P-FET stays (reverse *insertion* is now a real user risk); D13 SMAJ5.0A stays on VBAT_RAW. RT1/RT_SOLAR thermal coupling target is now the carrier/cell. Capacity ≈3–3.4 Ah (single cell, was ≈6.7 Ah 2P). | Pinouts drawn from the ubiquitous community maps — **verify against the Fortune DW01A-G and FS8205A datasheets before ordering (blocker #11)**. |
+| 20 | **4–20 mA ADC input hardening (2026-11-27)** — R3/R5 series limiters **100 Ω → 1 kΩ**, C3/C5 **1 µF → 100 nF**, C4/C6 (10 µF bulk) **DNP** (footprints kept — do not fit with R3/R5 = 1 kΩ: τ = 11 ms would break the 10 ms VLOOP read window). Values only; no net change (netlist re-verified, 0 mismatches). | With 100 Ω, a shorted transducer or cable (SIG clamped by D9 at ≈7–8 V while VLOOP is on) pushed ≈40 mA through R3 into the D1 clamp diode and on into +3V3, which the HT7333 LDO cannot sink — the rail and the ESP32/ADS1115 would be back-driven for every 10–20 ms loop read. 1 kΩ cuts that to ≈3.5 mA, below the awake rail load. 100 nF keeps the old 1.6 kHz corner (τ = 0.1 ms, settles in < 1 ms) where the previous 100 Ω × 11 µF (τ = 1.1 ms) needed ~9 ms of the 10 ms window to settle to 0.01 %. Accuracy cost: R3 vs the ADS1115 input impedance (≥ several MΩ) ≈ 0.02 % gain — below the 0.1 % shunt. |
 
 ---
 
@@ -445,23 +446,23 @@ The AP63203WU buck (VIN min 3.8 V — fails at 1S empty) is **deleted** along wi
 
 ### ADC_CH0 / ADC_CH1 (4-20 mA inputs)
 
-CH1 path: `J4 SIG → D9 clamp → R2 shunt (‖ C34) → R3 → ADC_CH0 (C3, C4, D1 ch.1) → U9 AIN0`
+CH1 path: `J4 SIG → D9 clamp → R2 shunt (‖ C34) → R3 1 kΩ → ADC_CH0 (C3 100 nF, C4 DNP, D1 ch.1) → U9 AIN0` (values per design change #20)
 
 | Component | Pin | Net segment | Note |
 |-----------|-----|-------------|------|
 | J4 | SIG (pin 2) | LOOP_TERM_CH1 | Loop return from transmitter |
-| D9 SMAJ3.3CA | terminal 1 | LOOP_TERM_CH1 | Clamp to GND |
+| D9 SMAJ5.0A | terminal 1 | LOOP_TERM_CH1 | Clamp to GND (SMAJ3.3CA → SMAJ5.0A 2026-07-14, blocker #6) |
 | R2 (100Ω 0.1%) | pin 1 | LOOP_TERM_CH1 | Shunt top; **pin 2 → GND** (loop current returns through R2) |
 | C34 (10nF) | pins 1–2 | across R2 | HF bypass, within 1 mm |
-| R3 (100Ω) | pin 1 | LOOP_TERM_CH1 (shunt top) | Series limiter |
+| R3 (1kΩ) | pin 1 | LOOP_TERM_CH1 (shunt top) | Series limiter — caps fault current into the D1 clamp at ≈3.5 mA (#20) |
 | R3 | pin 2 | ADC_CH0 | |
-| C3 (1µF), C4 (10µF) | pin 1 | ADC_CH0 | RC filter / bulk |
+| C3 (100nF), C4 (10µF **DNP**) | pin 1 | ADC_CH0 | RC filter (τ = 0.1 ms, fc ≈ 1.6 kHz); C4 footprint only — fitting it with R3 = 1 kΩ makes τ = 11 ms (#20) |
 | D1 PRTR5V0U2X | IO1 | ADC_CH0 | Clamp to +3V3/GND |
 | U9 ADS1115 | AIN0 | ADC_CH0 | 20 mA × 100 Ω = 2.0 V max; firmware reads it on the **±4.096 V PGA** since 1.2.0 (±2.048 V clipped at 20.47 mA, hiding the > 21 mA short fault) |
 | TP5 | pad | LOOP_TERM_CH1 | At shunt top |
 | GDT1 (DNF) | pin 1 | LOOP_TERM_CH1 | 2-pole 90 V gas discharge tube to GND (pin 2) — coarse stage of the industrial GDT → series-R → TVS coordination; footprint only, populate per site for long/buried cable runs |
 
-CH2 identical: `J5 SIG → D10 → R4 (‖ C35) → R5 → ADC_CH1 (C5, C6, D1 IO2) → U9 AIN1`, TP6 at shunt top, GDT2 (DNF) from LOOP_TERM_CH2 to GND.
+CH2 identical: `J5 SIG → D10 → R4 (‖ C35) → R5 1 kΩ → ADC_CH1 (C5 100 nF, C6 DNP, D1 IO2) → U9 AIN1`, TP6 at shunt top, GDT2 (DNF) from LOOP_TERM_CH2 to GND.
 
 ### ADC_CH2 (battery divider — corrected high-side gating)
 

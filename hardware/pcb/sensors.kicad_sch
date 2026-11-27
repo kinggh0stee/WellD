@@ -6024,7 +6024,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "17300d88-0e9d-5af3-b84d-30e1813ca9b6")
 		(property "Reference" "C6"
@@ -6211,7 +6211,7 @@
 				)
 			)
 		)
-		(property "Value" "1uF"
+		(property "Value" "100nF"
 			(at 171.45 84.55 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6940,7 +6940,7 @@
 				)
 			)
 		)
-		(property "Value" "100R"
+		(property "Value" "1k"
 			(at 207.01 69.31 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7025,7 +7025,7 @@
 				)
 			)
 		)
-		(property "Value" "1uF"
+		(property "Value" "100nF"
 			(at 207.01 84.55 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8051,7 +8051,7 @@
 		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
-		(dnp no)
+		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "a859cef0-5f43-5743-b803-8abdab943992")
 		(property "Reference" "C4"
@@ -8507,7 +8507,7 @@
 				)
 			)
 		)
-		(property "Value" "100R"
+		(property "Value" "1k"
 			(at 152.4 99.79 0)
 			(show_name no)
 			(do_not_autoplace no)
