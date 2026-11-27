@@ -23,7 +23,8 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 3. Re-run `python3 hardware/pcb/netlist_check.py` after the resave — it must still report zero mismatches (guards against the migration moving anything).
 4. Replace the custom `welld:ESP32_C6_MINI_1U` symbol with the official Espressif library part and re-run ERC + `netlist_check.py`. **The custom pin numbering was verified WRONG (2026-07-21)** — the official signal-pin map is recorded in the symbol-verification table in `schematic_connections.md`; map the existing nets to it. The one behavioural consequence is already applied: **GPIO10/GPIO11 are not bonded out on the MINI-1**, so I²C was moved to **GPIO18/GPIO19** across firmware + schematic + docs.
 5. Swap SJ2–SJ5 to the *Bridged* solder-jumper variants (currently Open).
-6. After *Update PCB from Schematic*, check that **D1/D12 (PRTR5V0U2X) land on 4-pad `SOT-143` footprints with LCSC C12333** — the placed schematic instances carried the old 6-pin SOT-363 footprint and the USBLC6-clone number C2687116 until 2026-11-27.
+6. After *Update PCB from Schematic*, check that **D1/D12 (PRTR5V0U2X) land on 4-pad `SOT-143` footprints with LCSC C12333** (the placed instances carried the old 6-pin SOT-363 footprint and the USBLC6-clone number C2687116 until 2026-11-27), **D6 on `D_SMB`** (MBRS140), and the LCSC fields of **D9/D10/D13 (C98802)** and **U12 (C16581)** — all corrected in the schematic data on 2026-11-27. Still open in the data: **L1** footprint (`L_Vishay_IFSC-1515AH` in the schematic vs the CDRH4D22 part in the BOM), **SW1/SW2** footprint (CK KSC6 vs 6×6 mm), **BT1** LCSC (holder choice) — pick and align before ordering.
+7. The loop current limiters (#21) add **Q8–Q11, R52–R55, D17–D20** on the sensors sheet (placed in the empty band right of the existing grid): place them per Group E2 in `placement_constraints.md`. Q8–Q11, D18/D20 and D11 (now SMAJ18A) still need LCSC numbers (marked ⚠️ in the BOM).
 
 ## 2. Cell choice (no vendor question any more)
 
@@ -57,6 +58,13 @@ Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_v
 | 9 | Loop reading sanity vs known pressure; SMAJ5.0A leakage invisible on the shunt | D9/D10 substitution validation |
 | 10 | ADS1115 AIN2 reads correctly up to 4.2 V cell (±4.096 V PGA, ratio 200) | shipped in fw 1.1.0 — clipping at full charge was the failure mode |
 | 11 | Protection trip + recovery: cell isolated below ≈2.4 V, recovers on charger; over-current trip; reversed-cell insertion blocked (D5) | new DW01A/FS8205A path + carrier (#11a–c); values assumed from the module ecosystem |
+
+
+**Loop current limiters + 16 V loop (design change #21):**
+- VLOOP at TP2 with GPIO5 forced HIGH: **15.1–16.7 V** (15.88 V nominal); rise time to ≥ 12 V well inside the default 10 ms settle
+- J4 LOOP+ shorted to SIG through an ammeter: **≈27–35 mA** (room temperature ≈32 mA); firmware logs `transducer short-circuit`; the device keeps running (no DW01A trip)
+- J4 LOOP+ shorted to GND: same current, **no DW01A trip**; firmware logs `transducer open loop` (the shunt sees nothing)
+- 20 mA calibrator in the loop: LOOP+ ≥ VLOOP − 0.55 V (limiter drop ≈0.5 V); repeat on J5 with SJ2 bridged
 
 ## 6. Enclosure (after layout freezes connector positions)
 

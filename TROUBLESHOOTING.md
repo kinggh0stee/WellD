@@ -11,7 +11,7 @@ Connect USB and open the serial monitor: `idf.py -p /dev/ttyACM0 monitor` for th
 - **Check power:** The on-board DW01A protection isolates the cell below ≈2.4 V (and the low-battery guard stops reporting at or below 3.2 V). Charge the cell first — either charger input (USB or solar) recovers a protection-tripped cell. Also check the cell is seated in the BT1 carrier with correct polarity.
 - **Check USB cable:** Some cables are charge-only (no data lines). Try a different cable.
 - **Check bootloader baud:** ESP32-C6 boots at 115200; ensure your terminal is set correctly.
-- **Brownout reset loop:** If you see `rst:0x1 (POWERON)` repeatedly, the USB port may not supply enough current for the 12 V boost + Zigbee TX spike. Power from a charged battery while keeping USB connected for serial.
+- **Brownout reset loop:** If you see `rst:0x1 (POWERON)` repeatedly, the USB port may not supply enough current for the 16 V loop boost + Zigbee TX spike. Power from a charged battery while keeping USB connected for serial.
 
 ### 2. `I2C init failed — aborting wakeup`
 
@@ -25,6 +25,11 @@ Connect USB and open the serial monitor: `idf.py -p /dev/ttyACM0 monitor` for th
 - **Transducer polarity reversed:** Some two-wire transducers are polarity-sensitive.
 - **Shunt resistor missing:** Verify R2/R4 (100 Ω) are populated.
 - **TVS conducting:** If D9/D10 (SMAJ5.0A) has failed short, the loop current bypasses the shunt.
+- **Loop cable shorted to ground:** LOOP+ to GND bypasses the shunt, so it reads as an open loop. On the PCB the per-channel limiter holds it at ≈27–35 mA and the device keeps running; measure LOOP+ on J4/J5 while VLOOP is on (≈0 V = short to ground, ≈15 V with nothing connected = open).
+
+### 3a. `transducer short-circuit (voltage=... mV, ... µA > 21 mA)`
+
+More than 21 mA through the shunt: the transducer is in a fault/alarm state or LOOP+ is shorted to the signal wire. On the PCB the limiter caps it at ≈27–35 mA, so the reading sits at ≈2.7–3.5 V and nothing is damaged; `water_level` is published as `null`. With `CONFIG_WELLD_VLOOP_SETTLE_MS` above 10 ms a dead short is caught after 10 ms (`… at warm-up … loop switched off`).
 
 ### 4. `Zigbee send failed (N consecutive)` repeatedly
 

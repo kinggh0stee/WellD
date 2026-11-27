@@ -41,7 +41,7 @@
 # CONFIG_WELLD_I2C_SDA_GPIO=18   # GPIO10/11 not bonded on ESP32-C6-MINI-1
 # CONFIG_WELLD_I2C_SCL_GPIO=19
 
-# 12 V VLOOP boost enable — MT3608B EN, gated by firmware before transducer read
+# 16 V VLOOP boost enable — MT3608B EN, gated by firmware before transducer read
 # CONFIG_WELLD_VLOOP_GPIO=5
 # Loop warm-up before the reading (10–1000 ms). Raise it to your transducer's
 # datasheet start-up / switch-on time if that is longer than 10 ms.

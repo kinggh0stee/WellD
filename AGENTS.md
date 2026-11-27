@@ -35,7 +35,7 @@ cd zigbee2mqtt && npm test
 ## Architecture Constraints (Load-Bearing)
 
 - **Sensor reads must precede `zigbee_send()`** — the ADC is sensitive to 802.15.4 RF interference.
-- **GPIO5 (VLOOP) HIGH for `CONFIG_WELLD_VLOOP_SETTLE_MS` (default/minimum 10 ms) before a 4–20 mA read, LOW immediately after.** (12 V rail settles through the Q3 load-disconnect P-FET into C20/C22; raise it for slow-starting transducers.)
+- **GPIO5 (VLOOP) HIGH for `CONFIG_WELLD_VLOOP_SETTLE_MS` (default/minimum 10 ms) before a 4–20 mA read, LOW immediately after.** (16 V rail settles through the Q3 load-disconnect P-FET into C20/C22; raise it for slow-starting transducers.)
 - **Power-control outputs (GPIO5 VLOOP, GPIO15 BATT_DIV_EN) are driven LOW before `esp_sleep_config_gpio_isolate()`**; in deep sleep the pads float and the R27/R26 pull-downs hold the switches off. Every exit path goes through `enter_deep_sleep()`.
 - **Minimum delays/timeouts must be tick-rate independent** — `CONFIG_FREERTOS_HZ=100`, so `pdMS_TO_TICKS(1) == 0`. Use `esp_rom_delay_us()` or `ticks_at_least_ms()` (sensor.c).
 - **Zigbee network state lives in the `zb_storage` NVS partition** (`WELLD_ZB_STORAGE_PARTITION`). app_main initialises it; esp-zigbee-lib `abort()`s if it can't open it.

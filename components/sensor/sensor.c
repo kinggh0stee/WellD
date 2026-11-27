@@ -462,13 +462,13 @@ float sensor_apply_level_offset(float column_m)
 
 /* Read the water column above the transducer in metres (no offset, no
  * temperature compensation — see sensor.h for the order).
- * Gates the MT3608B 12V boost (VLOOP GPIO) for the duration of the read.
+ * Gates the MT3608B 16 V boost (VLOOP GPIO) for the duration of the read.
  * Uses ADS1115 AIN0 to measure the shunt voltage across the 4-20 mA loop.
  * Returns -1.0 if the transducer loop current indicates an open circuit.
  * Returns -2.0 if a short-circuit is detected (>21 mA). */
 float sensor_read_level(void)
 {
-    /* Gate VLOOP HIGH to enable the MT3608B boost converter. The 12 V output
+    /* Gate VLOOP HIGH to enable the MT3608B boost converter. The 16 V output
      * caps (C20/C22) charge through the Q3 load-disconnect P-FET, so the rail
      * needs longer than the bare MT3608B soft-start (< 5 ms typ): at least
      * VLOOP_RAIL_SETTLE_MS (PCB review 2026-07: raised from 5 ms). The
@@ -479,10 +479,11 @@ float sensor_read_level(void)
 #if CONFIG_WELLD_VLOOP_SETTLE_MS > VLOOP_RAIL_SETTLE_MS
     {
         /* Long transducer warm-up: once the rail is up, check for a dead
-         * short before waiting out the rest. VLOOP has no current limit on
-         * its way to LOOP+, so a shorted cable holds the boost at its switch
-         * limit into the D9 clamp (and draws amps from the cell) for as long
-         * as VLOOP stays on. LOOP_DEAD_SHORT_MV pins AIN0 near the top of its
+         * short before waiting out the rest. The WellD PCB limits each LOOP+
+         * to ~27-35 mA (design change #21), but its pass transistor then
+         * dissipates ~0.4 W for as long as VLOOP stays on — and a dev-board
+         * loop supply (or a failed limiter) may have no limit at all, holding
+         * the boost at its switch limit into the D9 clamp. LOOP_DEAD_SHORT_MV pins AIN0 near the top of its
          * range: >= 23 mA even at the 130 ohm maximum shunt, above NAMUR
          * alarm currents a healthy transducer may show while starting. */
         int probe_mv = ads1115_read_mv(0);

@@ -23,7 +23,7 @@ The current design is a purpose-built custom PCB (outline set at layout — work
 | ESP32-C6 module | MCU + Zigbee radio |
 | ADS1115 (0x48) | 16-bit I²C ADC — shunt voltage (AIN0) + battery divider (AIN2) |
 | HT7333-A | 3.3 V LDO (≈4 µA Iq, 250 mA, ~90 mV dropout). Replaced the AP63203WU buck in the 2026-07-19 1S conversion — the buck's 3.8 V minimum input fails at 1S empty (3.0 V). Below ≈3.4 V the output follows the battery minus dropout; the ESP32-C6 runs down to 3.0 V |
-| MT3608B | 12 V **asynchronous** boost for the 4–20 mA loop supply (VLOOP, GPIO5-gated). D15 (SS34 Schottky) rectifies the switch node; a Q3/Q4 load-disconnect switch in series with L1 blocks the permanent VBAT leak to the loop terminals during deep sleep |
+| MT3608B | 16 V **asynchronous** boost for the 4–20 mA loop supply (VLOOP, GPIO5-gated; 12 V until design change #21). Each loop channel is fed through a ≈27–35 mA current limiter (Q8–Q11). D15 (SS34 Schottky) rectifies the switch node; a Q3/Q4 load-disconnect switch in series with L1 blocks the permanent VBAT leak to the loop terminals during deep sleep |
 | CN3791 | 1S MPPT solar buck charge **controller** (external SI2319CDS P-FET stage; fixed 4.2 V CV, MPPT ≈5.0 V for 6 V-nominal panels; panel Voc limited to **10 V** by the SMAJ10CA input TVS). A solar-powered LM393 cold-charge cutoff clamps charging below ≈+2 °C — zero battery draw at night |
 | TP4056 | USB-C 1 A linear charger (2026-07-19 1S conversion — replaced the IP2326 boost selection, which itself replaced the non-functional TP5100). Auto-charges whenever VBUS is present (CE strapped high); charge-temperature NTC window ≈ +5…+44 °C |
 | DW01A + FS8205A | On-board 1S battery protection (supervisor + dual N-FET in the cell− path) — added 2026-07-19 with the generic-18650 carrier; a bare cell has no PCM |
@@ -35,7 +35,7 @@ All 15 test point pads are 1.0 mm SMD, **DNF** (do not fit) — bare copper pads
 | Ref | Net | Ref | Net |
 |-----|-----|-----|-----|
 | TP1 | VBAT (3.0–4.2 V, 1S range) | TP9 | I2C SCL |
-| TP2 | VLOOP (12 V boost) | TP10 | VSOLAR_IN |
+| TP2 | VLOOP (16 V boost) | TP10 | VSOLAR_IN |
 | TP3 | +3V3 | TP11 | VBAT_RAW (before D5 reverse-polarity MOSFET) |
 | TP4 | GND | TP12 | ADS1115 DRDY (GPIO22) |
 | TP5 | LOOP+ (LOOP_TERM_CH1) | TP13 | FACTORY_RESET (GPIO23 — short to GND while powering on) |
@@ -54,7 +54,7 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 | 18 | SDA | I²C bus (ADS1115 only) — GPIO10/11 are not bonded out on the ESP32-C6-MINI-1 module, so I²C is on GPIO18/19 |
 | 19 | SCL | I²C bus (ADS1115 only) |
 | 12 | USB    | Native USB D− → USB-C (console/programming); from U11 USBLC6 |
-| 5  | Output | MT3608B EN + Q4 gate — 12 V loop supply (`VLOOP`), with Q3/Q4 load-disconnect; R27 pull-down holds it off during deep sleep |
+| 5  | Output | MT3608B EN + Q4 gate — 16 V loop supply (`VLOOP`), with Q3/Q4 load-disconnect; R27 pull-down holds it off during deep sleep |
 | 4  | —      | Spare — no schematic connection (the TP4056 USB charger is autonomous, CE strapped high in hardware) |
 | 6  | Input  | Solar charger /CHRG (CN3791) — solar-charging-active detect (active-low: LOW = charging; R25 external pull-up) |
 | 7  | 1-Wire | DS18B20 data |
@@ -68,7 +68,7 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 
 | Terminal | Wire | ESD / surge protection |
 |----------|------|------------------------|
-| LOOP+ / LOOP− | 4–20 mA transducer, two-wire | D9 / D10 SMAJ5.0A TVS (400 W, DO-214AC); D11 SMAJ13A unidirectional TVS on VLOOP; D1 PRTR5V0U2X rail clamp at ADS1115 inputs |
+| LOOP+ / LOOP− | 4–20 mA transducer, two-wire | D9 / D10 SMAJ5.0A TVS (400 W, DO-214AC); D18 / D20 SMAJ18A on each LOOP+ terminal, D17 / D19 SS34 steering LOOP+ surges into D11 (SMAJ18A on VLOOP), ≈27–35 mA current limiter per channel; D1 PRTR5V0U2X rail clamp at ADS1115 inputs |
 | 1W DATA / GND | DS18B20 data + ground | D12 PRTR5V0U2X dual-channel rail clamp (SOT-363) — 0.5 pF added capacitance, well below the 800 pF 1-Wire add limit |
 | Battery | Single generic 18650 (3.0–4.2 V) in the on-board THT carrier **BT1** — no cable, no connector (the XT30 was deleted 2026-07-19) | On-board 1S protection **DW01A + FS8205A** in the cell− path (generic bare cells have no PCM): over-discharge ≈2.4 V, over-charge ≈4.3 V, over-current. D13 SMAJ5.0A TVS at the cell+ tab; D5 AO3407 P-ch MOSFET in series on cell+ blocks a **reversed-inserted cell**; R31 10 kΩ gate pull-down holds D5 on |
 | SOLAR+/−      | Solar panel, ≤ **10 V Voc** (6 V-nominal panels — 1S conversion 2026-07-19; the 2S design accepted 12 V panels) | D14 SMAJ10CA bidirectional TVS (400 W, DO-214AC) at the terminal, plus second-stage D8 SMAJ10CA at the CN3791 VIN |
@@ -92,7 +92,7 @@ Connector placement:
 
 ### 4–20 mA loop
 
-The MT3608B boost converter lifts VLOOP to 12 V to power the transducer loop. The boost is asynchronous: D15 (SS34 Schottky) carries the switch node to VLOOP, and a Q3 (P-FET) / Q4 (level-shifter) load-disconnect switch in series with the inductor prevents VBAT from leaking through L1 + D15 to the loop terminals during deep sleep. GPIO5 drives both the MT3608B EN and the Q4 gate; R27 pulls the net low while GPIO5 is isolated in deep sleep.
+The MT3608B boost converter lifts VLOOP to **16 V** (R23 1.91 MΩ / R24 75 kΩ → 15.88 V) to power the transducer loop. Each channel's LOOP+ is fed through a two-transistor current limiter (sense resistor R52/R54, BCX53 pass Q8/Q10, clamp Q9/Q11) that holds a shorted cable at ≈27–35 mA, so the firmware just reports the short — before design change #21 a short pulled amps from the cell and tripped the DW01A protection, leaving the device dead until a charger reconnected. The limiter costs ≈0.5 V at 20 mA, which is why VLOOP went from 12 V to 16 V: a transducer now gets ≈12.6 V at 20 mA (VLOOP −5 %), enough for 9–36 V and 12–36 V types. The boost is asynchronous: D15 (SS34 Schottky) carries the switch node to VLOOP, and a Q3 (P-FET) / Q4 (level-shifter) load-disconnect switch in series with the inductor prevents VBAT from leaking through L1 + D15 to the loop terminals during deep sleep. GPIO5 drives both the MT3608B EN and the Q4 gate; R27 pulls the net low while GPIO5 is isolated in deep sleep.
 
 Firmware gates GPIO5 high for `CONFIG_WELLD_VLOOP_SETTLE_MS` — **10 ms** by default: MT3608B soft-start plus rail settling through the Q3 load-disconnect P-FET into C20/C22 (raised from 5 ms in the 2026-07 PCB review) — before reading, then drives it low immediately after. The transducer must also produce a valid output within that window: if its datasheet start-up (switch-on) time is longer, raise the option to match.
 
@@ -100,7 +100,7 @@ The ADS1115 measures the voltage across a shunt resistor on the loop return: PGA
 
 10 nF X7R bypass capacitors (C34 / C35) are placed directly across each 100 Ω shunt resistor (R2 / R4) to suppress HF pickup from the loop cable. The RC corner is ~160 kHz, well above the measurement bandwidth.
 
-The loop signal terminals are protected by SMAJ5.0A TVS diodes (D9 / D10, 400 W, DO-214AC/SMA). The 5 V standoff (6.4 V minimum breakdown) keeps the 2.0 V working point far below the knee, so leakage stays negligible; Behind them, R3 / R5 (1 kΩ) and the D1 rail clamp protect the ADS1115 inputs: with the cable shorted, D9 holds the signal at ≈7–8 V while VLOOP is on, and 1 kΩ limits the current D1 dumps into +3V3 to ≈3.5 mA (with the earlier 100 Ω it was ≈40 mA, more than the LDO-fed rail can absorb). C3 / C5 (100 nF) form a filter with the shunt and the series resistor (τ = (R2 + R3)·C3 ≈ 110 µs, ≈1.45 kHz) that settles to 0.01 % in about 1 ms; C4 / C6 are DNP footprints (value `10uF DNF`) — fitting them would slow the input to τ ≈ 11 ms. The forward diode of the TVS clamps negative transients. (The earlier SMAJ3.3CA leaked up to 800 µA at its standoff — replaced 2026-07-14.)
+The loop signal terminals are protected by SMAJ5.0A TVS diodes (D9 / D10, 400 W, DO-214AC/SMA). The 5 V standoff (6.4 V minimum breakdown) keeps the 2.0 V working point far below the knee, so leakage stays negligible; Behind them, R3 / R5 (1 kΩ) and the D1 rail clamp protect the ADS1115 inputs: with the cable shorted, the loop limiter keeps the signal node at ≤ ≈3.5 V; should a limiter fail, D9 holds it at ≈7–8 V while VLOOP is on and 1 kΩ limits the current D1 dumps into +3V3 to ≈3.5 mA (with the earlier 100 Ω it was ≈40 mA, more than the LDO-fed rail can absorb). C3 / C5 (100 nF) form a filter with the shunt and the series resistor (τ = (R2 + R3)·C3 ≈ 110 µs, ≈1.45 kHz) that settles to 0.01 % in about 1 ms; C4 / C6 are DNP footprints (value `10uF DNF`) — fitting them would slow the input to τ ≈ 11 ms. The forward diode of the TVS clamps negative transients. (The earlier SMAJ3.3CA leaked up to 800 µA at its standoff — replaced 2026-07-14.)
 
 The 1W DATA terminal (J6) is protected by D12, a PRTR5V0U2X dual-channel rail clamp in SOT-363 (the same part as D1 at the ADS1115 inputs). D12 clamps the data line to 3V3 + ~0.5 V during an ESD transient in sub-nanosecond response time. The added capacitance per channel is 0.5 pF, which is negligible compared to the 800 pF DS18B20 bus limit and does not affect 1-Wire timing.
 
@@ -200,8 +200,8 @@ All options have sensible defaults. Only change what differs from your hardware.
 |--------|---------|-------------|
 | `CONFIG_WELLD_I2C_SDA_GPIO` | `18` | I²C SDA pin (ADS1115). GPIO10/11 unavailable on the MINI-1 module |
 | `CONFIG_WELLD_I2C_SCL_GPIO` | `19` | I²C SCL pin (ADS1115) |
-| `CONFIG_WELLD_VLOOP_GPIO` | `5` | MT3608B EN + Q3/Q4 load-disconnect — 12 V loop supply enable. Held HIGH for `CONFIG_WELLD_VLOOP_SETTLE_MS` before each 4–20 mA read, LOW right after |
-| `CONFIG_WELLD_VLOOP_SETTLE_MS` | `10` | Loop warm-up before the reading (10–1000 ms). 10 ms covers the PCB's 12 V rail (it settles through the Q3 P-FET into C20/C22); raise it to the transducer's datasheet start-up / switch-on time if that is longer. Above 10 ms the firmware samples AIN0 once the rail is up and switches the loop straight off on a dead short (≥ 3.0 V) instead of holding it on for the whole warm-up |
+| `CONFIG_WELLD_VLOOP_GPIO` | `5` | MT3608B EN + Q3/Q4 load-disconnect — 16 V loop supply enable. Held HIGH for `CONFIG_WELLD_VLOOP_SETTLE_MS` before each 4–20 mA read, LOW right after |
+| `CONFIG_WELLD_VLOOP_SETTLE_MS` | `10` | Loop warm-up before the reading (10–1000 ms). 10 ms covers the PCB's 16 V rail (it settles through the Q3 P-FET into C20/C22); raise it to the transducer's datasheet start-up / switch-on time if that is longer. Above 10 ms the firmware samples AIN0 once the rail is up and switches the loop straight off on a dead short (≥ 3.0 V) instead of holding it on for the whole warm-up |
 | `CONFIG_WELLD_SOLAR_DETECT_GPIO` | `6` | Solar charger /CHRG (CN3791) — solar-charging-active detect (active-low) |
 | `CONFIG_WELLD_BATT_DIV_EN_GPIO` | `15` | Battery-divider enable — Q2 level-shifter gate, switching the Q5 high-side P-FET |
 | `CONFIG_WELLD_ADS1115_DRDY_GPIO` | `22` | ADS1115 ALERT/DRDY interrupt input (moved off GPIO12, now native USB D−) |

@@ -2,7 +2,7 @@
 
 This guide builds WellD from off-the-shelf parts: an ESP32-C6 development board, an **ADS1115** ADC breakout, a 4–20 mA pressure transducer and a DS18B20 temperature probe. Use it for bench testing or for a USB- or mains-powered install. No electronics experience is assumed — read the whole guide before touching any wires.
 
-> **Have the WellD PCB?** Skip this guide. The board ([`hardware/pcb/`](../hardware/pcb/)) has all of these circuits on it, plus what a battery install needs: a 12 V loop supply that runs only during a reading, a switched battery divider, input protection and solar/USB charging.
+> **Have the WellD PCB?** Skip this guide. The board ([`hardware/pcb/`](../hardware/pcb/)) has all of these circuits on it, plus what a battery install needs: a current-limited 16 V loop supply that runs only during a reading, a switched battery divider, input protection and solar/USB charging.
 
 ![WellD dev-board wiring diagram](wiring_diagram.png)
 
@@ -67,7 +67,7 @@ The firmware takes every analog reading through an **ADS1115** 16-bit ADC on the
 
 | GPIO | What the firmware does with it | On a dev board |
 |---|---|---|
-| GPIO5 | Output: switches the PCB's 12 V loop supply on for each reading | Leave open — your loop supply simply stays on (but see [Battery-powered builds](#battery-powered-builds)) |
+| GPIO5 | Output: switches the PCB's 16 V loop supply on for each reading | Leave open — your loop supply simply stays on (but see [Battery-powered builds](#battery-powered-builds)) |
 | GPIO15 | Output: switches the PCB's battery divider on for each reading | Leave open — a hand-wired divider is always connected |
 | GPIO6 | Input with internal pull-up: solar-charger status | Leave open — reads as "not charging" (`solar_charging` = 0) |
 | GPIO23 | Input with internal pull-up: factory reset | Leave open. Holding it to GND while the board boots erases NVS **and** the Zigbee network; the device then has to be paired again (*Permit join*) |
@@ -246,7 +246,7 @@ Set `CONFIG_WELLD_BATT_EMPTY_MV` to the pack voltage below which your regulator 
 
 ## Battery-powered builds
 
-With the loop supply always on, the transducer draws 4–20 mA around the clock. Boosted to 12 V from a single Li-ion cell, that is roughly 15–75 mA from the cell — an 18650 lasts days, not months. The PCB avoids this by switching its 12 V loop supply on only for each reading: the firmware drives **GPIO5 HIGH**, waits `CONFIG_WELLD_VLOOP_SETTLE_MS` (default 10 ms), takes the reading and drives GPIO5 LOW again straight away.
+With the loop supply always on, the transducer draws 4–20 mA around the clock. Boosted to 12 V from a single Li-ion cell, that is roughly 15–75 mA from the cell — an 18650 lasts days, not months. The PCB avoids this by switching its 16 V loop supply on only for each reading: the firmware drives **GPIO5 HIGH**, waits `CONFIG_WELLD_VLOOP_SETTLE_MS` (default 10 ms), takes the reading and drives GPIO5 LOW again straight away.
 
 You can do the same on a dev board by switching your loop supply with GPIO5 (HIGH = on) — for example a boost module with an enable input, or a high-side MOSFET switch like the PCB's Q3/Q4 stage (see [`hardware/pcb/schematic_connections.md`](../hardware/pcb/schematic_connections.md)). Then make sure both the supply *and the transducer* have settled within the wait: some transducers need tens or hundreds of milliseconds after power-up before their output is valid. Check the datasheet's start-up (or "switch-on") time and raise `CONFIG_WELLD_VLOOP_SETTLE_MS` to match.
 

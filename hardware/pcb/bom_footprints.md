@@ -28,7 +28,7 @@
 | **R_CS_DW** | 1kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — DW01A CS series resistor to system GND |
 | D5 | AO3407 P-ch MOSFET | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | AO3407 | C31417 ✅ | Reverse-polarity protection |
 | R31 | 10kΩ 1% | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | C25741 ✅ | D5 gate pull-down to GND (holds load switch ON) |
-| D13 | **SMAJ5.0A TVS 5V uni** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ5.0A | **C98802** ✅ (same reel as D9/D10) | Battery terminal TVS, **re-rated 2026-07-19** (1S): 5 V standoff clears the 4.2 V full charge; unidirectional — the forward diode clamps negative transients (reverse-battery is D5's job) |
+| D13 | **SMAJ5.0A TVS 5V uni** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ5.0A | **C98802** ✅ (same reel as D9/D10; schematic LCSC field fixed 2026-11-27 — it carried C2836474) | Battery terminal TVS, **re-rated 2026-07-19** (1S): 5 V standoff clears the 4.2 V full charge; unidirectional — the forward diode clamps negative transients (reverse-battery is D5's job) |
 
 ---
 
@@ -41,7 +41,7 @@
 | J13 | USB-C 2.0 power-only | 16-pin SMD + 4 THT shell legs | `Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12` ✅ (confirmed present in KiCad standard lib 2026-07-21 — descr matches the krhro.com part; pads A1/A4/A5/A6/A7/A8/A9/A12/B-mirror/S1 all present) | **HRO TYPE-C-31-M-12** | **C165948** ✅ (order the Korean Hroparts listing specifically — part is endlessly cloned) | **SWAPPED 2026-07-19** (alternatives review P-2): was GCT USB4135-GF-A (~$1+, global sourcing) — GCT demoted to approved alternate (needs its own land pattern back). 16-pin USB-2.0 subset; symbol pins A1/A4/A5/A6/A7/B5 unchanged. ⚠️ Layout note: B-side mirror pins (B1/B4/B6/B7/B9/B12 etc.) tie to the same nets inside the footprint (GND/VBUS/D±) — check pad-to-net map when the footprint lands |
 | U11 | USBLC6-2SC6 ESD | SOT-23-6 | `Package_TO_SOT_SMD:SOT-23-6` | USBLC6-2SC6 | C7519 ✅ | VBUS + D+/D− clamp. Pinout verified 2026-07-14: 1=I/O1, 2=GND, 3=I/O2, 4=I/O2, 5=VBUS, 6=I/O1 — **welld symbol must be renumbered** (blocker #9) |
 | F2 | **MF-MSMF250/16X-2 PTC 2.5A hold** | **1812** | `Fuse:Fuse_1812_4532Metric` | MF-MSMF250/16X-2 | C210838 ✅ | **Resolved 2026-07-14** (blocker #8): 2.5 A hold / 5.0 A trip / 16 V / 100 A max / 15 mΩ, −40…+85 °C. Series with J13 VBUS; TP4056 draws ≈1 A charge (linear — no boost input multiplication), comfortable inside the derated 1.75–2 A hold at 60 °C. Schematic footprint field fixed 1206 → 1812 (2026-07-19) |
-| U12 | **TP4056 1S linear charger 1A** | **SOP-8 + EPAD** | `Package_SO:SOIC-8-1EP_3.9x4.9mm_P1.27mm_EP2.29x2.29mm` (KiCad standard) | TP4056-42-ESOP8 (TopPower/NanJing) | **C16581** ✅ (found 2026-07-19 — the ESOP-8/EPAD variant) | **1S CONVERSION 2026-07-19** (replaced IP2326): 5 V VBUS → 4.2 V CC/CV linear, 1 A (R_PROG 1.2 k). CE (8) strapped to VUSB = auto-charge; /CHRG (7) open-drain → R38/TP15; /STDBY (6) NC. **EPAD GND pour required** (≈1.3 W at mid-charge; thermal regulation folds back at ≈120 °C die — drop R_PROG to 2.4 k → 0.5 A if the enclosure runs hot). Pinout confirm = 1S blocker #10a |
+| U12 | **TP4056 1S linear charger 1A** | **SOP-8 + EPAD** | `Package_SO:SOIC-8-1EP_3.9x4.9mm_P1.27mm_EP2.29x2.29mm` (KiCad standard) | TP4056-42-ESOP8 (TopPower/NanJing) | **C16581** ✅ (found 2026-07-19 — the ESOP-8/EPAD variant; schematic LCSC field fixed 2026-11-27 — it carried C725790) | **1S CONVERSION 2026-07-19** (replaced IP2326): 5 V VBUS → 4.2 V CC/CV linear, 1 A (R_PROG 1.2 k). CE (8) strapped to VUSB = auto-charge; /CHRG (7) open-drain → R38/TP15; /STDBY (6) NC. **EPAD GND pour required** (≈1.3 W at mid-charge; thermal regulation folds back at ≈120 °C die — drop R_PROG to 2.4 k → 0.5 A if the enclosure runs hot). Pinout confirm = 1S blocker #10a |
 | **R_PROG** | **1.2kΩ 1%** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW 2026-07-19** — TP4056 PROG (2) → GND; I_CH = 1200 V/R_PROG = **1 A** |
 | **R_NTC** | **5.6kΩ 1%** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW 2026-07-19** — TEMP-node divider top (VUSB → TEMP); with RT1 10 k B3950 → ✅ **computed** charge window **+8…+44 °C** |
 | ~~L3, R35, R_VSET, C_BST2, C_SYS1, C_SYS2~~ | — | — | — | — | — | **DELETED 2026-07-19** — IP2326 boost support parts, gone with the 1S conversion |
@@ -77,7 +77,7 @@
 | **R_HYS** | 330kΩ | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — hysteresis (≈2 °C: trip +2 °C falling, release ≈+4 °C) |
 | **C_NTC** | 100nF | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | **NEW** — U14 supply bypass |
 | **Q7** | **AO3400A N-FET** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | AO3400A | **C20917** ✅ (same reel as Q2/Q4) | **NEW** — MPPT clamp switch (small-signal; Vgs ≈ VSOLAR ≤10 V vs ±12 V abs max — OK for ≤6 V-nominal panels) |
-| D6 | MBRS140 Schottky 1A 40V | SMB | `Diode_SMD:D_SMB` | MBRS140T3G | — ✅ | Solar backfeed block (MBRS140T3G is SMB, not SOD-123) |
+| D6 | MBRS140 Schottky 1A 40V | SMB | `Diode_SMD:D_SMB` | MBRS140T3G | — ✅ | Solar backfeed block (MBRS140T3G is SMB, not SOD-123 — the schematic footprint field still said SOD-123 until 2026-11-27) |
 | D8 | **SMAJ10CA TVS 10V bidi** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ10CA | **C320526** ✅ (LGE, confirmed in-stock LCSC 2026-07-21; was the unconfirmed C2836474) | **Re-rated 2026-07-19** (1S conversion): at CN3791 VIN; same reel as D14. Panel is now 6 V-nominal → Voc limit **10 V** (was SMAJ24CA / 24 V for the 12 V-panel 2S design) |
 | ~~M_SOLAR, D16, C_COM1, C_COM2, C_COM3, R_COM2, R33, R34~~ | — | — | — | — | — | **DELETED 2026-07-19** (1S conversion) — the CN3791's integrated switch needs no external P-FET/series diode/compensation, and its fixed 4.2 V CV needs no divider. (M_SOLAR had been swapped to SI2319CDS earlier the same day — the swap died young; C146287 is simply not ordered) |
 | **D_SOLAR** | **SS34 Schottky 3A 40V** | DO-214AC | `Diode_SMD:D_SMA` | SS34 | C8678 ✅ | Catch/freewheel diode (GND → SOLAR_SW), kept for the CN3791 stage — sanity-check against the CN3791 typical application (1S blocker #10b) |
@@ -115,14 +115,14 @@
 
 ---
 
-## Power — 12V VLOOP Boost (MT3608B)
+## Power — 16V VLOOP Boost (MT3608B)
 
 | Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC | Notes |
 |-----|-------|---------|-------------------|-----|------|-------|
-| U8 | MT3608B boost 12V | SOT-23-6 | `Package_TO_SOT_SMD:SOT-23-6` | MT3608B | C84005 ✅ | GPIO5-gated, EN=HIGH during 4-20mA reads. Pin map **datasheet-confirmed 2026-07-14** (SW=1, GND=2, FB=3, EN=4, IN=5, NC=6 — KiCad official `MT3608` symbol agrees with both prior reviews); routine first-article check only |
+| U8 | MT3608B boost **16V** (was 12 V — design change #21) | SOT-23-6 | `Package_TO_SOT_SMD:SOT-23-6` | MT3608B | C84005 ✅ | GPIO5-gated, EN=HIGH during 4-20mA reads. Pin map **datasheet-confirmed 2026-07-14** (SW=1, GND=2, FB=3, EN=4, IN=5, NC=6 — KiCad official `MT3608` symbol agrees with both prior reviews); routine first-article check only |
 | L1 | 4.7µH 1A shielded | 4×4mm SMD | `Inductor_SMD:L_4.0x4.0mm_H2.6mm` ⚠️verify name | CDRH4D22NP-4R7NC | C376098 ✅ | MT3608B boost inductor (was "same part as L2" — L2 deleted 2026-07-19) |
-| R23 | 1.91MΩ 1% E96 | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | VOUT divider high-side → VOUT=0.6×(1+1910/100)=12.06V (matches schematic value) |
-| R24 | 100kΩ 1% | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | VOUT divider low-side |
+| R23 | 1.91MΩ 1% E96 | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | VOUT divider high-side → VOUT = 0.6 × (1 + 1910/75) = **15.88 V** with R24 = 75 kΩ (design change #21; was 12.06 V with 100 kΩ) |
+| R24 | **75kΩ 1%** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | VOUT divider low-side. **Changed 2026-11-27 from 100 kΩ** (design change #21: VLOOP 12 → 16 V) |
 | C_BST | 100nF 16V | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | C14663 ✅ | Pin 6 ↔ SW. Pin 6 = NC **confirmed 2026-07-14** (KiCad official symbol) — cap is harmless; can be marked **DNF** at first article |
 | **D15** | **SS34 Schottky 3A 40V** | DO-214AC | `Diode_SMD:D_SMA` | SS34 | C8678 ✅ | **NEW** — boost rectifier SW→VLOOP (MT3608 is an async boost; there was no rectifier in the BOM) |
 | **Q3** | **AO3407 P-ch MOSFET** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | AO3407 | C31417 ✅ | **NEW** — VLOOP input disconnect (VBAT→Q3→L1); kills the permanent VBAT−0.4V leak through L1+D15 to the loop terminals during sleep |
@@ -130,9 +130,9 @@
 | **R29** | **100kΩ** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — Q3 gate pull-up to VBAT (off by default) |
 | **R27** | **100kΩ** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | **NEW** — VBOOST_EN pull-down (GPIO5 floats in deep sleep) |
 | C19 | 10µF 16V | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | VIN bypass |
-| C20 | 22µF 25V X5R | 1206 | `Capacitor_SMD:C_1206_3216Metric` | — | ✅ | VOUT filter |
+| C20 | 22µF 25V X5R | 1206 | `Capacitor_SMD:C_1206_3216Metric` | — | ✅ | VOUT filter. 25 V still ≥ 1.2 × 16.7 V (VLOOP max at 16 V nominal); surge peaks up to D11's ≈29 V clamp are within the MLCC 250 %-of-rated withstand test |
 | C22 | 10µF 25V X5R | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | VOUT parallel with C20 |
-| D11 | SMAJ13A TVS 13V uni | DO-214AC | `Diode_SMD:D_SMA` | SMAJ13A | **C110519** ✅ | VLOOP terminal clamp. Confirmed 2026-07-21: **C110519** (SMAJ13A-13-F, Diodes Inc, in stock); earlier C8057 stays unconfirmed, C110519 now primary |
+| D11 | **SMAJ18A TVS 18V uni** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ18A (e.g. SMAJ18A-13-F, Diodes Inc) | ⚠️ pick at order time | VLOOP clamp — also takes LOOP+ surges steered in by D17/D19. **Changed 2026-11-27 from SMAJ13A** (design change #21): VWM must cover the 16.7 V VLOOP maximum (VWM 18 V, VBR ≥ 20 V, Vc ≈ 29.2 V). The schematic instance had also kept the unconfirmed C8057 |
 | SJ1 | Solder jumper NO | — | `Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm` | — | — | MT3608B EN permanent tie, DNF |
 | SJ2 | Solder jumper NC | — | `Jumper:SolderJumper-2_P1.3mm_Bridged_RoundedPad1.0x1.5mm` | — | — | J4/J5 VLOOP bus share |
 
@@ -189,7 +189,7 @@
 
 | Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC | Notes |
 |-----|-------|---------|-------------------|-----|------|-------|
-| D9 | **SMAJ5.0A TVS 5V uni** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ5.0A-TR (ST) | **C98802** ✅ | J4 SIG surge clamp. **CHANGED 2026-07-14 from SMAJ3.3CA** (blocker #6 FAIL: IR = 800 µA max at VRWM — un-guaranteeable at the 2.0 V node). VBR min 6.4 V → 2.0 V working point far below the knee; Vc 9.2 V; forward diode clamps negatives; R3/R5 + D1 still protect the ADS1115 pins. **Schematic value edit required** (blocker #9c) |
+| D9 | **SMAJ5.0A TVS 5V uni** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ5.0A-TR (ST) | **C98802** ✅ (schematic LCSC field fixed 2026-11-27 — it still carried C2836497) | J4 SIG surge clamp. **CHANGED 2026-07-14 from SMAJ3.3CA** (blocker #6 FAIL: IR = 800 µA max at VRWM — un-guaranteeable at the 2.0 V node). VBR min 6.4 V → 2.0 V working point far below the knee; Vc 9.2 V; forward diode clamps negatives; R3/R5 + D1 still protect the ADS1115 pins. **Schematic value edit required** (blocker #9c) |
 | D10 | **SMAJ5.0A TVS 5V uni** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ5.0A-TR (ST) | **C98802** ✅ | J5 SIG surge clamp — see D9 |
 | **GDT1** | **GDT 90V DNF** | 8×6 mm SMD 2-pole | `WellD:GDT_BOURNS_2038_SM` ⚠️ draw in WellD.pretty (no standard lib footprint) | BOURNS 2038-09-SM class (e.g. 2038-09-SM-RPLF; Littelfuse GTCS23-900M-R05 alternate) | — ⚠️ | **NEW 2026-07-19 (DNF)** — alternatives review P-3: coarse kA-class stage of the industrial GDT → series-R → TVS 3-stage loop protection, LOOP_TERM_CH1 → GND. **Footprint only, do not fit by default** — populate per site only for long/buried/aerial transducer cable runs |
 | **GDT2** | **GDT 90V DNF** | 8×6 mm SMD 2-pole | `WellD:GDT_BOURNS_2038_SM` ⚠️ draw in WellD.pretty | same as GDT1 | — ⚠️ | **NEW 2026-07-19 (DNF)** — LOOP_TERM_CH2 → GND, see GDT1 |
@@ -204,6 +204,19 @@
 | C5 | **100nF X7R 16V** | 0402 | `Capacitor_SMD:C_0402_1005Metric` | — | ✅ | CH2 RC filter with R5 (same change as C3) |
 | C4 | 10µF 10V — **DNP** (schematic value `10uF DNF`) | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | CH1 bulk — **do not fit** since 2026-11-27 (#20): with R2 + R3 = 1.1 kΩ it makes τ ≈ 11 ms and the level reads 10–40 % low at the default 10 ms warm-up (fitting it would need `CONFIG_WELLD_VLOOP_SETTLE_MS` ≥ ≈110 ms). Footprint kept |
 | C6 | 10µF 10V — **DNP** (schematic value `10uF DNF`) | 0805 | `Capacitor_SMD:C_0805_2012Metric` | — | ✅ | CH2 bulk — **do not fit** (same as C4) |
+
+### Loop current limiters (design change #21, 2026-11-27) — one per channel
+
+A shorted transducer cable used to connect VLOOP straight to GND or to the shunt node: the boost ran at its switch current limit, the cell supplied ≈3–4 A and the DW01A cut the device off until a charger reconnected. Each LOOP+ now goes through a two-transistor limiter: ≈0.6–0.77 V / 22 Ω ≈ **27–35 mA** over −20…+85 °C (simulated: ≈32 mA at 25 °C) (above the 20 mA full scale and NAMUR 21–23 mA alarm currents), with ≈0.5 V drop at 20 mA.
+
+| Ref | Value | Package | KiCad 10 Footprint | MPN | LCSC | Notes |
+|-----|-------|---------|-------------------|-----|------|-------|
+| R52, R54 | **22Ω 1%** | 0603 | `Resistor_SMD:R_0603_1608Metric` | — | ✅ | CH1/CH2 sense resistor VLOOP → pass emitter. ≈20 mW at the limit |
+| Q8, Q10 | **BCX53-16 PNP 80V 1A** | SOT-89 | `Package_TO_SOT_SMD:SOT-89-3` | BCX53-16 (Nexperia or equivalent) | ⚠️ pick at order time | Pass transistor (1=B, 2=C/tab, 3=E). Dissipates up to ≈0.55 W into a dead short — put ≥ 1 cm² of copper on the collector tab |
+| Q9, Q11 | **MMBT3906 PNP 40V** | SOT-23 | `Package_TO_SOT_SMD:SOT-23` | MMBT3906 | ⚠️ pick at order time | Clamp: E on VLOOP, B on the sense node, C on the pass base (1=B, 2=E, 3=C) |
+| R53, R55 | **15kΩ 1%** | 0402 | `Resistor_SMD:R_0402_1005Metric` | — | ✅ | Pass-transistor base drive to GND (≈1 mA → saturated at 20 mA) |
+| D17, D19 | **SS34 Schottky 3A 40V** | DO-214AC | `Diode_SMD:D_SMA` | SS34 | C8678 ✅ | LOOP+ → VLOOP steering (cathode on VLOOP for both channels, independent of SJ2): positive surges bypass the limiter into D11 and the PNP emitter–base junctions never see reverse voltage. Same part as D15 |
+| D18, D20 | **SMAJ18A TVS 18V uni** | DO-214AC | `Diode_SMD:D_SMA` | SMAJ18A | ⚠️ pick at order time (same as D11) | LOOP+ terminal clamp (cathode LOOP+, anode GND): negative surges forward-clamped at ≈−1 V, positive at ≥ 20 V. D11 no longer sits on LOOP+ directly |
 
 ---
 

@@ -549,7 +549,7 @@ void app_main(void)
     /* Read sensors before powering the radio. The ADC is sensitive to 802.15.4
      * RF interference, so all ADC reads must complete before zigbee_send().
      * The battery is read FIRST so the low-battery guard below can run before
-     * the level (12 V VLOOP boost) and temperature (DS18B20, whose probe-change
+     * the level (16 V VLOOP boost) and temperature (DS18B20, whose probe-change
      * path writes the ROM code to NVS) reads — a wakeup that won't report must
      * not burn loop power or touch NVS below the flash-safe voltage. */
     t0 = esp_timer_get_time();

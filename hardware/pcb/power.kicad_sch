@@ -7099,7 +7099,7 @@
 				)
 			)
 		)
-		(property "Value" "100k"
+		(property "Value" "75k"
 			(at 81.28 187.42 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8356,7 +8356,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Diode_SMD:D_SOD-123"
+		(property "Footprint" "Diode_SMD:D_SMB"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -8955,7 +8955,7 @@
 				)
 			)
 		)
-		(property "Value" "SMAJ13"
+		(property "Value" "SMAJ18A"
 			(at 96.52 187.42 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8998,7 +8998,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C8057"
+		(property "LCSC" ""
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -9434,7 +9434,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C2836474"
+		(property "LCSC" "C98802"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -11972,7 +11972,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C725790"
+		(property "LCSC" "C16581"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)

@@ -109,7 +109,7 @@ menu "WellD Sensor"
             WELLD_I2C_SDA_GPIO — GPIO10/11 are unavailable on the MINI-1 module).
 
     config WELLD_VLOOP_GPIO
-        int "VLOOP 12 V boost enable GPIO (MT3608B EN)"
+        int "VLOOP 16 V boost enable GPIO (MT3608B EN)"
         range 0 21
         default 5
         help
@@ -122,7 +122,7 @@ menu "WellD Sensor"
         default 10
         help
             Time VLOOP is held on before the shunt is sampled. It must cover
-            both the 12 V rail and the transducer: the boost output caps
+            both the 16 V rail and the transducer: the boost output caps
             (C20/C22) charge through the Q3 load-disconnect P-FET, so the rail
             needs longer than the bare MT3608B soft-start (< 5 ms typical) -
             10 ms is the PCB minimum. The transducer itself must also have

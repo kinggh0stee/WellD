@@ -39,6 +39,7 @@
 | 18 | **1S CONVERSION (2026-07-19)** — pack 2S1P → 1S (VBAT 3.0–4.2 V; battery mechanics finalised in #19). **U12 IP2326 boost-charger subsystem deleted** (U12, L3, R_VSET, C_BST2, C_SYS1/C_SYS2, R35) → **TP4056 1 A linear 1S charger** (SOP-8+EPAD; R_PROG 1.2 kΩ → 1 A; RT1 NTC kept on TEMP with new R_NTC 5.6 kΩ top resistor; CE strapped high; /CHRG → existing /CHRG_USB net). **U7 CN3722 controller + external buck stage deleted** (M_SOLAR, D16, C_COM1/2/3, R_COM2, R33/R34 CV divider) → **CN3791 1S MPPT buck charger** (integrated switch, fixed 4.2 V CV at BAT; D_SOLAR/L_SOLAR/C_VG/RT_SOLAR/R19/R20/R21 kept & repurposed; MPPT set ≈5.0 V for a 6 V panel via R20/R21 = 316k/100k, 1.205 V MPPT reference). **U1 AP63203WU buck deleted** (VIN min 3.8 V fails at 1S empty; L2, C_BST_AP, R_FBH/R_FBL, R11 removed) → **HT7333-A 250 mA LDO** (30 nA-class EN-less part; 3.3 V out, ~90 mV dropout, 4 µA Iq). TVS re-rates: D13 → SMAJ5.0A (VBAT max 4.2 V), D8/D14 → SMAJ10CA (panel ≤6 V nominal). Battery divider R7 330k → **100k** (divide-by-2, firmware ratio 430 → 200). MT3608B VLOOP stage unchanged. GPIO map unchanged (GPIO6 still reads active-low /CHRG_SOLAR; GPIO4 now genuinely spare in hardware). | User decision: 1S chosen deliberately for simplicity/ecosystem after an analysis that slightly favored 2S (≈320 vs ≈300 days runtime). All power-rail ICs reviewed for the 3.0–4.2 V range in the same pass. |
 | 19 | **BATTERY CARRIER (2026-07-19)** — the Sinowatt 1S2P pack is dropped for a **single generic 18650 in an on-board THT carrier (BT1**, replaces J1 XT30**)**. Generic bare cells have no PCM → discrete 1S protection added: **U13 DW01A** supervisor + **Q6 FS8205A** dual N-FET in the cell− → GND path (new nets BATT_N / DW_VCC / DW_OD / DW_OC / DW_CS / DW_D; R_DW1 100 Ω + C_DW 100 nF VCC filter, R_CS_DW 1 kΩ on CS — the exact TP4056-module reference topology). D5 reverse-polarity P-FET stays (reverse *insertion* is now a real user risk); D13 SMAJ5.0A stays on VBAT_RAW. RT1/RT_SOLAR thermal coupling target is now the carrier/cell. Capacity ≈3–3.4 Ah (single cell, was ≈6.7 Ah 2P). | Pinouts drawn from the ubiquitous community maps — **verify against the Fortune DW01A-G and FS8205A datasheets before ordering (blocker #11)**. |
 | 20 | **4–20 mA ADC input hardening (2026-11-27)** — R3/R5 series limiters **100 Ω → 1 kΩ**, C3/C5 **1 µF → 100 nF**, C4/C6 (10 µF bulk) **DNP** — schematic value `10uF DNF` + DNP flag (footprints kept — do not fit: τ = (R2 + R3)·(C3 + C4) ≈ 11 ms reads the level 10–40 % low at the default 10 ms VLOOP warm-up; a fitted C4 would need `CONFIG_WELLD_VLOOP_SETTLE_MS` ≥ ≈110 ms). Values only; no net change (netlist re-verified, 0 mismatches). | With 100 Ω, a shorted transducer or cable (SIG clamped by D9 at ≈7–8 V while VLOOP is on) pushed ≈40 mA through R3 into the D1 clamp diode and on into +3V3, which the HT7333 LDO cannot sink — the rail and the ESP32/ADS1115 would be back-driven for every 10–20 ms loop read. 1 kΩ cuts that to ≈3.5 mA, below the awake rail load. The shunt node is a current source into R2, so C3 sees R2 + R3: the new filter is τ = 1.1 kΩ × 100 nF = 110 µs (fc ≈ 1.45 kHz), settling to 0.01 % in ≈1 ms. The old one was (100 + 100) Ω × 11 µF = 2.2 ms (fc ≈ 72 Hz) and needed ≈20 ms — up to ≈1 % low at a 10 ms read. *(Corrected after the 2026-11-27 senior review: the first version of this note left out R2 and C4.)* C34 (10 nF across R2) adds only ≈1 µs. Accuracy cost: (R2 + R3) vs the ADS1115 input impedance (≈6 MΩ) ≈ 0.02 % gain — below the 0.1 % shunt. |
+| 21 | **Loop current limiters + VLOOP 12 → 16 V (2026-11-27, user decision)** — per channel a two-transistor limiter between VLOOP and LOOP+: R52/R54 22 Ω sense, Q8/Q10 BCX53-16 (SOT-89) pass, Q9/Q11 MMBT3906 clamp, R53/R55 15 kΩ base drive; D17/D19 SS34 steer LOOP+ surges into VLOOP/D11 (cathodes on VLOOP for both channels, independent of SJ2); D18/D20 SMAJ18A clamp each LOOP+ terminal. New nets LIM_E_CH1/2, LIM_B_CH1/2, LOOP_PWR_CH1/2; J4.1/J5.1 move off VLOOP/VLOOP_CH2 onto LOOP_PWR_CH1/2. VLOOP raised to 15.88 V (R24 100 k → 75 k); D11 SMAJ13A → **SMAJ18A** (VWM must cover 16.7 V). Netlist re-verified: 421 pins / 81 nets / 0 mismatches. Limiter simulated in ngspice (`hardware/pcb/sim/loop_limiter.cir`). | A shorted transducer cable connected VLOOP straight to GND or to the shunt node: the MT3608B ran into its switch current limit, the cell supplied ≈3–4 A and the DW01A over-current trip cut the whole device off until a charger reconnected (with solar: back each morning, tripped again at the first reading). The limiter caps each channel at ≈0.6–0.77 V / 22 Ω ≈ 27–35 mA over −20…+85 °C (simulated: ≈32 mA at 25 °C) (above full scale and NAMUR 21–23 mA alarms), so a short is just reported (> 21 mA) and the boost draws ≤ ≈0.45 A even with both channels shorted. It costs ≈0.5 V at 20 mA, which 12 V could not afford (a transducer got only ≈9.4 V at 20 mA at VLOOP −5 %): at 16 V it gets ≈12.6 V, enough for 9–36 V and 12–36 V types. **Electrical gate:** (1) MT3608B FB divider recomputed (0.6 V × (1 + 1910/75) = 15.88 V), limiter base drive R53/R55 present; (2) nets documented below; (3) ratings at VLOOP max 16.7 V (≥ 20 % margin): C20/C22 25 V ✓ (20.0 V), D15/D17/D19 SS34 40 V ✓, Q8/Q10 VCEO 80 V ✓, Q9/Q11 VCEO 40 V ✓, R53/R55 0402 50 V ✓, D11/D18/D20 VWM 18 V ≥ 16.7 V ✓; L1 peak ≈0.48 A at 3.2 V in with both channels at 20 mA (1 A part) ✓; (4) n/a; (5) n/a. Surges: D17/D19 keep each PNP emitter–base junction (V_EBO 5 V) from reverse bias. |
 
 ---
 
@@ -59,7 +60,7 @@
 | VUSB_IN | 5V | USB-C VBUS raw (J13 VBUS pins, before F2) |
 | VSOLAR | ≤10V (Voc) | Solar input after D6 diode = CN3791 VCC node (6 V-nominal panel) |
 | VSOLAR_IN | ≤10V (Voc) | Solar panel raw (J12 terminal, before D6) |
-| VLOOP | 12V ±5% | Boost output (MT3608B + D15), loop power |
+| VLOOP | 16V ±5% (15.88 V nominal) | Boost output (MT3608B + D15), loop power — feeds the per-channel limiters (#21); 12 V until 2026-11-27 |
 | VLOOP_SW | switching | MT3608B SW node (L1 / D15 anode / C_BST) |
 | VLOOP_L | 3.0–4.2V gated | Q3 drain → L1 input (boost disconnect branch) |
 | +3V3_ADS | 3.3V filtered | ADS1115 VDD (after FB1 ferrite bead) |
@@ -84,6 +85,8 @@
 | Q3_GATE / Q5_GATE | analog | P-FET gate nodes (level-shifted from GPIO5 / GPIO15) |
 | 1WIRE | signal | DS18B20 data → GPIO7 (R6 pull-up) |
 | LOOP_TERM_CH1/2 | signal | 4-20mA SIG inputs from J4/J5 |
+| LOOP_PWR_CH1/2 | ≈ VLOOP − 0.5 V at 20 mA | Current-limited LOOP+ (J4.1 / J5.1) — limiter output (#21) |
+| LIM_E_CH1/2, LIM_B_CH1/2 | analog | Limiter sense node (R52/R54 low side = pass emitter = clamp base) and pass-transistor base node (#21) |
 | SHUNT_IN_1/2, SHUNT_OUT_1/2 | analog | Shunt chain intermediate nets (see ADC_CH0/1) |
 | /CHRG_SOLAR | signal | CN3791 /CHRG (open-drain, active-low) → GPIO6, R25 pull-up |
 | /CHRG_USB | signal | TP4056 /CHRG (open-drain, LOW = charging) → R38 pull-up → TP15 only |
@@ -140,6 +143,8 @@
 | C3–C6, C34, C35 | pin 2 | 4-20mA filter/bypass caps |
 | C7 | pin 2 | J6 VCC bypass |
 | R2, R4 | pin 2 (shunt low side) | 4-20mA shunt return |
+| R53, R55 | pin 2 | Loop-limiter base drive (#21) |
+| D18, D20 SMAJ18A | anode (pin 2) | LOOP+ terminal clamps (#21) |
 | D9, D10, D11, D13, D14, D8 | one terminal | TVS clamps (bidirectional except D11 = unidirectional, cathode to VLOOP) |
 | Q2 | S | AO3400A source |
 | Q6 FS8205A | S2 (6,7) | Protection pair system-GND (P−) side |
@@ -249,7 +254,7 @@ A generic bare 18650 has no PCM, so the standard TP4056-ecosystem protection pai
 
 ✅ **Verified 2026-07-19 (blocker #11a/b)**: DW01A pin map (OD=1, CS=2, OC=3, TD=4, VCC=5, GND=6) and thresholds (over-discharge 2.40 V / release 3.0 V; over-charge 4.30 V / release 4.1 V) confirmed against datasheet sources; the 100 Ω/100 nF/1 kΩ network is the documented typical application. FS8205A pin map **corrected** to the real TSSOP-8 layout (D=1&8 internally common, S1=2&3, G1=4, G2=5, S2=6&7; 20 V, ±12 V VGS, ~6 A). The chargers and load all sit on the **system** side (VBAT/GND), so protection trips isolate the cell, exactly as on the pack PCM this replaces.
 
-### VLOOP (12 V boost — corrected topology)
+### VLOOP (16 V boost — corrected topology; 12 V until design change #21)
 
 Current path: `VBAT → Q3 (P-FET switch) → L1 → SW node → D15 (Schottky) → VLOOP`
 
@@ -267,14 +272,14 @@ Current path: `VBAT → Q3 (P-FET switch) → L1 → SW node → D15 (Schottky) 
 | C_BST | pin 1 / pin 2 | BST ↔ VLOOP_SW | 100 nF; **verify BST pin exists** — classic MT3608 pin 6 is NC (harmless if fitted to an NC pin) |
 | D15 SS34 | anode | VLOOP_SW | Boost rectifier |
 | D15 SS34 | cathode | VLOOP | |
-| C20 (22µF 25V), C22 (10µF 25V) | pin 1 | VLOOP | Output filter |
+| C20 (22µF 25V), C22 (10µF 25V) | pin 1 | VLOOP | Output filter (25 V ≥ 1.2 × 16.7 V) |
 | R23 (1.91M) | pin 1 | VLOOP | FB divider high side; pin 2 → MT_FB |
-| R24 (100k) | pin 1 | MT_FB | pin 2 → GND. VOUT = 0.6 × (1 + 1910/100) = 12.06 V |
+| R24 (**75k**) | pin 1 | MT_FB | pin 2 → GND. VOUT = 0.6 × (1 + 1910/75) = **15.88 V** (#21; was 100 k → 12.06 V) |
 | U8 MT3608B | FB | MT_FB | |
-| D11 SMAJ13A | cathode | VLOOP | Unidirectional TVS, anode → GND |
-| J4 | LOOP+ (pin 1) | VLOOP | CH1 loop power |
-| SJ2 | A/B | VLOOP ↔ J5 LOOP+ | Bridged by default; open to isolate CH2 |
-| J5 | LOOP+ (pin 1) | via SJ2 | CH2 loop power |
+| D11 **SMAJ18A** | cathode | VLOOP | Unidirectional TVS, anode → GND (#21: was SMAJ13A). Also absorbs LOOP+ surges steered in by D17/D19 |
+| R52 / Q9 E / D17 K / D19 K | — | VLOOP | CH1 limiter input, clamp emitter, surge-steering diode cathodes (see *Loop current limiters*) |
+| SJ2 | A/B | VLOOP ↔ VLOOP_CH2 | Bridged by default; open to isolate CH2 (feeds the CH2 limiter: R54, Q11 E) |
+| J4 / J5 | LOOP+ (pin 1) | LOOP_PWR_CH1 / LOOP_PWR_CH2 | Loop power **through the limiters** since #21 (was VLOOP / VLOOP_CH2 directly) |
 | TP2 | pad | VLOOP | Test point |
 
 ### VBOOST_EN
@@ -464,6 +469,27 @@ CH1 path: `J4 SIG → D9 clamp → R2 shunt (‖ C34) → R3 1 kΩ → ADC_CH0 (
 
 CH2 identical: `J5 SIG → D10 → R4 (‖ C35) → R5 1 kΩ → ADC_CH1 (C5 100 nF, C6 DNP, D1 IO2) → U9 AIN1`, TP6 at shunt top, GDT2 (DNF) from LOOP_TERM_CH2 to GND.
 
+### Loop current limiters (design change #21 — one per channel)
+
+`VLOOP → R52 22 Ω → LIM_E_CH1 → Q8 (PNP pass) → LOOP_PWR_CH1 = J4 LOOP+` — Q9 (PNP clamp) senses the R52 drop: once I × 22 Ω reaches its V_BE (≈0.6–0.77 V over −20…+85 °C) it pulls Q8's base up and holds the current at ≈27–35 mA. CH2 is identical from `VLOOP_CH2` (after SJ2) to J5 LOOP+.
+
+| Component | Pin | Net | Note |
+|-----------|-----|-----|------|
+| R52 / R54 (22 Ω 0603) | 1 / 2 | VLOOP (CH2: VLOOP_CH2) / LIM_E_CH1 (LIM_E_CH2) | Sense resistor |
+| Q8 / Q10 BCX53-16 (SOT-89: 1=B, 2=C tab, 3=E) | E (3) | LIM_E_CH1 / LIM_E_CH2 | Pass transistor emitter |
+| Q8 / Q10 | B (1) | LIM_B_CH1 / LIM_B_CH2 | Pulled low by R53/R55 (≈1 mA drive) |
+| Q8 / Q10 | C (2) | LOOP_PWR_CH1 / LOOP_PWR_CH2 | To J4.1 / J5.1 |
+| Q9 / Q11 MMBT3906 (SOT-23: 1=B, 2=E, 3=C) | E (2) | VLOOP / VLOOP_CH2 | Clamp emitter at the top of the sense resistor |
+| Q9 / Q11 | B (1) | LIM_E_CH1 / LIM_E_CH2 | Clamp base at the bottom of the sense resistor |
+| Q9 / Q11 | C (3) | LIM_B_CH1 / LIM_B_CH2 | Steals the pass base drive when limiting |
+| R53 / R55 (15 kΩ 0402) | 1 / 2 | LIM_B_CH1 (LIM_B_CH2) / GND | Base drive |
+| D17 / D19 SS34 | K (1) | VLOOP (both channels) | Surge steering: LOOP+ above VLOOP bypasses the limiter into D11/C20 — keeps reverse voltage off the PNP E–B junctions |
+| D17 / D19 | A (2) | LOOP_PWR_CH1 / LOOP_PWR_CH2 | |
+| D18 / D20 SMAJ18A | K (1) | LOOP_PWR_CH1 / LOOP_PWR_CH2 | Terminal clamp: negatives forward-clamped at ≈−1 V, positives at ≥ 20 V |
+| D18 / D20 | A (2) | GND | |
+
+> In a dead short the pass transistor dissipates up to ≈0.4–0.56 W (simulated, −20…+85 °C) for as long as VLOOP is on (10–15 ms by default; up to `CONFIG_WELLD_VLOOP_SETTLE_MS` if raised — the firmware then checks for a short after 10 ms). SOT-89 with ≥ 1 cm² of collector copper handles that. A LOOP+→SIG short reads 27–35 mA (2.7–3.5 V on the shunt), which the firmware reports as a short-circuit; a LOOP+→GND short bypasses the shunt and reads as an open loop.
+
 ### ADC_CH2 (battery divider — corrected high-side gating)
 
 Path: `VBAT → Q5 (P-FET) → R7 (100k) → mid (ADC_CH2) → R8 (100k) → GND` (÷2 for 1S, changed 2026-07-19 — was 330k/100k ÷4.3 for 2S)
@@ -555,7 +581,7 @@ GPIO8 strapping: R13 (10k) pull-up to +3V3, no other connection.
 1. Cell inserted into BT1 → DW01A powers from cell+ (R_DW1/C_DW) and enables both Q6 FETs (BATT_N ≈ GND) → VBAT_RAW → D5 body diode conducts, then channel enhances (gate at GND via R31) → VBAT. A reversed cell is blocked by D5; a deeply-discharged cell is isolated by the DW01A until a charger raises it.
 2. U1 HT7333-A LDO regulates (no EN pin — always on) → +3V3 → C36/R15 delay → ESP32 boots.
 3. Boost idles: R27 holds MT3608B EN + Q4 low. Both chargers are autonomous — CN3791 charges whenever panel power is present, TP4056 whenever VBUS is present (CE strapped high; no enable GPIOs).
-4. Firmware: GPIO5 HIGH → U8 EN + Q4 → Q3 closes → VLOOP = 12 V (allow ≥5 ms, recommend 10 ms for C20/C22 charge through Q3) → loop read → GPIO5 LOW.
+4. Firmware: GPIO5 HIGH → U8 EN + Q4 → Q3 closes → VLOOP = 16 V (`CONFIG_WELLD_VLOOP_SETTLE_MS`, default 10 ms, for C20/C22 charge through Q3 and the transducer start-up; the rail passes the old 12 V level sooner than it used to reach it) → each LOOP+ fed through its 27–35 mA limiter → loop read → GPIO5 LOW.
 5. Firmware: GPIO15 HIGH → Q2 → Q5 closes → divider live (settles < 1 ms with C8 = 1 nF) → AIN2 read → GPIO15 LOW.
 6. Deep sleep: all control GPIOs driven LOW then isolated; R27/R26/R31 define every switch state passively. No DC path from VBAT except U1 (4 µA Iq) and IC quiescents.
 
@@ -577,7 +603,9 @@ Wiring above uses **pin names**. Before assigning footprints / generating a netl
 | welld:LM393 (U14) | ⚠️ **drawn 2026-07-19** (solar cold-cutoff): SOIC-8, OUT1=1, IN1−=2, IN1+=3, GND=4, IN2+=5, IN2−=6, OUT2=7, VCC=8 — the industry-universal dual-comparator map (same as LM358); confirm on the chosen vendor's datasheet at order time |
 | welld:TP4056 (U12) | ✅ **verified 2026-07-19** (blocker #10a): SOP-8+EPAD, TEMP=1, PROG=2, GND=3, VCC=4, BAT=5, /STDBY=6, /CHRG=7, CE=8, EPAD=9 confirmed (datasheet sources). TEMP window 45–80 % of VIN (>0.15 s); LCSC **C16581** (TP4056-42-ESOP8, TopPower/NanJing) |
 | welld:CN3791 (U7) | ✅ **verified + REDRAWN 2026-07-19** (blocker #10b — first draw was wrong in numbering AND function set): SSOP-10, **VG=1, GND=2, /CHRG=3, /DONE=4, COM=5, MPPT=6, BAT=7, CSP=8, VCC=9, DRV=10** (datasheet extractions + the Soldered Electronics open-hardware KiCad design). It is a **controller** (external P-FET on DRV) with **no TEMP pin** |
-| welld:PRTR5V0U2X | ❌ **verified WRONG 2026-07-14** — real part is SOT-143B, 4 pins: **1=GND, 2=I/O1, 3=I/O2, 4=VCC** (Nexperia DS + KiCad official lib; footprint `Package_TO_SOT_SMD:SOT-143`). ✅ **redrawn 2026-07-14 follow-up** as 4-pin SOT-143B (phantom VCC2/GND2 pins + stubs removed), footprint `Package_TO_SOT_SMD:SOT-143`. LCSC is **C12333** (PRTR5V0U2X,215) — the BOM's old C2687116 was a UMW USBLC6-2SC6 clone |
+| welld:PRTR5V0U2X | ❌ **verified WRONG 2026-07-14** — real part is SOT-143B, 4 pins: **1=GND, 2=I/O1, 3=I/O2, 4=VCC** (Nexperia DS + KiCad official lib; footprint `Package_TO_SOT_SMD:SOT-143`). ✅ **redrawn 2026-07-14 follow-up** as 4-pin SOT-143B (phantom VCC2/GND2 pins + stubs removed), footprint `Package_TO_SOT_SMD:SOT-143`. LCSC is **C12333** (PRTR5V0U2X,215) — the BOM's old C2687116 was a UMW USBLC6-2SC6 clone The placed D1/D12 instances still carried the SOT-363 footprint and C2687116 until **2026-11-27** (fixed). |
+| welld:BCX53 (Q8, Q10) | ✅ **drawn 2026-11-27** (#21): SOT-89 **1=B, 2=C (tab), 3=E** per the Nexperia BCX53 series pinout; footprint `Package_TO_SOT_SMD:SOT-89-3` — confirm against the chosen vendor's datasheet at order time |
+| welld:MMBT3906 (Q9, Q11) | ✅ **drawn 2026-11-27** (#21): SOT-23 **1=B, 2=E, 3=C** (standard small-signal SOT-23 order); footprint `Package_TO_SOT_SMD:SOT-23` |
 | welld:ESP32_C6_MINI_1U | ⚠️ **custom pin numbering is WRONG throughout** (verified 2026-07-21 against the official Espressif `ESP32-C6-MINI-1/U` KiCad symbol) — replace with the official symbol/footprint before layout. **Critical finding**: the module does **not bond out GPIO10 or GPIO11** (present on the bare chip only); the design's I²C bus was on those pins and has been **moved to GPIO18/GPIO19** (firmware + schematic + docs updated). Full net→pin map for the swap is in the table below. |
 
 ### ESP32-C6-MINI-1 net → official pin map (for the symbol swap)

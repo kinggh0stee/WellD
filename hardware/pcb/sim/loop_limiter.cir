@@ -1,0 +1,52 @@
+* WellD loop current limiter (design change #21) — one channel, DC check
+*
+* Run:  ngspice -b hardware/pcb/sim/loop_limiter.cir
+*
+* Topology (sensors sheet): VLOOP -> R52 22R -> LIM_E -> Q8 BCX53 (PNP pass)
+* -> LOOP_PWR = J4 LOOP+; Q9 MMBT3906 (PNP clamp) E=VLOOP, B=LIM_E, C=LIM_B;
+* R53 15k LIM_B -> GND.
+*
+* Models: Q9 uses the classic 2N3906 model (MMBT3906 is the SMD part); Q8 uses
+* a generic medium-power PNP — swap in the chosen vendor's BCX53 model before
+* tape-out. The limit is set by Q9's V_BE across R52, so it barely depends on
+* the pass-transistor model.
+*
+* Results recorded 2026-11-27 (VLOOP 15.1 / 15.88 / 16.7 V):
+*   short-circuit current  34.9 mA @ -20 C, 31.8 mA @ 25 C, 29.3 mA @ 60 C,
+*                          27.5 mA @ 85 C (within 0.1 mA across VLOOP)
+*   drop at 20 mA          0.49-0.50 V;  at 23 mA 0.55-0.57 V
+*   pass dissipation into a dead short: 0.40-0.56 W
+
+.param vloop=15.88
+VLOOP vl 0 DC {vloop}
+R52 vl e 22
+Q8  c b e QPASS
+Q9  b e vl Q3906
+R53 b 0 15k
+VT  c 0 DC 0
+
+.model Q3906 PNP(Is=1.41f Xti=3 Eg=1.11 Vaf=18.7 Bf=180.7 Ne=1.5 Ise=0 Ikf=80m
++ Xtb=1.5 Br=4.977 Nc=2 Isc=0 Ikr=0 Rc=2.5 Cjc=9.728p Mjc=.5776 Vjc=.75 Fc=.5
++ Cje=8.063p Mje=.3677 Vje=.75 Tr=33.42n Tf=179.3p Itf=.4 Vtf=4 Xtf=6 Rb=10)
+.model QPASS PNP(Is=2e-13 Bf=180 Vaf=60 Ikf=0.8 Ne=1.5 Ise=1e-14 Br=8 Rb=8
++ Re=0.08 Rc=0.15 Xtb=1.5 Eg=1.11 Xti=3)
+
+.control
+foreach t -20 25 60 85
+  set temp = $t
+  option temp = $t
+  op
+  let ishort = vt#branch
+  let ppass = (v(e) - v(c)) * ishort
+  echo "T = $t C"
+  print ishort ppass
+end
+* current into the shunt node (LOOP+ shorted to SIG: ~3 V on a 100R shunt)
+alter VT dc = 3.0
+option temp = 25
+op
+let i3 = vt#branch
+echo "LOOP+ at 3.0 V, 25 C"
+print i3
+.endc
+.end
