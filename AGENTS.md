@@ -72,6 +72,8 @@ cd zigbee2mqtt && npm test
 | `zigbee2mqtt/` | External converter (`welld.js`) and its Node tests |
 | `test/host/` | Host CMake test runner (Unity v2.6.0) |
 | `test/sensor/`, `test/welld_core/` | Standalone ESP-IDF test apps for on-device hardware |
+| `hardware/pcb/` | KiCad 10 project — schematic complete, layout not started; start at `hardware/pcb/README.md`. After schematic edits run `netlist_check.py` and `footprint_check.py` (both must pass); `history/` = superseded 2S-era docs |
+| `hardware/pcb_old/` | Archived auto-generated design — reference only, never modify |
 
 ## Style Conventions
 

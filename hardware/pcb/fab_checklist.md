@@ -1,73 +1,63 @@
-# Path to fabrication — ordered checklist (updated 2026-07-19 for the 1S conversion + battery carrier)
+# Path to fabrication — ordered checklist
 
-Consolidates the remaining work from `senior_review_2026-07-06.md`, `component_verification_2026-07-14.md`, and the blocker list in `schematic_connections.md`. The schematic is fully wired (stub+label) and machine-verified (**391 pins / 75 nets / 0 mismatches** after the 1S conversion + battery carrier + CN3791 correction + solar cold-charge cutoff, `netlist_check_output.txt`), but the 1S conversion introduced three new parts whose datasheets were not fetchable at conversion time — **blockers #10 (a–e) and #11 (a–c) in `schematic_connections.md` are now the top of this list**. Everything below is what still stands between this repo and ordering boards.
+Updated 2026-11-28. The schematic is complete and machine-checked (`netlist_check.py`: 447 pins / 81 nets / 0 mismatches; `footprint_check.py`: 163 symbols, every pin has its pad). Everything below is what still stands between this repo and boards on the bench. The background for each step is in [`README.md`](README.md).
 
-## 0. Datasheet checks — ✅ DONE 2026-07-19 (web-verification pass; see blockers #10–#11 for details)
+## 0. Decisions before layout
 
-- **CN3791** (#10b): ✅ verified **with major corrections applied** — it is a *controller* (external P-FET restored: M_SOLAR/D16/R_DRV; COM network added; **no TEMP pin → RT_SOLAR deleted, see #10f**); pin map + 120 mV/R_CS formula + VG cap confirmed; symbol redrawn, netlist re-verified.
-- **TP4056** (#10a): ✅ pinout + TEMP window (45–80 % VIN) confirmed; R_PROG 1.2 k → 0.9–1.0 A depending on DS revision; LCSC **C16581** (ESOP-8).
-- **HT7333-A** (#10d): ✅ pinout confirmed (GND=1/VOUT=2/VIN=3); LCSC **C21583**.
-- **DW01A** (#11a): ✅ pinout + thresholds + app values confirmed (LCSC candidate C351410).
-- **FS8205A** (#11b): ✅ verified **with correction** — real map D=1&8/S1=2&3/G1=4/G2=5/S2=6&7; symbol redrawn (LCSC candidates C14212/C908265).
-- **BT1 carrier** (#11c): ✅ **footprint resolved 2026-07-21** — use the KiCad-standard `Battery:BatteryHolder_Keystone_1042_1x18650` (exact match, no draw). Populate with the Keystone 1042 (off-LCSC) or MYOUNG BH-18650-B1BA002 (C2988620, LCSC) if its terminals match the Keystone pads. Placement: top-side along a long edge, board ≈100 × 60 mm.
-- **#10f — ✅ RESOLVED (user decision)**: discrete **LM393 cold-charge cutoff added** — solar-powered (zero night draw), ratiometric NTC threshold, clamps the CN3791 MPPT pin below ≈+2 °C (release ≈+4 °C). Bench-verify trip/release and zero charge current while clamped.
-- ✅ **Bench-math done 2026-07-19**: TP4056 TEMP window computed **+8…+44 °C** (R_NTC 5.6 k / RT1 10 k B3950 — conservative-safe, kept). L_SOLAR resized to **SRN6045TA-220M** (22 µH, Isat 3.3 A) — peak ≈1.24 A gives 1.7× margin, same footprint.
+- [ ] RF path: bulkhead pigtail and no J3 on the board (recommended), U.FL + 50 Ω trace to J3, or the PCB-antenna MINI-1 (README decision 1)
+- [ ] BT1 holder: Keystone 1042 as drawn (off-LCSC), or draw a footprint for an LCSC holder (README decision 2)
+- [ ] Sourcing for Q6 FS8205A, J4–J7 Phoenix headers and L_SOLAR (README decision 3) — substitute now if a substitute changes the land
+- [ ] Keep or delete the DNF GDT1/GDT2 footprints (README decision 4)
 
-## 1. First interactive KiCad 10 session (~1 hour, needs a desktop)
+## 1. First KiCad 10 session
 
-1. Open `welld.kicad_pro`, let KiCad migrate/resave all sheets (normalises the generated formatting).
-2. Run **ERC**. Expected waivable items (from the wiring-pass notes — anything *else* is a real finding):
-   - off-1.27-grid stub endpoints on the handful of off-grid symbol placements;
-   - "input pin not driven" on passive-driven analog inputs (ADS1115 AINx, FB pins);
-   - style-grade label/wire overlaps from generated placement.
-3. Re-run `python3 hardware/pcb/netlist_check.py` after the resave — it must still report zero mismatches (guards against the migration moving anything).
-4. Replace the custom `welld:ESP32_C6_MINI_1U` symbol with the official Espressif library part and re-run ERC + `netlist_check.py`. **The custom pin numbering was verified WRONG (2026-07-21)** — the official signal-pin map is recorded in the symbol-verification table in `schematic_connections.md`; map the existing nets to it. The one behavioural consequence is already applied: **GPIO10/GPIO11 are not bonded out on the MINI-1**, so I²C was moved to **GPIO18/GPIO19** across firmware + schematic + docs.
-5. Swap SJ2–SJ5 to the *Bridged* solder-jumper variants (currently Open).
-6. After *Update PCB from Schematic*, check that **D1/D12 (PRTR5V0U2X) land on 4-pad `SOT-143` footprints with LCSC C12333** (the placed instances carried the old 6-pin SOT-363 footprint and the USBLC6-clone number C2687116 until 2026-11-27), **D6 on `D_SMB`** (MBRS140), and the LCSC fields of **D9/D10/D13 (C98802)** and **U12 (C16581)** — all corrected in the schematic data on 2026-11-27. Still open in the data: **L1** footprint (`L_Vishay_IFSC-1515AH` in the schematic vs the CDRH4D22 part in the BOM), **SW1/SW2** footprint (CK KSC6 vs 6×6 mm), **BT1** LCSC (holder choice) — pick and align before ordering.
-7. The loop current limiters (#21) add **Q8–Q11, R52–R55, D17–D20** on the sensors sheet (placed in the empty band right of the existing grid): place them per Group E2 in `placement_constraints.md`. Q8–Q11, D18/D20 and D11 (now SMAJ18A) still need LCSC numbers (marked ⚠️ in the BOM). **Q8/Q10 must be a SOT-223 BCP53-16 (1=B, 2=C, 3=E, 4=C) — never an SOT-89 BCX53**, whose pinout depends on the vendor; **check the chosen BCP53 vendor's datasheet pin order at order time** (Nexperia and onsemi are confirmed). With SJ2 open, leave J5 LOOP+ unconnected (D20 alone cannot take a field surge) and never feed it above ≈18 V.
+- [ ] Open `welld.kicad_pro`, let KiCad re-save the sheets, run ERC; only the waivable categories listed in the README should remain
+- [ ] Re-run `netlist_check.py` and `footprint_check.py` after the re-save — both must still pass
+- [ ] Apply the RF decision in the schematic (delete J3, or add the U.FL receptacle and trace net) and re-run both checks
 
-## 2. Cell choice (no vendor question any more)
+Done in the 2026-11-28 pass (no action needed): official Espressif symbol and footprint for U6; USB-C B-row pins wired; AO3400A pin numbers; U1 SOT-89; footprints that did not exist in KiCad 10 replaced; SJ2–SJ5 bridged variants; LCSC fields corrected; DNF flags on C4, C6, C_BST, R22, GDT1, GDT2, J8, J9; test pads and solder jumpers out of the BOM.
 
-- The pack (and its unanswerable PCM question, old blocker #7a) is gone — protection is the on-board DW01A/FS8205A. What remains is a **cell choice**: worst-case co-charge is TP4056 1 A + CN3791 ≈1.2 A ≈ 2.2 A into a single ≈3.4 Ah cell (**≈0.65C**). Use a quality high-rate 18650, or drop R_PROG to 2.4 kΩ (0.5 A USB) if the cell runs warm under co-charge.
+## 2. Layout
 
-## 3. Layout (in KiCad, using the written constraints)
+- [ ] Follow the procedure in `README.md` and the rules in `placement_constraints.md`
+- [ ] Mounting holes agreed with the enclosure design; TP13 (factory reset) reachable with the lid off
+- [ ] Q8/Q10 collector tabs on ≥ 1 cm² of copper; TP4056 EP pour with ≥ 6 thermal vias; no pour under L1 or L_SOLAR
+- [ ] DRC clean
 
-- `placement_constraints.md` is current (rewritten 2026-07-19): Group G = TP4056 **thermal** cluster (no switching loop — EPAD pour is the constraint, ≈1.3 W at 1 A), Group L = CN3791 integrated buck (C17→VIN→SW→D_SOLAR hot loop; **CSP/BAT Kelvin pair routed together to R19**), Group B = HT7333-A LDO (trivially quiet now).
-- `kicad_place_script.py` (PCB-editor scripting console) gives starting placements.
-- Board outline: **unconstrained** (user, 2026-07-19) — draw it around the finished placement; working target ≈100 × 60 mm with the BT1 carrier top-side along a long edge (Group H). All 1S replacement parts are iron-friendly except the two EPADs (TP4056 SOP-8-EP, and the ESP32 module) — hot air preferred; the carrier is an SMD holder (Keystone 1042 footprint: SMD terminals + 2 alignment posts).
+## 3. Order
 
-## 4. Order (all LCSC numbers verified 2026-07-14)
+- [ ] Export the BOM and placement (CPL) files with DNP parts excluded, then check that **C4, C6, C_BST, R22, GDT1, GDT2, J8, J9** are absent and no TP or SJ appears. A fitted C4/C6 slows the AIN0/AIN1 inputs to τ ≈ 11 ms and reads the level 10–40 % low at the default 10 ms warm-up — invisible to the firmware's range checks
+- [ ] LCSC numbers were verified against LCSC's catalogue on 2026-11-28; re-check stock at order time, especially the parts in the BOM's *Sourcing risks* table
+- [ ] Q8/Q10: if any vendor other than Nexperia or onsemi is substituted, check its BCP53 datasheet for B=1, C=2, E=3 (never an SOT-89 BCX53)
+- [ ] Off-board items: STF field plugs, the 18650 cell, the antenna and the RF pigtail (BOM → *Not on the board*)
 
-- BOM: `bom_footprints.md` — updated 2026-07-19 for the 1S conversion. Verified numbers carried over: PRTR5V0U2X **C12333**, SMAJ5.0A **C98802** (now also D13), PTC C210838, AO3400A C20917, HRO USB-C C165948.
-- **LCSC numbers — ✅ locked 2026-07-21**: LM393 **C7955** (onsemi, JLCPCB Basic), CN3791 **C154992** (Consonance), TP4056 **C16581** (ESOP-8), HT7333-A **C21583**, DW01A **C351410** (PUOLOP, JLCPCB), FS8205A **C14212** (Fortune, JLCPCB), SMAJ10CA D8/D14 **C320526** (LGE), SMAJ13A D11 **C110519** (Diodes Inc), BT1 **C2979182** (MY-18650-02 clip ×2). ✅ **Footprints resolved 2026-07-21**: BT1 → `Battery:BatteryHolder_Keystone_1042_1x18650` (KiCad standard, no draw); HRO USB-C → `Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12` (confirmed present in KiCad standard lib). **Only the GDT land pattern remains** — and it is gated: GDT1/GDT2 are DNF with no chosen MPN (site-dependent populate), so the pattern is drawn only if/when a specific 2-electrode GDT is selected.
-
-- **DNF parts must stay unfitted**: export the BOM and CPL with DNP excluded, then check that **C4/C6** (`10uF DNF`) and **GDT1/GDT2** (`GDT 90V DNF`) are absent. A fitted C4 slows the AIN0 input to τ ≈ 11 ms and reads the level 10–40 % low at the default 10 ms warm-up — invisible to the firmware's range checks (design change #20).
-
-## 5. First-article bench-verify list (before enclosure sealing)
+## 4. First-article bench checks (before sealing the enclosure)
 
 | # | Check | Why |
 |---|-------|-----|
-| 1 | MT3608B pin continuity (SW↔L1 node, IN↔VBAT) before first power-on | pin map confirmed from library sources, never from the raw Aerosemi PDF |
-| 2 | +3V3 rail regulates 3.3 V; worst-case rail current < 250 mA during 802.15.4 TX + sensor reads | U1 is now a 250 mA HT7333-A LDO (1S blocker #10d) |
-| 3 | TP4056 1 A charge without thermal fold-back in the enclosure (or accept fold-back / drop R_PROG to 2.4 k) | ≈1.3 W linear dissipation at mid-charge; pour sizing is a guess until measured |
-| 4 | Sleep floor ≈ 25–30 µA total at 4.2 V: ESP32-C6 deep sleep ≈7 µA + HT7333 Iq ≈4 µA + CN3791 BAT/CSP ≈9 µA + DW01A ≈3 µA + TP4056 BAT leak <2 µA + ADS1115/DS18B20 standby ≈1.5 µA + FS8205A/TVS leakage. Flag anything above ≈35 µA (corrected 2026-11 recheck: the old "< 15 µA" omitted the MCU and the protection IC, and CN3791 + HT7333 alone are ≈13 µA) | nightly battery budget (1S blocker #10e) |
-| 5 | Charger CV agreement: CN3791 vs TP4056, both nominally 4.2 V, under co-charge | verify no oscillation / one-charger-hogging at the overlap |
-| 6 | NTC cutoffs: TP4056 stops outside RT1's **computed +8…+44 °C** window; **LM393 cutoff clamps solar charge below ≈+2 °C (release ≈+4 °C), zero charge current while clamped** | outdoor Li-ion; thresholds computed — confirm on bench |
-| 7 | MT3608B EN-low shutdown current < 1 µA; boost still makes 12 V from VBAT = 3.0 V (ratio 4×, higher input current) | sleep-budget + low-battery loop-read assumptions |
-| 8 | CN3791 charge current ≈ 1.2 A at R_CS 0.1 Ω (sense-formula assumption); L_SOLAR stays out of saturation | 1S blocker #10b — formula and Isat margin both assumed |
-| 9 | Loop reading sanity vs known pressure; SMAJ5.0A leakage invisible on the shunt | D9/D10 substitution validation |
-| 10 | ADS1115 AIN2 reads correctly up to 4.2 V cell (±4.096 V PGA, ratio 200) | shipped in fw 1.1.0 — clipping at full charge was the failure mode |
-| 11 | Protection trip + recovery: cell isolated below ≈2.4 V, recovers on charger; over-current trip; reversed-cell insertion blocked (D5) | new DW01A/FS8205A path + carrier (#11a–c); values assumed from the module ecosystem |
-
+| 1 | MT3608B pin continuity (SW ↔ L1 node, IN ↔ VBAT) before first power-on | pinout from the datasheet; never checked on a board |
+| 2 | +3V3 regulates; worst-case rail current < 250 mA during 802.15.4 TX + sensor reads | U1 is a 250 mA LDO |
+| 3 | With a 3.2 V cell (bench supply on the BT1 pads): +3V3 ≥ 3.0 V during TX, VLOOP ≥ 15.1 V with a 20 mA load, no brownout reset | confirms the margin of `CONFIG_WELLD_BATT_EMPTY_MV` = 3200 |
+| 4 | TP4056 charges at ≈1 A without thermal fold-back inside the enclosure (or accept it / R_PROG = 2.4 kΩ) | ≈1.3 W linear dissipation at mid-charge; the pour size is an estimate |
+| 5 | Sleep current ≈ 25–30 µA at 4.2 V: ESP32-C6 deep sleep ≈7 µA + HT7333 ≈4 µA + CN3791 BAT/CSP ≈9 µA + DW01A ≈3 µA + TP4056 BAT leak < 2 µA + ADS1115/DS18B20 ≈1.5 µA + FS8205A/TVS leakage. Flag anything above ≈35 µA | battery budget |
+| 6 | CN3791 and TP4056 CV agree (both 4.2 V) under co-charge | no oscillation or one charger hogging at the overlap |
+| 7 | NTC cut-offs: TP4056 stops outside RT1's computed +8…+44 °C window; the LM393 cutoff clamps solar charging below ≈+2 °C (release ≈+4 °C) with zero charge current while clamped | outdoor Li-ion; thresholds are computed |
+| 8 | MT3608B EN-low shutdown < 1 µA; VLOOP 15.1–16.7 V (15.88 V nominal) from VBAT 3.2–4.2 V | sleep budget; boost ratio up to ≈5× at a low cell |
+| 9 | CN3791 charge current ≈1.2 A at R19 = 0.1 Ω; L_SOLAR stays out of saturation | sense formula and Isat margin from the datasheet |
+| 10 | Loop reading vs a calibrator (4 / 12 / 20 mA) within the shunt's 0.1 %; SMAJ5.0A leakage invisible on the shunt | D9/D10 choice |
+| 11 | ADS1115 AIN2 reads correctly up to a 4.2 V cell (÷2 divider, ±4.096 V range) | clipping at full charge was a past failure |
+| 12 | Protection trip and recovery: cell isolated below ≈2.4 V and recovers on a charger; over-current trip; a reversed cell is blocked by D5 | DW01A/FS8205A path |
+| 13 | USB console and flashing work with the USB-C plug in **both** orientations | B-row data pins wired 2026-11-28 |
 
 **Loop current limiters + 16 V loop (design change #21):**
-- VLOOP at TP2 with GPIO5 forced HIGH: **15.1–16.7 V** (15.88 V nominal). With a 20 mA calibrator in the loop, VLOOP must be ≥ 15.1 V and the reading settled (within ±20 µA of the calibrator) at the 10 ms sample (a 12 V-minimum transducer at 20 mA needs VLOOP ≥ ≈14.5 V)
-- J4 LOOP+ shorted to SIG through an ammeter: **≈27–35 mA** (room temperature ≈32 mA); firmware logs `transducer short-circuit`; the device keeps running (no DW01A trip)
-- J4 LOOP+ shorted to GND: same current, **no DW01A trip**; firmware logs `transducer open loop` (the shunt sees nothing)
-- 20 mA calibrator in the loop: LOOP+ ≥ VLOOP − 0.55 V (limiter drop ≈0.5 V); repeat on J5 with SJ2 bridged
-- With SJ2 open: J5 LOOP+ ≈0 V while VLOOP is on (CH2 isolated)
-- D18/D20 and D9, D10, D11, D13 use the bidirectional `D_TVS` symbol for unidirectional parts: polarity comes only from the D_SMA pad 1 = cathode (band) convention — check every SMAJ orientation at assembly (a reversed D18/D20 is a limited LOOP+→GND short that reads as an open loop)
 
-## 6. Enclosure (after layout freezes connector positions)
+- VLOOP at TP2 with GPIO5 forced HIGH: 15.1–16.7 V. With a 20 mA calibrator in the loop, VLOOP ≥ 15.1 V and the reading settled within ±20 µA at the 10 ms sample (a 12 V-minimum transducer at 20 mA needs VLOOP ≥ ≈14.5 V)
+- J4 LOOP+ shorted to SIG through an ammeter: ≈27–35 mA (≈32 mA at room temperature); the firmware logs `transducer short-circuit`; the device keeps running (no DW01A trip)
+- J4 LOOP+ shorted to GND: same current, no DW01A trip; the firmware logs `transducer open loop` (the shunt sees nothing)
+- 20 mA calibrator: LOOP+ ≥ VLOOP − 0.55 V (limiter drop ≈0.5 V); repeat on J5 with SJ2 bridged
+- With SJ2 open: J5 LOOP+ ≈0 V while VLOOP is on (channel 2 isolated) — leave J5 LOOP+ unconnected in that state
+- D9, D10, D11, D13, D18, D20 are unidirectional parts drawn with the generic TVS symbol: polarity comes only from the D_SMA pad 1 = cathode (band) convention, so check every SMAJ orientation at assembly (a reversed D18/D20 is a limited LOOP+→GND short that reads as an open loop)
 
-- `hardware/case/` does not exist yet. Case work is deliberately last — the board outline is now free (set at layout, working target ≈100 × 60 mm), and the case consumes the final outline plus connector/TP positions (TP13 factory-reset pad must stay reachable with the lid off; ~19–21 mm clearance over the top-side 18650 carrier).
+## 5. Enclosure (after layout freezes the outline)
+
+`hardware/case/` does not exist yet. The case consumes the final outline, connector and mounting-hole positions, the RF decision (bulkhead pigtail position), TP13 access, and ≈19–21 mm of clearance over the top-side 18650 carrier.

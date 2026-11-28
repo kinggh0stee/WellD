@@ -20,17 +20,17 @@ The current design is a purpose-built custom PCB (outline set at layout — work
 
 | IC | Role |
 |----|------|
-| ESP32-C6 module | MCU + Zigbee radio |
+| ESP32-C6-MINI-1U-H4 | MCU + Zigbee radio (module with a U.FL antenna port) |
 | ADS1115 (0x48) | 16-bit I²C ADC — shunt voltage (AIN0) + battery divider (AIN2) |
-| HT7333-A | 3.3 V LDO (≈4 µA Iq, 250 mA, ~90 mV dropout). Replaced the AP63203WU buck in the 2026-07-19 1S conversion — the buck's 3.8 V minimum input fails at 1S empty (3.0 V). Below ≈3.4 V the output follows the battery minus dropout; the ESP32-C6 runs down to 3.0 V |
+| HT7333-A | 3.3 V LDO in SOT-89 (≈4 µA Iq, 250 mA, ~90 mV dropout). Replaced the AP63203WU buck in the 2026-07-19 1S conversion — the buck's 3.8 V minimum input fails at 1S empty (3.0 V). Below ≈3.4 V the output follows the battery minus dropout; the ESP32-C6 runs down to 3.0 V |
 | MT3608B | 16 V **asynchronous** boost for the 4–20 mA loop supply (VLOOP, GPIO5-gated; 12 V until design change #21). Each loop channel is fed through a ≈27–35 mA current limiter (Q8–Q11). D15 (SS34 Schottky) rectifies the switch node; a Q3/Q4 load-disconnect switch in series with L1 blocks the permanent VBAT leak to the loop terminals during deep sleep |
 | CN3791 | 1S MPPT solar buck charge **controller** (external SI2319CDS P-FET stage; fixed 4.2 V CV, MPPT ≈5.0 V for 6 V-nominal panels; panel Voc limited to **10 V** by the SMAJ10CA input TVS). A solar-powered LM393 cold-charge cutoff clamps charging below ≈+2 °C — zero battery draw at night |
-| TP4056 | USB-C 1 A linear charger (2026-07-19 1S conversion — replaced the IP2326 boost selection, which itself replaced the non-functional TP5100). Auto-charges whenever VBUS is present (CE strapped high); charge-temperature NTC window ≈ +5…+44 °C |
+| TP4056 | USB-C 1 A linear charger (2026-07-19 1S conversion — replaced the IP2326 boost selection, which itself replaced the non-functional TP5100). Auto-charges whenever VBUS is present (CE strapped high); charge-temperature NTC window ≈ +8…+44 °C (computed) |
 | DW01A + FS8205A | On-board 1S battery protection (supervisor + dual N-FET in the cell− path) — added 2026-07-19 with the generic-18650 carrier; a bare cell has no PCM |
 
 ### Test points (production / field debug)
 
-All 15 test point pads are 1.0 mm SMD, **DNF** (do not fit) — bare copper pads suitable for ICT fixture probes or a hook wire. No component is installed in production. Test points are placed scattered near their associated circuits rather than grouped in a single row.
+All 15 test points are bare 1.0 mm SMD pads (footprint only — not in the BOM or placement files), suitable for ICT fixture probes or a hook wire. Test points are placed scattered near their associated circuits rather than grouped in a single row.
 
 | Ref | Net | Ref | Net |
 |-----|-----|-----|-----|
@@ -38,14 +38,14 @@ All 15 test point pads are 1.0 mm SMD, **DNF** (do not fit) — bare copper pads
 | TP2 | VLOOP (16 V boost) | TP10 | VSOLAR_IN |
 | TP3 | +3V3 | TP11 | VBAT_RAW (before D5 reverse-polarity MOSFET) |
 | TP4 | GND | TP12 | ADS1115 DRDY (GPIO22) |
-| TP5 | LOOP+ (LOOP_TERM_CH1) | TP13 | FACTORY_RESET (GPIO23 — short to GND while powering on) |
-| TP6 | LOOP- (LOOP_TERM_CH2) | TP14 | /CHRG_SOLAR (CN3791 charge status) |
+| TP5 | CH1 shunt top (LOOP_TERM_CH1, J4 SIG) | TP13 | FACTORY_RESET (GPIO23 — short to GND while powering on) |
+| TP6 | CH2 shunt top (LOOP_TERM_CH2, J5 SIG) | TP14 | /CHRG_SOLAR (CN3791 charge status) |
 | TP7 | 1WIRE | TP15 | /CHRG_USB (TP4056 charge status, with R38 pull-up) |
 | TP8 | I2C SDA | | |
 
-### Thermal improvements
+### Thermal design (layout rules)
 
-The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on the CN3791 solar charger (U7), connected by four thermal vias (0.6 mm drill / 1.0 mm pad) — the CN3791's integrated switch dissipates in-package, so this pour matters more than it did for the CN3722 controller it replaced. A matching pour under the TP4056 EPAD carries the ≈1.3 W of linear charge dissipation at 1 A. A GND via-stitch ring around the MT3608B / L1 boost island provides a low-inductance return path for the switching node without adding a solid pour under L1.
+The board layout has not started; these are the thermal rules it must follow (full list in `hardware/pcb/placement_constraints.md`). The TP4056 USB charger dissipates ≈1.3 W at mid-charge, so its exposed pad sits on a 10 × 10 mm GND pour on both layers with at least six thermal vias. The CN3791 is only a controller: the solar buck's heat is in its external P-FET and Schottky diodes, which get copper spread rather than a pour under U7. Each loop-limiter pass transistor (Q8/Q10, SOT-223) needs ≥ 1 cm² of collector copper for a shorted cable. The MT3608B / L1 boost island gets a GND via-stitch ring and no pour under L1.
 
 ### GPIO map
 
@@ -69,26 +69,26 @@ The PCB includes a 10 × 10 mm solid GND copper pour on F.Cu and B.Cu centred on
 | Terminal | Wire | ESD / surge protection |
 |----------|------|------------------------|
 | LOOP+ / LOOP− | 4–20 mA transducer, two-wire | D9 / D10 SMAJ5.0A TVS (400 W, DO-214AC); D18 / D20 SMAJ18A on each LOOP+ terminal, D17 / D19 SS34 steering LOOP+ surges into D11 (SMAJ18A on VLOOP), ≈27–35 mA current limiter per channel; D1 PRTR5V0U2X rail clamp at ADS1115 inputs |
-| 1W DATA / GND | DS18B20 data + ground | D12 PRTR5V0U2X dual-channel rail clamp (SOT-363) — 0.5 pF added capacitance, well below the 800 pF 1-Wire add limit |
-| Battery | Single generic 18650 (3.0–4.2 V) in the on-board THT carrier **BT1** — no cable, no connector (the XT30 was deleted 2026-07-19) | On-board 1S protection **DW01A + FS8205A** in the cell− path (generic bare cells have no PCM): over-discharge ≈2.4 V, over-charge ≈4.3 V, over-current. D13 SMAJ5.0A TVS at the cell+ tab; D5 AO3407 P-ch MOSFET in series on cell+ blocks a **reversed-inserted cell**; R31 10 kΩ gate pull-down holds D5 on |
+| 1W DATA / GND | DS18B20 data + ground | D12 PRTR5V0U2X dual-channel rail clamp (SOT-143B) — 0.5 pF added capacitance, well below the 800 pF 1-Wire add limit |
+| Battery | Single generic 18650 (3.0–4.2 V) in the on-board SMD holder **BT1** (Keystone 1042 land) — no cable, no connector (the XT30 was deleted 2026-07-19) | On-board 1S protection **DW01A + FS8205A** in the cell− path (generic bare cells have no PCM): over-discharge ≈2.4 V, over-charge ≈4.3 V, over-current. D13 SMAJ5.0A TVS at the cell+ tab; D5 AO3407A P-ch MOSFET in series on cell+ blocks a **reversed-inserted cell**; R31 10 kΩ gate pull-down holds D5 on |
 | SOLAR+/−      | Solar panel, ≤ **10 V Voc** (6 V-nominal panels — 1S conversion 2026-07-19; the 2S design accepted 12 V panels) | D14 SMAJ10CA bidirectional TVS (400 W, DO-214AC) at the terminal, plus second-stage D8 SMAJ10CA at the CN3791 VIN |
 
 ### RF / antenna
 
-The ESP32-C6-MINI-1U-H4 module exposes a U.FL RF port. A ~50 mm internal pigtail — **Taoglas CAB.100.07.0050B** (U.FL female to SMA male, RG178 coax) — connects the module to **J3**, an **Amphenol 132289** SMD edge-launch SMA connector on the top board edge. PCBWay hand-attaches the pigtail after reflow. An external 2.4 GHz SMA antenna (e.g. Taoglas FXP73 rubber-duck, 2 dBi) screws directly onto J3.
+The ESP32-C6-MINI-1U-H4 module has a U.FL RF port and no on-board antenna; an external 2.4 GHz antenna (e.g. Taoglas FXP73, 2 dBi) mounts on the enclosure. **How the antenna connects is an open decision before layout:** the schematic still shows a U.FL → SMA-plug pigtail running to J3, an edge-launch SMA whose RF pin is unconnected — the pigtail's plug would occupy J3 and leave no port for the antenna. The recommended fix is a U.FL → SMA-jack bulkhead pigtail through the enclosure wall, with J3 removed from the board (options in `hardware/pcb/README.md`).
 
 ### Assembly notes (PCBWay)
 
-Connector placement:
+Planned connector placement (the layout has not started):
 
 - **Bottom edge (left to right):** J12 (solar, 2-pos), J4 (loop ch1, 3-pos), J5 (loop ch2, 3-pos), J6 (DS18B20, 3-pos), J7 (spare sensor, 3-pos), J10 (programming header, 6-pin 1.27 mm pitch)
 - **Left edge:** J13 (USB-C — charging **and** console/programming, SMD; D± wired to the ESP32 native USB pins). The BT1 18650 carrier occupies its own top-side band along one long edge (board size is unconstrained, so the outline grows to fit)
-- **Top edge:** J3 (Amphenol 132289 SMA edge-launch)
+- **Top edge:** J3 (Amphenol 132289 SMA edge-launch) — only if the RF decision keeps it on the board
 
-- **J4, J5, J6, J7, J12** — Phoenix Contact MC 1.5/x-G-3.5 THT terminal blocks, wave-soldered.
+- **J4, J5, J6, J7, J12** — Phoenix Contact MC 1,5/x-G-3,5 THT pluggable headers, wave-soldered; the spring-cage MC 1,5/x-STF-3,5 field plugs ship with the device.
 - **J10** — 1.27 mm pitch THT vertical programming header (6-pin), wave-soldered.
 - **J8, J9** (expansion headers) — **DNF** (do not populate) on all production boards. Footprints are present on the PCB for future use; no components are installed.
-- **J3** pigtail — hand-attached by PCBWay post-reflow; not wave-soldered.
+- **RF pigtail** — fitted by hand after assembly; which pigtail depends on the RF decision above.
 
 ### 4–20 mA loop
 
@@ -102,17 +102,17 @@ The ADS1115 measures the voltage across a shunt resistor on the loop return: PGA
 
 The loop signal terminals are protected by SMAJ5.0A TVS diodes (D9 / D10, 400 W, DO-214AC/SMA). The 5 V standoff (6.4 V minimum breakdown) keeps the 2.0 V working point far below the knee, so leakage stays negligible; Behind them, R3 / R5 (1 kΩ) and the D1 rail clamp protect the ADS1115 inputs: with the cable shorted, the loop limiter keeps the signal node at ≤ ≈3.5 V; should a limiter fail, D9 holds it at ≈7–8 V while VLOOP is on and 1 kΩ limits the current D1 dumps into +3V3 to ≈3.5 mA (with the earlier 100 Ω it was ≈40 mA, more than the LDO-fed rail can absorb). C3 / C5 (100 nF) form a filter with the shunt and the series resistor (τ = (R2 + R3)·C3 ≈ 110 µs, ≈1.45 kHz) that settles to 0.01 % in about 1 ms; C4 / C6 are DNP footprints (value `10uF DNF`) — fitting them would slow the input to τ ≈ 11 ms. The forward diode of the TVS clamps negative transients. (The earlier SMAJ3.3CA leaked up to 800 µA at its standoff — replaced 2026-07-14.)
 
-The 1W DATA terminal (J6) is protected by D12, a PRTR5V0U2X dual-channel rail clamp in SOT-363 (the same part as D1 at the ADS1115 inputs). D12 clamps the data line to 3V3 + ~0.5 V during an ESD transient in sub-nanosecond response time. The added capacitance per channel is 0.5 pF, which is negligible compared to the 800 pF DS18B20 bus limit and does not affect 1-Wire timing.
+The 1W DATA terminal (J6) is protected by D12, a PRTR5V0U2X dual-channel rail clamp in SOT-143B (the same part as D1 at the ADS1115 inputs). D12 clamps the data line to 3V3 + ~0.5 V during an ESD transient in sub-nanosecond response time. The added capacitance per channel is 0.5 pF, which is negligible compared to the 800 pF DS18B20 bus limit and does not affect 1-Wire timing.
 
 ### Battery monitoring
 
 Battery voltage is read via the gated resistor divider (R7 100 kΩ / R8 100 kΩ) on ADS1115 AIN2. The divider is disconnected on the **high side** by Q5 (AO3407 P-FET) between VBAT and R7; GPIO15 drives the Q2 level-shifter (AO3400A) that pulls Q5's gate low. GPIO15 is pulsed HIGH for 1 ms (a busy-wait, exact at any tick rate) before reading, then LOW immediately after — C8 across R8 is 1 nF so the mid-node settles well inside that 1 ms window. With Q5 off the divider is completely dead: AIN2 rests at 0 V through R8, eliminating sleep leakage into the ADS1115 input ESD diodes. The divider ratio is 2.00 (200/100), mapping 4.2 V full charge to 2.1 V — the firmware reads AIN2 with the ADS1115 **±4.096 V** PGA (±2.048 V would clip right at full charge).
 
-The BAT+ rail protection chain: **J1 BAT+ → D13 (SMAJ10CA TVS, at terminal) → D5 S→D (AO3407 reverse-polarity MOSFET) → VBAT system rail.**
+The battery protection chain: **BT1 cell+ (VBAT_RAW) → D13 (SMAJ5.0A TVS, at the cell tab) → D5 (AO3407A reverse-polarity MOSFET) → VBAT system rail**, and on the negative side **cell− → Q6 (FS8205A, switched by the U13 DW01A) → system GND**.
 
 D13 is a SMAJ5.0A unidirectional TVS (400 W, DO-214AC/SMA). Its 5 V standoff is above the 4.2 V 1S full-charge voltage so it does not conduct in normal operation; its forward diode clamps negative transients. Cable-induction surges are absorbed before they reach D5 and downstream circuits.
 
-D5 (AO3407, SOT-23) is a P-channel MOSFET placed in series on BAT+. Its body diode blocks reverse current when the battery is connected with reversed polarity; in normal operation the MOSFET is on (Vgs = −Vbat — still twice the −1.5 V Vgs(th) max even at the 3.0 V 1S cutoff, though RDS(on) rises somewhat below the −4.5 V datasheet test point; the drop stays in the tens of millivolts at ≤1 A).
+D5 (AO3407A, SOT-23) is a P-channel MOSFET placed in series on cell+. Its body diode blocks reverse current when the battery is connected with reversed polarity; in normal operation the MOSFET is on (Vgs = −Vbat — still twice the −1.5 V Vgs(th) max even at the 3.0 V 1S cutoff, though RDS(on) rises somewhat below the −4.5 V datasheet test point; the drop stays in the tens of millivolts at ≤1 A).
 
 R31 (10 kΩ, 0402) connects D5's gate to GND. R31 holds Vgs = −Vbat so the MOSFET is unconditionally on whenever a battery is present, regardless of firmware state.
 
@@ -452,7 +452,8 @@ components/sensor/       I²C (ADS1115), DS18B20, GPIO power control
 components/zigbee/       esp-zigbee-lib wrapper, OTA client, BDB commissioning task
 components/welld_core/   pure helpers (rate-of-change, adaptive sleep, ZCL encoding)
 zigbee2mqtt/welld.js     external converter for Zigbee2MQTT
-hardware/pcb/            PCB design reference, BOM, Gerber generation script
+hardware/pcb/            KiCad 10 project: schematic, BOM, layout rules, check scripts (start at hardware/pcb/README.md)
+hardware/pcb_old/        archived first attempt (reference only)
 hardware/case/           (planned) OpenSCAD enclosure — not created yet; designed after board layout
 test/sensor/             on-device Unity tests (1-Wire, NVS round-trips)
 test/welld_core/         on-device Unity tests (rate, sleep, ZCL helpers)
