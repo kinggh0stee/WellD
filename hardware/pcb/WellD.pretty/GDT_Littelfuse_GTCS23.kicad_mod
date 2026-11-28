@@ -1,0 +1,123 @@
+(footprint "GDT_Littelfuse_GTCS23"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "2-pole SMD gas discharge tube, 3 mm diameter x 4.5 mm (Littelfuse GTCS23-xxxM-R01-2). Land pattern per Littelfuse datasheet SCD27642 rev D: pads 2.0 x 3.0 mm, 2.0 mm gap")
+	(tags "GDT gas discharge tube arrester SMD")
+	(property "Reference" "REF**"
+		(at 0 -2.6 0)
+		(layer "F.SilkS")
+		(uuid "291392f0-09a0-41c5-868c-a1bd9bb571a1")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "GDT_Littelfuse_GTCS23"
+		(at 0 2.6 0)
+		(layer "F.Fab")
+		(uuid "b32523b6-5962-4085-961b-eda6acf81ef3")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" "https://www.littelfuse.com/products/gas-discharge-tubes"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "4e492196-0423-4833-961d-29b6c67d749b")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" "Littelfuse GTCS23 2-pole SMD GDT"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "6e665d8b-9b4f-40ff-93e9-5853b86b0290")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr smd)
+	(fp_rect
+		(start -2.25 -1.5)
+		(end 2.25 1.5)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "06832973-398d-4ab7-9036-17243573981d")
+	)
+	(fp_line
+		(start -0.85 -1.61)
+		(end 0.85 -1.61)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "050c5fa2-40ed-4c08-b08f-f44a41047a9c")
+	)
+	(fp_line
+		(start -0.85 1.61)
+		(end 0.85 1.61)
+		(stroke
+			(width 0.12)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "a0e71a9f-6a07-498f-aa70-b55a5472f2f8")
+	)
+	(fp_rect
+		(start -3.25 -1.75)
+		(end 3.25 1.75)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "0bd3f4ea-4bbd-4ebd-b207-669916df60e2")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(uuid "1c09c260-887a-4536-8c08-64be0c965f4f")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+		)
+	)
+	(pad "1" smd roundrect
+		(at -2 0)
+		(size 2 3)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.125)
+		(uuid "6bcf8f20-2d92-4951-a586-e2f7c8440433")
+	)
+	(pad "2" smd roundrect
+		(at 2 0)
+		(size 2 3)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(roundrect_rratio 0.125)
+		(uuid "65ec9416-5841-4e22-9b5f-4c34278f56d3")
+	)
+	(embedded_fonts no)
+)

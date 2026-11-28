@@ -16,13 +16,19 @@ Connectivity scheme
   (computed automatically: any non-global net used in >1 sheet)
 * Sheet-local nets -> local labels
 * Unused pins -> explicit (no_connect) markers  (NC_PINS)
+* Pins whose electrical type is no_connect (e.g. the module's NC pads, USB-C
+  SBU) need nothing and are left alone
+* Stacked pins (several pin numbers at one point, e.g. the module's GND pads
+  or the USB-C B-row mirror pins) are joined by that point: one stub + label
 
 The script is idempotent: it first strips every top-level wire / label /
 no_connect / junction element (and the decorative #PWR power symbols) from the
 four sub-sheets, and rebuilds the sheet-pin lists on welld.kicad_sch, then
 regenerates everything from the table.
 
-Run:  python3 hardware/pcb/kicad_wire_script.py
+Run:  python3 hardware/pcb/kicad_wire_script.py [sheet ...]
+      (naming sheets regenerates only those, plus the top-sheet pins, so the
+      other sheets keep their element UUIDs and the git diff stays small)
 Then: python3 hardware/pcb/netlist_check.py   (verifies files vs the table)
 """
 
@@ -50,7 +56,7 @@ NETS = {
     "power": {
         "GND": [
             "U1.1", "U7.2", "U8.2", "U12.3", "U12.9",
-            "RT1.2", "R_PROG.2", "R_COM.2", "RT_SOLAR.2", "R_NT3.2", "U14.4", "U14.5", "C_NTC.2", "Q7.S",
+            "RT1.2", "R_PROG.2", "R_COM.2", "RT_SOLAR.2", "R_NT3.2", "U14.4", "U14.5", "C_NTC.2", "Q7.2",
             "D_SOLAR.2",           # catch Schottky anode
             "R24.2", "R21.2", "R27.2", "R31.2",
             "R50.2", "R51.2",
@@ -58,15 +64,16 @@ NETS = {
             "C17.2", "C21.2", "C18.2", "C19.2", "C20.2", "C22.2",
             "C27.2", "C28.2", "C29.2",
             "D11.2", "D13.2", "D14.2", "D8.2",
-            "Q4.S", "Q6.6", "Q6.7", "R_CS_DW.2", "J12.2", "J13.A1", "U11.2",
+            "Q4.2", "Q6.6", "Q6.7", "R_CS_DW.2", "J12.2", "J13.A1", "U11.2",
+            "J13.A12", "J13.B1", "J13.B12", "J13.SH",   # USB-C GND + shell (stacked hidden pins)
         ],
         "+3V3": [
-            "U1.2",                # HT7333-A VOUT
+            "U1.3",                # HT7333-A VOUT (SOT-89: 1=GND 2=VIN 3=VOUT)
             "C_BUCK.1", "C11.1", "C12.1",
             "R25.1", "R38.1", "R22.1",
         ],
         "VBAT": [
-            "U1.3", "C9.1", "C10.1", "C16.1",
+            "U1.2", "C9.1", "C10.1", "C16.1",
             "U7.7", "R19.2", "C18.1",
             "U8.5", "C19.1",
             "Q3.2", "Q5.2", "R29.1", "R16.1",
@@ -84,8 +91,8 @@ NETS = {
         "D5_GATE": ["D5.1", "R31.1"],
         # --- MT3608B boost + Q3/Q4 disconnect ---
         "VLOOP_L": ["Q3.3", "L1.1"],
-        "Q3_GATE": ["Q3.1", "R29.2", "Q4.D"],
-        "VBOOST_EN": ["U8.4", "Q4.G", "R27.1"],
+        "Q3_GATE": ["Q3.1", "R29.2", "Q4.3"],
+        "VBOOST_EN": ["U8.4", "Q4.1", "R27.1"],
         "VLOOP_SW": ["U8.1", "L1.2", "D15.2", "C_BST.2"],
         "MT_BST": ["U8.6", "C_BST.1"],   # pin 6 possibly NC — see report
         "MT_FB": ["U8.3", "R23.2", "R24.1"],
@@ -97,11 +104,11 @@ NETS = {
             "C_VG.2", "M_SOLAR.2", "R_DRV.1",
             "R_NT1.1", "R_NT2.1", "R_PU.1", "U14.8", "C_NTC.1",
         ],
-        "MPPT_REF": ["R20.2", "R21.1", "U7.6", "Q7.D"],
+        "MPPT_REF": ["R20.2", "R21.1", "U7.6", "Q7.3"],
         # --- solar cold-charge cutoff (LM393, solar-powered, zero night draw) ---
         "NTC_T": ["R_NT1.2", "RT_SOLAR.1", "U14.3", "R_HYS.2"],
         "NTC_REF": ["R_NT2.2", "R_NT3.1", "U14.2", "U14.6"],
-        "NTC_OUT": ["U14.1", "R_PU.2", "R_HYS.1", "Q7.G"],
+        "NTC_OUT": ["U14.1", "R_PU.2", "R_HYS.1", "Q7.1"],
         "CN_VG": ["U7.1", "C_VG.1"],
         "CN_DRV": ["U7.10", "M_SOLAR.1", "R_DRV.2"],
         "SOLAR_SW": ["M_SOLAR.3", "D16.2"],
@@ -112,9 +119,9 @@ NETS = {
         "/CHRG_SOLAR": ["U7.3", "R25.2", "D7.1"],
         "D7_A": ["D7.2", "R22.2"],
         # --- USB input + TP4056 linear charger ---
-        "VUSB_IN": ["J13.A4", "U11.5", "F2.1"],
-        "USB_DP": ["J13.A6", "U11.3", "U11.4"],   # device side (U11.4) crosses to ESP32 on the mcu sheet
-        "USB_DM": ["J13.A7", "U11.1", "U11.6"],   # device side (U11.6) crosses to ESP32 on the mcu sheet
+        "VUSB_IN": ["J13.A4", "J13.A9", "J13.B4", "J13.B9", "U11.5", "F2.1"],
+        "USB_DP": ["J13.A6", "J13.B6", "U11.3", "U11.4"],   # device side (U11.4) crosses to ESP32 on the mcu sheet
+        "USB_DM": ["J13.A7", "J13.B7", "U11.1", "U11.6"],   # device side (U11.6) crosses to ESP32 on the mcu sheet
         "CC1": ["J13.A5", "R50.1"],
         "CC2": ["J13.B5", "R51.1"],
         "VUSB": ["F2.2", "C27.1", "C28.1", "U12.4",
@@ -130,37 +137,38 @@ NETS = {
     # =====================================================================
     "mcu": {
         "GND": [
-            "U6.1", "U6.40",
+            # module GND pads (official symbol: 1 visible + stacked hidden pins, 49 = EPAD)
+            "U6.1", "U6.2", "U6.11", "U6.14", "U6.36", "U6.37", "U6.38", "U6.39", "U6.40", "U6.41", "U6.42", "U6.43", "U6.44", "U6.45", "U6.46", "U6.47", "U6.48", "U6.49", "U6.50", "U6.51", "U6.52", "U6.53",
             "C13.2", "C30.2", "C31.2", "C32.2", "C33.2", "C15.2",
             "C36.2", "SW1.2", "SW2.2",
         ],
         "+3V3": [
-            "U6.2", "U6.3",
+            "U6.3",
             "C13.1", "C30.1", "C31.1", "C32.1", "C33.1", "C15.1",
             "R12.1", "R13.1", "R15.1",
         ],
-        "EN": ["U6.5", "R15.2", "C36.1", "SW1.1"],
-        "BOOT": ["U6.14", "R12.2", "SW2.1"],
-        "GPIO8": ["U6.13", "R13.2"],
-        "GPIO0": ["U6.15"],
-        "GPIO1": ["U6.16"],
-        "GPIO2": ["U6.17"],
-        "GPIO3": ["U6.18"],
-        "GPIO20": ["U6.33"],
-        "GPIO21": ["U6.34"],
-        "VBOOST_EN": ["U6.20"],
-        "/CHRG_SOLAR": ["U6.21"],
-        "1WIRE": ["U6.22"],
-        "I2C_SDA": ["U6.26"],   # GPIO18 (moved off GPIO10 — not bonded on MINI-1)
-        "I2C_SCL": ["U6.27"],   # GPIO19 (moved off GPIO11 — not bonded on MINI-1)
-        "ADS_DRDY": ["U6.35"],   # GPIO22 (moved off GPIO12, now USB D−)
-        "USB_DM": ["U6.25"],    # GPIO12 = native USB D− ← U11.6 (power sheet)
-        "USB_DP": ["U6.28"],    # GPIO13 = native USB D+ ← U11.4 (power sheet)
-        "BATT_DIV_EN": ["U6.30"],
+        "EN": ["U6.8", "R15.2", "C36.1", "SW1.1"],
+        "BOOT": ["U6.23", "R12.2", "SW2.1"],
+        "GPIO8": ["U6.22", "R13.2"],
+        "GPIO0": ["U6.12"],
+        "GPIO1": ["U6.13"],
+        "GPIO2": ["U6.5"],
+        "GPIO3": ["U6.6"],
+        "GPIO20": ["U6.26"],
+        "GPIO21": ["U6.27"],
+        "VBOOST_EN": ["U6.10"],
+        "/CHRG_SOLAR": ["U6.15"],
+        "1WIRE": ["U6.16"],
+        "I2C_SDA": ["U6.24"],   # GPIO18 (GPIO10/11 are not bonded out on the MINI-1)
+        "I2C_SCL": ["U6.25"],   # GPIO19
+        "ADS_DRDY": ["U6.28"],   # GPIO22
+        "USB_DM": ["U6.17"],    # GPIO12 = native USB D− ← U11.6 (power sheet)
+        "USB_DP": ["U6.18"],    # GPIO13 = native USB D+ ← U11.4 (power sheet)
+        "BATT_DIV_EN": ["U6.20"],
         "UART_TX": ["U6.31"],
-        "UART_RX": ["U6.32"],
-        "FACTORY_RESET": ["U6.36", "TP13.1"],   # GPIO23 (moved off GPIO13, now USB D+)
-        "GPIO14_LED": ["U6.29", "R14.1"],
+        "UART_RX": ["U6.30"],
+        "FACTORY_RESET": ["U6.29", "TP13.1"],   # GPIO23
+        "GPIO14_LED": ["U6.19", "R14.1"],
         "LED_A": ["R14.2", "D4.2"],
         "LED_K": ["D4.1"],
     },
@@ -174,7 +182,7 @@ NETS = {
             "D1.1", "D12.1",
             "D9.2", "D10.2",
             "R2.2", "R4.2", "R8.2", "R26.2",
-            "Q2.S", "J4.3", "J5.3", "J6.3", "J7.3",
+            "Q2.2", "J4.3", "J5.3", "J6.3", "J7.3",
             "GDT1.2", "GDT2.2",   # GDT coarse surge stage returns (DNF)
             "R53.2", "R55.2", "D18.2", "D20.2",   # loop limiters (design change #21)
         ],
@@ -213,8 +221,8 @@ NETS = {
         # battery divider (high-side switch Q5/R16 on power sheet)
         "VBAT_SW": ["R7.1"],
         "ADC_CH2": ["U9.6", "R7.2", "R8.1", "C8.1"],
-        "Q5_GATE": ["Q2.D"],
-        "BATT_DIV_EN": ["Q2.G", "R26.1"],
+        "Q5_GATE": ["Q2.3"],
+        "BATT_DIV_EN": ["Q2.1", "R26.1"],
         # DS18B20
         "J6_VCC": ["J6.1", "R28.2", "C7.1"],
         "1WIRE_TERM": ["J6.2", "D12.2", "R6.2", "R32.1"],
@@ -265,9 +273,7 @@ NC_PINS = {
         "U14.7",   # LM393 OUT2 — second comparator unused (inputs tied to NTC_REF/GND)
     ],
     "mcu": [
-        "U6.19",   # GPIO4 — spare (TP4056 CE strapped high in hardware, no charger GPIO)
-        "U6.23",   # GPIO10 — NOT bonded out on ESP32-C6-MINI-1 (phantom pin in the custom symbol; vanishes at the official-symbol swap)
-        "U6.24",   # GPIO11 — NOT bonded out on ESP32-C6-MINI-1 (ditto)
+        "U6.9",    # GPIO4 — spare (TP4056 CE strapped high in hardware, no charger GPIO)
     ],
     "sensors": [
         "U9.7",    # ADS1115 AIN3 unused
@@ -807,10 +813,13 @@ def cross_sheet_nets():
     return {n: s for n, s in seen.items() if len(s) > 1 and n not in GLOBAL_NETS}
 
 
-def generate():
+def generate(only=None):
+    """Regenerate stubs/labels on every sheet (or only the sheets named in `only`)."""
     hier = cross_sheet_nets()
     report = {}
     for name in SHEETS:
+        if only and name not in only:
+            continue
         sh = Sheet(name)
         sh.resolve_pins()
 
@@ -825,7 +834,10 @@ def generate():
         overlap = table_pins & nc
         if overlap:
             raise SystemExit(f"{name}: pins both wired and NC: {overlap}")
-        missing = set(sh.pins) - table_pins - nc
+        nc_type = {p for p, i in sh.pins.items() if i["etype"] == "no_connect"}
+        if table_pins & nc_type:
+            raise SystemExit(f"{name}: no_connect-type pins in the table: {sorted(table_pins & nc_type)}")
+        missing = set(sh.pins) - table_pins - nc - nc_type
         unknown = (table_pins | nc) - set(sh.pins)
         if missing:
             raise SystemExit(f"{name}: pins with no net assignment: {sorted(missing)}")
@@ -841,14 +853,18 @@ def generate():
         for p in nc:
             pin_net[p] = f"__NC_{p}"
         for p, info in sh.pins.items():
-            isl.add_point(pin_net[p], (info["x"], info["y"]))
+            isl.add_point(pin_net.get(p, f"__NCTYPE_{p}"), (info["x"], info["y"]))
 
         els = []
         counts = dict(wire=0, label=0, glabel=0, hlabel=0, nc=0)
+        done = set()  # (net, x, y): stacked pins share one stub + label
         for net, plist in sorted(NETS[name].items()):
             for p in plist:
                 info = sh.pins[p]
                 x, y, d = info["x"], info["y"], info["dir"]
+                if (net, round(x, 3), round(y, 3)) in done:
+                    continue
+                done.add((net, round(x, 3), round(y, 3)))
                 ln = STUB
                 ex, ey = x + d[0] * ln, y + d[1] * ln
                 while ln > 0 and not isl.ok(net, (x, y), (ex, ey)):
@@ -986,7 +1002,11 @@ def rebuild_top(hier):
 
 
 if __name__ == "__main__":
-    report, hier = generate()
+    import sys
+    bad = [a for a in sys.argv[1:] if a not in SHEETS]
+    if bad:
+        raise SystemExit(f"unknown sheet(s) {bad}; choose from {SHEETS}")
+    report, hier = generate(set(sys.argv[1:]) or None)
     print("cross-sheet (hierarchical) nets:")
     for n, s in sorted(hier.items()):
         print(f"  {n:16s} {sorted(s)}")

@@ -101,6 +101,7 @@ def main():
     pin_nodes = {}     # (sheet, "REF.PIN") -> node key
     nc_markers = {}    # sheet -> set of points
     labels_all = []    # (sheet, kind, name, node)
+    nct_nodes = {}     # no_connect-type pins: must stay unconnected
 
     for name in SHEETS:
         sh = Sheet(name)
@@ -125,6 +126,9 @@ def main():
         # coincident points connect implicitly via identical keys
 
         for pid, info in sh.pins.items():
+            if info["etype"] == "no_connect":   # NC-type pins need no marker; checked below
+                nct_nodes[(name, pid)] = key(name, (info["x"], info["y"]))
+                continue
             pin_nodes[(name, pid)] = key(name, (info["x"], info["y"]))
         nc_markers[name] = {key(name, p) for p in ncs}
 
@@ -253,11 +257,18 @@ def main():
         if len(members) > 1:
             problems.append(f"NC pin {sp} is electrically connected to {members}")
 
+    # no_connect-type pins must not touch anything (no pin, label or marker)
+    for sp, node in sorted(nct_nodes.items()):
+        root = uf.find(node)
+        if root in extracted or root in root_names or node in nc_markers[sp[0]]:
+            problems.append(f"no_connect-type pin {sp} is connected or marked")
+
     total_pins = len(pin_nodes)
     print(f"pins checked      : {total_pins}")
     print(f"intended nets     : {len(intended)}")
     print(f"extracted nets ok : {matched}")
     print(f"no-connect pins   : {len(nc_set)}")
+    print(f"NC-type pins      : {len(nct_nodes)} (no marker needed)")
     if problems:
         print(f"\nMISMATCHES ({len(problems)}):")
         for p in problems:

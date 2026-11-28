@@ -50,7 +50,7 @@ place("Q6",   14,  44, 0)       # FS8205A dual FET (cell− → GND path, wide c
 place("R_DW1", 6,  44, 0)       # DW01A VCC filter R
 place("C_DW",  8,  46, 0)       # DW01A VCC filter C (to BATT_N)
 place("R_CS_DW", 12, 46, 0)     # DW01A CS resistor (to system GND)
-place("D13",  14,  48, 0)       # SMAJ10CA battery TVS
+place("D13",  14,  48, 0)       # SMAJ5.0A battery TVS
 place("D5",   19,  48, 0)       # AO3407 P-MOS load switch
 place("R31",  23,  48, 0)       # D5 gate pull-down (holds switch ON)
 
@@ -108,7 +108,7 @@ place("R27",  12,  26, 0)       # VBOOST_EN pull-down 100k
 place("D15",  17,  18, 0)       # SS34 boost rectifier SW→VLOOP
 place("C20",  14,  16, 0)       # VOUT decoupling
 place("C22",  18,  16, 0)       # VOUT parallel cap
-place("D11",  16,  13, 0)       # SMAJ13A VLOOP TVS (near C20/C22, J4/J5 side)
+place("D11",  16,  13, 0)       # SMAJ18A VLOOP TVS (near C20/C22; meets the D17/D19 surge path)
 place("C_BST", 20, 16, 0)      # 100nF BST→SW bootstrap cap
 place("C19",  26,  22, 0)       # VIN bypass
 place("R23",  24,  16, 0)       # VLOOP FB divider 1.91M
@@ -130,7 +130,7 @@ place("D6",   12,  28, 0)       # Schottky backfeed block
 place("D8",   16,  28, 0)       # Second TVS at CN3791 VIN
 
 # ── Group F — ESP32-C6 module (centre) ───────────────────────────────────
-place("U6",   50,  28, 0)       # ESP32-C6-MINI-1U; keep antenna (top end) clear
+place("U6",   50,  28, 0)       # ESP32-C6-MINI-1U (U.FL port, no on-board antenna)
 place("C13",  44,  28, 0)       # 100nF decoupling × 5 (around VCC pads)
 place("C30",  44,  32, 0)
 place("C31",  44,  36, 0)
@@ -206,13 +206,41 @@ place("TP8",  58,  36, 0)       # SDA
 place("TP9",  60,  36, 0)       # SCL
 place("TP10",  6,  28, 0)       # Solar input
 place("TP11",  6,  50, 0)       # BAT+
-place("TP12", 68,  42, 0)       # GPIO12 / DRDY
-place("TP13", 76,  52, 0)       # GPIO13 / FACTORY_RESET (keep reachable)
+place("TP12", 68,  42, 0)       # GPIO22 / ADS_DRDY
+place("TP13", 76,  52, 0)       # GPIO23 / FACTORY_RESET (keep reachable with the lid off)
 place("TP14", 44,  12, 0)       # /CHRG_SOLAR
 place("TP15", 74,  22, 0)       # /CHRG_USB
 
-# SMA needs to be on an edge — script places near left edge
-# W1 pigtail: hand-attach after reflow (PCBWay manual install)
+# ── Parts added after the first placement pass (2026-11-28) ─────────────
+# Loop current limiters (design change #21) — move D18/D20 to within 3 mm of
+# the J4/J5 LOOP+ pins and give Q8/Q10 >= 1 cm2 of collector copper
+place("R52",  30,  31, 0)       # CH1 22R sense
+place("Q9",   33,  31, 0)       # CH1 MMBT3906 clamp
+place("Q8",   36,  33, 0)       # CH1 BCP53-16 pass (SOT-223)
+place("R53",  40,  33, 0)       # CH1 15k base drive
+place("D17",  30,  35, 0)       # CH1 SS34 surge steering -> VLOOP
+place("D18",   7,  34, 0)       # CH1 SMAJ18A LOOP+ clamp (at J4)
+place("R54",  30,  46, 0)       # CH2 22R sense
+place("Q11",  33,  46, 0)       # CH2 MMBT3906 clamp
+place("Q10",  36,  48, 0)       # CH2 BCP53-16 pass (SOT-223)
+place("R55",  40,  48, 0)       # CH2 15k base drive
+place("D19",  30,  50, 0)       # CH2 SS34 surge steering -> VLOOP_CH2
+place("D20",   7,  46, 0)       # CH2 SMAJ18A LOOP+ clamp (at J5)
+place("GDT1",  9,  31, 0)       # DNF GDT at J4 SIG
+place("GDT2",  9,  41, 0)       # DNF GDT at J5 SIG
+place("C7",    8,  52, 0)       # J6 VCC bypass
+place("R9",   64,  36, 0)       # I2C SDA pull-up
+place("R10",  66,  36, 0)       # I2C SCL pull-up
+place("R12",  40,  20, 0)       # GPIO9/BOOT pull-up
+place("R13",  42,  20, 0)       # GPIO8 strap pull-up
+place("J9",   78,  30, 90)      # DNF GPIO header
+place("SJ1",  24,  26, 0)       # MT3608B EN tie (open)
+place("SJ2",  12,  13, 0)       # VLOOP -> VLOOP_CH2 (bridged) — next to D19/D11
+place("SJ3",  78,   6, 0)       # status-LED disconnect (bridged)
+place("SJ4",  68,  52, 0)       # UART_TX to J10 (bridged)
+place("SJ5",  70,  52, 0)       # UART_RX to J10 (bridged)
+
+# J3 (SMA) must sit on a board edge — see the open RF decision in README.md
 
 print("\n=== Placement complete ===")
 print("Next steps:")

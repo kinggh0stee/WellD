@@ -1,9 +1,4 @@
 (sym_lib_table
 	(version 7)
-	(lib (name "welld") (type "KiCad") (uri "${KIPRJMOD}/welld.kicad_sym") (options "") (descr "WellD custom symbols"))
-	(lib (name "Device") (type "KiCad") (uri "/usr/share/kicad/symbols/Device.kicad_sym") (options "") (descr "Generic devices"))
-	(lib (name "Connector") (type "KiCad") (uri "/usr/share/kicad/symbols/Connector.kicad_sym") (options "") (descr "Connectors"))
-	(lib (name "Switch") (type "KiCad") (uri "/usr/share/kicad/symbols/Switch.kicad_sym") (options "") (descr "Switches"))
-	(lib (name "Jumper") (type "KiCad") (uri "/usr/share/kicad/symbols/Jumper.kicad_sym") (options "") (descr "Jumpers"))
-	(lib (name "power") (type "KiCad") (uri "/usr/share/kicad/symbols/power.kicad_sym") (options "") (descr "Power symbols"))
+	(lib (name "welld") (type "KiCad") (uri "${KIPRJMOD}/welld.kicad_sym") (options "") (descr "WellD project symbols (custom parts + the Espressif ESP32-C6-MINI-1/U copy)"))
 )
